@@ -53,7 +53,7 @@ test('replaces the active season fixtures from every week', function (): void {
 
     expect($fixture->fantasy_id)->toBe(11)
         ->and($fixture->state)->toBe(FixtureState::Finished)
-        ->and($fixture->date)->toEqual(CarbonImmutable::parse('2026-08-22T17:30:00+00:00'))
+        ->and($fixture->date)->toEqual(CarbonImmutable::parse('2026-08-22T19:30:00+02:00')->setTimezone('Europe/Madrid'))
         ->and($fixture->local_score)->toBe(2)
         ->and($fixture->guest_score)->toBe(1);
 });

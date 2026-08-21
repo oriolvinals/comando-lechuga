@@ -53,7 +53,8 @@ class SyncCurrentSeasonFixtures extends Command
                     'fantasy_id' => (int)$fixtureData['id'],
                     'season_id' => $season->id,
                     'week_number' => $weekNumber,
-                    'date' => CarbonImmutable::parse($fixtureData['matchDate'])->utc(),
+                    'date' => CarbonImmutable::parse($fixtureData['matchDate'])
+                        ->setTimezone((string) config('app.timezone')),
                     'team_local_id' => $localTeam->id,
                     'team_guest_id' => $guestTeam->id,
                     'local_score' => $fixtureData['localScore'] === null ? null : (int)$fixtureData['localScore'],
