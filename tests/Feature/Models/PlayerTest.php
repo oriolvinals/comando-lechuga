@@ -9,11 +9,13 @@ test('casts its position and status enums', function () {
     $player = Player::factory()->create([
         'position' => PlayerPosition::Midfielder,
         'status' => PlayerStatus::Doubtful,
+        'image' => 'images/player/1.png',
         'team_id' => Team::factory(),
     ]);
 
     expect($player->position)->toBe(PlayerPosition::Midfielder)
-        ->and($player->status)->toBe(PlayerStatus::Doubtful);
+        ->and($player->status)->toBe(PlayerStatus::Doubtful)
+        ->and($player->toArray()['image'])->toBe(asset('storage/images/player/1.png'));
 });
 
 test('maps Liga Fantasy position IDs to player positions', function (int $positionId, PlayerPosition $position): void {

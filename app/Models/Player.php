@@ -40,6 +40,18 @@ class Player extends Model
         return $this->belongsTo(Team::class);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+
+        $data['image'] = $this->image ? asset('storage/'.$this->image) : '';
+
+        return $data;
+    }
+
     /** @var array<string, mixed> */
     protected $attributes = [
         'nickname' => '',
