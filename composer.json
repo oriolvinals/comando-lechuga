@@ -49,30 +49,20 @@
             "npm install",
             "npm run build"
         ],
-        "dev": [
-            "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" --names='server,queue,vite'"
-        ],
-        "lint": [
+        "format": [
             "pint --parallel"
         ],
-        "lint:check": [
-            "pint --parallel --test"
-        ],
-        "ci:check": [
+        "analyze": [
             "Composer\\Config::disableProcessTimeout",
-            "npm run lint:check",
-            "npm run format:check",
-            "npm run types:check",
-            "@test"
+            "phpstan analyse --memory-limit=2G",
+            "npm run lint",
+            "npm run types:check"
         ],
-        "types:check": [
-            "phpstan analyse"
+        "phpstan": [
+            "phpstan analyse --memory-limit=2G"
         ],
         "test": [
             "@php artisan config:clear --ansi",
-            "@lint:check",
-            "@types:check",
             "@php artisan test"
         ],
         "post-autoload-dump": [
@@ -93,6 +83,10 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "reset": [
+            "@php artisan db:wipe",
+            "@php artisan migrate --seed"
         ]
     },
     "extra": {
