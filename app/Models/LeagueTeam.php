@@ -16,6 +16,12 @@ class LeagueTeam extends Model
     /** @use HasFactory<LeagueTeamFactory> */
     use HasFactory;
 
+    /** @var array<string, mixed> */
+    protected $attributes = [
+        'name' => '',
+        'logo' => '',
+    ];
+
     public function league(): BelongsTo
     {
         return $this->belongsTo(League::class);

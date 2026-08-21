@@ -13,6 +13,14 @@ Before relying on a package's API, confirm its installed version:
 - PHP packages: run `composer show --direct` to list direct dependencies with versions, or `composer show <vendor/package>` for a single package.
 - JS packages: check `package.json` for the installed versions.
 
+## Product Context
+
+Comando Lechuga is a web application for viewing Liga Fantasy data. Its purpose is to present, in real time, the league standings, each team's squad, the transfer market, all players, and matches.
+
+- The application may support multiple leagues, but exactly one league must be active at a time. Its data model and features must allow users to switch the active league in the future.
+- Liga Fantasy data will be retrieved from a third-party API in a future phase. Do not implement that integration or fabricate source data unless explicitly requested.
+- This project's role is to retrieve that data when the integration exists and present it clearly to users.
+
 ## Skills Activation
 
 This project has domain-specific skills available in `**/skills/**`. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
