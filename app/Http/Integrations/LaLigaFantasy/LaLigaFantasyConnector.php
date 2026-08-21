@@ -13,6 +13,7 @@ use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerMarketValueRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayersRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamInfoRequest;
+use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamLineupRequest;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
@@ -132,6 +133,23 @@ class LaLigaFantasyConnector extends Connector
 
     /**
      * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function getTeamLineup(int $seasonTeamFantasyId, int $weekNumber): Response
+    {
+        if ($this->accessToken === null || $this->accessToken === '') {
+            throw new LogicException('An access token is required to request a team lineup.');
+        }
+
+        return $this->send(new GetTeamLineupRequest(
+            seasonTeamFantasyId: $seasonTeamFantasyId,
+            weekNumber: $weekNumber,
+            accessToken: $this->accessToken,
+        ));
+    }
+
+    /**
+     * @throws FatalRequestException
      * @throws JsonException
      * @throws RequestException
      */
@@ -186,6 +204,36 @@ class LaLigaFantasyConnector extends Connector
         $this->cacheAccessToken($accessToken);
 
         return $this->withAccessToken($accessToken)->getLeagueStanding($leagueFantasyId)->throw();
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws JsonException
+     * @throws RequestException
+     */
+    public function getTeamLineupWithLogin(
+        LaLigaLoginConnector $loginConnector,
+        int $seasonTeamFantasyId,
+        int $weekNumber,
+    ): Response {
+        $accessToken = $this->cachedAccessToken();
+
+        if (is_string($accessToken) && $accessToken !== '') {
+            try {
+                return $this->withAccessToken($accessToken)->getTeamLineup($seasonTeamFantasyId, $weekNumber)->throw();
+            } catch (RequestException $exception) {
+                if ($exception->getStatus() !== 403) {
+                    throw $exception;
+                }
+
+                Cache::forget(self::AccessTokenCacheKey);
+            }
+        }
+
+        $accessToken = $loginConnector->accessToken();
+        $this->cacheAccessToken($accessToken);
+
+        return $this->withAccessToken($accessToken)->getTeamLineup($seasonTeamFantasyId, $weekNumber)->throw();
     }
 
     public function withAccessToken(string $accessToken): static

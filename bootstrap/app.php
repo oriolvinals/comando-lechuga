@@ -34,11 +34,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $schedule->command('season:sync-players')
             ->everyFiveMinutes()
+            ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();
 
         $schedule->command('season:sync-player-markets')
             ->everyTenMinutes()
+            ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();
 
@@ -48,9 +50,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
+        $schedule->command('season:sync-team-lineups')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->command('season:sync-market')
             ->everyFifteenSeconds()
-            ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();
 
