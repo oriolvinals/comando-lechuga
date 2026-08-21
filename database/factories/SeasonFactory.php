@@ -17,7 +17,9 @@ class SeasonFactory extends Factory
         return [
             'fantasy_id' => $this->faker->unique()->numerify('#########'),
             'name' => $this->faker->unique()->name(),
-            'current' => false,
+            'start_date' => now()->subYear()->toDateString(),
+            'end_date' => now()->subDay()->toDateString(),
+            'total_fixtures' => 38,
         ];
     }
 }

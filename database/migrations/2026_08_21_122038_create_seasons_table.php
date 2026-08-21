@@ -15,14 +15,18 @@ return new class extends Migration
             $table->id();
             $table->string('fantasy_id')->nullable(false)->default('');
             $table->string('name')->nullable(false)->default('');
-            $table->boolean('current')->nullable(false)->default(false);
+            $table->date('start_date')->nullable(false);
+            $table->date('end_date')->nullable(false);
+            $table->unsignedSmallInteger('total_fixtures')->nullable(false)->default(0);
         });
 
         if (app()->environment('production')) {
             DB::table('seasons')->insert([
                 'fantasy_id' => '017834818',
                 'name' => '2026/27',
-                'current' => true,
+                'start_date' => '2026-06-29',
+                'end_date' => '2027-08-10',
+                'total_fixtures' => 38,
             ]);
         }
     }

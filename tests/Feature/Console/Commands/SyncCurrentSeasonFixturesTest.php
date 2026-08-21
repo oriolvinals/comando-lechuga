@@ -12,7 +12,10 @@ use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
 test('replaces the active season fixtures from every week', function (): void {
-    $season = Season::factory()->create(['current' => true]);
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
     $localTeam = Team::factory()->create(['fantasy_id' => 18]);
     $guestTeam = Team::factory()->create(['fantasy_id' => 6]);
     $season->teams()->attach([$localTeam->id, $guestTeam->id]);

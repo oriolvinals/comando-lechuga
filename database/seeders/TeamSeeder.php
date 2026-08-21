@@ -9,16 +9,11 @@ use Illuminate\Database\Seeder;
 
 class TeamSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $activeSeason = Season::query()
-            ->where('current', true)
-            ->sole();
+        $season = Season::current();
 
-        $activeSeason
+        $season
             ->teams()
             ->createMany([
                 ['main_name' => 'Atlético de Madrid', 'name' => 'Club Atlético de Madrid SAD', 'slug' => 'atletico-de-madrid', 'short_name' => 'ATM', 'logo' => '', 'fantasy_id' => 2],

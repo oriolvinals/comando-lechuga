@@ -31,9 +31,7 @@ class SyncSeasonMarket extends Command
         LaLigaLoginConnector $loginConnector,
         LaLigaFantasyConnector $fantasyConnector,
     ): int {
-        $season = Season::query()
-            ->where('current', true)
-            ->sole();
+        $season = Season::current();
 
         $market = $fantasyConnector
             ->getLeagueMarketWithLogin($loginConnector, $season->fantasy_id)

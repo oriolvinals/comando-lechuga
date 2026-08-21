@@ -32,9 +32,7 @@ class SyncCurrentSeasonPlayers extends Command
      */
     public function handle(LaLigaFantasyConnector $connector): int
     {
-        $season = Season::query()
-            ->where('current', true)
-            ->sole();
+        $season = Season::current();
         $teams = $season->teams()->get()->keyBy('fantasy_id');
         $players = [];
 

@@ -13,7 +13,10 @@ use Saloon\Http\Faking\MockResponse;
 test('creates and updates the active season teams', function (): void {
     Storage::fake('public');
 
-    $season = Season::factory()->create(['current' => true]);
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
     $existingTeam = Team::factory()->create([
         'fantasy_id' => 2,
         'main_name' => 'Old name',

@@ -16,7 +16,8 @@ test('syncs league market players and removes expired listings', function () {
 
     Season::factory()->create([
         'fantasy_id' => '017834818',
-        'current' => true,
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
     ]);
     $player = Player::factory()->create(['fantasy_id' => 3105]);
     MarketPlayer::factory()->create([

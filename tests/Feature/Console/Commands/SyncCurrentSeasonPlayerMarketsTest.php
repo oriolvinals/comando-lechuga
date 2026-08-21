@@ -11,7 +11,10 @@ use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
 test('updates player market history and caches the latest difference', function () {
-    $season = Season::factory()->create(['current' => true]);
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
     $team = Team::factory()->create();
     $season->teams()->attach($team);
     $player = Player::factory()->create([

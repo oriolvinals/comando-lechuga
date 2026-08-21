@@ -29,9 +29,7 @@ class SyncCurrentSeasonTeams extends Command
      */
     public function handle(LaLigaFantasyConnector $connector): int
     {
-        $season = Season::query()
-            ->where('current', true)
-            ->sole();
+        $season = Season::current();
 
         $teams = [];
 

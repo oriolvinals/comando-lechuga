@@ -28,9 +28,7 @@ class SyncCurrentSeasonPlayerMarkets extends Command
      */
     public function handle(LaLigaFantasyConnector $connector): int
     {
-        $season = Season::query()
-            ->where('current', true)
-            ->sole();
+        $season = Season::current();
         $players = Player::query()
             ->whereIn('team_id', $season->teams()->select('teams.id'))
             ->get();

@@ -15,7 +15,8 @@ class SeasonSeeder extends Seeder
             ->create([
                 'fantasy_id' => '017834818',
                 'name' => '2026/27',
-                'current' => true,
+                'start_date' => '2026-06-29',
+                'end_date' => '2027-08-10',
             ]);
     }
 }
