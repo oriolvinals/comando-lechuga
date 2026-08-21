@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('season_teams', function (Blueprint $table): void {
             $table->id();
             $table->unsignedInteger('fantasy_id')->nullable(false);
+            $table->unsignedInteger('fantasy_user_id')->nullable(false);
             $table->string('name')->nullable(false)->default('');
             $table->string('logo')->nullable(false)->default('');
             $table->unsignedInteger('total_points')->nullable(false)->default(0);

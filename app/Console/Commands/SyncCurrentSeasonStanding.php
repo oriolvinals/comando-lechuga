@@ -51,6 +51,7 @@ class SyncCurrentSeasonStanding extends Command
                     ],
                     [
                         'name' => (string) $managerData['managerName'],
+                        'fantasy_user_id' => (int) $managerData['id'],
                         'total_points' => (int) $standingData['points'],
                         'live_points' => (int) $standingData['livePoints'],
                         'position' => (int) $standingData['position'],

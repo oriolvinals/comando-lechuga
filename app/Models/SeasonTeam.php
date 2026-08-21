@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Table(name: 'season_teams', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fantasy_id', 'name', 'logo', 'total_points', 'live_points', 'position', 'last_position', 'value', 'season_id'])]
+#[Fillable(['fantasy_id', 'fantasy_user_id', 'name', 'logo', 'total_points', 'live_points', 'position', 'last_position', 'value', 'season_id'])]
 class SeasonTeam extends Model
 {
     /** @use HasFactory<SeasonTeamFactory> */
@@ -50,6 +50,7 @@ class SeasonTeam extends Model
         return [
             'id' => 'int',
             'fantasy_id' => 'int',
+            'fantasy_user_id' => 'int',
             'name' => 'string',
             'logo' => 'string',
             'total_points' => 'int',

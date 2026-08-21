@@ -17,6 +17,7 @@ class SeasonTeamFactory extends Factory
     {
         return [
             'fantasy_id' => $this->faker->unique()->numberBetween(1, 99999999),
+            'fantasy_user_id' => $this->faker->unique()->numberBetween(1, 99999999),
             'name' => $this->faker->unique()->city().' FC',
             'logo' => $this->faker->imageUrl(),
             'total_points' => $this->faker->numberBetween(0, 1000),

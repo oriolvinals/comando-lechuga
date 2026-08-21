@@ -7,7 +7,6 @@ use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueStandingRequest;
 use App\Models\Season;
 use App\Models\SeasonTeam;
 use Illuminate\Support\Facades\Cache;
-use Mockery;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
@@ -22,6 +21,7 @@ test('creates or updates season teams from the private standing', function () {
     $seasonTeam = SeasonTeam::factory()->create([
         'season_id' => $season->id,
         'fantasy_id' => 37394521,
+        'fantasy_user_id' => 6392099,
         'name' => 'Old name',
         'logo' => 'images/season-team.png',
     ]);
@@ -40,6 +40,7 @@ test('creates or updates season teams from the private standing', function () {
                     'id' => '37394521',
                     'teamValue' => 246474249,
                     'manager' => [
+                        'id' => 6392099,
                         'managerName' => 'Gauchitos F.C',
                         'avatar' => 'https://example.com/avatar.png',
                     ],
@@ -58,6 +59,7 @@ test('creates or updates season teams from the private standing', function () {
     $seasonTeam->refresh();
 
     expect($seasonTeam->name)->toBe('Gauchitos F.C')
+        ->and($seasonTeam->fantasy_user_id)->toBe(6392099)
         ->and($seasonTeam->total_points)->toBe(64)
         ->and($seasonTeam->live_points)->toBe(30)
         ->and($seasonTeam->position)->toBe(1)
