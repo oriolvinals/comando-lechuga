@@ -3,7 +3,7 @@
 use App\Http\Integrations\LaLigaFantasy\Requests\GetCurrentWeekRequest;
 use Saloon\Enums\Method;
 
-test('uses the current week endpoint', function () {
+test('uses the current week endpoint', function (): void {
     $request = new GetCurrentWeekRequest;
 
     expect($request->getMethod())

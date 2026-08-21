@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Integrations\LaLigaFantasy\Requests;
 
 use InvalidArgumentException;
@@ -11,9 +13,9 @@ class GetTeamLineupRequest extends Request
     protected Method $method = Method::GET;
 
     public function __construct(
-        private int $seasonTeamFantasyId,
-        private int $weekNumber,
-        private string $accessToken,
+        private readonly int $seasonTeamFantasyId,
+        private readonly int $weekNumber,
+        private readonly string $accessToken,
     ) {
         if ($seasonTeamFantasyId < 1 || $weekNumber < 1 || $accessToken === '') {
             throw new InvalidArgumentException('The team ID, week number, and access token are required.');

@@ -3,7 +3,7 @@
 use App\Models\Player;
 use App\Models\PlayerScore;
 
-test('belongs to a player and stores the weekly score', function () {
+test('belongs to a player and stores the weekly score', function (): void {
     $player = Player::factory()->create();
     $score = PlayerScore::factory()->create([
         'player_id' => $player->id,

@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueStandingRequest;
 use Saloon\Enums\Method;
 
-test('uses the authenticated league standing endpoint', function () {
+test('uses the authenticated league standing endpoint', function (): void {
     $request = new GetLeagueStandingRequest(
         leagueId: '017834818',
         accessToken: 'access-token',

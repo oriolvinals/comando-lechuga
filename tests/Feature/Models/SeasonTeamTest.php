@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\SeasonTeam;
 
-test('casts its standing metrics', function () {
+test('casts its standing metrics', function (): void {
     $seasonTeam = SeasonTeam::factory()->create([
         'total_points' => 61,
         'live_points' => 14,

@@ -4,7 +4,7 @@ use App\Models\SeasonTeam;
 use App\Models\SeasonTeamLineup;
 use App\Models\SeasonTeamLineupPlayer;
 
-test('belongs to a season team and has lineup players', function () {
+test('belongs to a season team and has lineup players', function (): void {
     $seasonTeam = SeasonTeam::factory()->create();
     $lineup = SeasonTeamLineup::factory()->create([
         'season_team_id' => $seasonTeam->id,

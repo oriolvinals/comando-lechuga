@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueMarketRequest;
 use Saloon\Enums\Method;
 
-test('uses the authenticated league market endpoint', function () {
+test('uses the authenticated league market endpoint', function (): void {
     $request = new GetLeagueMarketRequest(
         leagueId: '017834818',
         accessToken: 'access-token',

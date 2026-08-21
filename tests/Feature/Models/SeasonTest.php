@@ -2,7 +2,7 @@
 
 use App\Models\Season;
 
-test('resolves the season that includes today', function () {
+test('resolves the season that includes today', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),

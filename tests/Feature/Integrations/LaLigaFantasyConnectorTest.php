@@ -10,7 +10,7 @@ use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
 
-test('logs in and retries the market request after a forbidden response', function () {
+test('logs in and retries the market request after a forbidden response', function (): void {
     Cache::put('la_liga_fantasy.access_token', Crypt::encryptString('stale-token'), 3600);
 
     $accessToken = 'header.'.rtrim(strtr(base64_encode(json_encode([
@@ -22,11 +22,9 @@ test('logs in and retries the market request after a forbidden response', functi
         ->andReturn($accessToken);
 
     $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
-        GetLeagueMarketRequest::class => function (PendingRequest $pendingRequest): MockResponse {
-            return $pendingRequest->headers()->get('Authorization') === 'Bearer stale-token'
-                ? MockResponse::make([], 403)
-                : MockResponse::make(['market' => true]);
-        },
+        GetLeagueMarketRequest::class => fn (PendingRequest $pendingRequest): MockResponse => $pendingRequest->headers()->get('Authorization') === 'Bearer stale-token'
+            ? MockResponse::make([], 403)
+            : MockResponse::make(['market' => true]),
     ]));
 
     $response = $fantasyConnector->getLeagueMarketWithLogin($loginConnector, '017834818');

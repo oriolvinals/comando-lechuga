@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Integrations\LaLigaFantasy\Requests;
 
 use InvalidArgumentException;
@@ -10,7 +12,7 @@ class GetPlayerRequest extends Request
 {
     protected Method $method = Method::GET;
 
-    public function __construct(private int $playerFantasyId)
+    public function __construct(private readonly int $playerFantasyId)
     {
         if ($playerFantasyId < 1) {
             throw new InvalidArgumentException('The player fantasy ID must be positive.');

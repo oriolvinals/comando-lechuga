@@ -7,7 +7,7 @@ use App\Models\Season;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('updates the current season week', function () {
+test('updates the current season week', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),

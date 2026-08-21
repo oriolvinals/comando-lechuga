@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('creates or updates season teams from the private standing', function () {
+test('creates or updates season teams from the private standing', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([

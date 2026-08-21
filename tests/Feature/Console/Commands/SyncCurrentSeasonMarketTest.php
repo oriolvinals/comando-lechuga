@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('syncs league market players and removes expired listings', function () {
+test('syncs league market players and removes expired listings', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     Season::factory()->create([

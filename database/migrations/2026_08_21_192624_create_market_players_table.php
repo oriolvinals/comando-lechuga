@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('market_players', function (Blueprint $table) {
+        Schema::create('market_players', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('fantasy_id')->nullable(false)->unique();
             $table->timestamp('expires_at')->nullable(false);

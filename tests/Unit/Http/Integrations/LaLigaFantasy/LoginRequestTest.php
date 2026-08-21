@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Integrations\LaLigaFantasy\Requests\LoginRequest;
 use Saloon\Enums\Method;
 
-test('sends the B2C login form', function () {
+test('sends the B2C login form', function (): void {
     $request = new LoginRequest(
         email: 'user@example.com',
         password: 'password',

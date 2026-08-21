@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Integrations\LaLigaFantasy\Requests;
 
 use InvalidArgumentException;
@@ -11,8 +13,8 @@ class GetLeagueStandingRequest extends Request
     protected Method $method = Method::GET;
 
     public function __construct(
-        private string $leagueId,
-        private string $accessToken,
+        private readonly string $leagueId,
+        private readonly string $accessToken,
     ) {
         if ($leagueId === '' || $accessToken === '') {
             throw new InvalidArgumentException('The league ID and access token are required.');

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('player_markets', function (Blueprint $table) {
+        Schema::create('player_markets', function (Blueprint $table): void {
             $table->id();
             $table->unsignedInteger('fantasy_id')->nullable(false);
             $table->foreignId('player_id')->nullable(false)->constrained()->cascadeOnDelete();

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('player_scores', function (Blueprint $table) {
+        Schema::create('player_scores', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('player_id')->nullable(false)->constrained()->cascadeOnDelete();
             $table->integer('points')->nullable(false)->default(0);

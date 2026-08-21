@@ -4,7 +4,7 @@ use App\Models\MarketPlayer;
 use App\Models\Player;
 use Carbon\CarbonImmutable;
 
-test('belongs to a player and uses the market listing ID as its key', function () {
+test('belongs to a player and uses the market listing ID as its key', function (): void {
     $player = Player::factory()->create();
     $marketPlayer = MarketPlayer::factory()->create([
         'fantasy_id' => 14262396,

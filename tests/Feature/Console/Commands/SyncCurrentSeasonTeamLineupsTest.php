@@ -15,7 +15,7 @@ use Mockery;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('syncs lineups for each season team through the current week', function () {
+test('syncs lineups for each season team through the current week', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([

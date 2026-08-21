@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('season_team_lineup_players', function (Blueprint $table) {
+        Schema::create('season_team_lineup_players', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('season_team_lineup_id')->nullable(false)->constrained()->cascadeOnDelete();
             $table->foreignId('player_id')->nullable(false)->constrained()->cascadeOnDelete();

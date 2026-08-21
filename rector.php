@@ -6,6 +6,7 @@ use Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector;
 use Rector\CodeQuality\Rector\If_\ExplicitBoolCompareRector;
 use Rector\CodingStyle\Rector\ClassLike\NewlineBetweenClassLikeStmtsRector;
 use Rector\CodingStyle\Rector\ClassMethod\MakeInheritedMethodVisibilitySameAsParentRector;
+use Rector\CodingStyle\Rector\PostInc\PostIncDecToPreIncDecRector;
 use Rector\CodingStyle\Rector\Stmt\NewlineAfterStatementRector;
 use Rector\CodingStyle\Rector\Use_\SeparateMultiUseImportsRector;
 use Rector\Config\RectorConfig;
@@ -40,6 +41,7 @@ return RectorConfig::configure()
         NewlineBetweenClassLikeStmtsRector::class,
         NullToStrictStringFuncCallArgRector::class,
         SeparateMultiUseImportsRector::class,
+        PostIncDecToPreIncDecRector::class,
     ])
     ->withPhpVersion(PhpVersion::PHP_85)
     ->withSets([

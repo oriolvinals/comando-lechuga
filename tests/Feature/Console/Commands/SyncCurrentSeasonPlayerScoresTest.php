@@ -10,7 +10,7 @@ use App\Models\Team;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('syncs detailed scores for each player in the current season', function () {
+test('syncs detailed scores for each player in the current season', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),

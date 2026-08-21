@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamLineupRequest;
 use Saloon\Enums\Method;
 
-test('uses the authenticated team lineup endpoint', function () {
+test('uses the authenticated team lineup endpoint', function (): void {
     $request = new GetTeamLineupRequest(
         seasonTeamFantasyId: 37394771,
         weekNumber: 2,

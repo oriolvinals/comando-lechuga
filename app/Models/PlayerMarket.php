@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
 use Database\Factories\PlayerMarketFactory;
+use Illuminate\Database\Eloquent\Attributes\DateFormat;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -21,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[UseFactory(PlayerMarketFactory::class)]
 #[Table(name: 'player_markets', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['fantasy_id', 'player_id', 'date', 'value'])]
+#[DateFormat('Y-m-d')]
 class PlayerMarket extends Model
 {
     /** @use HasFactory<PlayerMarketFactory> */
@@ -36,8 +40,6 @@ class PlayerMarket extends Model
     protected $attributes = [
         'value' => 0,
     ];
-
-    protected $dateFormat = 'Y-m-d';
 
     /**
      * @return array<string, string>

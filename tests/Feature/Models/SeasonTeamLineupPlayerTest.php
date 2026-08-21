@@ -5,7 +5,7 @@ use App\Models\Player;
 use App\Models\SeasonTeamLineup;
 use App\Models\SeasonTeamLineupPlayer;
 
-test('belongs to a lineup and player', function () {
+test('belongs to a lineup and player', function (): void {
     $lineup = SeasonTeamLineup::factory()->create();
     $player = Player::factory()->create();
     $lineupPlayer = SeasonTeamLineupPlayer::factory()->create([

@@ -4,7 +4,7 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use Carbon\CarbonImmutable;
 
-test('belongs to a player and stores a daily value', function () {
+test('belongs to a player and stores a daily value', function (): void {
     $player = Player::factory()->create(['market_value_difference' => -500000]);
     $market = PlayerMarket::factory()->create([
         'fantasy_id' => 68,
