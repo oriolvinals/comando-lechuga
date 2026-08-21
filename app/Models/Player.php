@@ -52,6 +52,12 @@ class Player extends Model
         return $this->hasMany(PlayerMarket::class);
     }
 
+    /** @return HasMany<PlayerScore, $this> */
+    public function scores(): HasMany
+    {
+        return $this->hasMany(PlayerScore::class);
+    }
+
     /** @return HasOne<MarketPlayer, $this> */
     public function marketPlayer(): HasOne
     {

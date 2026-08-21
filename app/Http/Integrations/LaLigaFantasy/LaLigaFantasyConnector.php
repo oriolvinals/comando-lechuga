@@ -10,6 +10,7 @@ use App\Http\Integrations\LaLigaFantasy\Requests\GetFixturesRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueMarketRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueStandingRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerMarketValueRequest;
+use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayersRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamInfoRequest;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -68,6 +69,15 @@ class LaLigaFantasyConnector extends Connector
     public function getPlayerMarketValue(int $playerFantasyId): Response
     {
         return $this->send(new GetPlayerMarketValueRequest($playerFantasyId));
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function getPlayer(int $playerFantasyId): Response
+    {
+        return $this->send(new GetPlayerRequest($playerFantasyId));
     }
 
     /**
