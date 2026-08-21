@@ -32,16 +32,19 @@ class Fixture extends Model
     /** @use HasFactory<FixtureFactory> */
     use HasFactory;
 
+    /** @return BelongsTo<Season, $this> */
     public function season(): BelongsTo
     {
         return $this->belongsTo(Season::class);
     }
 
+    /** @return BelongsTo<Team, $this> */
     public function localTeam(): BelongsTo
     {
         return $this->belongsTo(Team::class, 'team_local_id');
     }
 
+    /** @return BelongsTo<Team, $this> */
     public function guestTeam(): BelongsTo
     {
         return $this->belongsTo(Team::class, 'team_guest_id');

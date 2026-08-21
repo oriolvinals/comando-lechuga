@@ -7,6 +7,7 @@ use App\Enums\PlayerStatus;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Player;
 use App\Models\Season;
+use App\Models\Team;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -36,6 +37,7 @@ class SyncCurrentSeasonPlayers extends Command
         $players = [];
 
         foreach ($connector->getPlayers()->throw()->json() as $playerData) {
+            /** @var Team|null $team */
             $team = $teams->get((int)$playerData['teamId']);
 
             if ($team === null) {
@@ -93,7 +95,7 @@ class SyncCurrentSeasonPlayers extends Command
         $contents = $connector->getAsset($imageUrl)->throw()->body();
         $disk = Storage::disk('public');
 
-        if (!$disk->exists($path) || !hash_equals(hash('sha256', $disk->get($path)), hash('sha256', $contents))) {
+        if (! $disk->exists($path) || ! hash_equals(hash('sha256', $disk->get($path)), hash('sha256', $contents))) {
             $disk->put($path, $contents);
         }
 

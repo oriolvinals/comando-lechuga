@@ -30,6 +30,7 @@ class Team extends Model
     /** @use HasFactory<TeamFactory> */
     use HasFactory;
 
+    /** @return BelongsToMany<Season, $this> */
     public function seasons(): BelongsToMany
     {
         return $this->belongsToMany(Season::class);

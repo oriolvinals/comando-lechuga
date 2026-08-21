@@ -6,6 +6,7 @@ use App\Enums\FixtureState;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Fixture;
 use App\Models\Season;
+use App\Models\Team;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -36,7 +37,10 @@ class SyncCurrentSeasonFixtures extends Command
 
         foreach (range(1, 38) as $weekNumber) {
             foreach ($connector->getFixtures($weekNumber)->throw()->json() as $fixtureData) {
+                /** @var Team|null $localTeam */
                 $localTeam = $teams->get((int)$fixtureData['localId']);
+
+                /** @var Team|null $guestTeam */
                 $guestTeam = $teams->get((int)$fixtureData['visitorId']);
 
                 if ($localTeam === null || $guestTeam === null) {
