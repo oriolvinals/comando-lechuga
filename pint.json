@@ -1,0 +1,45 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "blank_line_before_statement": {
+            "statements": [
+                "break",
+                "case",
+                "continue",
+                "declare",
+                "default",
+                "exit",
+                "goto",
+                "include",
+                "include_once",
+                "phpdoc",
+                "require",
+                "require_once",
+                "return",
+                "switch",
+                "throw",
+                "try",
+                "yield",
+                "yield_from"
+            ]
+        },
+        "no_extra_blank_lines": {
+            "tokens": [
+                "attribute",
+                "break",
+                "case",
+                "continue",
+                "curly_brace_block",
+                "default",
+                "extra",
+                "parenthesis_brace_block",
+                "return",
+                "square_brace_block",
+                "switch",
+                "throw",
+                "use"
+            ]
+        },
+        "no_whitespace_in_blank_line": true
+    }
+}
