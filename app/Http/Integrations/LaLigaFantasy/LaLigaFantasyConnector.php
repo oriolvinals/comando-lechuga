@@ -6,10 +6,15 @@ namespace App\Http\Integrations\LaLigaFantasy;
 
 use App\Http\Integrations\LaLigaFantasy\Requests\GetAssetRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetFixturesRequest;
+use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueMarketRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerMarketValueRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayersRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamInfoRequest;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use InvalidArgumentException;
+use JsonException;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Connector;
@@ -22,9 +27,13 @@ class LaLigaFantasyConnector extends Connector
 
     private const string AssetsHost = 'assets-fantasy.llt-services.com';
 
+    private const string AccessTokenCacheKey = 'la_liga_fantasy.access_token';
+
     protected float $connectTimeout = 3;
 
     protected float $requestTimeout = 10;
+
+    private ?string $accessToken = null;
 
     public function resolveBaseUrl(): string
     {
@@ -65,6 +74,97 @@ class LaLigaFantasyConnector extends Connector
     public function getFixtures(int $weekNumber): Response
     {
         return $this->send(new GetFixturesRequest($weekNumber));
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function getLeagueMarket(): Response
+    {
+        return $this->send(new GetLeagueMarketRequest(
+            leagueId: (string) config('services.la_liga_fantasy.league_id'),
+            accessToken: $this->accessToken ?? (string) config('services.la_liga_fantasy.access_token'),
+        ));
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws JsonException
+     * @throws RequestException
+     */
+    public function getLeagueMarketWithLogin(LaLigaLoginConnector $loginConnector): Response
+    {
+        $accessToken = $this->cachedAccessToken();
+
+        if (is_string($accessToken) && $accessToken !== '') {
+            try {
+                return $this->withAccessToken($accessToken)->getLeagueMarket()->throw();
+            } catch (RequestException $exception) {
+                if ($exception->getStatus() !== 403) {
+                    throw $exception;
+                }
+
+                Cache::forget(self::AccessTokenCacheKey);
+            }
+        }
+
+        $accessToken = $loginConnector->accessToken();
+        $this->cacheAccessToken($accessToken);
+
+        return $this->withAccessToken($accessToken)->getLeagueMarket()->throw();
+    }
+
+    public function withAccessToken(string $accessToken): static
+    {
+        $this->accessToken = $accessToken;
+
+        return $this;
+    }
+
+    /**
+     * @throws JsonException
+     */
+    private function cacheAccessToken(string $accessToken): void
+    {
+        $parts = explode('.', $accessToken);
+
+        if (count($parts) !== 3) {
+            Cache::put(self::AccessTokenCacheKey, Crypt::encryptString($accessToken), 3600);
+
+            return;
+        }
+
+        $payload = base64_decode(strtr($parts[1], '-_', '+/'), true);
+
+        if ($payload === false) {
+            Cache::put(self::AccessTokenCacheKey, Crypt::encryptString($accessToken), 3600);
+
+            return;
+        }
+
+        $claims = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        $expiration = is_array($claims) && isset($claims['exp']) ? (int) $claims['exp'] : now()->addHour()->getTimestamp();
+        $ttl = max(1, $expiration - now()->getTimestamp() - 60);
+
+        Cache::put(self::AccessTokenCacheKey, Crypt::encryptString($accessToken), $ttl);
+    }
+
+    private function cachedAccessToken(): ?string
+    {
+        $encryptedAccessToken = Cache::get(self::AccessTokenCacheKey);
+
+        if (!is_string($encryptedAccessToken)) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($encryptedAccessToken);
+        } catch (DecryptException) {
+            Cache::forget(self::AccessTokenCacheKey);
+
+            return null;
+        }
     }
 
     /**

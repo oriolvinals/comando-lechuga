@@ -38,5 +38,16 @@ return [
 
     'la_liga_fantasy' => [
         'base_url' => env('LA_LIGA_FANTASY_BASE_URL', 'https://fantasy-api.llt-services.com/'),
+        'league_id' => env('LA_LIGA_FANTASY_LEAGUE_ID'),
+        'access_token' => env('LA_LIGA_FANTASY_ACCESS_TOKEN'),
+    ],
+
+    'la_liga_login' => [
+        'base_url' => env('LA_LIGA_LOGIN_BASE_URL', 'https://login.laliga.es'),
+        'email' => env('LA_LIGA_LOGIN_EMAIL'),
+        'password' => env('LA_LIGA_LOGIN_PASSWORD'),
+        'policy' => env('LA_LIGA_LOGIN_POLICY', 'B2C_1A_5ULAIP_PARAMETRIZED_SignIn'),
+        'client_id' => env('LA_LIGA_LOGIN_CLIENT_ID', 'af88bcff-1157-40a0-b579-030728aacf0b'),
+        'redirect_uri' => env('LA_LIGA_LOGIN_REDIRECT_URI', 'authredirect://com.lfp.laligafantasy/'),
     ],
 ];

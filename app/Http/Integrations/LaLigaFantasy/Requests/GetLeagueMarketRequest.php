@@ -1,0 +1,40 @@
+<?php
+
+namespace App\Http\Integrations\LaLigaFantasy\Requests;
+
+use InvalidArgumentException;
+use Saloon\Enums\Method;
+use Saloon\Http\Request;
+
+class GetLeagueMarketRequest extends Request
+{
+    protected Method $method = Method::GET;
+
+    public function __construct(
+        private readonly string $leagueId,
+        private readonly string $accessToken,
+    ) {
+        if ($leagueId === '' || $accessToken === '') {
+            throw new InvalidArgumentException('The league ID and access token are required.');
+        }
+    }
+
+    public function resolveEndpoint(): string
+    {
+        return "api/v1/competition/1/league/{$this->leagueId}/market";
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function defaultHeaders(): array
+    {
+        return [
+            'Accept' => '*/*',
+            'Authorization' => "Bearer {$this->accessToken}",
+            'X-Lang' => 'es',
+            'X-Version' => '10.0.4',
+            'X-App' => 'Fantasy-iOS',
+        ];
+    }
+}
