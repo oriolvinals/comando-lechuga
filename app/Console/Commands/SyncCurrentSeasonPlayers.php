@@ -97,7 +97,7 @@ class SyncCurrentSeasonPlayers extends Command
         $contents = $connector->getAsset($imageUrl)->throw()->body();
         $disk = Storage::disk('public');
 
-        if (! $disk->exists($path) || ! hash_equals(hash('sha256', $disk->get($path)), hash('sha256', $contents))) {
+        if (!$disk->exists($path) || !hash_equals(hash('sha256', $disk->get($path)), hash('sha256', $contents))) {
             $disk->put($path, $contents);
         }
 
