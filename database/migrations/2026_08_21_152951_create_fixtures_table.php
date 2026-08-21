@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\FixtureState;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -9,7 +11,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('fixtures', function (Blueprint $table) {
+        Schema::create('fixtures', function (Blueprint $table): void {
             $table->id();
             $table->unsignedInteger('fantasy_id')->nullable(false);
             $table->foreignId('season_id')->nullable(false)->constrained()->cascadeOnDelete();

@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Integrations\LaLigaFantasy\Requests\GetFixturesRequest;
 use Saloon\Enums\Method;
 
-test('uses the calendar endpoint for the requested week', function () {
+test('uses the calendar endpoint for the requested week', function (): void {
     $request = new GetFixturesRequest(1);
 
     expect($request->getMethod())

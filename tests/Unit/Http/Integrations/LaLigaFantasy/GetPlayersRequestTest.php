@@ -3,7 +3,7 @@
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayersRequest;
 use Saloon\Enums\Method;
 
-test('uses the players endpoint', function () {
+test('uses the players endpoint', function (): void {
     $request = new GetPlayersRequest;
 
     expect($request->getMethod())

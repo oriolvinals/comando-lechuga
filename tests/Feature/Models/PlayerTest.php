@@ -5,7 +5,7 @@ use App\Enums\PlayerStatus;
 use App\Models\Player;
 use App\Models\Team;
 
-test('casts its position and status enums', function () {
+test('casts its position and status enums', function (): void {
     $player = Player::factory()->create([
         'position' => PlayerPosition::Midfielder,
         'status' => PlayerStatus::Doubtful,

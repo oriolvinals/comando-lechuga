@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('creates and updates the active season teams', function () {
+test('creates and updates the active season teams', function (): void {
     Storage::fake('public');
 
     $season = Season::factory()->create(['current' => true]);

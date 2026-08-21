@@ -11,7 +11,7 @@ use Carbon\CarbonImmutable;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('replaces the active season fixtures from every week', function () {
+test('replaces the active season fixtures from every week', function (): void {
     $season = Season::factory()->create(['current' => true]);
     $localTeam = Team::factory()->create(['fantasy_id' => 18]);
     $guestTeam = Team::factory()->create(['fantasy_id' => 6]);

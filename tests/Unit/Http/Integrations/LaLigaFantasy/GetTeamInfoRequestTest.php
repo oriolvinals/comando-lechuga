@@ -3,7 +3,7 @@
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamInfoRequest;
 use Saloon\Enums\Method;
 
-test('uses the teams statuses endpoint in Spanish', function () {
+test('uses the teams statuses endpoint in Spanish', function (): void {
     $request = new GetTeamInfoRequest;
 
     expect($request->getMethod())

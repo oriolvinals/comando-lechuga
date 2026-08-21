@@ -17,6 +17,7 @@
         "saloonphp/saloon": "^4.0"
     },
     "require-dev": {
+        "driftingly/rector-laravel": "^2.5",
         "fakerphp/faker": "^1.24",
         "larastan/larastan": "^3.9",
         "laravel/boost": "^2.2",
@@ -61,6 +62,9 @@
         ],
         "phpstan": [
             "phpstan analyse --memory-limit=2G"
+        ],
+        "rector": [
+            "rector --ansi --clear-cache"
         ],
         "test": [
             "@php artisan config:clear --ansi",

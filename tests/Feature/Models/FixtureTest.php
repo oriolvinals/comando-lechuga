@@ -6,11 +6,11 @@ use App\Models\Season;
 use App\Models\Team;
 use Carbon\CarbonImmutable;
 
-test('defaults to the scheduled state', function () {
+test('defaults to the scheduled state', function (): void {
     expect((new Fixture)->state)->toBe(FixtureState::Scheduled);
 });
 
-test('casts its state and date', function () {
+test('casts its state and date', function (): void {
     $fixture = Fixture::factory()->create([
         'season_id' => Season::factory(),
         'team_local_id' => Team::factory(),
