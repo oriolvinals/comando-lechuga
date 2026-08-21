@@ -15,6 +15,10 @@ return new class extends Migration
             $table->unsignedInteger('fantasy_id')->nullable(false);
             $table->string('name')->nullable(false)->default('');
             $table->string('logo')->nullable(false)->default('');
+            $table->unsignedInteger('total_points')->nullable(false)->default(0);
+            $table->unsignedInteger('live_points')->nullable(false)->default(0);
+            $table->unsignedSmallInteger('position')->nullable(false)->default(1);
+            $table->unsignedSmallInteger('last_position')->nullable(false)->default(1);
             $table->foreignId('season_id')->nullable(false)->constrained();
         });
     }

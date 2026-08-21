@@ -19,7 +19,11 @@ class SeasonTeamFactory extends Factory
             'fantasy_id' => $this->faker->unique()->numberBetween(1, 99999999),
             'name' => $this->faker->unique()->city().' FC',
             'logo' => $this->faker->imageUrl(),
-            'season_id' => Season::first(),
+            'total_points' => $this->faker->numberBetween(0, 1000),
+            'live_points' => 0,
+            'position' => $this->faker->numberBetween(1, 20),
+            'last_position' => null,
+            'season_id' => Season::factory(),
         ];
     }
 }
