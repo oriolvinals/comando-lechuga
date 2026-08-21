@@ -5,8 +5,8 @@ namespace App\Console\Commands;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
-use App\Models\League;
 use App\Models\Player;
+use App\Models\Season;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -17,9 +17,9 @@ use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Throwable;
 
-#[Signature('league:sync-players')]
-#[Description('Synchronize the current league players from La Liga Fantasy')]
-class SyncCurrentLeaguePlayers extends Command
+#[Signature('season:sync-players')]
+#[Description('Synchronize the current season players from La Liga Fantasy')]
+class SyncCurrentSeasonPlayers extends Command
 {
     /**
      * @throws FatalRequestException
@@ -29,10 +29,10 @@ class SyncCurrentLeaguePlayers extends Command
      */
     public function handle(LaLigaFantasyConnector $connector): int
     {
-        $league = League::query()
+        $season = Season::query()
             ->where('current', true)
             ->sole();
-        $teams = $league->teams()->get()->keyBy('fantasy_id');
+        $teams = $season->teams()->get()->keyBy('fantasy_id');
         $players = [];
 
         foreach ($connector->getPlayers()->throw()->json() as $playerData) {

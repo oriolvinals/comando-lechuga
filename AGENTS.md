@@ -22,8 +22,8 @@ Before relying on a package's API, confirm its installed version:
 Comando Lechuga is a web application for viewing Liga Fantasy data. Its purpose is to present, in real time, the league
 standings, each team's squad, the transfer market, all players, and matches.
 
-- The application may support multiple leagues, but exactly one league must be active at a time. Its data model and
-  features must allow users to switch the active league in the future.
+- The application may support multiple seasons, but exactly one season must be active at a time. Its data model and
+  features must allow users to switch the active season in the future.
 - Liga Fantasy data will be retrieved from a third-party API in a future phase. Do not implement that integration or
   fabricate source data unless explicitly requested.
 - This project's role is to retrieve that data when the integration exists and present it clearly to users.
@@ -39,6 +39,7 @@ work in that domain—don't wait until you're stuck.
   files for the correct structure, approach, and naming.
 - Use descriptive names for variables and methods. For example, `isRegisteredForDiscounts`, not `discount()`.
 - Check for existing components to reuse before writing a new one.
+- Database string columns that do not store an enum must be non-nullable and default to an empty string (`''`).
 
 ## Verification Scripts
 

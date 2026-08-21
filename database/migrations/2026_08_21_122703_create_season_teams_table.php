@@ -8,16 +8,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('league_teams', function (Blueprint $table) {
+        Schema::create('season_teams', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable(false)->default('');
             $table->string('logo')->nullable(false)->default('');
-            $table->foreignId('league_id')->nullable(false)->constrained();
+            $table->foreignId('season_id')->nullable(false)->constrained();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('league_teams');
+        Schema::dropIfExists('season_teams');
     }
 };

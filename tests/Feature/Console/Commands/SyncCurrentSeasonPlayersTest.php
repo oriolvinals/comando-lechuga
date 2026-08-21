@@ -1,23 +1,23 @@
 <?php
 
-use App\Console\Commands\SyncCurrentLeaguePlayers;
+use App\Console\Commands\SyncCurrentSeasonPlayers;
 use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetAssetRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayersRequest;
-use App\Models\League;
 use App\Models\Player;
+use App\Models\Season;
 use App\Models\Team;
 use Illuminate\Support\Facades\Storage;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('creates and updates players for the active league teams', function () {
+test('creates and updates players for the active season teams', function () {
     Storage::fake('public');
 
-    $league = League::factory()->create(['current' => true]);
+    $season = Season::factory()->create(['current' => true]);
     $team = Team::factory()->create(['fantasy_id' => 3]);
-    $league->teams()->attach($team);
+    $season->teams()->attach($team);
     $existingPlayer = Player::factory()->create([
         'fantasy_id' => 68,
         'nickname' => 'Old nickname',
@@ -54,7 +54,7 @@ test('creates and updates players for the active league teams', function () {
 
     app()->instance(LaLigaFantasyConnector::class, $connector);
 
-    $this->artisan(SyncCurrentLeaguePlayers::class)
+    $this->artisan(SyncCurrentSeasonPlayers::class)
         ->expectsOutput('2 players synchronized.')
         ->assertSuccessful();
 

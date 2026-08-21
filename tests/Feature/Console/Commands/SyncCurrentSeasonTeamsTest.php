@@ -1,24 +1,24 @@
 <?php
 
-use App\Console\Commands\SyncCurrentLeagueTeams;
+use App\Console\Commands\SyncCurrentSeasonTeams;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetAssetRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamInfoRequest;
-use App\Models\League;
+use App\Models\Season;
 use App\Models\Team;
 use Illuminate\Support\Facades\Storage;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('creates and updates the active league teams', function () {
+test('creates and updates the active season teams', function () {
     Storage::fake('public');
 
-    $league = League::factory()->create(['current' => true]);
+    $season = Season::factory()->create(['current' => true]);
     $existingTeam = Team::factory()->create([
         'fantasy_id' => 2,
         'main_name' => 'Old name',
     ]);
-    $league->teams()->attach($existingTeam);
+    $season->teams()->attach($existingTeam);
 
     $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
         GetTeamInfoRequest::class => MockResponse::make([
@@ -46,7 +46,7 @@ test('creates and updates the active league teams', function () {
 
     app()->instance(LaLigaFantasyConnector::class, $connector);
 
-    $this->artisan(SyncCurrentLeagueTeams::class)
+    $this->artisan(SyncCurrentSeasonTeams::class)
         ->expectsOutput('2 teams synchronized.')
         ->assertSuccessful();
 
@@ -55,7 +55,7 @@ test('creates and updates the active league teams', function () {
         ->main_name->toBe('Atlético de Madrid')
         ->and($existingTeam->logo)->toBe('images/team/2.png')
         ->and($existingTeam->toArray()['logo'])->toBe(asset('storage/images/team/2.png'))
-        ->and($league->teams()->count())->toBe(2);
+        ->and($season->teams()->count())->toBe(2);
 
     Storage::disk('public')->assertExists([
         'images/team/2.png',

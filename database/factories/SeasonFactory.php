@@ -2,13 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\League;
+use App\Models\Season;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<League>
+ * @extends Factory<Season>
  */
-class LeagueFactory extends Factory
+class SeasonFactory extends Factory
 {
     public function definition(): array
     {

@@ -2,14 +2,14 @@
 
 namespace Database\Seeders;
 
-use App\Models\League;
+use App\Models\Season;
 use Illuminate\Database\Seeder;
 
-class LeagueSeeder extends Seeder
+class SeasonSeeder extends Seeder
 {
     public function run(): void
     {
-        League::factory()
+        Season::factory()
             ->create([
                 'name' => '2026/27',
                 'current' => true,

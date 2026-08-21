@@ -15,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule): void {
-        $schedule->command('league:sync-teams')
+        $schedule->command('season:sync-teams')
             ->daily()
             ->withoutOverlapping()
             ->onOneServer();

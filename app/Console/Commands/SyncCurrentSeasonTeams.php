@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
-use App\Models\League;
+use App\Models\Season;
 use App\Models\Team;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -15,9 +15,9 @@ use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Throwable;
 
-#[Signature('league:sync-teams')]
-#[Description('Synchronize the current league teams from La Liga Fantasy')]
-class SyncCurrentLeagueTeams extends Command
+#[Signature('season:sync-teams')]
+#[Description('Synchronize the current season teams from La Liga Fantasy')]
+class SyncCurrentSeasonTeams extends Command
 {
     /**
      * @throws Throwable
@@ -27,7 +27,7 @@ class SyncCurrentLeagueTeams extends Command
      */
     public function handle(LaLigaFantasyConnector $connector): int
     {
-        $league = League::query()
+        $season = Season::query()
             ->where('current', true)
             ->sole();
 
@@ -47,7 +47,7 @@ class SyncCurrentLeagueTeams extends Command
             ];
         }
 
-        $teamIds = DB::transaction(function () use ($league, $teams): array {
+        $teamIds = DB::transaction(function () use ($season, $teams): array {
             $teamIds = [];
 
             foreach ($teams as $teamData) {
@@ -66,7 +66,7 @@ class SyncCurrentLeagueTeams extends Command
                 $teamIds[] = $team->id;
             }
 
-            $league->teams()->sync($teamIds);
+            $season->teams()->sync($teamIds);
 
             return $teamIds;
         });

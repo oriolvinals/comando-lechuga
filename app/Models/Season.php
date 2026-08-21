@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Database\Factories\LeagueFactory;
+use Database\Factories\SeasonFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -15,12 +15,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property-read string $name
  * @property-read bool $current
  */
-#[UseFactory(LeagueFactory::class)]
-#[Table(name: 'leagues', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
+#[UseFactory(SeasonFactory::class)]
+#[Table(name: 'seasons', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['name', 'current'])]
-class League extends Model
+class Season extends Model
 {
-    /** @use HasFactory<LeagueFactory> */
+    /** @use HasFactory<SeasonFactory> */
     use HasFactory;
 
     public function teams(): BelongsToMany
@@ -40,7 +40,7 @@ class League extends Model
     protected function casts(): array
     {
         return [
-            'int' => 'string',
+            'id' => 'int',
             'name' => 'string',
             'current' => 'bool',
         ];

@@ -9,14 +9,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('leagues', function (Blueprint $table) {
+        Schema::create('seasons', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable(false)->default('');
             $table->boolean('current')->nullable(false)->default(false);
         });
 
         if (app()->environment('production')) {
-            DB::table('leagues')->insert([
+            DB::table('seasons')->insert([
                 'name' => '2026/27',
                 'current' => true,
             ]);
@@ -25,6 +25,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('leagues');
+        Schema::dropIfExists('seasons');
     }
 };

@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\League;
+use App\Models\Season;
 use Illuminate\Database\Seeder;
 
 class TeamSeeder extends Seeder
@@ -12,11 +12,11 @@ class TeamSeeder extends Seeder
      */
     public function run(): void
     {
-        $activeLeague = League::query()
+        $activeSeason = Season::query()
             ->where('current', true)
             ->sole();
 
-        $activeLeague
+        $activeSeason
             ->teams()
             ->createMany([
                 ['main_name' => 'Atlético de Madrid', 'name' => 'Club Atlético de Madrid SAD', 'slug' => 'atletico-de-madrid', 'short_name' => 'ATM', 'logo' => '', 'fantasy_id' => 2],

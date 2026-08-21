@@ -2,21 +2,21 @@
 
 namespace Database\Factories;
 
-use App\Models\League;
-use App\Models\LeagueTeam;
+use App\Models\Season;
+use App\Models\SeasonTeam;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<LeagueTeam>
+ * @extends Factory<SeasonTeam>
  */
-class LeagueTeamFactory extends Factory
+class SeasonTeamFactory extends Factory
 {
     public function definition(): array
     {
         return [
             'name' => $this->faker->unique()->city().' FC',
             'logo' => $this->faker->imageUrl(),
-            'league_id' => League::first(),
+            'season_id' => Season::first(),
         ];
     }
 }

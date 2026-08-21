@@ -19,17 +19,17 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('league_team', function (Blueprint $table) {
-            $table->foreignId('league_id')->constrained()->cascadeOnDelete();
+        Schema::create('season_team', function (Blueprint $table) {
+            $table->foreignId('season_id')->constrained()->cascadeOnDelete();
             $table->foreignId('team_id')->constrained()->cascadeOnDelete();
 
-            $table->primary(['league_id', 'team_id']);
+            $table->primary(['season_id', 'team_id']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('league_team');
+        Schema::dropIfExists('season_team');
         Schema::dropIfExists('teams');
     }
 };

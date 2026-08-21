@@ -9,8 +9,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            LeagueSeeder::class,
-            LeagueTeamSeeder::class,
+            SeasonSeeder::class,
+            SeasonTeamSeeder::class,
             TeamSeeder::class,
         ]);
     }

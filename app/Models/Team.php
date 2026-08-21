@@ -30,9 +30,9 @@ class Team extends Model
     /** @use HasFactory<TeamFactory> */
     use HasFactory;
 
-    public function leagues(): BelongsToMany
+    public function seasons(): BelongsToMany
     {
-        return $this->belongsToMany(League::class);
+        return $this->belongsToMany(Season::class);
     }
 
     /**
