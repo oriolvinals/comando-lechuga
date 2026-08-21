@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property-read int $id
@@ -43,6 +44,12 @@ class Player extends Model
         return $this->belongsTo(Team::class);
     }
 
+    /** @return HasMany<PlayerMarket, $this> */
+    public function markets(): HasMany
+    {
+        return $this->hasMany(PlayerMarket::class);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -59,6 +66,7 @@ class Player extends Model
     protected $attributes = [
         'nickname' => '',
         'market_value' => 0,
+        'market_value_difference' => 0,
         'points' => 0,
         'average_points' => 0,
         'image' => '',
