@@ -1,0 +1,6 @@
+GET https://fantasy-api.llt-services.com/api/v1/competition/1/calendar
+Accept-Language: application/json
+
+### Filtre per setmana concreta
+GET https://fantasy-api.llt-services.com/api/v1/competition/1/calendar?weekNumber=1
+Accept-Language: application/json

@@ -19,6 +19,16 @@ return Application::configure(basePath: dirname(__DIR__))
             ->daily()
             ->withoutOverlapping()
             ->onOneServer();
+
+        $schedule->command('season:sync-players')
+            ->everyTwoMinutes()
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        $schedule->command('season:sync-fixtures')
+            ->everyTwoMinutes()
+            ->withoutOverlapping()
+            ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [

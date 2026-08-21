@@ -3,6 +3,7 @@
 namespace App\Http\Integrations\LaLigaFantasy;
 
 use App\Http\Integrations\LaLigaFantasy\Requests\GetAssetRequest;
+use App\Http\Integrations\LaLigaFantasy\Requests\GetFixturesRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayersRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamInfoRequest;
 use InvalidArgumentException;
@@ -43,6 +44,15 @@ class LaLigaFantasyConnector extends Connector
     public function getPlayers(): Response
     {
         return $this->send(new GetPlayersRequest);
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function getFixtures(int $weekNumber): Response
+    {
+        return $this->send(new GetFixturesRequest($weekNumber));
     }
 
     /**
