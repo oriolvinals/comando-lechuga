@@ -24,9 +24,27 @@ standings, each team's squad, the transfer market, all players, and matches.
 
 - The application may support multiple seasons, but exactly one season must be active at a time. Its data model and
   features must allow users to switch the active season in the future.
-- Liga Fantasy data will be retrieved from a third-party API in a future phase. Do not implement that integration or
-  fabricate source data unless explicitly requested.
-- This project's role is to retrieve that data when the integration exists and present it clearly to users.
+- Liga Fantasy data is retrieved through a third-party API. Keep provider-specific response shapes at the integration
+  boundary and map them to the application domain models.
+- This project's role is to retrieve that data and present it clearly to users.
+
+## Domain Model
+
+- `Season`: A Liga Fantasy season. It stores the external league identifier, its date range, and the total number of
+  weeks. The active season is the one whose date range includes `now()`.
+- `Team`: A canonical real-world football club. A team can participate in multiple seasons and has many players.
+- `SeasonTeam`: A fantasy manager's team within one season. It stores its external identifier, manager-facing name and
+  logo, current ranking, total and live points, and team value.
+- `Player`: A real-world football player who belongs to one `Team`. It stores the current player data provided by Liga
+  Fantasy.
+- `PlayerScore`: A player's score for one season week. It stores total points, ideal-formation membership, and the full
+  provider statistics payload for that week.
+- `PlayerMarket`: A daily historical valuation of a player.
+- `MarketPlayer`: The current private-league market listing for one player. It stores the listing's external identifier,
+  expiry, bid count, sale price, and current player value. A player may have at most one current listing.
+- `Fixture`: A scheduled or completed match between two real-world teams in a season. It stores the week, scores, date,
+  and match state.
+- `User`: A standard application user account. It is not a Liga Fantasy domain entity.
 
 ## Skills Activation
 
