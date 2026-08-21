@@ -35,6 +35,18 @@ class Team extends Model
         return $this->belongsToMany(League::class);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+
+        $data['logo'] = $this->logo ? asset('storage/'.$this->logo) : '';
+
+        return $data;
+    }
+
     /** @var array<string, mixed> */
     protected $attributes = [
         'main_name' => '',

@@ -1,0 +1,2 @@
+GET https://fantasy-api.llt-services.com/stats/v1/competition/1/players/status?x-lang=es
+Accept-Language: application/json
