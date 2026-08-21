@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Integrations\LaLigaFantasy;
 
 use App\Http\Integrations\LaLigaFantasy\Requests\GetAssetRequest;
+use App\Http\Integrations\LaLigaFantasy\Requests\GetCurrentWeekRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetFixturesRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueMarketRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerMarketValueRequest;
@@ -75,6 +76,15 @@ class LaLigaFantasyConnector extends Connector
     public function getFixtures(int $weekNumber): Response
     {
         return $this->send(new GetFixturesRequest($weekNumber));
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function getCurrentWeek(): Response
+    {
+        return $this->send(new GetCurrentWeekRequest);
     }
 
     /**

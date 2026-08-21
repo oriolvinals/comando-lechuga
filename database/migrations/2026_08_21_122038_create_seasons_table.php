@@ -17,7 +17,8 @@ return new class extends Migration
             $table->string('name')->nullable(false)->default('');
             $table->date('start_date')->nullable(false);
             $table->date('end_date')->nullable(false);
-            $table->unsignedSmallInteger('total_fixtures')->nullable(false)->default(0);
+            $table->unsignedSmallInteger('total_weeks')->nullable(false)->default(38);
+            $table->unsignedTinyInteger('current_week')->nullable(false)->default(1);
         });
 
         if (app()->environment('production')) {
@@ -26,7 +27,8 @@ return new class extends Migration
                 'name' => '2026/27',
                 'start_date' => '2026-06-29',
                 'end_date' => '2027-08-10',
-                'total_fixtures' => 38,
+                'total_weeks' => 38,
+                'current_week' => 2,
             ]);
         }
     }

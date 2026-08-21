@@ -19,7 +19,8 @@ class SeasonFactory extends Factory
             'name' => $this->faker->unique()->name(),
             'start_date' => now()->subYear()->toDateString(),
             'end_date' => now()->subDay()->toDateString(),
-            'total_fixtures' => 38,
+            'total_weeks' => 38,
+            'current_week' => 1,
         ];
     }
 }
