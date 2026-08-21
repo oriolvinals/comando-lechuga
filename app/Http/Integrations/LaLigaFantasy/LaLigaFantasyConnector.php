@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use InvalidArgumentException;
 use JsonException;
+use LogicException;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Connector;
@@ -80,11 +81,15 @@ class LaLigaFantasyConnector extends Connector
      * @throws FatalRequestException
      * @throws RequestException
      */
-    public function getLeagueMarket(): Response
+    public function getLeagueMarket(string $leagueFantasyId): Response
     {
+        if ($this->accessToken === null || $this->accessToken === '') {
+            throw new LogicException('An access token is required to request the league market.');
+        }
+
         return $this->send(new GetLeagueMarketRequest(
-            leagueId: (string) config('services.la_liga_fantasy.league_id'),
-            accessToken: $this->accessToken ?? (string) config('services.la_liga_fantasy.access_token'),
+            leagueId: $leagueFantasyId,
+            accessToken: $this->accessToken,
         ));
     }
 
@@ -93,13 +98,15 @@ class LaLigaFantasyConnector extends Connector
      * @throws JsonException
      * @throws RequestException
      */
-    public function getLeagueMarketWithLogin(LaLigaLoginConnector $loginConnector): Response
-    {
+    public function getLeagueMarketWithLogin(
+        LaLigaLoginConnector $loginConnector,
+        string $leagueFantasyId,
+    ): Response {
         $accessToken = $this->cachedAccessToken();
 
         if (is_string($accessToken) && $accessToken !== '') {
             try {
-                return $this->withAccessToken($accessToken)->getLeagueMarket()->throw();
+                return $this->withAccessToken($accessToken)->getLeagueMarket($leagueFantasyId)->throw();
             } catch (RequestException $exception) {
                 if ($exception->getStatus() !== 403) {
                     throw $exception;
@@ -112,7 +119,7 @@ class LaLigaFantasyConnector extends Connector
         $accessToken = $loginConnector->accessToken();
         $this->cacheAccessToken($accessToken);
 
-        return $this->withAccessToken($accessToken)->getLeagueMarket()->throw();
+        return $this->withAccessToken($accessToken)->getLeagueMarket($leagueFantasyId)->throw();
     }
 
     public function withAccessToken(string $accessToken): static

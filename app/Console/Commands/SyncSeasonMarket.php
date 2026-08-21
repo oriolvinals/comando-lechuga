@@ -6,6 +6,7 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\MarketPlayer;
 use App\Models\Player;
+use App\Models\Season;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -30,9 +31,14 @@ class SyncSeasonMarket extends Command
         LaLigaLoginConnector $loginConnector,
         LaLigaFantasyConnector $fantasyConnector,
     ): int {
+        $season = Season::query()
+            ->where('current', true)
+            ->sole();
+
         $market = $fantasyConnector
-            ->getLeagueMarketWithLogin($loginConnector)
+            ->getLeagueMarketWithLogin($loginConnector, $season->fantasy_id)
             ->json();
+
         $marketPlayersSynchronized = DB::transaction(function () use ($market): int {
             $marketPlayersSynchronized = 0;
 

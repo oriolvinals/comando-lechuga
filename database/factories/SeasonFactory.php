@@ -15,6 +15,7 @@ class SeasonFactory extends Factory
     public function definition(): array
     {
         return [
+            'fantasy_id' => $this->faker->unique()->numerify('#########'),
             'name' => $this->faker->unique()->name(),
             'current' => false,
         ];

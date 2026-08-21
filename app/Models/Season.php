@@ -14,12 +14,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * @property-read int $id
+ * @property-read string $fantasy_id
  * @property-read string $name
  * @property-read bool $current
  */
 #[UseFactory(SeasonFactory::class)]
 #[Table(name: 'seasons', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['name', 'current'])]
+#[Fillable(['fantasy_id', 'name', 'current'])]
 class Season extends Model
 {
     /** @use HasFactory<SeasonFactory> */
@@ -33,6 +34,7 @@ class Season extends Model
 
     /** @var array<string, mixed> */
     protected $attributes = [
+        'fantasy_id' => '',
         'name' => '',
         'current' => false,
     ];
@@ -44,6 +46,7 @@ class Season extends Model
     {
         return [
             'id' => 'int',
+            'fantasy_id' => 'string',
             'name' => 'string',
             'current' => 'bool',
         ];

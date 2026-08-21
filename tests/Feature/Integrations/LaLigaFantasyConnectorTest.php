@@ -29,7 +29,7 @@ test('logs in and retries the market request after a forbidden response', functi
         },
     ]));
 
-    $response = $fantasyConnector->getLeagueMarketWithLogin($loginConnector);
+    $response = $fantasyConnector->getLeagueMarketWithLogin($loginConnector, '017834818');
 
     expect($response->json())->toBe(['market' => true])
         ->and(Crypt::decryptString(Cache::get('la_liga_fantasy.access_token')))->toBe($accessToken);

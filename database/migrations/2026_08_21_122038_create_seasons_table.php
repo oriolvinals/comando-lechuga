@@ -13,12 +13,14 @@ return new class extends Migration
     {
         Schema::create('seasons', function (Blueprint $table): void {
             $table->id();
+            $table->string('fantasy_id')->nullable(false)->default('');
             $table->string('name')->nullable(false)->default('');
             $table->boolean('current')->nullable(false)->default(false);
         });
 
         if (app()->environment('production')) {
             DB::table('seasons')->insert([
+                'fantasy_id' => '017834818',
                 'name' => '2026/27',
                 'current' => true,
             ]);

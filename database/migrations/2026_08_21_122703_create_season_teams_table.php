@@ -12,6 +12,7 @@ return new class extends Migration
     {
         Schema::create('season_teams', function (Blueprint $table): void {
             $table->id();
+            $table->unsignedInteger('fantasy_id')->nullable(false);
             $table->string('name')->nullable(false)->default('');
             $table->string('logo')->nullable(false)->default('');
             $table->foreignId('season_id')->nullable(false)->constrained();

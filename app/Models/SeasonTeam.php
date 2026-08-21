@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Table(name: 'season_teams', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['name', 'logo', 'season_id'])]
+#[Fillable(['fantasy_id', 'name', 'logo', 'season_id'])]
 class SeasonTeam extends Model
 {
     /** @use HasFactory<SeasonTeamFactory> */
@@ -37,6 +37,7 @@ class SeasonTeam extends Model
     {
         return [
             'id' => 'int',
+            'fantasy_id' => 'int',
             'name' => 'string',
             'logo' => 'string',
             'season_id' => 'int',

@@ -38,8 +38,6 @@ return [
 
     'la_liga_fantasy' => [
         'base_url' => env('LA_LIGA_FANTASY_BASE_URL', 'https://fantasy-api.llt-services.com/'),
-        'league_id' => env('LA_LIGA_FANTASY_LEAGUE_ID'),
-        'access_token' => env('LA_LIGA_FANTASY_ACCESS_TOKEN'),
     ],
 
     'la_liga_login' => [

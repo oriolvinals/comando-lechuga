@@ -16,6 +16,7 @@ class SeasonTeamFactory extends Factory
     public function definition(): array
     {
         return [
+            'fantasy_id' => $this->faker->unique()->numberBetween(1, 99999999),
             'name' => $this->faker->unique()->city().' FC',
             'logo' => $this->faker->imageUrl(),
             'season_id' => Season::first(),

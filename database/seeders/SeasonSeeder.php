@@ -13,6 +13,7 @@ class SeasonSeeder extends Seeder
     {
         Season::factory()
             ->create([
+                'fantasy_id' => '017834818',
                 'name' => '2026/27',
                 'current' => true,
             ]);

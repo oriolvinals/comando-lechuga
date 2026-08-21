@@ -6,6 +6,7 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueMarketRequest;
 use App\Models\MarketPlayer;
 use App\Models\Player;
+use App\Models\Season;
 use Illuminate\Support\Facades\Cache;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
@@ -13,6 +14,10 @@ use Saloon\Http\Faking\MockResponse;
 test('syncs league market players and removes expired listings', function () {
     Cache::forget('la_liga_fantasy.access_token');
 
+    Season::factory()->create([
+        'fantasy_id' => '017834818',
+        'current' => true,
+    ]);
     $player = Player::factory()->create(['fantasy_id' => 3105]);
     MarketPlayer::factory()->create([
         'fantasy_id' => 1,
@@ -33,7 +38,7 @@ test('syncs league market players and removes expired listings', function () {
             [
                 'discr' => 'marketPlayerLeague',
                 'id' => '75224757',
-                'expirationDate' => '2026-08-21T20:00:00+02:00',
+                'expirationDate' => now()->addDay()->toIso8601String(),
                 'bids' => 0,
                 'numberOfBids' => 1,
                 'salePrice' => 4082439,
