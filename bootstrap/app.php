@@ -17,17 +17,22 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('season:sync-week')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->command('season:sync-teams')
             ->daily()
             ->withoutOverlapping()
             ->onOneServer();
 
-        $schedule->command('season:sync-players')
+        $schedule->command('season:sync-fixtures')
             ->everyTwoMinutes()
             ->withoutOverlapping()
             ->onOneServer();
 
-        $schedule->command('season:sync-fixtures')
+        $schedule->command('season:sync-players')
             ->everyTwoMinutes()
             ->withoutOverlapping()
             ->onOneServer();
@@ -43,8 +48,9 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
-        $schedule->command('season:sync-week')
-            ->everyThirtyMinutes()
+        $schedule->command('season:sync-standing')
+            ->everyMinute()
+            ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();
     })

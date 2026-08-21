@@ -22,7 +22,8 @@ class SeasonTeamFactory extends Factory
             'total_points' => $this->faker->numberBetween(0, 1000),
             'live_points' => 0,
             'position' => $this->faker->numberBetween(1, 20),
-            'last_position' => null,
+            'last_position' => $this->faker->numberBetween(1, 20),
+            'value' => $this->faker->numberBetween(0, 500000000),
             'season_id' => Season::factory(),
         ];
     }

@@ -19,7 +19,7 @@ use Throwable;
 
 #[Signature('season:sync-market')]
 #[Description('Synchronize the current league player market from La Liga Fantasy')]
-class SyncSeasonMarket extends Command
+class SyncCurrentSeasonMarket extends Command
 {
     /**
      * @throws FatalRequestException

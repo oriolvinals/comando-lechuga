@@ -8,6 +8,7 @@ use App\Http\Integrations\LaLigaFantasy\Requests\GetAssetRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetCurrentWeekRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetFixturesRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueMarketRequest;
+use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueStandingRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerMarketValueRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayersRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamInfoRequest;
@@ -105,6 +106,22 @@ class LaLigaFantasyConnector extends Connector
 
     /**
      * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function getLeagueStanding(string $leagueFantasyId): Response
+    {
+        if ($this->accessToken === null || $this->accessToken === '') {
+            throw new LogicException('An access token is required to request the league standing.');
+        }
+
+        return $this->send(new GetLeagueStandingRequest(
+            leagueId: $leagueFantasyId,
+            accessToken: $this->accessToken,
+        ));
+    }
+
+    /**
+     * @throws FatalRequestException
      * @throws JsonException
      * @throws RequestException
      */
@@ -130,6 +147,35 @@ class LaLigaFantasyConnector extends Connector
         $this->cacheAccessToken($accessToken);
 
         return $this->withAccessToken($accessToken)->getLeagueMarket($leagueFantasyId)->throw();
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws JsonException
+     * @throws RequestException
+     */
+    public function getLeagueStandingWithLogin(
+        LaLigaLoginConnector $loginConnector,
+        string $leagueFantasyId,
+    ): Response {
+        $accessToken = $this->cachedAccessToken();
+
+        if (is_string($accessToken) && $accessToken !== '') {
+            try {
+                return $this->withAccessToken($accessToken)->getLeagueStanding($leagueFantasyId)->throw();
+            } catch (RequestException $exception) {
+                if ($exception->getStatus() !== 403) {
+                    throw $exception;
+                }
+
+                Cache::forget(self::AccessTokenCacheKey);
+            }
+        }
+
+        $accessToken = $loginConnector->accessToken();
+        $this->cacheAccessToken($accessToken);
+
+        return $this->withAccessToken($accessToken)->getLeagueStanding($leagueFantasyId)->throw();
     }
 
     public function withAccessToken(string $accessToken): static

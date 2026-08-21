@@ -1,6 +1,6 @@
 <?php
 
-use App\Console\Commands\SyncSeasonMarket;
+use App\Console\Commands\SyncCurrentSeasonMarket;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueMarketRequest;
@@ -54,7 +54,7 @@ test('syncs league market players and removes expired listings', function () {
     app()->instance(LaLigaLoginConnector::class, $loginConnector);
     app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
 
-    $this->artisan(SyncSeasonMarket::class)
+    $this->artisan(SyncCurrentSeasonMarket::class)
         ->expectsOutput('1 market players synchronized.')
         ->assertSuccessful();
 

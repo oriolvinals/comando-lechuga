@@ -19,7 +19,9 @@ return new class extends Migration
             $table->unsignedInteger('live_points')->nullable(false)->default(0);
             $table->unsignedSmallInteger('position')->nullable(false)->default(1);
             $table->unsignedSmallInteger('last_position')->nullable(false)->default(1);
+            $table->unsignedInteger('value')->nullable(false)->default(0);
             $table->foreignId('season_id')->nullable(false)->constrained();
+            $table->unique(['season_id', 'fantasy_id']);
         });
     }
 
