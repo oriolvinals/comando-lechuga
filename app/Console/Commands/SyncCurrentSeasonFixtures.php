@@ -35,8 +35,8 @@ class SyncCurrentSeasonFixtures extends Command
         $teams = $season->teams()->get()->keyBy('fantasy_id');
         $fixtures = [];
 
-        foreach (range(1, 38) as $weekNumber) {
-            foreach ($connector->getFixtures($weekNumber)->throw()->json() as $fixtureData) {
+        foreach (range(1, $season->total_weeks) as $weekNumber) {
+            foreach ($connector->getFixtures($weekNumber, $season->total_weeks)->throw()->json() as $fixtureData) {
                 /** @var Team|null $localTeam */
                 $localTeam = $teams->get((int)$fixtureData['localId']);
 

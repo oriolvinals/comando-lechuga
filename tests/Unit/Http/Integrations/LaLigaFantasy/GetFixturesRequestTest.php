@@ -6,7 +6,7 @@ use App\Http\Integrations\LaLigaFantasy\Requests\GetFixturesRequest;
 use Saloon\Enums\Method;
 
 test('uses the calendar endpoint for the requested week', function (): void {
-    $request = new GetFixturesRequest(1);
+    $request = new GetFixturesRequest(1, 38);
 
     expect($request->getMethod())
         ->toBe(Method::GET)

@@ -14,10 +14,10 @@ class GetFixturesRequest extends Request
 
     private readonly int $weekNumber;
 
-    public function __construct(int $weekNumber)
+    public function __construct(int $weekNumber, int $totalWeeks)
     {
-        if ($weekNumber < 1 || $weekNumber > 38) {
-            throw new InvalidArgumentException('The week number must be between 1 and 38.');
+        if ($weekNumber < 1 || $weekNumber > $totalWeeks) {
+            throw new InvalidArgumentException("The week number must be between 1 and {$totalWeeks}.");
         }
 
         $this->weekNumber = $weekNumber;

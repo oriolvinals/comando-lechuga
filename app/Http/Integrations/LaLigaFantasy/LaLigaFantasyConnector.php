@@ -84,9 +84,9 @@ class LaLigaFantasyConnector extends Connector
      * @throws FatalRequestException
      * @throws RequestException
      */
-    public function getFixtures(int $weekNumber): Response
+    public function getFixtures(int $weekNumber, int $totalWeeks): Response
     {
-        return $this->send(new GetFixturesRequest($weekNumber));
+        return $this->send(new GetFixturesRequest($weekNumber, $totalWeeks));
     }
 
     /**

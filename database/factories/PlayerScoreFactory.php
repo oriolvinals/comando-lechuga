@@ -21,7 +21,7 @@ class PlayerScoreFactory extends Factory
         return [
             'player_id' => Player::factory(),
             'points' => $this->faker->numberBetween(-10, 30),
-            'week_number' => $this->faker->numberBetween(1, 38),
+            'week_number' => 1,
             'stats' => [],
             'ideal_formation' => false,
         ];

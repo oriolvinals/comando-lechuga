@@ -23,7 +23,11 @@ class FixtureFactory extends Factory
         return [
             'fantasy_id' => $this->faker->unique()->numberBetween(1, 99999),
             'season_id' => Season::factory(),
-            'week_number' => $this->faker->numberBetween(1, 38),
+            'week_number' => function (array $attributes): int {
+                $season = Season::query()->findOrFail((int) $attributes['season_id']);
+
+                return $this->faker->numberBetween(1, $season->total_weeks);
+            },
             'date' => $this->faker->dateTimeBetween('now', '+1 year'),
             'team_local_id' => Team::factory(),
             'team_guest_id' => Team::factory(),
