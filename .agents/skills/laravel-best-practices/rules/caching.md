@@ -7,7 +7,7 @@ Cleaner cache-aside pattern that removes boilerplate. use `Cache::lock()` for ra
 Incorrect:
 ```php
 $val = Cache::get('stats');
-if (! $val) {
+if (!$val) {
     $val = $this->computeStats();
     Cache::put('stats', $val, 60);
 }
@@ -44,7 +44,7 @@ Cache::tags(['user-1'])->flush();
 
 `add()` only writes if the key does not exist — atomic, no race condition between checking and writing.
 
-Incorrect: `if (! Cache::has('lock')) { Cache::put('lock', true, 10); }`
+Incorrect: `if (!Cache::has('lock')) { Cache::put('lock', true, 10); }`
 
 Correct: `Cache::add('lock', true, 10);`
 

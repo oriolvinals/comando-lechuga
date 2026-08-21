@@ -34,15 +34,15 @@ class SyncCurrentSeasonTeams extends Command
         $teams = [];
 
         foreach ($connector->getTeamInfo()->throw()->json() as $teamData) {
-            $fantasyId = (int) $teamData['id'];
+            $fantasyId = (int)$teamData['id'];
             $badgeColor = $teamData['badgeColor'] ?? null;
 
             $teams[] = [
                 'fantasy_id' => $fantasyId,
-                'main_name' => (string) $teamData['mainName'],
-                'name' => (string) $teamData['name'],
-                'slug' => (string) $teamData['slug'],
-                'short_name' => (string) $teamData['shortName'],
+                'main_name' => (string)$teamData['mainName'],
+                'name' => (string)$teamData['name'],
+                'slug' => (string)$teamData['slug'],
+                'short_name' => (string)$teamData['shortName'],
                 'logo' => $this->storeBadge($connector, $fantasyId, is_string($badgeColor) ? $badgeColor : null),
             ];
         }
@@ -91,7 +91,7 @@ class SyncCurrentSeasonTeams extends Command
         $contents = $connector->getAsset($badgeUrl)->throw()->body();
         $disk = Storage::disk('public');
 
-        if (! $disk->exists($path) || ! hash_equals(hash('sha256', $disk->get($path)), hash('sha256', $contents))) {
+        if (!$disk->exists($path) || !hash_equals(hash('sha256', $disk->get($path)), hash('sha256', $contents))) {
             $disk->put($path, $contents);
         }
 

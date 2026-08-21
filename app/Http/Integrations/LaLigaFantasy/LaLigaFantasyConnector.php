@@ -25,7 +25,7 @@ class LaLigaFantasyConnector extends Connector
 
     public function resolveBaseUrl(): string
     {
-        return (string) config('services.la_liga_fantasy.base_url');
+        return (string)config('services.la_liga_fantasy.base_url');
     }
 
     /**

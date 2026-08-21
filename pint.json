@@ -1,6 +1,7 @@
 {
     "preset": "laravel",
     "rules": {
+        "cast_spaces": false,
         "blank_line_before_statement": {
             "statements": [
                 "break",

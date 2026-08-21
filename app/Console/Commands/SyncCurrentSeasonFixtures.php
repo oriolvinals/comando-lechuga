@@ -36,23 +36,23 @@ class SyncCurrentSeasonFixtures extends Command
 
         foreach (range(1, 38) as $weekNumber) {
             foreach ($connector->getFixtures($weekNumber)->throw()->json() as $fixtureData) {
-                $localTeam = $teams->get((int) $fixtureData['localId']);
-                $guestTeam = $teams->get((int) $fixtureData['visitorId']);
+                $localTeam = $teams->get((int)$fixtureData['localId']);
+                $guestTeam = $teams->get((int)$fixtureData['visitorId']);
 
                 if ($localTeam === null || $guestTeam === null) {
                     continue;
                 }
 
                 $fixtures[] = [
-                    'fantasy_id' => (int) $fixtureData['id'],
+                    'fantasy_id' => (int)$fixtureData['id'],
                     'season_id' => $season->id,
                     'week_number' => $weekNumber,
                     'date' => CarbonImmutable::parse($fixtureData['matchDate'])->utc(),
                     'team_local_id' => $localTeam->id,
                     'team_guest_id' => $guestTeam->id,
-                    'local_score' => $fixtureData['localScore'] === null ? null : (int) $fixtureData['localScore'],
-                    'guest_score' => $fixtureData['visitorScore'] === null ? null : (int) $fixtureData['visitorScore'],
-                    'state' => FixtureState::fromFantasyId((int) $fixtureData['matchState']),
+                    'local_score' => $fixtureData['localScore'] === null ? null : (int)$fixtureData['localScore'],
+                    'guest_score' => $fixtureData['visitorScore'] === null ? null : (int)$fixtureData['visitorScore'],
+                    'state' => FixtureState::fromFantasyId((int)$fixtureData['matchState']),
                 ];
             }
         }

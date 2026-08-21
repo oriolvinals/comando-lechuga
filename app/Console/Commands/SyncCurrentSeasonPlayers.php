@@ -36,22 +36,22 @@ class SyncCurrentSeasonPlayers extends Command
         $players = [];
 
         foreach ($connector->getPlayers()->throw()->json() as $playerData) {
-            $team = $teams->get((int) $playerData['teamId']);
+            $team = $teams->get((int)$playerData['teamId']);
 
             if ($team === null) {
                 continue;
             }
 
-            $fantasyId = (int) $playerData['id'];
+            $fantasyId = (int)$playerData['id'];
             $image = $playerData['image'] ?? null;
 
             $players[] = [
                 'fantasy_id' => $fantasyId,
-                'position' => PlayerPosition::fromFantasyId((int) $playerData['positionId']),
-                'nickname' => (string) $playerData['nickname'],
-                'status' => PlayerStatus::from((string) $playerData['playerStatus']),
-                'market_value' => (int) $playerData['marketValue'],
-                'points' => (int) $playerData['points'],
+                'position' => PlayerPosition::fromFantasyId((int)$playerData['positionId']),
+                'nickname' => (string)$playerData['nickname'],
+                'status' => PlayerStatus::from((string)$playerData['playerStatus']),
+                'market_value' => (int)$playerData['marketValue'],
+                'points' => (int)$playerData['points'],
                 'average_points' => (float) $playerData['averagePoints'],
                 'image' => $this->storeImage($connector, $fantasyId, is_string($image) ? $image : null),
                 'team_id' => $team->id,
@@ -93,7 +93,7 @@ class SyncCurrentSeasonPlayers extends Command
         $contents = $connector->getAsset($imageUrl)->throw()->body();
         $disk = Storage::disk('public');
 
-        if (! $disk->exists($path) || ! hash_equals(hash('sha256', $disk->get($path)), hash('sha256', $contents))) {
+        if (!$disk->exists($path) || !hash_equals(hash('sha256', $disk->get($path)), hash('sha256', $contents))) {
             $disk->put($path, $contents);
         }
 
