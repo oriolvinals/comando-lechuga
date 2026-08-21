@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read string $nickname
  * @property-read PlayerStatus $status
  * @property-read int $market_value
+ * @property-read int $market_value_difference
  * @property-read int $points
  * @property-read string $average_points
  * @property-read string $image
@@ -32,7 +33,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 #[UseFactory(PlayerFactory::class)]
 #[Table(name: 'players', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
-#[Fillable(['fantasy_id', 'position', 'nickname', 'status', 'market_value', 'points', 'average_points', 'image', 'team_id'])]
+#[Fillable(['fantasy_id', 'position', 'nickname', 'status', 'market_value', 'market_value_difference', 'points', 'average_points', 'image', 'team_id'])]
 class Player extends Model
 {
     /** @use HasFactory<PlayerFactory> */
@@ -84,6 +85,7 @@ class Player extends Model
             'nickname' => 'string',
             'status' => PlayerStatus::class,
             'market_value' => 'int',
+            'market_value_difference' => 'int',
             'points' => 'int',
             'average_points' => 'decimal:2',
             'image' => 'string',

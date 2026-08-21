@@ -31,6 +31,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyTwoMinutes()
             ->withoutOverlapping()
             ->onOneServer();
+
+        $schedule->command('season:sync-player-markets')
+            ->everyTenMinutes()
+            ->withoutOverlapping()
+            ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [

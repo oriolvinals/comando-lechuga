@@ -1,0 +1,2 @@
+GET https://fantasy-api.llt-services.com/api/v1/competition/1/player/2783/market-value
+Accept-Language: application/json
