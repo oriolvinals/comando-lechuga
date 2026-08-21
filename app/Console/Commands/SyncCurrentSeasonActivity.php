@@ -45,7 +45,7 @@ class SyncCurrentSeasonActivity extends Command
                 ->getLeagueActivityWithLogin($loginConnector, $season->fantasy_id, $page)
                 ->json();
 
-            if (!is_array($activities) || $activities === []) {
+            if ($activities === []) {
                 break;
             }
 
