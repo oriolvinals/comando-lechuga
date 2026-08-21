@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property-read int $id
@@ -49,6 +50,12 @@ class Player extends Model
     public function markets(): HasMany
     {
         return $this->hasMany(PlayerMarket::class);
+    }
+
+    /** @return HasOne<MarketPlayer, $this> */
+    public function marketPlayer(): HasOne
+    {
+        return $this->hasOne(MarketPlayer::class);
     }
 
     /**
