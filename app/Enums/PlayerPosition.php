@@ -10,8 +10,8 @@ enum PlayerPosition: string
 {
     case Goalkeeper = 'goalkeeper';
     case Defender = 'defender';
-    case Midfielder = 'midfielder';
-    case Forward = 'forward';
+    case Midfield = 'midfield';
+    case Striker = 'striker';
     case Coach = 'coach';
 
     public static function fromFantasyId(int $positionId): self
@@ -19,8 +19,8 @@ enum PlayerPosition: string
         return match ($positionId) {
             1 => self::Goalkeeper,
             2 => self::Defender,
-            3 => self::Midfielder,
-            4 => self::Forward,
+            3 => self::Midfield,
+            4 => self::Striker,
             5 => self::Coach,
             default => throw new InvalidArgumentException("Unknown player position ID: {$positionId}"),
         };

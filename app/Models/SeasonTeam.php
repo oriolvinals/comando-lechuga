@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Table(name: 'season_teams', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['fantasy_id', 'name', 'logo', 'total_points', 'live_points', 'position', 'last_position', 'value', 'season_id'])]
@@ -33,6 +34,12 @@ class SeasonTeam extends Model
     public function season(): BelongsTo
     {
         return $this->belongsTo(Season::class);
+    }
+
+    /** @return HasMany<SeasonTeamLineup, $this> */
+    public function lineups(): HasMany
+    {
+        return $this->hasMany(SeasonTeamLineup::class);
     }
 
     /**
