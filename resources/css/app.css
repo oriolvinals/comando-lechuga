@@ -31,6 +31,12 @@ body {
     --color-hq-gold: #e0b83f;
     --color-hq-silver: #c7cdd6;
     --color-hq-bronze: #c9793f;
+
+    /* Canonical position colors — use HqPositionTag, don't redefine these ad hoc */
+    --color-hq-por: #ff8c3d;
+    --color-hq-def: #b388ff;
+    --color-hq-med: #4dabf7;
+    --color-hq-del: #ffd54a;
 }
 
 .hq-texture {

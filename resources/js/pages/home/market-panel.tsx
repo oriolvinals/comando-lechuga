@@ -1,8 +1,8 @@
 import { Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
+import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqSection } from '@/components/hq-section';
 import { formatCurrency } from '@/lib/format';
-import { POSITION_ABBREVIATIONS } from '@/lib/player-labels';
 import { useCountdown } from '@/lib/use-countdown';
 import { cn } from '@/lib/utils';
 import type { MarketPlayer } from '@/types/models';
@@ -38,9 +38,7 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                     shape="square"
                     className="h-8 w-8"
                 />
-                <span className="border border-hq-border-strong px-1.5 py-0.5 font-mono text-[9px] font-bold text-hq-khaki">
-                    {POSITION_ABBREVIATIONS[listing.player.position]}
-                </span>
+                <HqPositionTag position={listing.player.position} />
             </div>
             <p className="mt-2 font-mono text-[10px] text-hq-moss">
                 <span className="block font-display text-base text-hq-paper">
