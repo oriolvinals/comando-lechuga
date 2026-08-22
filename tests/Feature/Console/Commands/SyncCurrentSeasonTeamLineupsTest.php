@@ -6,6 +6,7 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamLineupRequest;
 use App\Models\Player;
+use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonTeam;
 use App\Models\SeasonTeamLineup;
@@ -28,6 +29,11 @@ test('syncs lineups for each season team through the current week', function ():
         'fantasy_id' => 37394771,
     ]);
     $player = Player::factory()->create(['fantasy_id' => 2759]);
+    PlayerScore::factory()->create([
+        'player_id' => $player->id,
+        'week_number' => 1,
+        'points' => 6,
+    ]);
     $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
     $loginConnector->shouldReceive('accessToken')
         ->once()
@@ -39,7 +45,8 @@ test('syncs lineups for each season team through the current week', function ():
                     [
                         'playerMaster' => [
                             'id' => '2759',
-                            'points' => 6,
+                            // Season-total points, not this jornada's score — must be ignored.
+                            'points' => 154,
                         ],
                     ],
                 ],
@@ -69,4 +76,53 @@ test('syncs lineups for each season team through the current week', function ():
         ->and($lineupPlayer->player_id)->toBe($player->id)
         ->and($lineupPlayer->points)->toBe(6)
         ->and($lineupPlayer->position)->toBe(PlayerPosition::Goalkeeper);
+});
+
+test('defaults player lineup points to zero when no score is synced yet for that week', function (): void {
+    Cache::forget('la_liga_fantasy.access_token');
+
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+    $seasonTeam = SeasonTeam::factory()->create([
+        'season_id' => $season->id,
+        'fantasy_id' => 37394771,
+    ]);
+    Player::factory()->create(['fantasy_id' => 2759]);
+    $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
+    $loginConnector->shouldReceive('accessToken')
+        ->once()
+        ->andReturn('header.eyJleHAiOjE3ODc0MTc3NTB9.signature');
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamLineupRequest::class => MockResponse::make([
+            'formation' => [
+                'goalkeeper' => [
+                    [
+                        'playerMaster' => [
+                            'id' => '2759',
+                            'points' => 154,
+                        ],
+                    ],
+                ],
+                'defender' => [],
+                'midfield' => [],
+                'striker' => [],
+                'tacticalFormation' => [3, 5, 2],
+            ],
+            'points' => 0,
+        ]),
+    ]));
+
+    app()->instance(LaLigaLoginConnector::class, $loginConnector);
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonTeamLineups::class)
+        ->expectsOutput('1 team lineups synchronized.')
+        ->assertSuccessful();
+
+    $lineupPlayer = SeasonTeamLineupPlayer::query()->sole();
+
+    expect($lineupPlayer->points)->toBe(0);
 });

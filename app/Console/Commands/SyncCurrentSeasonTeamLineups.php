@@ -8,6 +8,7 @@ use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\Player;
+use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonTeam;
 use App\Models\SeasonTeamLineup;
@@ -83,13 +84,20 @@ class SyncCurrentSeasonTeamLineups extends Command
                                 continue;
                             }
 
+                            // $playerData['points'] is the player's season-total score, not this
+                            // jornada's — the per-week score lives in PlayerScore instead.
+                            $weekPoints = PlayerScore::query()
+                                ->where('player_id', $player->id)
+                                ->where('week_number', $weekNumber)
+                                ->value('points');
+
                             SeasonTeamLineupPlayer::query()->updateOrCreate(
                                 [
                                     'season_team_lineup_id' => $lineup->id,
                                     'player_id' => $player->id,
                                 ],
                                 [
-                                    'points' => (int) ($playerData['points'] ?? 0),
+                                    'points' => (int) ($weekPoints ?? 0),
                                     'position' => $position,
                                 ],
                             );
