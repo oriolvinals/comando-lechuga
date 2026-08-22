@@ -16,6 +16,7 @@ use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayersRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamInfoRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamLineupRequest;
+use App\Http\Integrations\LaLigaFantasy\Requests\GetWeekStatsRequest;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
@@ -99,6 +100,15 @@ class LaLigaFantasyConnector extends Connector
     public function getCurrentWeek(): Response
     {
         return $this->send(new GetCurrentWeekRequest);
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws RequestException
+     */
+    public function getWeekStats(int $weekNumber): Response
+    {
+        return $this->send(new GetWeekStatsRequest($weekNumber));
     }
 
     /**

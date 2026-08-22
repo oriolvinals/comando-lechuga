@@ -15,14 +15,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property-read int $id
  * @property-read int $player_id
+ * @property-read int $fixture_id
+ * @property-read int $team_id
  * @property-read int $points
- * @property-read int $week_number
  * @property-read array<string, list<int>> $stats
  * @property-read bool $ideal_formation
  */
 #[UseFactory(PlayerScoreFactory::class)]
 #[Table(name: 'player_scores', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['player_id', 'points', 'week_number', 'stats', 'ideal_formation'])]
+#[Fillable(['player_id', 'fixture_id', 'team_id', 'points', 'stats', 'ideal_formation'])]
 class PlayerScore extends Model
 {
     /** @use HasFactory<PlayerScoreFactory> */
@@ -32,6 +33,18 @@ class PlayerScore extends Model
     public function player(): BelongsTo
     {
         return $this->belongsTo(Player::class);
+    }
+
+    /** @return BelongsTo<Fixture, $this> */
+    public function fixture(): BelongsTo
+    {
+        return $this->belongsTo(Fixture::class);
+    }
+
+    /** @return BelongsTo<Team, $this> */
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class);
     }
 
     /** @var array<string, mixed> */
@@ -49,8 +62,9 @@ class PlayerScore extends Model
         return [
             'id' => 'int',
             'player_id' => 'int',
+            'fixture_id' => 'int',
+            'team_id' => 'int',
             'points' => 'int',
-            'week_number' => 'int',
             'stats' => 'array',
             'ideal_formation' => 'bool',
         ];

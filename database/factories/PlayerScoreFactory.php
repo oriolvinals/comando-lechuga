@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\Fixture;
 use App\Models\Player;
 use App\Models\PlayerScore;
+use App\Models\Team;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -22,8 +24,9 @@ class PlayerScoreFactory extends Factory
     {
         return [
             'player_id' => Player::factory(),
+            'fixture_id' => Fixture::factory(),
+            'team_id' => Team::factory(),
             'points' => $this->faker->numberBetween(-10, 30),
-            'week_number' => 1,
             'stats' => [],
             'ideal_formation' => false,
         ];

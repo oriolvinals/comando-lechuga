@@ -50,6 +50,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
+        $schedule->command('season:sync-player-score-stats')
+            ->everyFiveMinutes()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->command('season:sync-team-lineups')
             ->everyFiveMinutes()
             ->withoutOverlapping()
