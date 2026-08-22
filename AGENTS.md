@@ -44,6 +44,11 @@ standings, each team's squad, the transfer market, all players, and matches.
   expiry, bid count, sale price, and current player value. A player may have at most one current listing.
 - `Fixture`: A scheduled or completed match between two real-world teams in a season. It stores the week, scores, date,
   and match state.
+- `SeasonActivity`: A transfer-market event for one season (signing, sale, buyout, clause shield, weekly prize, or
+  joining the league). It stores the external activity identifier, its type, the source and target `SeasonTeam` when
+  applicable, the related `Player` when applicable, the amount, and the week number for weekly-prize entries.
+- `SeasonTeamPlayer`: A player currently owned by a `SeasonTeam`. It stores the player's buyout clause value, when that
+  clause lock expires, and whether it is shielded. Rows are replaced on every sync to reflect the current squad only.
 - `User`: A standard application user account. It is not a Liga Fantasy domain entity.
 
 ## Skills Activation
