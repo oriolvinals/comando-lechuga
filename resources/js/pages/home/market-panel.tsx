@@ -4,6 +4,7 @@ import { HqSection } from '@/components/hq-section';
 import { formatCurrency } from '@/lib/format';
 import { POSITION_ABBREVIATIONS } from '@/lib/player-labels';
 import { useCountdown } from '@/lib/use-countdown';
+import { cn } from '@/lib/utils';
 import type { MarketPlayer } from '@/types/models';
 
 interface MarketPanelProps {
@@ -14,9 +15,9 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
     const countdown = useCountdown(listing.expires_at);
 
     return (
-        <div className="relative rounded-md border border-hq-border bg-hq-panel px-4 py-4 text-center">
+        <div className="hq-card-cut relative border border-hq-border bg-hq-panel px-4 py-4 text-center">
             {listing.bids > 0 && (
-                <span className="absolute top-2 right-2 rounded bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-hq-ember">
+                <span className="absolute top-2 right-2 rounded bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-hq-ember">
                     {listing.bids} {listing.bids === 1 ? 'PUJA' : 'PUJAS'}
                 </span>
             )}
@@ -35,7 +36,7 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                     alt={listing.player.team.name}
                     fallback={Shield}
                     shape="square"
-                    className="h-4 w-4 bg-hq-panel-alt p-0.5"
+                    className="h-8 w-8"
                 />
                 <span className="border border-hq-border-strong px-1.5 py-0.5 font-mono text-[9px] font-bold text-hq-khaki">
                     {POSITION_ABBREVIATIONS[listing.player.position]}
@@ -53,6 +54,20 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
             <span className="hq-tag-cut mt-2 inline-block bg-hq-khaki px-2.5 py-1 font-mono text-xs font-bold text-hq-ink">
                 {formatCurrency(listing.value)}
             </span>
+            {listing.player.market_value_difference !== 0 && (
+                <p
+                    className={cn(
+                        'mt-1.5 font-mono text-[10px] font-bold',
+                        listing.player.market_value_difference > 0
+                            ? 'text-hq-lime'
+                            : 'text-hq-live',
+                    )}
+                >
+                    {listing.player.market_value_difference > 0 ? '▲' : '▼'}{' '}
+                    {listing.player.market_value_difference > 0 ? '+' : ''}
+                    {formatCurrency(listing.player.market_value_difference)}
+                </p>
+            )}
         </div>
     );
 }
