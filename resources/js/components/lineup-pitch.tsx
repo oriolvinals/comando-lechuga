@@ -32,7 +32,7 @@ export function LineupPitch({
         <div>
             {tacticalFormation.length > 0 && (
                 <p className="mb-2 text-center text-xs font-medium text-neutral-500">
-                    Formación 1-{tacticalFormation.join('-')}
+                    Formación {tacticalFormation.join('-')}
                 </p>
             )}
 
