@@ -5,6 +5,8 @@ import { Fragment, useState } from 'react';
 import { ActivityEntry } from '@/components/activity-entry';
 import { BuyoutStatusBadge } from '@/components/buyout-status-badge';
 import { EntityImage } from '@/components/entity-image';
+import { LineupPitch } from '@/components/lineup-pitch';
+import { PlayerStatsModal } from '@/components/player-stats-modal';
 import { PositionBadge } from '@/components/position-badge';
 import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
@@ -13,6 +15,7 @@ import type {
     SeasonActivity,
     SeasonTeam,
     SeasonTeamLineup,
+    SeasonTeamLineupPlayerEntry,
     SeasonTeamPlayer,
 } from '@/types/models';
 
@@ -34,6 +37,8 @@ export default function SeasonTeamShow({
 }: SeasonTeamShowProps) {
     const [tab, setTab] = useState<Tab>('roster');
     const [expandedWeekId, setExpandedWeekId] = useState<number | null>(null);
+    const [selectedPlayer, setSelectedPlayer] =
+        useState<SeasonTeamLineupPlayerEntry | null>(null);
 
     return (
         <>
@@ -204,52 +209,15 @@ export default function SeasonTeamShow({
                                                 colSpan={3}
                                                 className="bg-neutral-50 px-4 py-3"
                                             >
-                                                <ul className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-                                                    {lineup.players.map(
-                                                        (entry) => (
-                                                            <li
-                                                                key={entry.id}
-                                                                className="flex items-center justify-between gap-2 py-1 text-sm"
-                                                            >
-                                                                <div className="flex items-center gap-2">
-                                                                    <EntityImage
-                                                                        src={
-                                                                            entry
-                                                                                .player
-                                                                                .image
-                                                                        }
-                                                                        alt={
-                                                                            entry
-                                                                                .player
-                                                                                .nickname
-                                                                        }
-                                                                        fallback={
-                                                                            User
-                                                                        }
-                                                                        className="h-6 w-6"
-                                                                    />
-                                                                    <span>
-                                                                        {
-                                                                            entry
-                                                                                .player
-                                                                                .nickname
-                                                                        }
-                                                                    </span>
-                                                                    <PositionBadge
-                                                                        position={
-                                                                            entry.position
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                                <span className="font-medium">
-                                                                    {
-                                                                        entry.points
-                                                                    }
-                                                                </span>
-                                                            </li>
-                                                        ),
-                                                    )}
-                                                </ul>
+                                                <LineupPitch
+                                                    players={lineup.players}
+                                                    tacticalFormation={
+                                                        lineup.tactical_formation
+                                                    }
+                                                    onSelectPlayer={
+                                                        setSelectedPlayer
+                                                    }
+                                                />
                                             </td>
                                         </tr>
                                     )}
@@ -279,6 +247,11 @@ export default function SeasonTeamShow({
                     </ul>
                 )}
             </section>
+
+            <PlayerStatsModal
+                entry={selectedPlayer}
+                onClose={() => setSelectedPlayer(null)}
+            />
         </>
     );
 }

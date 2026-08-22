@@ -1,16 +1,21 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronDown, ChevronUp, Shield, User } from 'lucide-react';
+import { ChevronDown, ChevronUp, Shield } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { Fragment, useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
-import { PositionBadge } from '@/components/position-badge';
+import { LineupPitch } from '@/components/lineup-pitch';
+import { PlayerStatsModal } from '@/components/player-stats-modal';
 import { WeekSelector } from '@/components/week-selector';
 import AppLayout from '@/layouts/app-layout';
 import {
     index as seasonTeamsIndex,
     show as seasonTeamsShow,
 } from '@/routes/season-teams';
-import type { Season, SeasonTeamLineup } from '@/types/models';
+import type {
+    Season,
+    SeasonTeamLineup,
+    SeasonTeamLineupPlayerEntry,
+} from '@/types/models';
 
 interface SeasonTeamsIndexProps {
     season: Season;
@@ -25,6 +30,8 @@ export default function SeasonTeamsIndex({
     lineups,
 }: SeasonTeamsIndexProps) {
     const [expandedId, setExpandedId] = useState<number | null>(null);
+    const [selectedPlayer, setSelectedPlayer] =
+        useState<SeasonTeamLineupPlayerEntry | null>(null);
 
     const goToWeek = (nextWeek: number) => {
         router.get(
@@ -130,52 +137,15 @@ export default function SeasonTeamsIndex({
                                                 colSpan={4}
                                                 className="bg-neutral-50 px-4 py-3"
                                             >
-                                                <ul className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-                                                    {lineup.players.map(
-                                                        (entry) => (
-                                                            <li
-                                                                key={entry.id}
-                                                                className="flex items-center justify-between gap-2 py-1 text-sm"
-                                                            >
-                                                                <div className="flex items-center gap-2">
-                                                                    <EntityImage
-                                                                        src={
-                                                                            entry
-                                                                                .player
-                                                                                .image
-                                                                        }
-                                                                        alt={
-                                                                            entry
-                                                                                .player
-                                                                                .nickname
-                                                                        }
-                                                                        fallback={
-                                                                            User
-                                                                        }
-                                                                        className="h-6 w-6"
-                                                                    />
-                                                                    <span>
-                                                                        {
-                                                                            entry
-                                                                                .player
-                                                                                .nickname
-                                                                        }
-                                                                    </span>
-                                                                    <PositionBadge
-                                                                        position={
-                                                                            entry.position
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                                <span className="font-medium">
-                                                                    {
-                                                                        entry.points
-                                                                    }
-                                                                </span>
-                                                            </li>
-                                                        ),
-                                                    )}
-                                                </ul>
+                                                <LineupPitch
+                                                    players={lineup.players}
+                                                    tacticalFormation={
+                                                        lineup.tactical_formation
+                                                    }
+                                                    onSelectPlayer={
+                                                        setSelectedPlayer
+                                                    }
+                                                />
                                             </td>
                                         </tr>
                                     )}
@@ -185,6 +155,11 @@ export default function SeasonTeamsIndex({
                     </tbody>
                 </table>
             )}
+
+            <PlayerStatsModal
+                entry={selectedPlayer}
+                onClose={() => setSelectedPlayer(null)}
+            />
         </>
     );
 }
