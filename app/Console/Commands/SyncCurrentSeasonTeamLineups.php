@@ -8,7 +8,6 @@ use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\Player;
-use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonTeam;
 use App\Models\SeasonTeamLineup;
@@ -16,6 +15,7 @@ use App\Models\SeasonTeamLineupPlayer;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use JsonException;
 use Saloon\Exceptions\Request\FatalRequestException;
@@ -84,12 +84,16 @@ class SyncCurrentSeasonTeamLineups extends Command
                                 continue;
                             }
 
-                            // $playerData['points'] is the player's season-total score, not this
-                            // jornada's — the per-week score lives in PlayerScore instead.
-                            $weekPoints = PlayerScore::query()
-                                ->where('player_id', $player->id)
-                                ->where('week_number', $weekNumber)
-                                ->value('points');
+                            // $playerData['points'] reflects the player's most recent match,
+                            // not necessarily $weekNumber — the per-week score lives in
+                            // lastStats instead, keyed by weekNumber.
+                            $lastStats = $playerData['lastStats'] ?? [];
+                            $weekStats = is_array($lastStats)
+                                ? Arr::first(
+                                    $lastStats,
+                                    fn ($stat) => is_array($stat) && ($stat['weekNumber'] ?? null) === $weekNumber,
+                                )
+                                : null;
 
                             SeasonTeamLineupPlayer::query()->updateOrCreate(
                                 [
@@ -97,7 +101,7 @@ class SyncCurrentSeasonTeamLineups extends Command
                                     'player_id' => $player->id,
                                 ],
                                 [
-                                    'points' => (int) ($weekPoints ?? 0),
+                                    'points' => (int) (is_array($weekStats) ? ($weekStats['totalPoints'] ?? 0) : 0),
                                     'position' => $position,
                                 ],
                             );

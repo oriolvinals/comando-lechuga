@@ -6,7 +6,6 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamLineupRequest;
 use App\Models\Player;
-use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonTeam;
 use App\Models\SeasonTeamLineup;
@@ -29,11 +28,6 @@ test('syncs lineups for each season team through the current week', function ():
         'fantasy_id' => 37394771,
     ]);
     $player = Player::factory()->create(['fantasy_id' => 2759]);
-    PlayerScore::factory()->create([
-        'player_id' => $player->id,
-        'week_number' => 1,
-        'points' => 6,
-    ]);
     $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
     $loginConnector->shouldReceive('accessToken')
         ->once()
@@ -45,8 +39,21 @@ test('syncs lineups for each season team through the current week', function ():
                     [
                         'playerMaster' => [
                             'id' => '2759',
-                            // Season-total points, not this jornada's score — must be ignored.
+                            // Reflects the player's most recent match, not necessarily
+                            // week 1 (the one being synced here) — must be ignored.
                             'points' => 154,
+                            'weekPoints' => 154,
+                            'lastSeasonPoints' => 137,
+                            'lastStats' => [
+                                [
+                                    'weekNumber' => 1,
+                                    'totalPoints' => 6,
+                                ],
+                                [
+                                    'weekNumber' => 2,
+                                    'totalPoints' => 154,
+                                ],
+                            ],
                         ],
                     ],
                 ],
@@ -78,7 +85,7 @@ test('syncs lineups for each season team through the current week', function ():
         ->and($lineupPlayer->position)->toBe(PlayerPosition::Goalkeeper);
 });
 
-test('defaults player lineup points to zero when no score is synced yet for that week', function (): void {
+test('defaults player lineup points to zero when that week is not in lastStats', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([
@@ -103,6 +110,7 @@ test('defaults player lineup points to zero when no score is synced yet for that
                         'playerMaster' => [
                             'id' => '2759',
                             'points' => 154,
+                            'lastStats' => [],
                         ],
                     ],
                 ],
