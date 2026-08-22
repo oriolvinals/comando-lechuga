@@ -53,9 +53,25 @@ export interface SeasonActivity {
     source_season_team: SeasonTeam;
     target_season_team: SeasonTeam | null;
     player: Player | null;
+    value_difference: number | null;
 }
 
 export interface Season {
     current_week: number;
     total_weeks: number;
+}
+
+export interface PaginationLink {
+    url: string | null;
+    label: string;
+    active: boolean;
+}
+
+export interface Paginated<T> {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    links: PaginationLink[];
 }

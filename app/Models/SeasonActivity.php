@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int|null $amount
  * @property-read int|null $week_number
  * @property-read CarbonImmutable $occurred_at
+ * @property int|null $value_difference Computed at query time by ActivityController; not a database column.
  */
 #[UseFactory(SeasonActivityFactory::class)]
 #[Table(name: 'season_activities', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
