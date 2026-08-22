@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import type { ReactElement } from 'react';
 import { ActivityEntry, TYPE_LABELS } from '@/components/activity-entry';
+import { MultiSelect } from '@/components/multi-select';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { index as activityIndex } from '@/routes/activity';
@@ -55,73 +56,38 @@ export default function ActivityIndex({
         );
     };
 
-    const toggleTeam = (id: number) => {
-        const next = filters.team.includes(id)
-            ? filters.team.filter((team) => team !== id)
-            : [...filters.team, id];
-        applyFilters(next, filters.type);
-    };
-
-    const toggleType = (value: SeasonActivityType) => {
-        const next = filters.type.includes(value)
-            ? filters.type.filter((type) => type !== value)
-            : [...filters.type, value];
-        applyFilters(filters.team, next);
-    };
-
     const groups = groupByDay(activities.data);
+
+    const teamOptions = teams.map((team) => ({
+        value: String(team.id),
+        label: team.name,
+    }));
+    const typeOptions = (
+        Object.entries(TYPE_LABELS) as [SeasonActivityType, string][]
+    ).map(([value, label]) => ({ value, label }));
 
     return (
         <>
             <Head title="Actividad" />
 
-            <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium text-neutral-500">
-                        Equipo:
-                    </span>
-                    {teams.map((team) => (
-                        <button
-                            key={team.id}
-                            type="button"
-                            onClick={() => toggleTeam(team.id)}
-                            className={cn(
-                                'rounded-full border px-3 py-1 text-xs transition-colors',
-                                filters.team.includes(team.id)
-                                    ? 'border-neutral-900 bg-neutral-900 text-white'
-                                    : 'border-neutral-300 text-neutral-600 hover:bg-neutral-100',
-                            )}
-                        >
-                            {team.name}
-                        </button>
-                    ))}
-                </div>
+            <div className="flex flex-wrap gap-3">
+                <MultiSelect
+                    label="Equipo"
+                    options={teamOptions}
+                    selected={filters.team.map(String)}
+                    onChange={(next) =>
+                        applyFilters(next.map(Number), filters.type)
+                    }
+                />
 
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium text-neutral-500">
-                        Tipo:
-                    </span>
-                    {(
-                        Object.entries(TYPE_LABELS) as [
-                            SeasonActivityType,
-                            string,
-                        ][]
-                    ).map(([value, label]) => (
-                        <button
-                            key={value}
-                            type="button"
-                            onClick={() => toggleType(value)}
-                            className={cn(
-                                'rounded-full border px-3 py-1 text-xs transition-colors',
-                                filters.type.includes(value)
-                                    ? 'border-neutral-900 bg-neutral-900 text-white'
-                                    : 'border-neutral-300 text-neutral-600 hover:bg-neutral-100',
-                            )}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
+                <MultiSelect
+                    label="Tipo"
+                    options={typeOptions}
+                    selected={filters.type}
+                    onChange={(next) =>
+                        applyFilters(filters.team, next as SeasonActivityType[])
+                    }
+                />
             </div>
 
             {activities.data.length === 0 ? (
