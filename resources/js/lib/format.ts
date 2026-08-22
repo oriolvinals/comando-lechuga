@@ -20,6 +20,13 @@ export function formatMatchDateTime(isoDate: string): string {
     }).format(new Date(isoDate));
 }
 
+export function formatFullDateTime(isoDate: string): string {
+    return new Intl.DateTimeFormat('es-ES', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+    }).format(new Date(isoDate));
+}
+
 const RELATIVE_TIME_UNITS: { unit: Intl.RelativeTimeFormatUnit; ms: number }[] =
     [
         { unit: 'year', ms: 1000 * 60 * 60 * 24 * 365 },
