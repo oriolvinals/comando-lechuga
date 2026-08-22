@@ -85,7 +85,7 @@ export function PlayerStatsModal({ entry, onClose }: PlayerStatsModalProps) {
                             Puntos jornada
                         </dt>
                         <dd className="text-lg font-semibold">
-                            {entry.points}
+                            {entry.points ?? '–'}
                         </dd>
                     </div>
                     <div>

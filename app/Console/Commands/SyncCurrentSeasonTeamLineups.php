@@ -84,9 +84,6 @@ class SyncCurrentSeasonTeamLineups extends Command
                                 continue;
                             }
 
-                            // $playerData['points'] reflects the player's most recent match,
-                            // not necessarily $weekNumber — the per-week score lives in
-                            // lastStats instead, keyed by weekNumber.
                             $lastStats = $playerData['lastStats'] ?? [];
                             $weekStats = is_array($lastStats)
                                 ? Arr::first(
@@ -101,7 +98,7 @@ class SyncCurrentSeasonTeamLineups extends Command
                                     'player_id' => $player->id,
                                 ],
                                 [
-                                    'points' => (int) (is_array($weekStats) ? ($weekStats['totalPoints'] ?? 0) : 0),
+                                    'points' => is_array($weekStats) ? (int) ($weekStats['totalPoints'] ?? 0) : null,
                                     'position' => $position,
                                 ],
                             );

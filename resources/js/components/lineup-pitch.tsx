@@ -60,7 +60,7 @@ export function LineupPitch({
                                         className="h-10 w-10 ring-2 ring-white"
                                     />
                                     <span className="absolute -right-1 -bottom-1 rounded-full bg-neutral-900 px-1.5 text-[10px] font-semibold text-white">
-                                        {entry.points}
+                                        {entry.points ?? '–'}
                                     </span>
                                 </span>
                                 <span className="w-full truncate text-center text-xs font-medium text-white drop-shadow">
