@@ -49,6 +49,7 @@ export interface SeasonTeam {
     total_points: number;
     live_points: number;
     position: number;
+    last_position: number;
     value: number;
 }
 

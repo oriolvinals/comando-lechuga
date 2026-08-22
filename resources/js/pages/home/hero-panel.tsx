@@ -23,37 +23,32 @@ export function HeroPanel({ week, leader, totalTeams }: HeroPanelProps) {
             </h1>
 
             {leader && (
-                <div className="hq-panel-cut flex max-w-2xl items-center gap-6 border border-hq-border-strong bg-gradient-to-br from-hq-panel-alt to-hq-panel px-7 py-6">
-                    <div className="hq-badge-cut flex h-20 w-20 shrink-0 items-center justify-center bg-hq-lime font-display text-4xl text-hq-ink">
-                        ★
-                    </div>
-                    <div>
-                        <p className="mb-1.5 font-mono text-xs tracking-widest text-hq-lime">
+                <div className="hq-panel-cut flex max-w-2xl items-center gap-5 border border-l-4 border-hq-border-strong border-l-hq-gold bg-gradient-to-br from-hq-panel-alt to-hq-panel px-6 py-5">
+                    <EntityImage
+                        src={leader.logo}
+                        alt={leader.name}
+                        fallback={Shield}
+                        shape="square"
+                        className="hq-crest-cut h-20 w-20 shrink-0 bg-hq-border p-2 text-hq-khaki"
+                    />
+                    <div className="flex-1">
+                        <p className="mb-1 font-mono text-xs tracking-widest text-hq-gold">
                             COMANDANTE AL MANDO
                         </p>
-                        <div className="flex items-center gap-3">
-                            <EntityImage
-                                src={leader.logo}
-                                alt={leader.name}
-                                fallback={Shield}
-                                shape="square"
-                                className="h-9 w-9 bg-hq-border p-1"
-                            />
-                            <span className="text-2xl font-extrabold text-hq-paper">
-                                {leader.name}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="ml-auto text-right">
-                        <span className="font-display text-5xl text-hq-lime">
-                            {leader.total_points}
-                        </span>
-                        <span className="ml-1.5 font-mono text-[10px] tracking-widest text-hq-moss">
-                            PTS TOTALES
-                        </span>
-                        <p className="mt-0.5 font-mono text-xs text-hq-moss-dim">
+                        <p className="text-2xl font-extrabold text-hq-paper">
+                            {leader.name}
+                        </p>
+                        <p className="font-mono text-xs text-hq-moss-dim">
                             {formatCurrency(leader.value)}
                         </p>
+                    </div>
+                    <div className="text-right">
+                        <span className="mb-1 inline-block rounded bg-hq-lime/10 px-2 py-1 font-mono text-[11px] text-hq-lime">
+                            J{week} +{leader.live_points}
+                        </span>
+                        <div className="font-display text-5xl text-hq-paper">
+                            {leader.total_points}
+                        </div>
                     </div>
                 </div>
             )}

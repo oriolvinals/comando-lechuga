@@ -28,6 +28,9 @@ body {
     --color-hq-paper: #f2f0e4;
     --color-hq-moss: #9aa382;
     --color-hq-moss-dim: #5a6248;
+    --color-hq-gold: #e0b83f;
+    --color-hq-silver: #c7cdd6;
+    --color-hq-bronze: #c9793f;
 }
 
 .hq-texture {
