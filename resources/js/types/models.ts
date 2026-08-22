@@ -5,11 +5,28 @@ export interface Team {
     logo: string;
 }
 
+export type PlayerPosition =
+    'goalkeeper' | 'defender' | 'midfield' | 'striker' | 'coach';
+
+export type PlayerStatus =
+    'ok' | 'injured' | 'out_of_league' | 'suspended' | 'doubtful';
+
+export interface OwnerTeam {
+    name: string;
+    logo: string;
+}
+
 export interface Player {
     id: number;
     nickname: string;
     image: string;
     team: Team;
+    position: PlayerPosition;
+    status: PlayerStatus;
+    market_value: number;
+    market_value_difference: number;
+    points: number;
+    owner_team: OwnerTeam | null;
 }
 
 export interface Fixture {

@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read int $team_id
  * @property-read CarbonImmutable|null $created_at
  * @property-read CarbonImmutable|null $updated_at
+ * @property array{name: string, logo: string}|null $owner_team Computed at query time by PlayersController; not a database column.
  */
 #[UseFactory(PlayerFactory::class)]
 #[Table(name: 'players', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]

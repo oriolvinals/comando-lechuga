@@ -8,6 +8,32 @@ use BackedEnum;
 
 abstract class BaseRequestFilter
 {
+    protected function parseString(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @template T of BackedEnum
+     *
+     * @param  class-string<T>  $enumClass
+     * @return T|null
+     */
+    protected function parseEnum(string $enumClass, ?string $value): ?BackedEnum
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return $enumClass::tryFrom($value);
+    }
+
     /**
      * @return int[]
      */
