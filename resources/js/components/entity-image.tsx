@@ -30,16 +30,25 @@ export function EntityImage({
         );
     }
 
+    if (shape === 'circle') {
+        return (
+            <span
+                className={cn('inline-block overflow-hidden rounded-full', className)}
+            >
+                <img
+                    src={src}
+                    alt={alt}
+                    className="h-full w-full scale-125 object-cover object-bottom"
+                />
+            </span>
+        );
+    }
+
     return (
         <img
             src={src}
             alt={alt}
-            className={cn(
-                shape === 'circle'
-                    ? 'rounded-full object-cover'
-                    : 'rounded-md object-contain',
-                className,
-            )}
+            className={cn('rounded-md object-contain', className)}
         />
     );
 }

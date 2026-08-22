@@ -138,14 +138,14 @@ function ActivityCard({ activity }: { activity: SeasonActivity }) {
                     alt={activity.source_season_team.name}
                     fallback={Shield}
                     shape="square"
-                    className="hq-crest-cut h-8 w-8 shrink-0 bg-hq-border p-1 text-hq-khaki"
+                    className="hq-crest-cut h-11 w-11 shrink-0 bg-hq-border p-1 text-hq-khaki"
                 />
                 {activity.player && (
                     <EntityImage
                         src={activity.player.image}
                         alt={activity.player.nickname}
                         fallback={User}
-                        className="-ml-2 h-9 w-9 shrink-0 border border-hq-border-strong bg-hq-panel-alt"
+                        className="h-12 w-12 shrink-0 border border-hq-border-strong bg-hq-panel-alt"
                     />
                 )}
                 {activity.type === 'buyout' && activity.target_season_team && (
@@ -154,7 +154,7 @@ function ActivityCard({ activity }: { activity: SeasonActivity }) {
                         alt={activity.target_season_team.name}
                         fallback={Shield}
                         shape="square"
-                        className="hq-crest-cut -ml-2 h-8 w-8 shrink-0 bg-hq-border p-1 text-hq-khaki"
+                        className="hq-crest-cut h-11 w-11 shrink-0 bg-hq-border p-1 text-hq-khaki"
                     />
                 )}
                 <p className="flex-1 text-sm text-hq-paper/90">

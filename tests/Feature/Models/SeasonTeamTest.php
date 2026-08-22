@@ -17,3 +17,15 @@ test('casts its standing metrics', function (): void {
         ->and($seasonTeam->position)->toBe(1)
         ->and($seasonTeam->last_position)->toBe(2);
 });
+
+test('serializes the logo as a full asset URL', function (): void {
+    $seasonTeam = SeasonTeam::factory()->create(['logo' => 'images/teams/123.png']);
+
+    expect($seasonTeam->toArray()['logo'])->toBe(asset('images/teams/123.png'));
+});
+
+test('serializes an empty logo as an empty string', function (): void {
+    $seasonTeam = SeasonTeam::factory()->create(['logo' => '']);
+
+    expect($seasonTeam->toArray()['logo'])->toBe('');
+});

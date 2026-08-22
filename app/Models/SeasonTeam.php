@@ -43,6 +43,18 @@ class SeasonTeam extends Model
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+
+        $data['logo'] = $this->logo ? asset($this->logo) : '';
+
+        return $data;
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

@@ -50,7 +50,7 @@ export function StandingsTable({
                                 alt={team.name}
                                 fallback={Shield}
                                 shape="square"
-                                className="hq-crest-cut h-14 w-14 bg-hq-border p-1.5 text-hq-khaki"
+                                className="hq-crest-cut h-16 w-16 bg-hq-border p-1.5 text-hq-khaki"
                             />
                             <div className="flex-1">
                                 <p className="text-lg font-extrabold text-hq-paper">

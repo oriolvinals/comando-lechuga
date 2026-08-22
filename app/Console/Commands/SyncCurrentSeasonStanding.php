@@ -12,6 +12,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use JsonException;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
@@ -46,10 +47,12 @@ class SyncCurrentSeasonStanding extends Command
                     continue;
                 }
 
+                $fantasyId = (int) $teamData['id'];
+
                 SeasonTeam::query()->updateOrCreate(
                     [
                         'season_id' => $season->id,
-                        'fantasy_id' => (int) $teamData['id'],
+                        'fantasy_id' => $fantasyId,
                     ],
                     [
                         'name' => (string) $managerData['managerName'],
@@ -59,6 +62,7 @@ class SyncCurrentSeasonStanding extends Command
                         'position' => (int) $standingData['position'],
                         'last_position' => (int) $standingData['previousPosition'],
                         'value' => (int) $teamData['teamValue'],
+                        'logo' => $this->resolveLogo($fantasyId),
                     ],
                 );
 
@@ -71,5 +75,12 @@ class SyncCurrentSeasonStanding extends Command
         $this->info($seasonTeamsSynchronized.' season teams synchronized.');
 
         return self::SUCCESS;
+    }
+
+    private function resolveLogo(int $fantasyId): string
+    {
+        $path = "images/teams/{$fantasyId}.png";
+
+        return File::exists(public_path($path)) ? $path : '';
     }
 }
