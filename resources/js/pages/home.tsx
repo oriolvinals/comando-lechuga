@@ -1,4 +1,6 @@
 import { Head } from '@inertiajs/react';
+import type { ReactElement } from 'react';
+import AppLayout from '@/layouts/app-layout';
 
 export default function Home() {
     return (
@@ -8,3 +10,5 @@ export default function Home() {
         </>
     );
 }
+
+Home.layout = (page: ReactElement) => <AppLayout>{page}</AppLayout>;
