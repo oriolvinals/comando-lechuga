@@ -71,6 +71,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();
+
+        $schedule->command('season:sync-team-players')
+            ->everyMinute()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
