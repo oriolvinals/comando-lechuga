@@ -8,5 +8,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/equipos', [SeasonTeamsController::class, 'index'])->name('season-teams.index');
+Route::get('/equipos/{seasonTeam}', [SeasonTeamsController::class, 'show'])->name('season-teams.show');
 Route::get('/jugadores', [PlayersController::class, 'index'])->name('players.index');
 Route::get('/actividad', [ActivityController::class, 'index'])->name('activity.index');

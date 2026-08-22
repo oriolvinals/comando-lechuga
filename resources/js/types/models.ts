@@ -78,6 +78,30 @@ export interface Season {
     total_weeks: number;
 }
 
+export interface SeasonTeamLineupPlayerEntry {
+    id: number;
+    points: number;
+    position: PlayerPosition;
+    player: Player;
+}
+
+export interface SeasonTeamLineup {
+    id: number;
+    points: number;
+    week_number: number;
+    tactical_formation: number[];
+    season_team: SeasonTeam;
+    players: SeasonTeamLineupPlayerEntry[];
+}
+
+export interface SeasonTeamPlayer {
+    id: number;
+    buyout_clause: number;
+    buyout_clause_locked_until: string;
+    shielded: boolean;
+    player: Player;
+}
+
 export interface PaginationLink {
     url: string | null;
     label: string;

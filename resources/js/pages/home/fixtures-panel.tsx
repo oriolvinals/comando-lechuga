@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
+import { WeekSelector } from '@/components/week-selector';
 import { formatMatchDateTime } from '@/lib/format';
 import { home } from '@/routes';
 import type { Fixture, Season } from '@/types/models';
@@ -18,29 +19,12 @@ export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
 
     return (
         <section aria-labelledby="fixtures-heading">
-            <div className="flex items-center justify-between">
-                <h2 id="fixtures-heading" className="text-lg font-semibold">
-                    Jornada {week}
-                </h2>
-                <div className="flex gap-2">
-                    <button
-                        type="button"
-                        onClick={() => goToWeek(week - 1)}
-                        disabled={week <= 1}
-                        className="rounded-md px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-100 disabled:opacity-40"
-                    >
-                        Anterior
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => goToWeek(week + 1)}
-                        disabled={week >= season.total_weeks}
-                        className="rounded-md px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-100 disabled:opacity-40"
-                    >
-                        Siguiente
-                    </button>
-                </div>
-            </div>
+            <WeekSelector
+                week={week}
+                totalWeeks={season.total_weeks}
+                onChange={goToWeek}
+                label={`Jornada ${week}`}
+            />
 
             {fixtures.length === 0 ? (
                 <p className="mt-4 text-neutral-500">

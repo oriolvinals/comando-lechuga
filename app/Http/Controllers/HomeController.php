@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
+use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
 use App\Models\Fixture;
 use App\Models\MarketPlayer;
 use App\Models\Season;
@@ -17,13 +18,12 @@ use Inertia\Response;
 class HomeController extends Controller
 {
     use AttachesActivityValueDifference;
+    use ResolvesRequestedWeek;
 
     public function index(Request $request): Response
     {
         $season = Season::current();
-
-        $week = (int) $request->integer('week', $season->current_week);
-        $week = max(1, min($week, $season->total_weeks));
+        $week = $this->resolveWeek($request, $season);
 
         $fixtures = Fixture::query()
             ->with(['localTeam', 'guestTeam'])
