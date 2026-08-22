@@ -670,3 +670,13 @@ git commit -m "feat: add shared app layout and navigation across all pages"
 - **Spec coverage:** all six top-level routes/pages from the site map are created (`home`, `season-teams.index`, `players.index`, `market.index`, `activity.index`), each reachable from one shared, tested nav. Ficha (detail) pages for equipos/jugadores/partidos are explicitly out of scope — each belongs to its own later plan.
 - **Placeholder scan:** every step has runnable code; no "TBD"/"add validation" left as prose.
 - **Type consistency:** `AppLayout` takes `{ children: ReactNode }` (via `PropsWithChildren`) in Task 6 and every page assigns `Component.layout = (page: ReactElement) => <AppLayout>{page}</AppLayout>` — same shape used everywhere. Route helper imports (`home`, `index as seasonTeamsIndex`, etc.) match the names Wayfinder generates from the route names registered in Task 1.
+
+## Deferred to Later Plans (out of scope here)
+
+Raised by the user while this plan was mid-execution. None of these change this plan's six tasks (still placeholder shells + nav) — they scope the *content* plans that come after this one:
+
+- **Home:** in addition to clasificación general + partidos de la jornada, Home should also show today's Mercado listing (`MarketPlayer`) and the latest Actividad entries (`SeasonActivity`) directly — not just links to those pages. The dedicated `/mercado` and `/actividad` pages stay, for the full list/filter view.
+- **Equipos:** for whichever jornada is selected, also show each team's lineup for that week (`SeasonTeamLineup` + `SeasonTeamLineupPlayer`), not just the points ranking.
+- **Ficha de equipo:** show a submenu/tabs inside a team's page, at least "Plantilla actual" and "Puntuaciones de cada jornada" (the per-week lineup history), rather than a bare week-selector.
+
+See also the memory note `site_ia_decisions.md` for the same content.
