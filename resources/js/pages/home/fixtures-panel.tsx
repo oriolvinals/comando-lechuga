@@ -45,7 +45,7 @@ export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
                     No hay partidos programados para esta jornada.
                 </p>
             ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                     {fixtures.map((fixture) => {
                         const isLive = LIVE_STATES.includes(fixture.state);
                         const isFinished = fixture.state === 'finished';
@@ -54,41 +54,64 @@ export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
                         return (
                             <div
                                 key={fixture.id}
-                                className="relative border border-hq-border bg-hq-panel px-3 py-3.5 text-center"
+                                className={cn(
+                                    'relative rounded-md border bg-hq-panel px-4 py-3.5 text-center',
+                                    isLive
+                                        ? 'border-hq-live'
+                                        : 'border-hq-border',
+                                )}
                             >
                                 <span
                                     className={cn(
-                                        'absolute top-2 right-2 h-2 w-2 rounded-full',
+                                        'absolute top-2.5 right-2.5 h-2 w-2 rounded-full',
                                         isFinished && 'bg-hq-lime',
                                         isLive && 'animate-pulse bg-hq-live',
                                         fixture.state === 'scheduled' &&
                                             'bg-hq-moss-dim',
                                     )}
                                 />
-                                <div className="flex items-center justify-center gap-2">
-                                    <EntityImage
-                                        src={fixture.local_team.logo}
-                                        alt={fixture.local_team.name}
-                                        fallback={Shield}
-                                        shape="square"
-                                        className="h-8 w-8 bg-hq-panel-alt p-1"
-                                    />
-                                    <span className="font-display text-lg text-hq-paper">
-                                        {hasScore
-                                            ? `${fixture.local_score}–${fixture.guest_score}`
-                                            : 'vs'}
-                                    </span>
-                                    <EntityImage
-                                        src={fixture.guest_team.logo}
-                                        alt={fixture.guest_team.name}
-                                        fallback={Shield}
-                                        shape="square"
-                                        className="h-8 w-8 bg-hq-panel-alt p-1"
-                                    />
+                                <div className="flex items-center justify-center gap-4">
+                                    <div>
+                                        <EntityImage
+                                            src={fixture.local_team.logo}
+                                            alt={fixture.local_team.name}
+                                            fallback={Shield}
+                                            shape="square"
+                                            className="h-12 w-12 border border-hq-border-strong bg-hq-border-strong/40 p-1.5"
+                                        />
+                                        <p className="mt-1.5 font-mono text-[10px] font-bold text-hq-moss">
+                                            {fixture.local_team.short_name}
+                                        </p>
+                                    </div>
+                                    {hasScore ? (
+                                        <div className="flex items-center gap-2 font-display text-2xl text-hq-paper">
+                                            <span>{fixture.local_score}</span>
+                                            <span className="text-hq-moss-dim">
+                                                –
+                                            </span>
+                                            <span>{fixture.guest_score}</span>
+                                        </div>
+                                    ) : (
+                                        <span className="font-display text-lg text-hq-moss">
+                                            VS
+                                        </span>
+                                    )}
+                                    <div>
+                                        <EntityImage
+                                            src={fixture.guest_team.logo}
+                                            alt={fixture.guest_team.name}
+                                            fallback={Shield}
+                                            shape="square"
+                                            className="h-12 w-12 border border-hq-border-strong bg-hq-border-strong/40 p-1.5"
+                                        />
+                                        <p className="mt-1.5 font-mono text-[10px] font-bold text-hq-moss">
+                                            {fixture.guest_team.short_name}
+                                        </p>
+                                    </div>
                                 </div>
                                 <p
                                     className={cn(
-                                        'mt-2 font-mono text-[10px]',
+                                        'mt-3 font-mono text-[10px]',
                                         isLive
                                             ? 'font-bold text-hq-live'
                                             : 'text-hq-moss-dim',
