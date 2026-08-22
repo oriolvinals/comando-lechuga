@@ -6,6 +6,10 @@ export function formatCurrency(amount: number): string {
     }).format(amount);
 }
 
+export function isFutureDate(isoDate: string): boolean {
+    return new Date(isoDate).getTime() > Date.now();
+}
+
 export function formatMatchDateTime(isoDate: string): string {
     return new Intl.DateTimeFormat('es-ES', {
         weekday: 'short',

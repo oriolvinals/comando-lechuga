@@ -1,14 +1,9 @@
 import { Head } from '@inertiajs/react';
-import {
-    ChevronDown,
-    ChevronUp,
-    Shield,
-    ShieldCheck,
-    User,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, Shield, User } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { Fragment, useState } from 'react';
 import { ActivityEntry } from '@/components/activity-entry';
+import { BuyoutStatusBadge } from '@/components/buyout-status-badge';
 import { EntityImage } from '@/components/entity-image';
 import { PositionBadge } from '@/components/position-badge';
 import AppLayout from '@/layouts/app-layout';
@@ -114,7 +109,7 @@ export default function SeasonTeamShow({
                                     Cláusula
                                 </th>
                                 <th scope="col" className="pl-4 font-medium">
-                                    Blindado
+                                    Estado
                                 </th>
                             </tr>
                         </thead>
@@ -143,9 +138,12 @@ export default function SeasonTeamShow({
                                         {formatCurrency(entry.buyout_clause)}
                                     </td>
                                     <td className="pl-4">
-                                        {entry.shielded && (
-                                            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                                        )}
+                                        <BuyoutStatusBadge
+                                            shielded={entry.shielded}
+                                            buyoutClauseLockedUntil={
+                                                entry.buyout_clause_locked_until
+                                            }
+                                        />
                                     </td>
                                 </tr>
                             ))}
