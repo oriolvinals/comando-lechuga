@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int $id
  * @property-read int $season_team_lineup_id
  * @property-read int $player_id
- * @property-read int|null $points
+ * @property-read int $points
  * @property-read PlayerPosition $position
  */
 #[UseFactory(SeasonTeamLineupPlayerFactory::class)]
@@ -39,6 +39,11 @@ class SeasonTeamLineupPlayer extends Model
     {
         return $this->belongsTo(Player::class);
     }
+
+    /** @var array<string, mixed> */
+    protected $attributes = [
+        'points' => 0,
+    ];
 
     /**
      * @return array<string, string>

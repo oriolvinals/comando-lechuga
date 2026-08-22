@@ -80,7 +80,7 @@ export interface Season {
 
 export interface SeasonTeamLineupPlayerEntry {
     id: number;
-    points: number | null;
+    points: number;
     position: PlayerPosition;
     player: Player;
 }

@@ -168,8 +168,9 @@ export default function SeasonTeamsIndex({
                                                                     />
                                                                 </div>
                                                                 <span className="font-medium">
-                                                                    {entry.points ??
-                                                                        '–'}
+                                                                    {
+                                                                        entry.points
+                                                                    }
                                                                 </span>
                                                             </li>
                                                         ),

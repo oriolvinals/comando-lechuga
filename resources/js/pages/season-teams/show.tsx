@@ -244,8 +244,9 @@ export default function SeasonTeamShow({
                                                                     />
                                                                 </div>
                                                                 <span className="font-medium">
-                                                                    {entry.points ??
-                                                                        '–'}
+                                                                    {
+                                                                        entry.points
+                                                                    }
                                                                 </span>
                                                             </li>
                                                         ),
