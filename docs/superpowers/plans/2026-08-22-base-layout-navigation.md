@@ -2,13 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the stock Laravel starter "welcome" page with the five top-level routes the site needs (Home, Equipos, Jugadores, Mercado, Actividad), each rendering a placeholder Inertia page wrapped in one shared layout with a working navigation bar.
+**Goal:** Replace the stock Laravel starter "welcome" page with the four top-level routes the site needs (Home, Equipos, Jugadores, Actividad), each rendering a placeholder Inertia page wrapped in one shared layout with a working navigation bar. (Mercado has no dedicated page — see the ruling below.)
 
 **Architecture:** One thin controller per top-level section (`index()` returning `Inertia::render(...)` with no props yet — real data props are added by each section's own plan). A single `AppLayout` React component owns the header and nav; every page assigns it via the static `Component.layout` convention so Inertia keeps it persistent across visits. Navigation links use Wayfinder-generated route helpers (`@/routes/...`), never hand-written URL strings. No new npm/composer dependencies. No visual design system yet — plain Tailwind utility classes; visual polish is a later pass.
 
 **Tech Stack:** Laravel 13 + Inertia (`inertiajs/inertia-laravel` ^3.0) + React 19 (`@inertiajs/react` ^3.7) + Tailwind v4, Pest 5 for backend tests, Laravel Wayfinder for typed route/action generation.
 
-**Spec:** This plan implements the "site map" and "shared navigation" decisions from the domain-modeling/grilling session recorded in `CONTEXT.md` (repo root) — see the **Ficha**, **Clasificación general**, **Clasificación de la jornada**, **Mercado**, **Actividad** entries. Each of the five pages built here gets its real content in its own later plan; this plan only builds the shell.
+**Spec:** This plan implements the "site map" and "shared navigation" decisions from the domain-modeling/grilling session recorded in `CONTEXT.md` (repo root) — see the **Ficha**, **Clasificación general**, **Clasificación de la jornada**, **Mercado**, **Actividad** entries. Each of the four pages built here gets its real content in its own later plan; this plan only builds the shell.
+
+**Ruling (2026-08-22, mid-execution, after Task 2):** the user decided `/mercado` does not warrant its own page — the daily market is a short list (~10 players) and fits entirely on Home, where it will live per the "Deferred to Later Plans" section below. `/actividad` keeps its own page (it will grow past 500 entries over time, so a filterable dedicated view earns its place). This plan originally had a Task 4 building a `market.index` route/controller/page; that task is replaced below with a cleanup task that removes the now-unused `market.index` route Task 1 registered (no controller or page for it was ever built, so there is nothing else to remove). Task 6's nav is trimmed from 5 to 4 items accordingly. See also the ledger's "Ruling: drop the dedicated Mercado page" entry and the `site_ia_decisions.md` memory note.
 
 ## Global Constraints
 
@@ -29,26 +31,23 @@
 - `app/Http/Controllers/HomeController.php` — `index()` → `Inertia::render('home')`
 - `app/Http/Controllers/SeasonTeamsController.php` — `index()` → `Inertia::render('season-teams/index')`
 - `app/Http/Controllers/PlayersController.php` — `index()` → `Inertia::render('players/index')`
-- `app/Http/Controllers/MarketController.php` — `index()` → `Inertia::render('market/index')`
 - `app/Http/Controllers/ActivityController.php` — `index()` → `Inertia::render('activity/index')`
 
 **Backend (modify):**
-- `routes/web.php` — replace the single `welcome` route with the five named routes above.
+- `routes/web.php` — replace the single `welcome` route with the four named routes above, then (Task 4) remove the unused `market.index` route Task 1 also registered.
 
 **Backend (test):**
 - `tests/Feature/Http/Controllers/HomeControllerTest.php`
 - `tests/Feature/Http/Controllers/SeasonTeamsControllerTest.php`
 - `tests/Feature/Http/Controllers/PlayersControllerTest.php`
-- `tests/Feature/Http/Controllers/MarketControllerTest.php`
 - `tests/Feature/Http/Controllers/ActivityControllerTest.php`
 
 **Frontend (create):**
 - `resources/js/layouts/app-layout.tsx` — shared header + `<main>` shell
-- `resources/js/components/main-nav.tsx` — the 5-link nav, active-link aware
+- `resources/js/components/main-nav.tsx` — the 4-link nav, active-link aware
 - `resources/js/pages/home.tsx`
 - `resources/js/pages/season-teams/index.tsx`
 - `resources/js/pages/players/index.tsx`
-- `resources/js/pages/market/index.tsx`
 - `resources/js/pages/activity/index.tsx`
 
 **Frontend (delete):**
@@ -341,90 +340,51 @@ git commit -m "feat: add players index route with placeholder page"
 
 ---
 
-### Task 4: Mercado (`market.index`) route, controller, placeholder page
+### Task 4: Remove the abandoned Mercado route
 
 **Files:**
-- Create: `app/Http/Controllers/MarketController.php`
-- Create: `resources/js/pages/market/index.tsx`
-- Test: `tests/Feature/Http/Controllers/MarketControllerTest.php`
+- Modify: `routes/web.php`
 
 **Interfaces:**
-- Consumes: route `market.index` already registered in Task 1's `routes/web.php`.
-- Produces: Inertia component `'market/index'` with no props.
+- Removes: named route `market.index` (`GET /mercado`), registered in Task 1 but never given a controller or page (see the plan-level "Ruling" note above — the user decided Mercado will live entirely on Home instead of its own page).
 
-- [ ] **Step 1: Write the failing test**
+There is no controller, page, or test to remove for this route — Task 1 only ever registered the route line itself; no later task built anything behind it.
 
-```php
-<?php
+- [ ] **Step 1: Confirm nothing depends on the route**
 
-declare(strict_types=1);
+Run: `grep -rn "market.index\|market\\.index" app resources/js routes tests 2>/dev/null`
+Expected: only one match, the route registration itself in `routes/web.php` (no controller, no test, no frontend link references it — Tasks 2/3's work is unrelated, and Tasks 5/6 haven't run yet).
 
-use Inertia\Testing\AssertableInertia as Assert;
+- [ ] **Step 2: Remove the route**
 
-test('renders the market index page', function (): void {
-    $response = $this->get(route('market.index'));
-
-    $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->component('market/index'));
-});
-```
-
-Save as `tests/Feature/Http/Controllers/MarketControllerTest.php`.
-
-- [ ] **Step 2: Run the test and confirm it fails**
-
-Run: `herd php artisan test --compact --filter=MarketControllerTest`
-Expected: FAIL — `App\Http\Controllers\MarketController` does not exist yet.
-
-- [ ] **Step 3: Add the controller and page**
-
-Create `app/Http/Controllers/MarketController.php`:
+Edit `routes/web.php` to remove the `market.index` line and its now-unused `MarketController` import, so the file reads:
 
 ```php
 <?php
 
-declare(strict_types=1);
+use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PlayersController;
+use App\Http\Controllers\SeasonTeamsController;
+use Illuminate\Support\Facades\Route;
 
-namespace App\Http\Controllers;
-
-use Inertia\Inertia;
-use Inertia\Response;
-
-class MarketController extends Controller
-{
-    public function index(): Response
-    {
-        return Inertia::render('market/index');
-    }
-}
+Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/equipos', [SeasonTeamsController::class, 'index'])->name('season-teams.index');
+Route::get('/jugadores', [PlayersController::class, 'index'])->name('players.index');
+Route::get('/actividad', [ActivityController::class, 'index'])->name('activity.index');
 ```
 
-Create `resources/js/pages/market/index.tsx`:
+- [ ] **Step 3: Run the full test suite and confirm nothing broke**
 
-```tsx
-import { Head } from '@inertiajs/react';
+Run: `herd php artisan test --compact`
+Expected: PASS — no test referenced `market.index`, so the count only reflects removing dead code, not removing coverage.
 
-export default function MarketIndex() {
-    return (
-        <>
-            <Head title="Mercado" />
-            <p className="text-neutral-500">Próximamente: jugadores sin equipo disponibles para pujar.</p>
-        </>
-    );
-}
-```
-
-- [ ] **Step 4: Run the test and confirm it passes**
-
-Run: `herd php artisan test --compact --filter=MarketControllerTest`
-Expected: PASS
-
-- [ ] **Step 5: Format and commit**
+- [ ] **Step 4: Format and commit**
 
 ```bash
 vendor/bin/pint --dirty --format agent
-git add app/Http/Controllers/MarketController.php resources/js/pages/market/index.tsx tests/Feature/Http/Controllers/MarketControllerTest.php
-git commit -m "feat: add market index route with placeholder page"
+git add routes/web.php
+git commit -m "refactor: remove unused market.index route (mercado has no dedicated page)"
 ```
 
 ---
@@ -525,12 +485,11 @@ git commit -m "feat: add activity index route with placeholder page"
 - Modify: `resources/js/pages/home.tsx`
 - Modify: `resources/js/pages/season-teams/index.tsx`
 - Modify: `resources/js/pages/players/index.tsx`
-- Modify: `resources/js/pages/market/index.tsx`
 - Modify: `resources/js/pages/activity/index.tsx`
 - Delete: `resources/js/pages/welcome.tsx`
 
 **Interfaces:**
-- Consumes: the five named routes from Task 1 (`home`, `season-teams.index`, `players.index`, `market.index`, `activity.index`), via their Wayfinder-generated helpers.
+- Consumes: the four named routes still standing after Task 4 (`home`, `season-teams.index`, `players.index`, `activity.index`), via their Wayfinder-generated helpers. `market.index` no longer exists — do not reference it.
 - Produces: `AppLayout` (default export from `@/layouts/app-layout`), a React component taking `{ children: ReactNode }`, meant to be assigned to `PageComponent.layout`.
 
 There is no backend test for this task — it is pure frontend wiring, verified by hand in a browser (no JS test runner is configured in this repo; see `Global Constraints`).
@@ -538,7 +497,7 @@ There is no backend test for this task — it is pure frontend wiring, verified 
 - [ ] **Step 1: Regenerate Wayfinder route helpers**
 
 Run: `npm run build`
-Expected: exits 0. This regenerates `resources/js/routes/**` from the routes registered in Task 1, so `resources/js/routes/season-teams/index.ts`, `resources/js/routes/players/index.ts`, `resources/js/routes/market/index.ts`, and `resources/js/routes/activity/index.ts` now exist (alongside the existing `resources/js/routes/index.ts`, which gains a `home` export). Confirm with:
+Expected: exits 0. This regenerates `resources/js/routes/**` from the routes currently registered (after Task 4 removed `market.index`), so `resources/js/routes/season-teams/index.ts`, `resources/js/routes/players/index.ts`, and `resources/js/routes/activity/index.ts` now exist (alongside the existing `resources/js/routes/index.ts`, which gains a `home` export). There is no `resources/js/routes/market/` — do not import from it. Confirm with:
 
 Run: `git status --porcelain resources/js/routes resources/js/actions`
 Expected: no output — these paths are gitignored, so regenerated files won't show as untracked.
@@ -551,7 +510,6 @@ Create `resources/js/components/main-nav.tsx`:
 import { Link, usePage } from '@inertiajs/react';
 import { home } from '@/routes';
 import { index as activityIndex } from '@/routes/activity';
-import { index as marketIndex } from '@/routes/market';
 import { index as playersIndex } from '@/routes/players';
 import { index as seasonTeamsIndex } from '@/routes/season-teams';
 import { cn } from '@/lib/utils';
@@ -560,7 +518,6 @@ const navItems = [
     { label: 'Inicio', href: home().url },
     { label: 'Equipos', href: seasonTeamsIndex().url },
     { label: 'Jugadores', href: playersIndex().url },
-    { label: 'Mercado', href: marketIndex().url },
     { label: 'Actividad', href: activityIndex().url },
 ];
 
@@ -616,7 +573,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
 - [ ] **Step 4: Wire the layout into every page**
 
-For each of the five page files, add the import and the trailing `.layout` assignment. Example for `resources/js/pages/home.tsx` (apply the same pattern — same two additions, different component name — to `season-teams/index.tsx`, `players/index.tsx`, `market/index.tsx`, `activity/index.tsx`):
+For each of the four page files, add the import and the trailing `.layout` assignment. Example for `resources/js/pages/home.tsx` (apply the same pattern — same two additions, different component name — to `season-teams/index.tsx`, `players/index.tsx`, `activity/index.tsx`):
 
 ```tsx
 import { Head } from '@inertiajs/react';
@@ -644,13 +601,13 @@ git rm resources/js/pages/welcome.tsx
 - [ ] **Step 6: Run the full backend test suite**
 
 Run: `herd php artisan test --compact`
-Expected: PASS (all tests, including the five from Tasks 1–5, plus the pre-existing `tests/Feature/ExampleTest.php` which also hits `route('home')`).
+Expected: PASS (all tests, including the four controller tests from Tasks 1, 2, 3, 5, plus the pre-existing `tests/Feature/ExampleTest.php` which also hits `route('home')`).
 
 - [ ] **Step 7: Manually verify in the browser**
 
 Run: `npm run build` (if not already run in Step 1 after the layout/nav changes)
 
-Then, using the `run` skill or a browser, visit each of the five routes on the Herd URL for this project and confirm for each one:
+Then, using the `run` skill or a browser, visit each of the four routes on the Herd URL for this project and confirm for each one:
 - The header and nav are present and identical across all five pages.
 - The nav item for the current page is visually highlighted (dark pill) and has `aria-current="page"`.
 - Clicking each of the other four nav links navigates there via Inertia (no full page reload) and updates the highlighted item.
@@ -659,7 +616,7 @@ Then, using the `run` skill or a browser, visit each of the five routes on the H
 
 ```bash
 vendor/bin/pint --dirty --format agent
-git add resources/js/components/main-nav.tsx resources/js/layouts/app-layout.tsx resources/js/pages/home.tsx resources/js/pages/season-teams/index.tsx resources/js/pages/players/index.tsx resources/js/pages/market/index.tsx resources/js/pages/activity/index.tsx
+git add resources/js/components/main-nav.tsx resources/js/layouts/app-layout.tsx resources/js/pages/home.tsx resources/js/pages/season-teams/index.tsx resources/js/pages/players/index.tsx resources/js/pages/activity/index.tsx
 git commit -m "feat: add shared app layout and navigation across all pages"
 ```
 
@@ -667,7 +624,7 @@ git commit -m "feat: add shared app layout and navigation across all pages"
 
 ## Self-Review Notes
 
-- **Spec coverage:** all six top-level routes/pages from the site map are created (`home`, `season-teams.index`, `players.index`, `market.index`, `activity.index`), each reachable from one shared, tested nav. Ficha (detail) pages for equipos/jugadores/partidos are explicitly out of scope — each belongs to its own later plan.
+- **Spec coverage:** all four top-level routes/pages from the (revised) site map are created (`home`, `season-teams.index`, `players.index`, `activity.index`), each reachable from one shared, tested nav; the abandoned `market.index` route is cleaned up rather than left dead. Ficha (detail) pages for equipos/jugadores/partidos are explicitly out of scope — each belongs to its own later plan.
 - **Placeholder scan:** every step has runnable code; no "TBD"/"add validation" left as prose.
 - **Type consistency:** `AppLayout` takes `{ children: ReactNode }` (via `PropsWithChildren`) in Task 6 and every page assigns `Component.layout = (page: ReactElement) => <AppLayout>{page}</AppLayout>` — same shape used everywhere. Route helper imports (`home`, `index as seasonTeamsIndex`, etc.) match the names Wayfinder generates from the route names registered in Task 1.
 
@@ -675,7 +632,7 @@ git commit -m "feat: add shared app layout and navigation across all pages"
 
 Raised by the user while this plan was mid-execution. None of these change this plan's six tasks (still placeholder shells + nav) — they scope the *content* plans that come after this one:
 
-- **Home:** in addition to clasificación general + partidos de la jornada, Home should also show today's Mercado listing (`MarketPlayer`) and the latest Actividad entries (`SeasonActivity`) directly — not just links to those pages. The dedicated `/mercado` and `/actividad` pages stay, for the full list/filter view.
+- **Home:** in addition to clasificación general + partidos de la jornada, Home should also show today's Mercado listing (`MarketPlayer`) and the latest Actividad entries (`SeasonActivity`) directly — not just links to those pages. **Update:** Mercado ended up with no dedicated page at all (see the plan-level Ruling above) — Home is its only home, since it's a short daily list (~10 players). `/actividad` still keeps its own page for the full filterable history (it will grow past 500 entries).
 - **Equipos:** for whichever jornada is selected, also show each team's lineup for that week (`SeasonTeamLineup` + `SeasonTeamLineupPlayer`), not just the points ranking.
 - **Ficha de equipo:** show a submenu/tabs inside a team's page, at least "Plantilla actual" and "Puntuaciones de cada jornada" (the per-week lineup history), rather than a bare week-selector.
 
