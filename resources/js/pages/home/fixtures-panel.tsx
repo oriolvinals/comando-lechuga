@@ -1,28 +1,20 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { HqSection } from '@/components/hq-section';
 import { HqWeekPicker } from '@/components/hq-week-picker';
+import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
-import type { Fixture, FixtureState, Season } from '@/types/models';
+import { show as fixturesShow } from '@/routes/fixtures';
+import type { Fixture, Season } from '@/types/models';
 
 interface FixturesPanelProps {
     fixtures: Fixture[];
     season: Season;
     week: number;
 }
-
-const LIVE_STATES: FixtureState[] = ['first_half', 'half_time', 'second_half'];
-
-const STATE_LABELS: Record<FixtureState, string> = {
-    scheduled: '',
-    first_half: '1ª PARTE',
-    half_time: 'DESCANSO',
-    second_half: '2ª PARTE',
-    finished: 'FINAL',
-};
 
 export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
     const goToWeek = (nextWeek: number) => {
@@ -47,18 +39,19 @@ export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
             ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                     {fixtures.map((fixture) => {
-                        const isLive = LIVE_STATES.includes(fixture.state);
+                        const isLive = isLiveFixtureState(fixture.state);
                         const isFinished = fixture.state === 'finished';
                         const hasScore = isLive || isFinished;
 
                         return (
-                            <div
+                            <Link
                                 key={fixture.id}
+                                href={fixturesShow(fixture.id).url}
                                 className={cn(
-                                    'relative rounded-md border bg-hq-panel px-4 py-3.5 text-center',
+                                    'relative rounded-md border bg-hq-panel px-4 py-3.5 text-center transition-colors hover:bg-hq-panel-alt',
                                     isLive
                                         ? 'border-hq-live'
-                                        : 'border-hq-border',
+                                        : 'border-hq-border hover:border-hq-border-strong',
                                 )}
                             >
                                 <span
@@ -119,9 +112,9 @@ export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
                                 >
                                     {fixture.state === 'scheduled'
                                         ? formatMatchDateTime(fixture.date)
-                                        : STATE_LABELS[fixture.state]}
+                                        : FIXTURE_STATE_LABELS[fixture.state]}
                                 </p>
-                            </div>
+                            </Link>
                         );
                     })}
                 </div>

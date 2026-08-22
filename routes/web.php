@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\FixturesController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PlayersController;
 use App\Http\Controllers\SeasonTeamsController;
@@ -11,3 +12,4 @@ Route::get('/equipos', [SeasonTeamsController::class, 'index'])->name('season-te
 Route::get('/equipos/{seasonTeam}', [SeasonTeamsController::class, 'show'])->name('season-teams.show');
 Route::get('/jugadores', [PlayersController::class, 'index'])->name('players.index');
 Route::get('/actividad', [ActivityController::class, 'index'])->name('activity.index');
+Route::get('/partidos/{fixture}', [FixturesController::class, 'show'])->name('fixtures.show');

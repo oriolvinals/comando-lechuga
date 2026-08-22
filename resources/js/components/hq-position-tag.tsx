@@ -17,14 +17,16 @@ const POSITION_COLOR_CLASSES: Record<PlayerPosition, string> = {
 
 interface HqPositionTagProps {
     position: PlayerPosition;
+    className?: string;
 }
 
-export function HqPositionTag({ position }: HqPositionTagProps) {
+export function HqPositionTag({ position, className }: HqPositionTagProps) {
     return (
         <span
             className={cn(
                 'border px-1.5 py-0.5 font-mono text-[9px] font-bold',
                 POSITION_COLOR_CLASSES[position],
+                className,
             )}
         >
             {POSITION_ABBREVIATIONS[position]}

@@ -34,12 +34,22 @@ export type FixtureState =
 
 export interface Fixture {
     id: number;
+    week_number: number;
     date: string;
     local_score: number | null;
     guest_score: number | null;
     state: FixtureState;
     local_team: Team;
     guest_team: Team;
+}
+
+export interface PlayerScore {
+    id: number;
+    team_id: number;
+    points: number;
+    stats: JornadaStats;
+    ideal_formation: boolean;
+    player: Player;
 }
 
 export interface SeasonTeam {
