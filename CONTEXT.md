@@ -19,7 +19,7 @@ _Avoid_: Alineación (a secas) — usar "de jornada" para no confundir con la pl
 El feed de eventos de una temporada (fichajes, ventas, blindajes, premios semanales, altas en la liga). Existe como feed global de toda la liga y también como bloque filtrado embebido en otras fichas.
 
 **Mercado**:
-El listado diario de jugadores sin equipo fantasy que la liga pone a disposición para pujar. Corresponde a `MarketPlayer`; se renueva cada día.
+El listado diario de jugadores sin equipo fantasy que la liga pone a disposición para pujar. Corresponde a `MarketPlayer`; se renueva cada día. Vive en Home, sin página propia.
 _Avoid_: No confundir con "valor de mercado".
 
 **Valor de mercado**:
