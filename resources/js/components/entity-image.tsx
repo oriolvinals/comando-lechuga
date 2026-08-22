@@ -6,6 +6,7 @@ interface EntityImageProps {
     alt: string;
     fallback: LucideIcon;
     className?: string;
+    shape?: 'circle' | 'square';
 }
 
 export function EntityImage({
@@ -13,12 +14,14 @@ export function EntityImage({
     alt,
     fallback: Fallback,
     className,
+    shape = 'circle',
 }: EntityImageProps) {
     if (!src) {
         return (
             <span
                 className={cn(
-                    'inline-flex items-center justify-center rounded-full bg-neutral-100 text-neutral-400',
+                    'inline-flex items-center justify-center bg-neutral-100 text-neutral-400',
+                    shape === 'circle' ? 'rounded-full' : 'rounded-md',
                     className,
                 )}
             >
@@ -31,7 +34,12 @@ export function EntityImage({
         <img
             src={src}
             alt={alt}
-            className={cn('rounded-full object-cover', className)}
+            className={cn(
+                shape === 'circle'
+                    ? 'rounded-full object-cover'
+                    : 'rounded-md object-contain',
+                className,
+            )}
         />
     );
 }

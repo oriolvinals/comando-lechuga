@@ -1,5 +1,6 @@
 import { Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
+import { HqSection } from '@/components/hq-section';
 import { formatCurrency, formatRelativeTime } from '@/lib/format';
 import type { MarketPlayer } from '@/types/models';
 
@@ -9,62 +10,51 @@ interface MarketPanelProps {
 
 export function MarketPanel({ market }: MarketPanelProps) {
     return (
-        <section aria-labelledby="market-heading">
-            <h2 id="market-heading" className="text-lg font-semibold">
-                Mercado
-            </h2>
-
+        <HqSection number="03" title="Suministros disponibles">
             {market.length === 0 ? (
-                <p className="mt-4 text-neutral-500">
+                <p className="text-sm text-hq-moss">
                     No hay jugadores en el mercado ahora mismo.
                 </p>
             ) : (
-                <ul className="mt-4 divide-y divide-neutral-200">
+                <div className="flex flex-col gap-1.5">
                     {market.map((listing) => (
-                        <li
+                        <div
                             key={listing.id}
-                            className="flex items-center justify-between gap-4 py-3"
+                            className="flex items-center gap-3.5 border border-hq-border bg-hq-panel px-3.5 py-2.5"
                         >
-                            <div className="flex items-center gap-3">
-                                <EntityImage
-                                    src={listing.player.image}
-                                    alt={listing.player.nickname}
-                                    fallback={User}
-                                    className="h-10 w-10"
-                                />
-                                <div>
-                                    <p className="font-medium">
-                                        {listing.player.nickname}
-                                    </p>
-                                    <div className="flex items-center gap-1 text-sm text-neutral-500">
-                                        <EntityImage
-                                            src={listing.player.team.logo}
-                                            alt={listing.player.team.name}
-                                            fallback={Shield}
-                                            className="h-4 w-4"
-                                        />
-                                        <span>
-                                            {listing.player.team.short_name}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="text-right text-sm">
-                                <p className="font-semibold">
-                                    {formatCurrency(listing.value)}
-                                </p>
-                                <p className="text-neutral-500">
+                            <EntityImage
+                                src={listing.player.image}
+                                alt={listing.player.nickname}
+                                fallback={User}
+                                className="h-9 w-9 border border-hq-border-strong bg-hq-panel-alt"
+                            />
+                            <span className="text-sm font-bold text-hq-paper">
+                                {listing.player.nickname}
+                            </span>
+                            <EntityImage
+                                src={listing.player.team.logo}
+                                alt={listing.player.team.name}
+                                fallback={Shield}
+                                shape="square"
+                                className="-ml-1.5 h-5 w-5 bg-hq-panel-alt p-0.5"
+                            />
+                            {listing.bids > 0 && (
+                                <span className="ml-2 font-mono text-[10px] text-hq-ember">
                                     {listing.bids}{' '}
-                                    {listing.bids === 1 ? 'puja' : 'pujas'} ·
-                                    expira{' '}
-                                    {formatRelativeTime(listing.expires_at)}
-                                </p>
-                            </div>
-                        </li>
+                                    {listing.bids === 1 ? 'PUJA' : 'PUJAS'}{' '}
+                                    ACTIVA{listing.bids === 1 ? '' : 'S'}
+                                </span>
+                            )}
+                            <span className="ml-auto font-mono text-[10px] text-hq-moss">
+                                {formatRelativeTime(listing.expires_at)}
+                            </span>
+                            <span className="hq-tag-cut bg-hq-khaki px-2.5 py-1 font-mono text-xs font-bold text-hq-ink">
+                                {formatCurrency(listing.value)}
+                            </span>
+                        </div>
                     ))}
-                </ul>
+                </div>
             )}
-        </section>
+        </HqSection>
     );
 }

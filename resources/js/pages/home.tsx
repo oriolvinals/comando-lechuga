@@ -10,6 +10,7 @@ import type {
 } from '@/types/models';
 import { ActivityPanel } from './home/activity-panel';
 import { FixturesPanel } from './home/fixtures-panel';
+import { HeroPanel } from './home/hero-panel';
 import { MarketPanel } from './home/market-panel';
 import { StandingsTable } from './home/standings-table';
 
@@ -34,7 +35,8 @@ export default function Home({
     return (
         <>
             <Head title="Inicio" />
-            <div className="flex flex-col gap-10">
+            <div className="hq-texture overflow-hidden rounded-2xl border border-hq-border">
+                <HeroPanel week={filters.week} leader={standings[0]} />
                 <FixturesPanel
                     fixtures={fixtures}
                     season={season}

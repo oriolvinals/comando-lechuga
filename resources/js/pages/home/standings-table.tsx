@@ -1,6 +1,7 @@
 import { Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
-import { formatCurrency } from '@/lib/format';
+import { HqSection } from '@/components/hq-section';
+import { cn } from '@/lib/utils';
 import type { SeasonTeam } from '@/types/models';
 
 interface StandingsTableProps {
@@ -9,57 +10,43 @@ interface StandingsTableProps {
 
 export function StandingsTable({ standings }: StandingsTableProps) {
     return (
-        <section aria-labelledby="standings-heading">
-            <h2 id="standings-heading" className="text-lg font-semibold">
-                Clasificación general
-            </h2>
-
-            <table className="mt-4 w-full text-sm">
-                <thead>
-                    <tr className="text-left text-neutral-500">
-                        <th scope="col" className="py-2 font-medium">
-                            #
-                        </th>
-                        <th scope="col" className="font-medium">
-                            Equipo
-                        </th>
-                        <th scope="col" className="text-right font-medium">
-                            Puntos
-                        </th>
-                        <th scope="col" className="text-right font-medium">
-                            Valor
-                        </th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-200">
-                    {standings.map((team, index) => (
-                        <tr key={team.id}>
-                            <td className="py-2 text-neutral-500">
-                                {index + 1}
-                            </td>
-                            <td>
-                                <div className="flex items-center gap-2">
-                                    <EntityImage
-                                        src={team.logo}
-                                        alt={team.name}
-                                        fallback={Shield}
-                                        className="h-6 w-6"
-                                    />
-                                    <span className="font-medium">
-                                        {team.name}
-                                    </span>
-                                </div>
-                            </td>
-                            <td className="text-right font-semibold">
-                                {team.total_points}
-                            </td>
-                            <td className="text-right text-neutral-500">
-                                {formatCurrency(team.value)}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </section>
+        <HqSection number="02" title="Parte de clasificación">
+            <div className="flex flex-col gap-1.5">
+                {standings.map((team, index) => (
+                    <div
+                        key={team.id}
+                        className={cn(
+                            'flex items-center gap-3.5 border border-l-[3px] border-hq-border bg-hq-panel px-3.5 py-2.5',
+                            index === 0 && 'border-l-hq-lime bg-hq-panel-alt',
+                        )}
+                    >
+                        <span
+                            className={cn(
+                                'w-6 font-display text-lg text-hq-moss-dim',
+                                index === 0 && 'text-hq-lime',
+                            )}
+                        >
+                            {index + 1}
+                        </span>
+                        <EntityImage
+                            src={team.logo}
+                            alt={team.name}
+                            fallback={Shield}
+                            shape="square"
+                            className="hq-crest-cut h-8 w-8 bg-hq-border p-1 text-hq-khaki"
+                        />
+                        <span className="flex-1 text-sm font-bold text-hq-paper">
+                            {team.name}
+                        </span>
+                        <span className="mr-2.5 rounded bg-hq-lime/10 px-1.5 py-0.5 font-mono text-[10px] text-hq-lime">
+                            +{team.live_points} J
+                        </span>
+                        <span className="font-display text-lg text-hq-paper">
+                            {team.total_points}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </HqSection>
     );
 }

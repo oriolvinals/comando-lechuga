@@ -16,7 +16,7 @@ export function MainNav() {
     const { url } = usePage();
 
     return (
-        <nav aria-label="Principal" className="flex gap-1">
+        <nav aria-label="Principal" className="flex gap-1.5">
             {navItems.map((item) => {
                 const path = url.split('?')[0].split('#')[0];
                 const isActive =
@@ -28,10 +28,10 @@ export function MainNav() {
                         href={item.href}
                         aria-current={isActive ? 'page' : undefined}
                         className={cn(
-                            'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                            'border px-3.5 py-1.5 font-mono text-xs font-bold tracking-wider uppercase transition-colors',
                             isActive
-                                ? 'bg-neutral-900 text-white'
-                                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
+                                ? 'border-hq-lime bg-hq-lime text-hq-ink'
+                                : 'border-hq-border text-hq-moss hover:border-hq-border-strong hover:text-hq-paper',
                         )}
                     >
                         {item.label}

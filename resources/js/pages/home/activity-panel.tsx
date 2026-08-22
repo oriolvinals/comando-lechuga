@@ -1,5 +1,9 @@
 import { Link } from '@inertiajs/react';
-import { ActivityEntry } from '@/components/activity-entry';
+import { User } from 'lucide-react';
+import { describeActivity } from '@/components/activity-entry';
+import { EntityImage } from '@/components/entity-image';
+import { HqSection } from '@/components/hq-section';
+import { formatRelativeTime } from '@/lib/format';
 import { index as activityIndex } from '@/routes/activity';
 import type { SeasonActivity } from '@/types/models';
 
@@ -9,30 +13,50 @@ interface ActivityPanelProps {
 
 export function ActivityPanel({ activity }: ActivityPanelProps) {
     return (
-        <section aria-labelledby="activity-heading">
-            <div className="flex items-center justify-between">
-                <h2 id="activity-heading" className="text-lg font-semibold">
-                    Actividad reciente
-                </h2>
+        <HqSection number="04" title="Transmisiones">
+            <div className="mb-4 flex items-center justify-between">
+                <p className="font-mono text-[11px] text-hq-moss-dim">
+                    Registro de actividad de la liga
+                </p>
                 <Link
                     href={activityIndex().url}
-                    className="text-sm text-neutral-500 hover:text-neutral-900 hover:underline"
+                    className="font-mono text-[11px] font-bold text-hq-lime hover:underline"
                 >
-                    Ver toda la actividad
+                    VER TODO →
                 </Link>
             </div>
 
             {activity.length === 0 ? (
-                <p className="mt-4 text-neutral-500">
+                <p className="text-sm text-hq-moss">
                     Todavía no hay actividad esta temporada.
                 </p>
             ) : (
-                <ul className="mt-4 divide-y divide-neutral-200">
+                <div className="flex flex-col">
                     {activity.map((entry) => (
-                        <ActivityEntry key={entry.id} activity={entry} />
+                        <div
+                            key={entry.id}
+                            className="flex items-center gap-3 border-b border-dashed border-hq-border py-2.5 font-mono text-xs last:border-b-0"
+                        >
+                            {entry.player ? (
+                                <EntityImage
+                                    src={entry.player.image}
+                                    alt={entry.player.nickname}
+                                    fallback={User}
+                                    className="h-6 w-6 shrink-0 border border-hq-border-strong bg-hq-panel-alt"
+                                />
+                            ) : (
+                                <span className="w-6 shrink-0" />
+                            )}
+                            <span className="shrink-0 text-hq-moss-dim">
+                                [{formatRelativeTime(entry.occurred_at)}]
+                            </span>
+                            <span className="text-hq-paper/80">
+                                {describeActivity(entry)}
+                            </span>
+                        </div>
                     ))}
-                </ul>
+                </div>
             )}
-        </section>
+        </HqSection>
     );
 }
