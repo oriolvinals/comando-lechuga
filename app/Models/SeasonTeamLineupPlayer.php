@@ -18,11 +18,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int $season_team_lineup_id
  * @property-read int $player_id
  * @property-read int|null $points
+ * @property-read array<string, list<int>>|null $stats
  * @property-read PlayerPosition $position
  */
 #[UseFactory(SeasonTeamLineupPlayerFactory::class)]
 #[Table(name: 'season_team_lineup_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['season_team_lineup_id', 'player_id', 'points', 'position'])]
+#[Fillable(['season_team_lineup_id', 'player_id', 'points', 'stats', 'position'])]
 class SeasonTeamLineupPlayer extends Model
 {
     /** @use HasFactory<SeasonTeamLineupPlayerFactory> */
@@ -50,6 +51,7 @@ class SeasonTeamLineupPlayer extends Model
             'season_team_lineup_id' => 'int',
             'player_id' => 'int',
             'points' => 'int',
+            'stats' => 'array',
             'position' => PlayerPosition::class,
         ];
     }

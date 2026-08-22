@@ -46,10 +46,18 @@ test('syncs lineups for each season team through the current week', function ():
                                 [
                                     'weekNumber' => 1,
                                     'totalPoints' => 6,
+                                    'stats' => [
+                                        'mins_played' => [90, 2],
+                                        'goals' => [0, 0],
+                                        'saves' => [2, 1],
+                                    ],
                                 ],
                                 [
                                     'weekNumber' => 2,
                                     'totalPoints' => 154,
+                                    'stats' => [
+                                        'mins_played' => [90, 2],
+                                    ],
                                 ],
                             ],
                         ],
@@ -80,6 +88,11 @@ test('syncs lineups for each season team through the current week', function ():
         ->and($lineup->points)->toBe(6)
         ->and($lineupPlayer->player_id)->toBe($player->id)
         ->and($lineupPlayer->points)->toBe(6)
+        ->and($lineupPlayer->stats)->toBe([
+            'mins_played' => [90, 2],
+            'goals' => [0, 0],
+            'saves' => [2, 1],
+        ])
         ->and($lineupPlayer->position)->toBe(PlayerPosition::Goalkeeper);
 });
 
@@ -130,5 +143,6 @@ test('stores null player lineup points when that week is not in lastStats', func
 
     $lineupPlayer = SeasonTeamLineupPlayer::query()->sole();
 
-    expect($lineupPlayer->points)->toBeNull();
+    expect($lineupPlayer->points)->toBeNull()
+        ->and($lineupPlayer->stats)->toBeNull();
 });

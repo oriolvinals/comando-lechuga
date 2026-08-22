@@ -78,9 +78,12 @@ export interface Season {
     total_weeks: number;
 }
 
+export type JornadaStats = Record<string, [number, number]>;
+
 export interface SeasonTeamLineupPlayerEntry {
     id: number;
     points: number | null;
+    stats: JornadaStats | null;
     position: PlayerPosition;
     player: Player;
 }

@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { PositionBadge } from '@/components/position-badge';
 import { StatusBadge } from '@/components/status-badge';
-import { formatCurrency } from '@/lib/format';
+import { JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
 import { cn } from '@/lib/utils';
 import type { SeasonTeamLineupPlayerEntry } from '@/types/models';
 
@@ -77,39 +77,56 @@ export function PlayerStatsModal({ entry, onClose }: PlayerStatsModalProps) {
                         <PositionBadge position={entry.position} />
                         <StatusBadge status={player.status} />
                     </div>
+                    <p className="text-sm text-neutral-500">
+                        Puntos jornada:{' '}
+                        <span className="font-semibold text-neutral-900">
+                            {entry.points ?? '–'}
+                        </span>
+                    </p>
                 </div>
 
-                <dl className="mt-6 grid grid-cols-2 gap-4 text-center">
-                    <div>
-                        <dt className="text-xs text-neutral-500">
-                            Puntos jornada
-                        </dt>
-                        <dd className="text-lg font-semibold">
-                            {entry.points ?? '–'}
-                        </dd>
-                    </div>
-                    <div>
-                        <dt className="text-xs text-neutral-500">
-                            Valor de mercado
-                        </dt>
-                        <dd className="text-lg font-semibold">
-                            {formatCurrency(player.market_value)}
-                        </dd>
-                        {player.market_value_difference !== 0 && (
-                            <p
-                                className={cn(
-                                    'text-xs font-medium',
-                                    player.market_value_difference > 0
-                                        ? 'text-emerald-600'
-                                        : 'text-rose-600',
-                                )}
-                            >
-                                {player.market_value_difference > 0 ? '+' : ''}
-                                {formatCurrency(player.market_value_difference)}
-                            </p>
-                        )}
-                    </div>
-                </dl>
+                {entry.stats ? (
+                    <ul className="mt-6 divide-y divide-neutral-100 text-sm">
+                        {JORNADA_STAT_ORDER.map((key) => {
+                            const [value, points] = entry.stats?.[key] ?? [
+                                0, 0,
+                            ];
+
+                            return (
+                                <li
+                                    key={key}
+                                    className="flex items-center justify-between py-1.5"
+                                >
+                                    <span className="text-neutral-600">
+                                        {JORNADA_STAT_LABELS[key] ?? key}
+                                    </span>
+                                    <span className="flex items-center gap-2">
+                                        <span className="font-medium">
+                                            {value}
+                                        </span>
+                                        {points !== 0 && (
+                                            <span
+                                                className={cn(
+                                                    'text-xs font-medium',
+                                                    points > 0
+                                                        ? 'text-emerald-600'
+                                                        : 'text-rose-600',
+                                                )}
+                                            >
+                                                {points > 0 ? '+' : ''}
+                                                {points}
+                                            </span>
+                                        )}
+                                    </span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                ) : (
+                    <p className="mt-6 text-center text-sm text-neutral-500">
+                        Sin datos de esta jornada.
+                    </p>
+                )}
             </div>
         </div>
     );

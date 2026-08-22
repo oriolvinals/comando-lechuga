@@ -99,6 +99,7 @@ class SyncCurrentSeasonTeamLineups extends Command
                                 ],
                                 [
                                     'points' => is_array($weekStats) ? (int) ($weekStats['totalPoints'] ?? 0) : null,
+                                    'stats' => is_array($weekStats) ? ($weekStats['stats'] ?? []) : null,
                                     'position' => $position,
                                 ],
                             );
