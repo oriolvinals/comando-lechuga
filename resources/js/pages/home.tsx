@@ -1,14 +1,49 @@
 import { Head } from '@inertiajs/react';
 import type { ReactElement } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import type {
+    Fixture,
+    MarketPlayer,
+    Season,
+    SeasonActivity,
+    SeasonTeam,
+} from '@/types/models';
+import { ActivityPanel } from './home/activity-panel';
+import { FixturesPanel } from './home/fixtures-panel';
+import { MarketPanel } from './home/market-panel';
+import { StandingsTable } from './home/standings-table';
 
-export default function Home() {
+interface HomeProps {
+    season: Season;
+    filters: { week: number };
+    fixtures: Fixture[];
+    standings: SeasonTeam[];
+    market: MarketPlayer[];
+    activity: SeasonActivity[];
+    [key: string]: unknown;
+}
+
+export default function Home({
+    season,
+    filters,
+    fixtures,
+    standings,
+    market,
+    activity,
+}: HomeProps) {
     return (
         <>
             <Head title="Inicio" />
-            <p className="text-neutral-500">
-                Próximamente: clasificación general y partidos de la jornada.
-            </p>
+            <div className="flex flex-col gap-10">
+                <FixturesPanel
+                    fixtures={fixtures}
+                    season={season}
+                    week={filters.week}
+                />
+                <StandingsTable standings={standings} />
+                <MarketPanel market={market} />
+                <ActivityPanel activity={activity} />
+            </div>
         </>
     );
 }

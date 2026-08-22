@@ -39,6 +39,7 @@
         "concurrently": "^10.0.3",
         "globals": "^15.14.0",
         "laravel-vite-plugin": "^3.1",
+        "lucide-react": "^1.33.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "tailwind-merge": "^3.0.1",

@@ -4,13 +4,55 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Fixture;
+use App\Models\MarketPlayer;
+use App\Models\Season;
+use App\Models\SeasonActivity;
+use App\Models\SeasonTeam;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class HomeController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        return Inertia::render('home');
+        $season = Season::current();
+
+        $week = (int) $request->integer('week', $season->current_week);
+        $week = max(1, min($week, $season->total_weeks));
+
+        $fixtures = Fixture::query()
+            ->with(['localTeam', 'guestTeam'])
+            ->where('season_id', $season->id)
+            ->where('week_number', $week)
+            ->orderBy('date')
+            ->get();
+
+        $standings = SeasonTeam::query()
+            ->where('season_id', $season->id)
+            ->orderBy('position')
+            ->get();
+
+        $market = MarketPlayer::query()
+            ->with(['player.team'])
+            ->orderBy('expires_at')
+            ->get();
+
+        $activity = SeasonActivity::query()
+            ->where('season_id', $season->id)
+            ->with(['sourceSeasonTeam', 'targetSeasonTeam', 'player'])
+            ->orderByDesc('occurred_at')
+            ->limit(10)
+            ->get();
+
+        return Inertia::render('home', [
+            'season' => $season,
+            'filters' => ['week' => $week],
+            'fixtures' => $fixtures,
+            'standings' => $standings,
+            'market' => $market,
+            'activity' => $activity,
+        ]);
     }
 }
