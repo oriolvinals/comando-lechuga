@@ -42,7 +42,7 @@ export default function SeasonTeamsIndex({
     };
 
     return (
-        <>
+        <div className="py-10">
             <Head title="Equipos" />
 
             <WeekSelector
@@ -160,7 +160,7 @@ export default function SeasonTeamsIndex({
                 entry={selectedPlayer}
                 onClose={() => setSelectedPlayer(null)}
             />
-        </>
+        </div>
     );
 }
 

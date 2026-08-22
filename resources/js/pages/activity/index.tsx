@@ -67,7 +67,7 @@ export default function ActivityIndex({
     ).map(([value, label]) => ({ value, label }));
 
     return (
-        <>
+        <div className="py-10">
             <Head title="Actividad" />
 
             <div className="flex flex-wrap gap-3">
@@ -136,7 +136,7 @@ export default function ActivityIndex({
                     ))}
                 </nav>
             )}
-        </>
+        </div>
     );
 }
 

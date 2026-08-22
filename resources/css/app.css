@@ -19,6 +19,7 @@
     --color-hq-lime: #c4ff3d;
     --color-hq-khaki: #c9b98a;
     --color-hq-ember: #ff7a3d;
+    --color-hq-live: #ff3d5a;
     --color-hq-paper: #f2f0e4;
     --color-hq-moss: #9aa382;
     --color-hq-moss-dim: #5a6248;
@@ -64,4 +65,10 @@
 
 .hq-tag-cut {
     clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
+}
+
+.hq-bleed {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
 }

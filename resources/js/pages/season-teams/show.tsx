@@ -41,7 +41,7 @@ export default function SeasonTeamShow({
         useState<SeasonTeamLineupPlayerEntry | null>(null);
 
     return (
-        <>
+        <div className="py-10">
             <Head title={seasonTeam.name} />
 
             <div className="flex items-center gap-4">
@@ -252,7 +252,7 @@ export default function SeasonTeamShow({
                 entry={selectedPlayer}
                 onClose={() => setSelectedPlayer(null)}
             />
-        </>
+        </div>
     );
 }
 

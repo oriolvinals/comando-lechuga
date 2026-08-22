@@ -90,7 +90,7 @@ export default function PlayersIndex({
     ).map(([value, label]) => ({ value, label }));
 
     return (
-        <>
+        <div className="py-10">
             <Head title="Jugadores" />
 
             <div className="flex flex-wrap items-center gap-3">
@@ -314,7 +314,7 @@ export default function PlayersIndex({
                     ))}
                 </nav>
             )}
-        </>
+        </div>
     );
 }
 

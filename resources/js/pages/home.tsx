@@ -35,16 +35,22 @@ export default function Home({
     return (
         <>
             <Head title="Inicio" />
-            <div className="hq-texture overflow-hidden rounded-2xl border border-hq-border">
-                <HeroPanel week={filters.week} leader={standings[0]} />
-                <FixturesPanel
-                    fixtures={fixtures}
-                    season={season}
-                    week={filters.week}
-                />
-                <StandingsTable standings={standings} />
-                <MarketPanel market={market} />
-                <ActivityPanel activity={activity} />
+            <div className="hq-texture hq-bleed mb-10 border-y border-hq-border">
+                <div className="mx-auto max-w-7xl px-6 sm:px-8">
+                    <HeroPanel
+                        week={filters.week}
+                        leader={standings[0]}
+                        totalTeams={standings.length}
+                    />
+                    <FixturesPanel
+                        fixtures={fixtures}
+                        season={season}
+                        week={filters.week}
+                    />
+                    <StandingsTable standings={standings} />
+                    <MarketPanel market={market} />
+                    <ActivityPanel activity={activity} />
+                </div>
             </div>
         </>
     );

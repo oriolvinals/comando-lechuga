@@ -29,12 +29,15 @@ export interface Player {
     owner_team: OwnerTeam | null;
 }
 
+export type FixtureState =
+    'scheduled' | 'first_half' | 'half_time' | 'second_half' | 'finished';
+
 export interface Fixture {
     id: number;
     date: string;
     local_score: number | null;
     guest_score: number | null;
-    state: 'scheduled' | 'finished';
+    state: FixtureState;
     local_team: Team;
     guest_team: Team;
 }
@@ -74,6 +77,8 @@ export interface SeasonActivity {
 }
 
 export interface Season {
+    id: number;
+    name: string;
     current_week: number;
     total_weeks: number;
 }
