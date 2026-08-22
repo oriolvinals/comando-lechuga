@@ -1,0 +1,32 @@
+import { useEffect, useState } from 'react';
+
+function formatRemaining(diffMs: number): string {
+    if (diffMs <= 0) {
+        return 'Expirado';
+    }
+
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = (value: number) => String(value).padStart(2, '0');
+
+    if (days > 0) {
+        return `${days}d ${pad(hours)}h`;
+    }
+
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+export function useCountdown(targetIso: string): string {
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    return formatRemaining(new Date(targetIso).getTime() - now);
+}

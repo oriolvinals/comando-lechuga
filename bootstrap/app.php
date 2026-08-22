@@ -56,7 +56,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->onOneServer();
 
         $schedule->command('season:sync-market')
-            ->everyFifteenSeconds()
+            ->everyTenSeconds()
             ->withoutOverlapping()
             ->onOneServer();
 

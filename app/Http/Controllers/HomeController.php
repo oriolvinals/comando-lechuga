@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\PlayerPosition;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
 use App\Models\Fixture;
@@ -39,6 +40,7 @@ class HomeController extends Controller
 
         $market = MarketPlayer::query()
             ->with(['player.team'])
+            ->whereHas('player', fn ($query) => $query->where('position', '!=', PlayerPosition::Coach))
             ->orderBy('expires_at')
             ->get();
 

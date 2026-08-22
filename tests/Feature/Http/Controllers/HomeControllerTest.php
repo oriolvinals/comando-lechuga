@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\PlayerPosition;
 use App\Models\Fixture;
 use App\Models\MarketPlayer;
 use App\Models\Player;
@@ -108,8 +109,18 @@ test('shows all current market players ordered by soonest to expire', function (
         'end_date' => now()->addDay(),
     ]);
 
-    $expiresLater = MarketPlayer::factory()->create(['expires_at' => now()->addHours(20)]);
-    $expiresSoon = MarketPlayer::factory()->create(['expires_at' => now()->addHours(2)]);
+    $expiresLater = MarketPlayer::factory()->create([
+        'expires_at' => now()->addHours(20),
+        'player_id' => Player::factory()->create([
+            'position' => PlayerPosition::Striker,
+        ])->id,
+    ]);
+    $expiresSoon = MarketPlayer::factory()->create([
+        'expires_at' => now()->addHours(2),
+        'player_id' => Player::factory()->create([
+            'position' => PlayerPosition::Striker,
+        ])->id,
+    ]);
 
     $response = $this->get(route('home'));
 
@@ -118,6 +129,32 @@ test('shows all current market players ordered by soonest to expire', function (
         ->has('market', 2)
         ->where('market.0.id', $expiresSoon->id)
         ->where('market.1.id', $expiresLater->id)
+    );
+});
+
+test('excludes coaches from the market listing', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    $strikerListing = MarketPlayer::factory()->create([
+        'player_id' => Player::factory()->create([
+            'position' => PlayerPosition::Striker,
+        ])->id,
+    ]);
+    MarketPlayer::factory()->create([
+        'player_id' => Player::factory()->create([
+            'position' => PlayerPosition::Coach,
+        ])->id,
+    ]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('market', 1)
+        ->where('market.0.id', $strikerListing->id)
     );
 });
 
