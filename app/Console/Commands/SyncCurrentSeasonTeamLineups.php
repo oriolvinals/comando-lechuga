@@ -89,7 +89,7 @@ class SyncCurrentSeasonTeamLineups extends Command
                                     'player_id' => $player->id,
                                 ],
                                 [
-                                    'points' => (int) ($playerData['points'] ?? 0),
+                                    'points' => isset($playerData['points']) ? (int) $playerData['points'] : null,
                                     'position' => $position,
                                 ],
                             );

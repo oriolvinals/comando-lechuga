@@ -40,7 +40,7 @@ export default function SeasonTeamsIndex({
 
             <WeekSelector
                 week={filters.week}
-                totalWeeks={season.total_weeks}
+                maxWeek={season.current_week}
                 onChange={goToWeek}
                 label={`Jornada ${filters.week}`}
             />
@@ -168,9 +168,8 @@ export default function SeasonTeamsIndex({
                                                                     />
                                                                 </div>
                                                                 <span className="font-medium">
-                                                                    {
-                                                                        entry.points
-                                                                    }
+                                                                    {entry.points ??
+                                                                        '–'}
                                                                 </span>
                                                             </li>
                                                         ),

@@ -21,7 +21,7 @@ export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
         <section aria-labelledby="fixtures-heading">
             <WeekSelector
                 week={week}
-                totalWeeks={season.total_weeks}
+                maxWeek={season.total_weeks}
                 onChange={goToWeek}
                 label={`Jornada ${week}`}
             />

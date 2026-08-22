@@ -70,3 +70,52 @@ test('syncs lineups for each season team through the current week', function ():
         ->and($lineupPlayer->points)->toBe(6)
         ->and($lineupPlayer->position)->toBe(PlayerPosition::Goalkeeper);
 });
+
+test('stores null player points when the api has not reported a score yet', function (): void {
+    Cache::forget('la_liga_fantasy.access_token');
+
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+    $seasonTeam = SeasonTeam::factory()->create([
+        'season_id' => $season->id,
+        'fantasy_id' => 37394771,
+    ]);
+    Player::factory()->create(['fantasy_id' => 2759]);
+    $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
+    $loginConnector->shouldReceive('accessToken')
+        ->once()
+        ->andReturn('header.eyJleHAiOjE3ODc0MTc3NTB9.signature');
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamLineupRequest::class => MockResponse::make([
+            'formation' => [
+                'goalkeeper' => [
+                    [
+                        'playerMaster' => [
+                            'id' => '2759',
+                        ],
+                    ],
+                ],
+                'defender' => [],
+                'midfield' => [],
+                'striker' => [],
+                'tacticalFormation' => [3, 5, 2],
+            ],
+        ]),
+    ]));
+
+    app()->instance(LaLigaLoginConnector::class, $loginConnector);
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonTeamLineups::class)
+        ->expectsOutput('1 team lineups synchronized.')
+        ->assertSuccessful();
+
+    $lineup = SeasonTeamLineup::query()->sole();
+    $lineupPlayer = SeasonTeamLineupPlayer::query()->sole();
+
+    expect($lineup->points)->toBe(0)
+        ->and($lineupPlayer->points)->toBeNull();
+});
