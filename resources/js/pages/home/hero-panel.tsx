@@ -30,7 +30,7 @@ export function HeroPanel({ week, leader, totalTeams }: HeroPanelProps) {
                 </h1>
 
                 {leader && (
-                    <div className="hq-panel-cut mx-auto flex max-w-2xl items-center gap-3 border border-l-4 border-hq-border-strong border-l-hq-gold bg-gradient-to-br from-hq-panel-alt to-hq-panel px-4 py-4 text-left sm:mx-0 sm:gap-5 sm:px-6 sm:py-5">
+                    <div className="hq-panel-cut mx-auto flex max-w-2xl items-center gap-3 border-l-4 border-l-hq-gold px-4 py-4 text-left sm:mx-0 sm:gap-5 sm:px-6 sm:py-5">
                         <EntityImage
                             src={leader.logo}
                             alt={leader.name}

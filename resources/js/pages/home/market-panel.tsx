@@ -15,7 +15,7 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
     const countdown = useCountdown(listing.expires_at);
 
     return (
-        <div className="hq-card-cut relative border border-hq-border bg-hq-panel px-4 py-4 text-center">
+        <div className="hq-card-cut px-4 py-4 text-center">
             {listing.bids > 0 && (
                 <span className="absolute top-2 right-2 rounded bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-hq-ember">
                     {listing.bids} {listing.bids === 1 ? 'PUJA' : 'PUJAS'}

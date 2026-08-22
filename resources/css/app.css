@@ -68,12 +68,28 @@ body {
 }
 
 .hq-panel-cut {
+    position: relative;
+    isolation: isolate;
     clip-path: polygon(
         0 0,
         100% 0,
         100% calc(100% - 14px),
         calc(100% - 14px) 100%,
         0 100%
+    );
+    background-color: var(--color-hq-border-strong);
+}
+
+.hq-panel-cut::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    clip-path: inherit;
+    background: linear-gradient(
+        to bottom right,
+        var(--color-hq-panel-alt),
+        var(--color-hq-panel)
     );
 }
 
@@ -82,6 +98,8 @@ body {
 }
 
 .hq-card-cut {
+    position: relative;
+    isolation: isolate;
     clip-path: polygon(
         16px 0,
         100% 0,
@@ -90,6 +108,16 @@ body {
         0 100%,
         0 16px
     );
+    background-color: var(--color-hq-border);
+}
+
+.hq-card-cut::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    clip-path: inherit;
+    background-color: var(--color-hq-panel);
 }
 
 .hq-bleed {

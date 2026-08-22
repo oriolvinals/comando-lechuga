@@ -113,7 +113,7 @@ function ActivityCard({ activity }: { activity: SeasonActivity }) {
     const Icon = TYPE_ICONS[activity.type];
 
     return (
-        <div className="hq-card-cut border border-hq-border bg-hq-panel px-4 py-3.5">
+        <div className="hq-card-cut px-4 py-3.5">
             <div className="mb-2.5 flex items-center justify-between">
                 <span
                     className={cn(
