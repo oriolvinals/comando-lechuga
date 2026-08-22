@@ -608,7 +608,7 @@ Expected: PASS (all tests, including the four controller tests from Tasks 1, 2, 
 Run: `npm run build` (if not already run in Step 1 after the layout/nav changes)
 
 Then, using the `run` skill or a browser, visit each of the four routes on the Herd URL for this project and confirm for each one:
-- The header and nav are present and identical across all five pages.
+- The header and nav are present and identical across all four pages.
 - The nav item for the current page is visually highlighted (dark pill) and has `aria-current="page"`.
 - Clicking each of the other four nav links navigates there via Inertia (no full page reload) and updates the highlighted item.
 
