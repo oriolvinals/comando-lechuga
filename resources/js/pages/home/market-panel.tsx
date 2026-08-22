@@ -10,7 +10,7 @@ interface MarketPanelProps {
 
 export function MarketPanel({ market }: MarketPanelProps) {
     return (
-        <HqSection number="03" title="Suministros disponibles">
+        <HqSection title="Suministros disponibles">
             {market.length === 0 ? (
                 <p className="text-sm text-hq-moss">
                     No hay jugadores en el mercado ahora mismo.

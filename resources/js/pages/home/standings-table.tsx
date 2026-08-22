@@ -10,7 +10,7 @@ interface StandingsTableProps {
 
 export function StandingsTable({ standings }: StandingsTableProps) {
     return (
-        <HqSection number="02" title="Parte de clasificación">
+        <HqSection title="Parte de clasificación">
             <div className="flex flex-col gap-1.5">
                 {standings.map((team, index) => (
                     <div

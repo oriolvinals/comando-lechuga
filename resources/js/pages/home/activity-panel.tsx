@@ -13,7 +13,7 @@ interface ActivityPanelProps {
 
 export function ActivityPanel({ activity }: ActivityPanelProps) {
     return (
-        <HqSection number="04" title="Transmisiones">
+        <HqSection title="Transmisiones">
             <div className="mb-4 flex items-center justify-between">
                 <p className="font-mono text-[11px] text-hq-moss-dim">
                     Registro de actividad de la liga

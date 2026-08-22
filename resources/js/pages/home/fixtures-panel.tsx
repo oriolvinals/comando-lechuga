@@ -29,7 +29,7 @@ export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
     };
 
     return (
-        <HqSection number="01" title="Operaciones de la jornada">
+        <HqSection title="Jornadas">
             <div className="mb-4 flex flex-wrap gap-1.5">
                 {Array.from(
                     { length: season.total_weeks },
