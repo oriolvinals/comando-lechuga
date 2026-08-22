@@ -20,7 +20,7 @@ test('belongs to a season team and a player and stores the clause state', functi
     expect($seasonTeamPlayer->seasonTeam->is($seasonTeam))->toBeTrue()
         ->and($seasonTeamPlayer->player->is($player))->toBeTrue()
         ->and($seasonTeamPlayer->buyout_clause)->toBe(35273936)
-        ->and($seasonTeamPlayer->buyout_clause_locked_until->equalTo($lockedUntil))->toBeTrue()
+        ->and($seasonTeamPlayer->buyout_clause_locked_until->toDateTimeString())->toBe($lockedUntil->toDateTimeString())
         ->and($seasonTeamPlayer->shielded)->toBeTrue()
         ->and($seasonTeam->fresh())->not->toBeNull();
 });

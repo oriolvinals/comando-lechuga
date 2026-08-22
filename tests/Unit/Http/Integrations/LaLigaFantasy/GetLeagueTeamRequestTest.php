@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest;
 use Saloon\Enums\Method;
 
-test('uses the authenticated league team endpoint', function () {
+test('uses the authenticated league team endpoint', function (): void {
     $request = new GetLeagueTeamRequest(
         leagueId: '017834818',
         teamFantasyId: 37394521,
@@ -24,18 +26,18 @@ test('uses the authenticated league team endpoint', function () {
         ]);
 });
 
-test('rejects an empty league ID, an invalid team ID or an empty access token', function () {
-    expect(fn () => new GetLeagueTeamRequest(
+test('rejects an empty league ID, an invalid team ID or an empty access token', function (): void {
+    expect(fn (): \App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest => new GetLeagueTeamRequest(
         leagueId: '',
         teamFantasyId: 37394521,
         accessToken: 'access-token',
     ))->toThrow(InvalidArgumentException::class)
-        ->and(fn () => new GetLeagueTeamRequest(
+        ->and(fn (): \App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest => new GetLeagueTeamRequest(
             leagueId: '017834818',
             teamFantasyId: 0,
             accessToken: 'access-token',
         ))->toThrow(InvalidArgumentException::class)
-        ->and(fn () => new GetLeagueTeamRequest(
+        ->and(fn (): \App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest => new GetLeagueTeamRequest(
             leagueId: '017834818',
             teamFantasyId: 37394521,
             accessToken: '',

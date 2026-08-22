@@ -27,7 +27,7 @@ test('uses the authenticated league activity endpoint', function (): void {
 });
 
 test('rejects a negative page', function (): void {
-    expect(fn (): \App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueActivityRequest => new GetLeagueActivityRequest(
+    expect(fn (): GetLeagueActivityRequest => new GetLeagueActivityRequest(
         leagueId: '017834818',
         page: -1,
         accessToken: 'access-token',
@@ -35,12 +35,12 @@ test('rejects a negative page', function (): void {
 });
 
 test('rejects an empty league ID or access token', function (): void {
-    expect(fn (): \App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueActivityRequest => new GetLeagueActivityRequest(
+    expect(fn (): GetLeagueActivityRequest => new GetLeagueActivityRequest(
         leagueId: '',
         page: 0,
         accessToken: 'access-token',
     ))->toThrow(InvalidArgumentException::class)
-        ->and(fn (): \App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueActivityRequest => new GetLeagueActivityRequest(
+        ->and(fn (): GetLeagueActivityRequest => new GetLeagueActivityRequest(
             leagueId: '017834818',
             page: 0,
             accessToken: '',

@@ -13,7 +13,7 @@ use Mockery;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('creates the current squad for each season team and skips unresolved players', function () {
+test('creates the current squad for each season team and skips unresolved players', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([
@@ -68,7 +68,7 @@ test('creates the current squad for each season team and skips unresolved player
         ->toBe('2026-08-25T20:00:49+02:00');
 });
 
-test('removes players that are no longer part of the current squad', function () {
+test('removes players that are no longer part of the current squad', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([
