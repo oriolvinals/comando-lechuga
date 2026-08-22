@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { HqSection } from '@/components/hq-section';
+import { HqWeekPicker } from '@/components/hq-week-picker';
 import { formatMatchDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
@@ -30,25 +31,13 @@ export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
 
     return (
         <HqSection title="Jornadas">
-            <div className="mb-4 flex flex-wrap gap-1.5">
-                {Array.from(
-                    { length: season.total_weeks },
-                    (_, index) => index + 1,
-                ).map((weekNumber) => (
-                    <button
-                        key={weekNumber}
-                        type="button"
-                        onClick={() => goToWeek(weekNumber)}
-                        className={cn(
-                            'border px-2.5 py-1 font-mono text-[11px] font-bold',
-                            weekNumber === week
-                                ? 'border-hq-lime bg-hq-lime text-hq-ink'
-                                : 'border-hq-border text-hq-moss hover:border-hq-border-strong',
-                        )}
-                    >
-                        J{weekNumber}
-                    </button>
-                ))}
+            <div className="mb-4">
+                <HqWeekPicker
+                    week={week}
+                    maxWeek={season.total_weeks}
+                    playedThroughWeek={season.current_week}
+                    onChange={goToWeek}
+                />
             </div>
 
             {fixtures.length === 0 ? (
