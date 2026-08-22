@@ -62,6 +62,18 @@ export function describeActivity(activity: SeasonActivity): string {
     }
 }
 
+function isFavorableDifference(activity: SeasonActivity): boolean {
+    if (activity.value_difference === null) {
+        return false;
+    }
+
+    // Buying (signing/buyout): paying at or under market value is the good outcome.
+    // Selling (everything else that carries an amount): getting at or above market value is.
+    return activity.type === 'signing' || activity.type === 'buyout'
+        ? activity.value_difference <= 0
+        : activity.value_difference >= 0;
+}
+
 interface ActivityEntryProps {
     activity: SeasonActivity;
 }
@@ -102,11 +114,11 @@ export function ActivityEntry({ activity }: ActivityEntryProps) {
 
             <p className="flex-1 text-sm">{describeActivity(activity)}</p>
 
-            {activity.value_difference !== null && (
+            {activity.value_difference != null && (
                 <span
                     className={cn(
                         'shrink-0 text-xs font-medium',
-                        activity.value_difference >= 0
+                        isFavorableDifference(activity)
                             ? 'text-emerald-600'
                             : 'text-rose-600',
                     )}

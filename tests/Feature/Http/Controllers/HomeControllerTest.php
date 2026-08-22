@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Models\Fixture;
 use App\Models\MarketPlayer;
+use App\Models\Player;
+use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonActivity;
 use App\Models\SeasonTeam;
@@ -177,6 +179,36 @@ test('shows the local and guest team names for each fixture', function (): void 
     $response->assertInertia(fn (Assert $page) => $page
         ->where('fixtures.0.local_team.name', 'Real Sociedad')
         ->where('fixtures.0.guest_team.name', 'Villarreal CF')
+    );
+});
+
+test('shows the difference between the amount paid and the market value on that date', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $activityDate = now()->subDays(3);
+
+    PlayerMarket::factory()->create([
+        'player_id' => $player->id,
+        'date' => $activityDate->toDateString(),
+        'value' => 450_000,
+    ]);
+
+    $activity = SeasonActivity::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'amount' => 500_000,
+        'occurred_at' => $activityDate,
+    ]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('activity.0.id', $activity->id)
+        ->where('activity.0.value_difference', 50_000)
     );
 });
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Models\Fixture;
 use App\Models\MarketPlayer;
 use App\Models\Season;
@@ -15,6 +16,8 @@ use Inertia\Response;
 
 class HomeController extends Controller
 {
+    use AttachesActivityValueDifference;
+
     public function index(Request $request): Response
     {
         $season = Season::current();
@@ -45,6 +48,8 @@ class HomeController extends Controller
             ->orderByDesc('occurred_at')
             ->limit(10)
             ->get();
+
+        $this->attachValueDifferences($activity);
 
         return Inertia::render('home', [
             'season' => $season,
