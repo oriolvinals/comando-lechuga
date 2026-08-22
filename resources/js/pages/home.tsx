@@ -35,7 +35,7 @@ export default function Home({
     return (
         <>
             <Head title="Inicio" />
-            <div className="hq-texture hq-bleed mb-10 border-y border-hq-border">
+            <div className="hq-texture hq-bleed border-y border-hq-border">
                 <div className="mx-auto max-w-7xl px-6">
                     <HeroPanel
                         week={filters.week}
