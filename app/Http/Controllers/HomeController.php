@@ -41,6 +41,7 @@ class HomeController extends Controller
         $market = MarketPlayer::query()
             ->with(['player.team'])
             ->whereHas('player', fn ($query) => $query->where('position', '!=', PlayerPosition::Coach))
+            ->where('expires_at', '>', now())
             ->orderBy('expires_at')
             ->get();
 
