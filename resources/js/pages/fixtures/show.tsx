@@ -11,6 +11,7 @@ import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
 import { didNotPlayMatch } from '@/lib/player-labels';
 import { pointsBadgeClass } from '@/lib/points';
+import { seasonTeamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import type { Fixture, PlayerScore } from '@/types/models';
@@ -195,6 +196,19 @@ function PlayerRow({
                     stats={score.stats}
                     position={score.player.position}
                 />
+                {score.lineup_team && (
+                    <span className="flex items-center gap-1.5 font-mono text-[10px] text-hq-moss">
+                        <span
+                            className="h-2 w-2 shrink-0 rounded-[1px]"
+                            style={{
+                                backgroundColor: seasonTeamColor(
+                                    score.lineup_team.id,
+                                ),
+                            }}
+                        />
+                        {score.lineup_team.name}
+                    </span>
+                )}
             </div>
             <div className="flex flex-col items-end gap-2.5">
                 <span
@@ -494,6 +508,7 @@ export default function FixtureShow({
                                       ? selectedScore.stats.marca_points?.[1]
                                       : undefined,
                               stats: selectedScore.stats,
+                              lineupTeam: selectedScore.lineup_team,
                           }
                         : null
                 }

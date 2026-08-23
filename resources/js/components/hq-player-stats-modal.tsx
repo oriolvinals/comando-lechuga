@@ -5,9 +5,10 @@ import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
 import { pointsBadgeClass } from '@/lib/points';
+import { seasonTeamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
-import type { JornadaStats, Player, Team } from '@/types/models';
+import type { JornadaStats, Player, SeasonTeam, Team } from '@/types/models';
 
 export interface HqPlayerStatsEntry {
     player: Player;
@@ -15,6 +16,7 @@ export interface HqPlayerStatsEntry {
     points: number;
     daznPoints?: number;
     stats: JornadaStats;
+    lineupTeam?: SeasonTeam | null;
 }
 
 interface HqPlayerStatsModalProps {
@@ -50,7 +52,7 @@ export function HqPlayerStatsModal({
         return null;
     }
 
-    const { player, team, points, daznPoints, stats } = entry;
+    const { player, team, points, daznPoints, stats, lineupTeam } = entry;
 
     return (
         <div
@@ -91,6 +93,19 @@ export function HqPlayerStatsModal({
                         />
                         {team.name}
                     </div>
+                    {lineupTeam && (
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-hq-moss">
+                            <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
+                                style={{
+                                    backgroundColor: seasonTeamColor(
+                                        lineupTeam.id,
+                                    ),
+                                }}
+                            />
+                            {lineupTeam.name}
+                        </div>
+                    )}
                     <div className="mt-1 flex items-center gap-2">
                         <HqPositionTag position={player.position} />
                         <span

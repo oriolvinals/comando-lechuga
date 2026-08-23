@@ -5,6 +5,7 @@ import { MatchEventIcons } from '@/components/match-event-icons';
 import { formatMatchDateTime } from '@/lib/format';
 import { didNotPlayMatch, JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
 import { pointsBadgeClass } from '@/lib/points';
+import { seasonTeamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import type { Fixture, PlayerFichaScore, PlayerPosition } from '@/types/models';
@@ -105,6 +106,19 @@ export function HqPlayerMatchTimeline({
                             position={playerPosition}
                         />
                         <div className="ml-auto flex items-center gap-2.5">
+                            {selectedScore.lineup_team && (
+                                <span className="flex items-center gap-1.5 border border-hq-border-strong bg-hq-panel-alt px-1.5 py-0.5 font-mono text-[11px] text-hq-paper">
+                                    <span
+                                        className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
+                                        style={{
+                                            backgroundColor: seasonTeamColor(
+                                                selectedScore.lineup_team.id,
+                                            ),
+                                        }}
+                                    />
+                                    {selectedScore.lineup_team.name}
+                                </span>
+                            )}
                             {selectedScore.stats.marca_points && (
                                 <span className="border border-hq-khaki px-1.5 py-0.5 font-mono text-[11px] text-hq-khaki">
                                     DAZN {selectedScore.stats.marca_points[1]}

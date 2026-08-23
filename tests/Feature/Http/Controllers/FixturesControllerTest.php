@@ -7,6 +7,9 @@ use App\Models\Fixture;
 use App\Models\Player;
 use App\Models\PlayerScore;
 use App\Models\Season;
+use App\Models\SeasonTeam;
+use App\Models\SeasonTeamLineup;
+use App\Models\SeasonTeamLineupPlayer;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -108,4 +111,63 @@ test('only includes scores for this fixture', function (): void {
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page->has('scores', 0));
+});
+
+test('includes the fantasy team that fielded a player in their lineup that jornada', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3]);
+    $player = Player::factory()->create(['position' => PlayerPosition::Striker]);
+    PlayerScore::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id]);
+
+    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $lineup = SeasonTeamLineup::factory()->create(['season_team_id' => $seasonTeam->id, 'week_number' => 3]);
+    SeasonTeamLineupPlayer::factory()->create(['season_team_lineup_id' => $lineup->id, 'player_id' => $player->id]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('scores.0.lineup_team.id', $seasonTeam->id)
+    );
+});
+
+test('has no lineup team for a player not fielded in any lineup that jornada', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['position' => PlayerPosition::Striker]);
+    PlayerScore::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('scores.0.lineup_team', null)
+    );
+});
+
+test('excludes a lineup from a different week for the same player', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3]);
+    $player = Player::factory()->create(['position' => PlayerPosition::Striker]);
+    PlayerScore::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id]);
+
+    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $otherWeekLineup = SeasonTeamLineup::factory()->create(['season_team_id' => $seasonTeam->id, 'week_number' => 4]);
+    SeasonTeamLineupPlayer::factory()->create(['season_team_lineup_id' => $otherWeekLineup->id, 'player_id' => $player->id]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('scores.0.lineup_team', null)
+    );
 });

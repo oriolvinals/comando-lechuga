@@ -12,8 +12,10 @@ use App\Models\Fixture;
 use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
+use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonActivity;
+use App\Models\SeasonTeamLineupPlayer;
 use App\Models\SeasonTeamPlayer;
 use App\Models\Team;
 use Illuminate\Database\Eloquent\Collection;
@@ -96,6 +98,19 @@ class PlayersController extends Controller
             ->get()
             ->sortBy(fn ($score) => $score->fixture->week_number)
             ->values();
+
+        // Which fantasy team fielded this player in their lineup each jornada — distinct
+        // from ownership, since an owner can bench a player they still own.
+        $lineupTeamsByWeek = SeasonTeamLineupPlayer::query()
+            ->where('player_id', $player->id)
+            ->whereHas('lineup.seasonTeam', fn ($query) => $query->where('season_id', $season->id))
+            ->with('lineup.seasonTeam')
+            ->get()
+            ->keyBy(fn (SeasonTeamLineupPlayer $entry): int => $entry->lineup->week_number);
+
+        $scores->each(function (PlayerScore $score) use ($lineupTeamsByWeek): void {
+            $score->lineup_team = $lineupTeamsByWeek->get($score->fixture->week_number)?->lineup?->seasonTeam;
+        });
 
         $ownershipActivity = SeasonActivity::query()
             ->where('season_id', $season->id)

@@ -13,6 +13,8 @@ use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonActivity;
 use App\Models\SeasonTeam;
+use App\Models\SeasonTeamLineup;
+use App\Models\SeasonTeamLineupPlayer;
 use App\Models\SeasonTeamPlayer;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -423,6 +425,65 @@ test('only includes scores for this player', function (): void {
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page->has('scores', 0));
+});
+
+test('includes the fantasy team that fielded the player in their lineup that week', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
+
+    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $lineup = SeasonTeamLineup::factory()->create(['season_team_id' => $seasonTeam->id, 'week_number' => 1]);
+    SeasonTeamLineupPlayer::factory()->create(['season_team_lineup_id' => $lineup->id, 'player_id' => $player->id]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('scores.0.lineup_team.id', $seasonTeam->id)
+    );
+});
+
+test('has no lineup team for a week the player was not fielded in any lineup', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('scores.0.lineup_team', null)
+    );
+});
+
+test('excludes lineup teams from a different season', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
+
+    $otherSeasonTeam = SeasonTeam::factory()->create();
+    $otherLineup = SeasonTeamLineup::factory()->create(['season_team_id' => $otherSeasonTeam->id, 'week_number' => 1]);
+    SeasonTeamLineupPlayer::factory()->create(['season_team_lineup_id' => $otherLineup->id, 'player_id' => $player->id]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('scores.0.lineup_team', null)
+    );
 });
 
 test('includes ownership-affecting activity for this player, ordered chronologically', function (): void {

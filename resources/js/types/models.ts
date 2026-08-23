@@ -52,6 +52,7 @@ export interface PlayerScore {
     stats: JornadaStats;
     ideal_formation: boolean;
     player: Player;
+    lineup_team: SeasonTeam | null;
 }
 
 export interface SeasonTeam {
@@ -152,6 +153,7 @@ export interface PlayerFichaScore {
     stats: JornadaStats;
     ideal_formation: boolean;
     fixture: Fixture;
+    lineup_team: SeasonTeam | null;
 }
 
 export interface OwnershipActivity {
