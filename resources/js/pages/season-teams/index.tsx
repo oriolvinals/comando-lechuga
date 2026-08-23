@@ -8,6 +8,7 @@ import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqWeekPicker } from '@/components/hq-week-picker';
 import AppLayout from '@/layouts/app-layout';
 import { crestTintStyle } from '@/lib/season-team-colors';
+import { cn } from '@/lib/utils';
 import {
     index as seasonTeamsIndex,
     show as seasonTeamsShow,
@@ -17,6 +18,12 @@ import type {
     SeasonTeamLineup,
     SeasonTeamLineupPlayerEntry,
 } from '@/types/models';
+
+const MEDAL_BORDERS = [
+    'border-l-hq-gold',
+    'border-l-hq-silver',
+    'border-l-hq-bronze',
+];
 
 interface SeasonTeamsIndexProps {
     season: Season;
@@ -73,10 +80,14 @@ export default function SeasonTeamsIndex({
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                            {lineups.map((lineup) => (
+                            {lineups.map((lineup, index) => (
                                 <div
                                     key={lineup.id}
-                                    className="border border-hq-border bg-hq-panel p-4"
+                                    className={cn(
+                                        'border border-l-4 border-hq-border bg-hq-panel p-4',
+                                        index < 3 && MEDAL_BORDERS[index],
+                                        index === 0 && 'bg-hq-panel-alt',
+                                    )}
                                 >
                                     <div className="mb-3 flex items-center gap-2.5">
                                         <Link
