@@ -1,11 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronDown, ChevronUp, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import type { ReactElement } from 'react';
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
-import { LineupPitch } from '@/components/lineup-pitch';
-import { PlayerStatsModal } from '@/components/player-stats-modal';
-import { WeekSelector } from '@/components/week-selector';
+import { HqLineupPitch } from '@/components/hq-lineup-pitch';
+import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
+import { HqWeekPicker } from '@/components/hq-week-picker';
 import AppLayout from '@/layouts/app-layout';
 import {
     index as seasonTeamsIndex,
@@ -29,7 +29,6 @@ export default function SeasonTeamsIndex({
     filters,
     lineups,
 }: SeasonTeamsIndexProps) {
-    const [expandedId, setExpandedId] = useState<number | null>(null);
     const [selectedPlayer, setSelectedPlayer] =
         useState<SeasonTeamLineupPlayerEntry | null>(null);
 
@@ -42,125 +41,92 @@ export default function SeasonTeamsIndex({
     };
 
     return (
-        <div className="py-10">
-            <Head title="Equipos" />
+        <>
+            <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
+                <div className="mx-auto max-w-7xl px-6 py-9">
+                    <Head title="Equipos" />
 
-            <WeekSelector
-                week={filters.week}
-                maxWeek={season.current_week}
-                onChange={goToWeek}
-                label={`Jornada ${filters.week}`}
-            />
+                    <h1 className="mb-6 font-display text-3xl text-hq-paper uppercase">
+                        Equipos
+                    </h1>
 
-            {lineups.length === 0 ? (
-                <p className="mt-8 text-neutral-500">
-                    Nadie tenía alineación registrada esta jornada.
-                </p>
-            ) : (
-                <table className="mt-8 w-full text-sm">
-                    <thead>
-                        <tr className="text-left text-neutral-500">
-                            <th scope="col" className="py-2 pr-4 font-medium">
-                                #
-                            </th>
-                            <th scope="col" className="px-4 font-medium">
-                                Equipo
-                            </th>
-                            <th
-                                scope="col"
-                                className="px-4 text-right font-medium"
-                            >
-                                Puntos
-                            </th>
-                            <th scope="col" className="w-8 pl-4" />
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-200">
-                        {lineups.map((lineup, index) => {
-                            const isExpanded = expandedId === lineup.id;
+                    <div className="mb-6">
+                        <HqWeekPicker
+                            week={filters.week}
+                            maxWeek={season.total_weeks}
+                            playedThroughWeek={season.current_week}
+                            onChange={goToWeek}
+                        />
+                    </div>
 
-                            return (
-                                <Fragment key={lineup.id}>
-                                    <tr
-                                        className="cursor-pointer hover:bg-neutral-50"
-                                        onClick={() =>
-                                            setExpandedId(
-                                                isExpanded ? null : lineup.id,
-                                            )
-                                        }
-                                    >
-                                        <td className="py-2 pr-4 text-neutral-500">
-                                            {index + 1}
-                                        </td>
-                                        <td className="px-4">
-                                            <div className="flex items-center gap-2">
-                                                <EntityImage
-                                                    src={
-                                                        lineup.season_team.logo
-                                                    }
-                                                    alt={
-                                                        lineup.season_team.name
-                                                    }
-                                                    fallback={Shield}
-                                                    className="h-6 w-6"
-                                                />
-                                                <Link
-                                                    href={
-                                                        seasonTeamsShow(
-                                                            lineup.season_team
-                                                                .id,
-                                                        ).url
-                                                    }
-                                                    onClick={(event) =>
-                                                        event.stopPropagation()
-                                                    }
-                                                    className="font-medium hover:underline"
-                                                >
-                                                    {lineup.season_team.name}
-                                                </Link>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 text-right font-semibold">
+                    {lineups.length === 0 ? (
+                        <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
+                            <p className="mb-2 text-3xl">📋</p>
+                            <p className="font-display text-lg text-hq-paper uppercase">
+                                Sin alineaciones
+                            </p>
+                            <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
+                                Nadie tenía alineación registrada esta
+                                jornada.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {lineups.map((lineup) => (
+                                <div
+                                    key={lineup.id}
+                                    className="border border-hq-border bg-hq-panel p-4"
+                                >
+                                    <div className="mb-3 flex items-center gap-2.5">
+                                        <Link
+                                            href={
+                                                seasonTeamsShow(
+                                                    lineup.season_team.id,
+                                                ).url
+                                            }
+                                            className="flex min-w-0 flex-1 items-center gap-2.5 hover:opacity-80"
+                                        >
+                                            <EntityImage
+                                                src={lineup.season_team.logo}
+                                                alt={lineup.season_team.name}
+                                                fallback={Shield}
+                                                shape="square"
+                                                className="hq-crest-cut h-16 w-16 shrink-0 bg-hq-border p-2 text-hq-khaki"
+                                            />
+                                            <span className="flex-1 truncate text-sm font-extrabold text-hq-paper">
+                                                {lineup.season_team.name}
+                                            </span>
+                                        </Link>
+                                        <span className="shrink-0 font-display text-2xl text-hq-lime">
                                             {lineup.points}
-                                        </td>
-                                        <td className="pl-4 text-neutral-400">
-                                            {isExpanded ? (
-                                                <ChevronUp className="h-4 w-4" />
-                                            ) : (
-                                                <ChevronDown className="h-4 w-4" />
-                                            )}
-                                        </td>
-                                    </tr>
-                                    {isExpanded && (
-                                        <tr>
-                                            <td
-                                                colSpan={4}
-                                                className="bg-neutral-50 px-4 py-3"
-                                            >
-                                                <LineupPitch
-                                                    players={lineup.players}
-                                                    tacticalFormation={
-                                                        lineup.tactical_formation
-                                                    }
-                                                    onSelectPlayer={
-                                                        setSelectedPlayer
-                                                    }
-                                                />
-                                            </td>
-                                        </tr>
-                                    )}
-                                </Fragment>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            )}
+                                        </span>
+                                    </div>
 
-            <PlayerStatsModal
-                entry={selectedPlayer}
+                                    <HqLineupPitch
+                                        players={lineup.players}
+                                        onSelectPlayer={setSelectedPlayer}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <HqPlayerStatsModal
+                entry={
+                    selectedPlayer
+                        ? {
+                              player: selectedPlayer.player,
+                              team: selectedPlayer.player.team,
+                              points: selectedPlayer.points ?? 0,
+                              stats: selectedPlayer.stats ?? {},
+                          }
+                        : null
+                }
                 onClose={() => setSelectedPlayer(null)}
             />
-        </div>
+        </>
     );
 }
 
