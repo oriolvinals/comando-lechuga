@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('creates or updates season teams from the private standing', function (): void {
+test('updates an existing season team without touching its name', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([
@@ -58,7 +58,7 @@ test('creates or updates season teams from the private standing', function (): v
 
     $seasonTeam->refresh();
 
-    expect($seasonTeam->name)->toBe('Gauchitos F.C')
+    expect($seasonTeam->name)->toBe('Old name')
         ->and($seasonTeam->fantasy_user_id)->toBe(6392099)
         ->and($seasonTeam->total_points)->toBe(64)
         ->and($seasonTeam->live_points)->toBe(30)
@@ -108,5 +108,6 @@ test('leaves the logo empty when no matching image exists on disk', function ():
 
     $seasonTeam = SeasonTeam::query()->where('fantasy_id', 999999999)->sole();
 
-    expect($seasonTeam->logo)->toBe('');
+    expect($seasonTeam->logo)->toBe('')
+        ->and($seasonTeam->name)->toBe('No Logo FC');
 });

@@ -49,22 +49,24 @@ class SyncCurrentSeasonStanding extends Command
 
                 $fantasyId = (int) $teamData['id'];
 
-                SeasonTeam::query()->updateOrCreate(
-                    [
-                        'season_id' => $season->id,
-                        'fantasy_id' => $fantasyId,
-                    ],
-                    [
-                        'name' => (string) $managerData['managerName'],
-                        'fantasy_user_id' => (int) $managerData['id'],
-                        'total_points' => (int) $standingData['points'],
-                        'live_points' => (int) $standingData['livePoints'],
-                        'position' => (int) $standingData['position'],
-                        'last_position' => (int) $standingData['previousPosition'],
-                        'value' => (int) $teamData['teamValue'],
-                        'logo' => $this->resolveLogo($fantasyId),
-                    ],
-                );
+                $seasonTeam = SeasonTeam::query()->firstOrNew([
+                    'season_id' => $season->id,
+                    'fantasy_id' => $fantasyId,
+                ]);
+
+                if (!$seasonTeam->exists) {
+                    $seasonTeam->name = (string) $managerData['managerName'];
+                }
+
+                $seasonTeam->fill([
+                    'fantasy_user_id' => (int) $managerData['id'],
+                    'total_points' => (int) $standingData['points'],
+                    'live_points' => (int) $standingData['livePoints'],
+                    'position' => (int) $standingData['position'],
+                    'last_position' => (int) $standingData['previousPosition'],
+                    'value' => (int) $teamData['teamValue'],
+                    'logo' => $this->resolveLogo($fantasyId),
+                ])->save();
 
                 $seasonTeamsSynchronized++;
             }
