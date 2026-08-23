@@ -24,7 +24,10 @@ const BODY_STAT_ORDER = JORNADA_STAT_ORDER.filter(
     (key) => key !== 'marca_points',
 );
 
-export function HqPlayerStatsModal({ entry, onClose }: HqPlayerStatsModalProps) {
+export function HqPlayerStatsModal({
+    entry,
+    onClose,
+}: HqPlayerStatsModalProps) {
     useEffect(() => {
         if (!entry) {
             return;
@@ -119,7 +122,8 @@ export function HqPlayerStatsModal({ entry, onClose }: HqPlayerStatsModalProps) 
                                 key={key}
                                 className={cn(
                                     'flex flex-col gap-0.5 border-t border-hq-border px-4 py-1.5',
-                                    index % 2 === 1 && 'border-l border-hq-border',
+                                    index % 2 === 1 &&
+                                        'border-l border-hq-border',
                                 )}
                             >
                                 <span

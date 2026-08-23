@@ -68,9 +68,7 @@ export function MatchEventIcons({ stats, position }: MatchEventIconsProps) {
                     ➜
                 </span>
             ))}
-            {yellow && (
-                <span className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold" />
-            )}
+            {yellow && <span className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold" />}
             {secondYellow && (
                 <span className="relative inline-block h-3.5 w-4">
                     <span className="hq-crest-cut absolute top-0.5 left-0 h-3 w-2 bg-hq-gold/60" />

@@ -33,7 +33,10 @@ export function EntityImage({
     if (shape === 'circle') {
         return (
             <span
-                className={cn('inline-block overflow-hidden rounded-full', className)}
+                className={cn(
+                    'inline-block overflow-hidden rounded-full',
+                    className,
+                )}
             >
                 <img
                     src={src}

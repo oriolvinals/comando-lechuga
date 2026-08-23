@@ -27,17 +27,17 @@ test('uses the authenticated league team endpoint', function (): void {
 });
 
 test('rejects an empty league ID, an invalid team ID or an empty access token', function (): void {
-    expect(fn (): \App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest => new GetLeagueTeamRequest(
+    expect(fn (): GetLeagueTeamRequest => new GetLeagueTeamRequest(
         leagueId: '',
         teamFantasyId: 37394521,
         accessToken: 'access-token',
     ))->toThrow(InvalidArgumentException::class)
-        ->and(fn (): \App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest => new GetLeagueTeamRequest(
+        ->and(fn (): GetLeagueTeamRequest => new GetLeagueTeamRequest(
             leagueId: '017834818',
             teamFantasyId: 0,
             accessToken: 'access-token',
         ))->toThrow(InvalidArgumentException::class)
-        ->and(fn (): \App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest => new GetLeagueTeamRequest(
+        ->and(fn (): GetLeagueTeamRequest => new GetLeagueTeamRequest(
             leagueId: '017834818',
             teamFantasyId: 37394521,
             accessToken: '',

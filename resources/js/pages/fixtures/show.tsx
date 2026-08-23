@@ -312,7 +312,9 @@ export default function FixtureShow({
                     <div
                         className={cn(
                             'flex items-center justify-between gap-2 border bg-gradient-to-br from-hq-panel-alt to-hq-panel px-4 py-4 sm:justify-center sm:gap-7 sm:px-6 sm:py-6',
-                            isLive ? 'border-hq-live' : 'border-hq-border-strong',
+                            isLive
+                                ? 'border-hq-live'
+                                : 'border-hq-border-strong',
                         )}
                     >
                         <div className="flex w-20 min-w-0 flex-col items-center gap-1.5 sm:w-36 sm:gap-2">
@@ -339,9 +341,7 @@ export default function FixtureShow({
                             <p
                                 className={cn(
                                     'mt-1 flex items-center justify-center gap-1.5 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:mt-1.5 sm:text-[10px]',
-                                    isLive
-                                        ? 'text-hq-live'
-                                        : 'text-hq-lime',
+                                    isLive ? 'text-hq-live' : 'text-hq-lime',
                                 )}
                             >
                                 {isLive && (
@@ -377,7 +377,7 @@ export default function FixtureShow({
                                 puntos de cada jugador
                             </p>
                         </div>
-    ) : (
+                    ) : (
                         <>
                             <div className="mt-6 flex border border-b-0 border-hq-border sm:hidden">
                                 <button
@@ -425,9 +425,7 @@ export default function FixtureShow({
                                     <TeamColumn
                                         scores={localScores}
                                         minPlayedRows={minPlayedRows}
-                                        showDazn={
-                                            fixture.state === 'finished'
-                                        }
+                                        showDazn={fixture.state === 'finished'}
                                         onSelect={setSelectedScore}
                                     />
                                 </div>
@@ -440,9 +438,7 @@ export default function FixtureShow({
                                     <TeamColumn
                                         scores={guestScores}
                                         minPlayedRows={minPlayedRows}
-                                        showDazn={
-                                            fixture.state === 'finished'
-                                        }
+                                        showDazn={fixture.state === 'finished'}
                                         onSelect={setSelectedScore}
                                     />
                                 </div>
@@ -460,15 +456,15 @@ export default function FixtureShow({
                                 <span className="h-px flex-1 bg-hq-border" />
                             </div>
                             <div className="flex flex-wrap gap-2 border border-hq-border bg-hq-panel px-3.5 py-2.5 font-mono text-[10px] text-hq-moss">
-                            {LEGEND_ITEMS.map((item) => (
-                                <span
-                                    key={item.label}
-                                    className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1"
-                                >
-                                    {item.icon}
-                                    {item.label}
-                                </span>
-                            ))}
+                                {LEGEND_ITEMS.map((item) => (
+                                    <span
+                                        key={item.label}
+                                        className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1"
+                                    >
+                                        {item.icon}
+                                        {item.label}
+                                    </span>
+                                ))}
                             </div>
                         </>
                     )}

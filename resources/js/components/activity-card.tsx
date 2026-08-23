@@ -11,7 +11,11 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
-import { formatCurrency, formatFullDateTime, formatRelativeTime } from '@/lib/format';
+import {
+    formatCurrency,
+    formatFullDateTime,
+    formatRelativeTime,
+} from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { SeasonActivity, SeasonActivityType } from '@/types/models';
 
@@ -43,7 +47,9 @@ const TYPE_COLORS: Record<SeasonActivityType, string> = {
 };
 
 function describeActivityBody(activity: SeasonActivity): ReactNode {
-    const team = <b className="text-hq-lime">{activity.source_season_team.name}</b>;
+    const team = (
+        <b className="text-hq-lime">{activity.source_season_team.name}</b>
+    );
     const player = activity.player?.nickname;
 
     switch (activity.type) {
@@ -75,8 +81,7 @@ function describeActivityBody(activity: SeasonActivity): ReactNode {
         case 'weekly_prize':
             return (
                 <>
-                    {team} ganó el premio de la jornada{' '}
-                    {activity.week_number}
+                    {team} ganó el premio de la jornada {activity.week_number}
                 </>
             );
         case 'joined_league':
