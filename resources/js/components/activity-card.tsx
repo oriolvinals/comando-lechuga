@@ -19,6 +19,7 @@ import {
 } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
+import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { SeasonActivity, SeasonActivityType } from '@/types/models';
 
 export const TYPE_ICONS: Record<SeasonActivityType, LucideIcon> = {
@@ -50,7 +51,12 @@ const TYPE_COLORS: Record<SeasonActivityType, string> = {
 
 function describeActivityBody(activity: SeasonActivity): ReactNode {
     const team = (
-        <b className="text-hq-lime">{activity.source_season_team.name}</b>
+        <Link
+            href={seasonTeamsShow(activity.source_season_team.id).url}
+            className="font-bold text-hq-lime hover:underline"
+        >
+            {activity.source_season_team.name}
+        </Link>
     );
     const player = activity.player && (
         <Link
@@ -78,7 +84,18 @@ function describeActivityBody(activity: SeasonActivity): ReactNode {
             return (
                 <>
                     {team} pagó la cláusula de {player} a{' '}
-                    <b>{activity.target_season_team?.name}</b>
+                    {activity.target_season_team && (
+                        <Link
+                            href={
+                                seasonTeamsShow(
+                                    activity.target_season_team.id,
+                                ).url
+                            }
+                            className="font-bold hover:underline"
+                        >
+                            {activity.target_season_team.name}
+                        </Link>
+                    )}
                 </>
             );
         case 'shield':
@@ -132,7 +149,10 @@ export function ActivityCard({ activity }: { activity: SeasonActivity }) {
                 </time>
             </div>
             <div className="flex items-center gap-2.5">
-                <div className="flex shrink-0 flex-col items-center gap-0.5">
+                <Link
+                    href={seasonTeamsShow(activity.source_season_team.id).url}
+                    className="flex shrink-0 flex-col items-center gap-0.5"
+                >
                     <EntityImage
                         src={activity.source_season_team.logo}
                         alt={activity.source_season_team.name}
@@ -145,7 +165,7 @@ export function ActivityCard({ activity }: { activity: SeasonActivity }) {
                             Ficha
                         </span>
                     )}
-                </div>
+                </Link>
                 {activity.player && (
                     <Link
                         href={playersShow(activity.player.id).url}
@@ -160,7 +180,13 @@ export function ActivityCard({ activity }: { activity: SeasonActivity }) {
                     </Link>
                 )}
                 {activity.type === 'buyout' && activity.target_season_team && (
-                    <div className="flex shrink-0 flex-col items-center gap-0.5">
+                    <Link
+                        href={
+                            seasonTeamsShow(activity.target_season_team.id)
+                                .url
+                        }
+                        className="flex shrink-0 flex-col items-center gap-0.5"
+                    >
                         <EntityImage
                             src={activity.target_season_team.logo}
                             alt={activity.target_season_team.name}
@@ -171,7 +197,7 @@ export function ActivityCard({ activity }: { activity: SeasonActivity }) {
                         <span className="font-mono text-[8px] font-bold tracking-wide text-hq-moss uppercase">
                             Cede
                         </span>
-                    </div>
+                    </Link>
                 )}
                 <p className="flex-1 text-sm text-hq-paper/90">
                     {describeActivityBody(activity)}

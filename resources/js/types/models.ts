@@ -12,6 +12,7 @@ export type PlayerStatus =
     'ok' | 'injured' | 'out_of_league' | 'suspended' | 'doubtful';
 
 export interface OwnerTeam {
+    id: number;
     name: string;
     logo: string;
 }

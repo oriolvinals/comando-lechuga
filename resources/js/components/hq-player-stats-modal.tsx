@@ -8,6 +8,7 @@ import { pointsBadgeClass } from '@/lib/points';
 import { seasonTeamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
+import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { JornadaStats, Player, SeasonTeam, Team } from '@/types/models';
 
 export interface HqPlayerStatsEntry {
@@ -94,7 +95,10 @@ export function HqPlayerStatsModal({
                         {team.name}
                     </div>
                     {lineupTeam && (
-                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-hq-moss">
+                        <Link
+                            href={seasonTeamsShow(lineupTeam.id).url}
+                            className="flex items-center gap-1.5 font-mono text-[11px] text-hq-moss hover:text-hq-paper"
+                        >
                             <span
                                 className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                                 style={{
@@ -104,7 +108,7 @@ export function HqPlayerStatsModal({
                                 }}
                             />
                             {lineupTeam.name}
-                        </div>
+                        </Link>
                     )}
                     <div className="mt-1 flex items-center gap-2">
                         <HqPositionTag position={player.position} />

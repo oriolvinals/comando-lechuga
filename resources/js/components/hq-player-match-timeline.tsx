@@ -8,6 +8,7 @@ import { pointsBadgeClass } from '@/lib/points';
 import { seasonTeamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
+import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { Fixture, PlayerFichaScore, PlayerPosition } from '@/types/models';
 
 const BODY_STAT_ORDER = JORNADA_STAT_ORDER.filter((key) => key !== 'marca_points');
@@ -107,7 +108,14 @@ export function HqPlayerMatchTimeline({
                         />
                         <div className="ml-auto flex items-center gap-2.5">
                             {selectedScore.lineup_team && (
-                                <span className="flex items-center gap-1.5 border border-hq-border-strong bg-hq-panel-alt px-1.5 py-0.5 font-mono text-[11px] text-hq-paper">
+                                <Link
+                                    href={
+                                        seasonTeamsShow(
+                                            selectedScore.lineup_team.id,
+                                        ).url
+                                    }
+                                    className="flex items-center gap-1.5 border border-hq-border-strong bg-hq-panel-alt px-1.5 py-0.5 font-mono text-[11px] text-hq-paper hover:bg-hq-panel"
+                                >
                                     <span
                                         className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                                         style={{
@@ -117,7 +125,7 @@ export function HqPlayerMatchTimeline({
                                         }}
                                     />
                                     {selectedScore.lineup_team.name}
-                                </span>
+                                </Link>
                             )}
                             {selectedScore.stats.marca_points && (
                                 <span className="border border-hq-khaki px-1.5 py-0.5 font-mono text-[11px] text-hq-khaki">

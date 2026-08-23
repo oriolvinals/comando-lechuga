@@ -1,8 +1,10 @@
+import { Link } from '@inertiajs/react';
 import { ArrowDown, ArrowUp, Minus, Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { HqSection } from '@/components/hq-section';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { SeasonTeam } from '@/types/models';
 
 interface StandingsTableProps {
@@ -45,21 +47,26 @@ export function StandingsTable({
                             ) : (
                                 <Minus className="h-4 w-4 shrink-0 text-hq-moss-dim" />
                             )}
-                            <EntityImage
-                                src={team.logo}
-                                alt={team.name}
-                                fallback={Shield}
-                                shape="square"
-                                className="hq-crest-cut h-16 w-16 bg-hq-border p-1.5 text-hq-khaki"
-                            />
-                            <div className="flex-1">
-                                <p className="text-lg font-extrabold text-hq-paper">
-                                    {team.name}
-                                </p>
-                                <p className="font-mono text-[11px] text-hq-moss-dim">
-                                    {formatCurrency(team.value)}
-                                </p>
-                            </div>
+                            <Link
+                                href={seasonTeamsShow(team.id).url}
+                                className="flex flex-1 items-center gap-4 hover:opacity-80"
+                            >
+                                <EntityImage
+                                    src={team.logo}
+                                    alt={team.name}
+                                    fallback={Shield}
+                                    shape="square"
+                                    className="hq-crest-cut h-16 w-16 bg-hq-border p-1.5 text-hq-khaki"
+                                />
+                                <div className="flex-1">
+                                    <p className="text-lg font-extrabold text-hq-paper">
+                                        {team.name}
+                                    </p>
+                                    <p className="font-mono text-[11px] text-hq-moss-dim">
+                                        {formatCurrency(team.value)}
+                                    </p>
+                                </div>
+                            </Link>
                             <span className="mr-1 rounded bg-hq-lime/10 px-2 py-1 font-mono text-[11px] text-hq-lime">
                                 J{currentWeek} +{team.live_points}
                             </span>

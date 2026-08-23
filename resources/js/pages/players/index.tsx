@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowDown, ArrowUp, Shield, User } from 'lucide-react';
-import type { ReactElement } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactElement } from 'react';
 import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqMultiSelect } from '@/components/hq-multi-select';
@@ -15,6 +15,7 @@ import {
 } from '@/lib/player-labels';
 import { cn } from '@/lib/utils';
 import { index as playersIndex, show as playersShow } from '@/routes/players';
+import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type {
     Paginated,
     Player,
@@ -63,6 +64,17 @@ const SORT_LABELS: Record<PlayerSort, string> = {
 };
 
 function PlayerRow({ player }: { player: Player }) {
+    const ownerTeam = player.owner_team;
+    const goToOwnerTeam = (event: ReactMouseEvent) => {
+        if (!ownerTeam) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        router.visit(seasonTeamsShow(ownerTeam.id).url);
+    };
+
     return (
         <Link href={playersShow(player.id).url} className="block">
             {/* Desktop / tablet row */}
@@ -107,19 +119,24 @@ function PlayerRow({ player }: { player: Player }) {
                         )}
                     </div>
                     <div className="flex w-[150px] shrink-0 items-center gap-1.5 font-mono text-[11px] text-hq-moss">
-                        {player.owner_team ? (
-                            <>
+                        {ownerTeam ? (
+                            <span
+                                role="link"
+                                tabIndex={0}
+                                onClick={goToOwnerTeam}
+                                className="flex min-w-0 items-center gap-1.5 hover:text-hq-paper"
+                            >
                                 <EntityImage
-                                    src={player.owner_team.logo}
-                                    alt={player.owner_team.name}
+                                    src={ownerTeam.logo}
+                                    alt={ownerTeam.name}
                                     fallback={Shield}
                                     shape="square"
                                     className="h-[18px] w-[18px] shrink-0"
                                 />
                                 <span className="truncate">
-                                    {player.owner_team.name}
+                                    {ownerTeam.name}
                                 </span>
-                            </>
+                            </span>
                         ) : (
                             <span className="text-hq-moss-dim">Libre</span>
                         )}
@@ -217,19 +234,24 @@ function PlayerRow({ player }: { player: Player }) {
                         )}
                     </p>
                     <div className="flex items-center gap-1.5 font-mono text-[10px] text-hq-moss">
-                        {player.owner_team ? (
-                            <>
+                        {ownerTeam ? (
+                            <span
+                                role="link"
+                                tabIndex={0}
+                                onClick={goToOwnerTeam}
+                                className="flex min-w-0 items-center gap-1.5 hover:text-hq-paper"
+                            >
                                 <EntityImage
-                                    src={player.owner_team.logo}
-                                    alt={player.owner_team.name}
+                                    src={ownerTeam.logo}
+                                    alt={ownerTeam.name}
                                     fallback={Shield}
                                     shape="square"
                                     className="h-3.5 w-3.5 shrink-0"
                                 />
                                 <span className="max-w-[110px] truncate">
-                                    {player.owner_team.name}
+                                    {ownerTeam.name}
                                 </span>
-                            </>
+                            </span>
                         ) : (
                             <span className="text-hq-moss-dim">Libre</span>
                         )}

@@ -271,6 +271,7 @@ test('shows the owning fantasy team when a player is owned', function (): void {
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page
+        ->where('players.data.0.owner_team.id', $seasonTeam->id)
         ->where('players.data.0.owner_team.name', 'Ariobretxa')
         ->where('players.data.0.owner_team.logo', $seasonTeam->logo)
     );

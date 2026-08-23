@@ -223,6 +223,7 @@ class PlayersController extends Controller
             $seasonTeam = $owners->get($player->id)?->seasonTeam;
 
             $player->owner_team = $seasonTeam === null ? null : [
+                'id' => $seasonTeam->id,
                 'name' => $seasonTeam->name,
                 'logo' => $seasonTeam->logo,
             ];

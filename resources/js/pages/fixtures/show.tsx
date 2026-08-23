@@ -14,6 +14,7 @@ import { pointsBadgeClass } from '@/lib/points';
 import { seasonTeamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
+import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { Fixture, PlayerScore } from '@/types/models';
 
 interface FixtureShowProps {
@@ -24,36 +25,39 @@ interface FixtureShowProps {
 }
 
 const LEGEND_ITEMS = [
-    { icon: <span>⚽</span>, label: 'Gol' },
+    { icon: <span className="text-base">⚽</span>, label: 'Gol' },
     {
         icon: (
-            <span className="border border-hq-live px-1 font-mono text-[9px] font-bold text-hq-live">
+            <span className="border border-hq-live px-1.5 py-0.5 font-mono text-[11px] font-bold text-hq-live">
                 PP
             </span>
         ),
         label: 'Gol en propia',
     },
-    { icon: <span className="text-hq-med">➜</span>, label: 'Asistencia' },
     {
-        icon: <span className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold" />,
+        icon: <span className="text-base text-hq-med">➜</span>,
+        label: 'Asistencia',
+    },
+    {
+        icon: <span className="hq-crest-cut h-5 w-3.5 bg-hq-gold" />,
         label: 'Amarilla',
     },
     {
         icon: (
-            <span className="relative inline-block h-3.5 w-4">
-                <span className="hq-crest-cut absolute top-0.5 left-0 h-3 w-2 bg-hq-gold/60" />
-                <span className="hq-crest-cut absolute top-0 left-1.5 h-3 w-2 bg-hq-gold" />
+            <span className="relative inline-block h-5 w-5">
+                <span className="hq-crest-cut absolute top-0.5 left-0 h-4 w-3 bg-hq-gold/60" />
+                <span className="hq-crest-cut absolute top-0 left-2 h-4 w-3 bg-hq-gold" />
             </span>
         ),
         label: 'Doble amarilla',
     },
     {
-        icon: <span className="hq-crest-cut h-3.5 w-2.5 bg-hq-live" />,
+        icon: <span className="hq-crest-cut h-5 w-3.5 bg-hq-live" />,
         label: 'Roja',
     },
     {
         icon: (
-            <span className="border border-hq-gold px-1 font-mono text-[9px] font-bold text-hq-gold">
+            <span className="border border-hq-gold px-1.5 py-0.5 font-mono text-[11px] font-bold text-hq-gold">
                 P+
             </span>
         ),
@@ -61,7 +65,7 @@ const LEGEND_ITEMS = [
     },
     {
         icon: (
-            <span className="border border-hq-ember px-1 font-mono text-[9px] font-bold text-hq-ember">
+            <span className="border border-hq-ember px-1.5 py-0.5 font-mono text-[11px] font-bold text-hq-ember">
                 P−
             </span>
         ),
@@ -69,7 +73,7 @@ const LEGEND_ITEMS = [
     },
     {
         icon: (
-            <span className="border border-hq-live px-1 font-mono text-[9px] font-bold text-hq-live">
+            <span className="border border-hq-live px-1.5 py-0.5 font-mono text-[11px] font-bold text-hq-live">
                 P✗
             </span>
         ),
@@ -77,7 +81,7 @@ const LEGEND_ITEMS = [
     },
     {
         icon: (
-            <span className="border border-hq-lime px-1 font-mono text-[9px] font-bold text-hq-lime">
+            <span className="border border-hq-lime px-1.5 py-0.5 font-mono text-[11px] font-bold text-hq-lime">
                 P✓
             </span>
         ),
@@ -85,7 +89,7 @@ const LEGEND_ITEMS = [
     },
     {
         icon: (
-            <span className="border border-hq-lime px-1 font-mono text-[9px] font-bold text-hq-lime">
+            <span className="border border-hq-lime px-1.5 py-0.5 font-mono text-[11px] font-bold text-hq-lime">
                 0
             </span>
         ),
@@ -197,9 +201,13 @@ function PlayerRow({
                     position={score.player.position}
                 />
                 {score.lineup_team && (
-                    <span className="flex items-center gap-1.5 font-mono text-[10px] text-hq-moss">
+                    <Link
+                        href={seasonTeamsShow(score.lineup_team.id).url}
+                        onClick={(event) => event.stopPropagation()}
+                        className="flex items-center gap-1.5 font-mono text-[12px] font-bold text-hq-moss hover:text-hq-paper"
+                    >
                         <span
-                            className="h-2 w-2 shrink-0 rounded-[1px]"
+                            className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                             style={{
                                 backgroundColor: seasonTeamColor(
                                     score.lineup_team.id,
@@ -207,13 +215,13 @@ function PlayerRow({
                             }}
                         />
                         {score.lineup_team.name}
-                    </span>
+                    </Link>
                 )}
             </div>
             <div className="flex flex-col items-end gap-2.5">
                 <span
                     className={cn(
-                        'w-10 rounded-sm py-0.5 text-center font-display text-lg',
+                        'hq-tag-cut w-10 py-0.5 text-center font-display text-lg',
                         pointsBadgeClass(score.points),
                     )}
                 >
@@ -481,11 +489,11 @@ export default function FixtureShow({
                                 </span>
                                 <span className="h-px flex-1 bg-hq-border" />
                             </div>
-                            <div className="flex flex-wrap gap-2 border border-hq-border bg-hq-panel px-3.5 py-2.5 font-mono text-[10px] text-hq-moss">
+                            <div className="flex flex-wrap gap-2.5 border border-hq-border bg-hq-panel px-4 py-3 font-mono text-[12px] text-hq-moss">
                                 {LEGEND_ITEMS.map((item) => (
                                     <span
                                         key={item.label}
-                                        className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1"
+                                        className="inline-flex items-center gap-2 border border-hq-border bg-hq-panel-alt px-2.5 py-1.5"
                                     >
                                         {item.icon}
                                         {item.label}

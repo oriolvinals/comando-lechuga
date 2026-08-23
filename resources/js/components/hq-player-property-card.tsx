@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import { Lock, Shield, ShieldCheck, UserX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
@@ -5,6 +6,7 @@ import { formatCurrency } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
 import { cn } from '@/lib/utils';
+import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { PlayerFichaMarketListing, PlayerOwnership } from '@/types/models';
 
 interface HqPlayerPropertyCardProps {
@@ -51,7 +53,10 @@ export function HqPlayerPropertyCard({
                 <p className="mb-2 font-mono text-[10px] tracking-wide text-hq-moss uppercase">
                     Propiedad
                 </p>
-                <div className="mb-2.5 flex items-center gap-2">
+                <Link
+                    href={seasonTeamsShow(owner.season_team.id).url}
+                    className="mb-2.5 flex items-center gap-2 hover:opacity-80"
+                >
                     <EntityImage
                         src={owner.season_team.logo}
                         alt={owner.season_team.name}
@@ -62,7 +67,7 @@ export function HqPlayerPropertyCard({
                     <span className="text-sm font-bold text-hq-paper">
                         {owner.season_team.name}
                     </span>
-                </div>
+                </Link>
 
                 {shielded ? (
                     <LockStatus

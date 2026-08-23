@@ -43,16 +43,16 @@ export function MatchEventIcons({ stats, position }: MatchEventIconsProps) {
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1.5">
             {Array.from({ length: goals }, (_, i) => (
-                <span key={`goal-${i}`} className="text-[10px] leading-none">
+                <span key={`goal-${i}`} className="text-[13px] leading-none">
                     ⚽
                 </span>
             ))}
             {Array.from({ length: ownGoals }, (_, i) => (
                 <span
                     key={`own-goal-${i}`}
-                    className="border border-hq-live px-1 font-mono text-[9px] font-bold text-hq-live"
+                    className="border border-hq-live px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-live"
                 >
                     PP
                 </span>
@@ -60,41 +60,43 @@ export function MatchEventIcons({ stats, position }: MatchEventIconsProps) {
             {Array.from({ length: assists }, (_, i) => (
                 <span
                     key={`assist-${i}`}
-                    className="text-[10px] leading-none text-hq-med"
+                    className="text-[13px] leading-none text-hq-med"
                 >
                     ➜
                 </span>
             ))}
-            {yellow && <span className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold" />}
+            {yellow && (
+                <span className="hq-crest-cut h-[18px] w-3 bg-hq-gold" />
+            )}
             {secondYellow && (
-                <span className="relative inline-block h-3.5 w-4">
-                    <span className="hq-crest-cut absolute top-0.5 left-0 h-3 w-2 bg-hq-gold/60" />
-                    <span className="hq-crest-cut absolute top-0 left-1.5 h-3 w-2 bg-hq-gold" />
+                <span className="relative inline-block h-[18px] w-[18px]">
+                    <span className="hq-crest-cut absolute top-0.5 left-0 h-[15px] w-[10px] bg-hq-gold/60" />
+                    <span className="hq-crest-cut absolute top-0 left-2 h-[15px] w-[10px] bg-hq-gold" />
                 </span>
             )}
-            {red && <span className="hq-crest-cut h-3.5 w-2.5 bg-hq-live" />}
+            {red && <span className="hq-crest-cut h-[18px] w-3 bg-hq-live" />}
             {penaltyWon && (
-                <span className="border border-hq-gold px-1 font-mono text-[9px] font-bold text-hq-gold">
+                <span className="border border-hq-gold px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-gold">
                     P+
                 </span>
             )}
             {penaltyConceded && (
-                <span className="border border-hq-ember px-1 font-mono text-[9px] font-bold text-hq-ember">
+                <span className="border border-hq-ember px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
                     P−
                 </span>
             )}
             {penaltyMissed && (
-                <span className="border border-hq-live px-1 font-mono text-[9px] font-bold text-hq-live">
+                <span className="border border-hq-live px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-live">
                     P✗
                 </span>
             )}
             {penaltySaved && (
-                <span className="border border-hq-lime px-1 font-mono text-[9px] font-bold text-hq-lime">
+                <span className="border border-hq-lime px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-lime">
                     P✓
                 </span>
             )}
             {cleanSheet && (
-                <span className="border border-hq-lime px-1 font-mono text-[9px] font-bold text-hq-lime">
+                <span className="border border-hq-lime px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-lime">
                     0
                 </span>
             )}
