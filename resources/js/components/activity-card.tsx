@@ -16,6 +16,7 @@ import {
     formatCurrency,
     formatFullDateTime,
     formatRelativeTime,
+    formatTime,
 } from '@/lib/format';
 import { crestTintStyle } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
@@ -126,7 +127,13 @@ function isFavorableDifference(activity: SeasonActivity): boolean {
         : activity.value_difference >= 0;
 }
 
-export function ActivityCard({ activity }: { activity: SeasonActivity }) {
+export function ActivityCard({
+    activity,
+    showTimeOnly = false,
+}: {
+    activity: SeasonActivity;
+    showTimeOnly?: boolean;
+}) {
     const Icon = TYPE_ICONS[activity.type];
 
     return (
@@ -146,7 +153,9 @@ export function ActivityCard({ activity }: { activity: SeasonActivity }) {
                     title={formatFullDateTime(activity.occurred_at)}
                     className="font-mono text-[10px] text-hq-moss-dim"
                 >
-                    {formatRelativeTime(activity.occurred_at)}
+                    {showTimeOnly
+                        ? formatTime(activity.occurred_at)
+                        : formatRelativeTime(activity.occurred_at)}
                 </time>
             </div>
             <div className="flex items-center gap-2.5">

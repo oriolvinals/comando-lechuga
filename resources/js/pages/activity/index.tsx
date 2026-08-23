@@ -120,6 +120,7 @@ export default function ActivityIndex({
                                         <ActivityCard
                                             key={entry.id}
                                             activity={entry}
+                                            showTimeOnly
                                         />
                                     ))}
                                 </div>
