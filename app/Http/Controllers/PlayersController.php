@@ -43,6 +43,7 @@ class PlayersController extends Controller
         'ç' => 'c',
     ];
 
+    /** @return literal-string */
     private static function foldedNicknameSql(): string
     {
         $expression = 'LOWER(nickname)';
