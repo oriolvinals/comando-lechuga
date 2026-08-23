@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { MatchEventIcons } from '@/components/match-event-icons';
 import { formatMatchDateTime } from '@/lib/format';
 import { didNotPlayMatch, JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
-import { pointsBadgeClass } from '@/lib/points';
+import { matchPointsBadgeClass } from '@/lib/points';
 import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
@@ -57,7 +57,9 @@ export function HqPlayerMatchTimeline({
                                             ? 'border-hq-paper'
                                             : 'border-transparent',
                                         score
-                                            ? pointsBadgeClass(score.points)
+                                            ? matchPointsBadgeClass(
+                                                  score.points,
+                                              )
                                             : 'border-dashed border-hq-border-strong text-hq-moss-dim',
                                     )}
                                 >
@@ -83,7 +85,7 @@ export function HqPlayerMatchTimeline({
                         <span
                             className={cn(
                                 'rounded-sm px-3 py-0.5 font-display text-xl',
-                                pointsBadgeClass(selectedScore.points),
+                                matchPointsBadgeClass(selectedScore.points),
                             )}
                         >
                             {selectedScore.points}

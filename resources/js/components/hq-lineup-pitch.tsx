@@ -21,26 +21,28 @@ const ROWS: { position: PlayerPosition; top: string }[] = [
 ];
 
 /**
- * Same tiers as `pointsBadgeClass`, but opaque — the badge sits on grass, not
- * a dark panel, so the translucent tints used elsewhere lose contrast here.
+ * Same tiers as `matchPointsBadgeClass`, but opaque — the badge sits on
+ * grass, not a dark panel, so the translucent tints used elsewhere lose
+ * contrast here. Every tier (including "no data") gets a real color, never
+ * black, so the badge is always legible against the pitch.
  */
 function pointsBadgeTierClass(points: number | null): string {
     if (points === null) {
-        return 'border-hq-border-strong bg-hq-ink text-hq-moss';
-    }
-    if (points >= 12) {
-        return 'border-hq-lime bg-hq-lime text-hq-ink';
-    }
-    if (points >= 6) {
-        return 'border-hq-lime bg-hq-ink text-hq-lime';
-    }
-    if (points >= 3) {
-        return 'border-hq-gold bg-hq-ink text-hq-gold';
+        return 'border-hq-border-strong bg-hq-border-strong text-hq-moss';
     }
     if (points < 0) {
         return 'border-hq-live bg-hq-live text-white';
     }
-    return 'border-hq-border-strong bg-hq-ink text-hq-moss';
+    if (points < 5) {
+        return 'border-hq-gold bg-hq-gold text-hq-ink';
+    }
+    if (points < 9) {
+        return 'border-hq-lime bg-hq-lime text-hq-ink';
+    }
+    if (points < 14) {
+        return 'border-hq-azure bg-hq-azure text-white';
+    }
+    return 'border-hq-violet bg-hq-violet text-white';
 }
 
 /**
@@ -120,7 +122,7 @@ export function HqLineupPitch({
                                         />
                                         <span
                                             className={cn(
-                                                'absolute -right-1.5 -bottom-1 rounded-[3px] border px-1.5 py-0.5 font-mono text-[11px] leading-none font-bold',
+                                                'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
                                                 pointsBadgeTierClass(
                                                     entry.points,
                                                 ),

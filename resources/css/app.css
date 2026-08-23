@@ -31,6 +31,8 @@ body {
     --color-hq-gold: #e0b83f;
     --color-hq-silver: #c7cdd6;
     --color-hq-bronze: #c9793f;
+    --color-hq-azure: #4d94ff;
+    --color-hq-violet: #9333ea;
 
     /* Canonical position colors — use HqPositionTag, don't redefine these ad hoc */
     --color-hq-por: #ff8c3d;

@@ -10,7 +10,7 @@ import AppLayout from '@/layouts/app-layout';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
 import { didNotPlayMatch } from '@/lib/player-labels';
-import { pointsBadgeClass } from '@/lib/points';
+import { matchPointsBadgeClass } from '@/lib/points';
 import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
@@ -222,7 +222,7 @@ function PlayerRow({
                 <span
                     className={cn(
                         'hq-tag-cut w-10 py-0.5 text-center font-display text-lg',
-                        pointsBadgeClass(score.points),
+                        matchPointsBadgeClass(score.points),
                     )}
                 >
                     {score.points}

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
-import { pointsBadgeClass } from '@/lib/points';
+import { matchPointsBadgeClass } from '@/lib/points';
 import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
@@ -115,7 +115,7 @@ export function HqPlayerStatsModal({
                         <span
                             className={cn(
                                 'rounded-sm px-3 py-0.5 font-display text-xl',
-                                pointsBadgeClass(points),
+                                matchPointsBadgeClass(points),
                             )}
                         >
                             {points}
