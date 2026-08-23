@@ -1,6 +1,7 @@
-import { usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 import { MainNav } from '@/components/main-nav';
+import { home } from '@/routes';
 
 export default function AppLayout({ children }: PropsWithChildren) {
     const { season } = usePage().props;
@@ -16,9 +17,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
                     </span>
                 </div>
                 <div className="mx-auto flex max-w-7xl items-center justify-between border-t border-hq-border px-6 py-3">
-                    <span className="font-display text-xl tracking-wide text-hq-paper uppercase">
+                    <Link
+                        href={home().url}
+                        className="font-display text-xl tracking-wide text-hq-paper uppercase transition-opacity hover:opacity-80"
+                    >
                         Comando <span className="text-hq-lime">Lechuga</span>
-                    </span>
+                    </Link>
                     <MainNav />
                 </div>
             </header>
