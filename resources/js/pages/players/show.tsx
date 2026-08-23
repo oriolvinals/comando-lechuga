@@ -7,7 +7,7 @@ import { HqPositionTag } from '@/components/hq-position-tag';
 import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
 import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
-import { pointsBadgeClass } from '@/lib/points';
+import { matchPointsBadgeClass } from '@/lib/points';
 import { STATUS_BADGE_CLASS, STATUS_LABELS } from '@/lib/player-labels';
 import { cn } from '@/lib/utils';
 import type {
@@ -91,12 +91,7 @@ export default function PlayerShow({
                                 <span className="font-mono text-[11px] text-hq-moss">
                                     PUNTOS
                                 </span>
-                                <span
-                                    className={cn(
-                                        'px-1.5 font-mono font-bold',
-                                        pointsBadgeClass(player.points),
-                                    )}
-                                >
+                                <span className="bg-hq-border px-1.5 font-mono font-bold text-hq-paper">
                                     {player.points}
                                 </span>
                             </div>
@@ -107,7 +102,7 @@ export default function PlayerShow({
                                 <span
                                     className={cn(
                                         'px-1.5 font-mono font-bold',
-                                        pointsBadgeClass(
+                                        matchPointsBadgeClass(
                                             Number(player.average_points),
                                         ),
                                     )}
