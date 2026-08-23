@@ -45,19 +45,16 @@ export function MatchEventIcons({ stats, position }: MatchEventIconsProps) {
     return (
         <div className="flex flex-wrap items-center gap-1">
             {Array.from({ length: goals }, (_, i) => (
-                <span
-                    key={`goal-${i}`}
-                    className="text-[10px] leading-none text-hq-lime"
-                >
+                <span key={`goal-${i}`} className="text-[10px] leading-none">
                     ⚽
                 </span>
             ))}
             {Array.from({ length: ownGoals }, (_, i) => (
                 <span
                     key={`own-goal-${i}`}
-                    className="text-[10px] leading-none text-hq-live"
+                    className="border border-hq-live px-1 font-mono text-[9px] font-bold text-hq-live"
                 >
-                    ⚽
+                    PP
                 </span>
             ))}
             {Array.from({ length: assists }, (_, i) => (

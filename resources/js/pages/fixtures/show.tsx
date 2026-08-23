@@ -22,8 +22,15 @@ interface FixtureShowProps {
 }
 
 const LEGEND_ITEMS = [
-    { icon: <span className="text-hq-lime">⚽</span>, label: 'Gol' },
-    { icon: <span className="text-hq-live">⚽</span>, label: 'Gol en propia' },
+    { icon: <span>⚽</span>, label: 'Gol' },
+    {
+        icon: (
+            <span className="border border-hq-live px-1 font-mono text-[9px] font-bold text-hq-live">
+                PP
+            </span>
+        ),
+        label: 'Gol en propia',
+    },
     { icon: <span className="text-hq-med">➜</span>, label: 'Asistencia' },
     {
         icon: <span className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold" />,
