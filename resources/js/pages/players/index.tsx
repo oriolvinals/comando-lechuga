@@ -10,7 +10,7 @@ import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
 import { POSITION_LABELS, STATUS_LABELS } from '@/lib/player-labels';
 import { cn } from '@/lib/utils';
-import { index as playersIndex } from '@/routes/players';
+import { index as playersIndex, show as playersShow } from '@/routes/players';
 import type {
     Paginated,
     Player,
@@ -209,7 +209,10 @@ export default function PlayersIndex({
                         {players.data.map((player) => (
                             <tr key={player.id}>
                                 <td className="py-2 pr-4">
-                                    <div className="flex items-center gap-2">
+                                    <Link
+                                        href={playersShow(player.id).url}
+                                        className="flex items-center gap-2 hover:underline"
+                                    >
                                         <EntityImage
                                             src={player.image}
                                             alt={player.nickname}
@@ -232,7 +235,7 @@ export default function PlayersIndex({
                                                 </span>
                                             </div>
                                         </div>
-                                    </div>
+                                    </Link>
                                 </td>
                                 <td className="px-4">
                                     <PositionBadge position={player.position} />

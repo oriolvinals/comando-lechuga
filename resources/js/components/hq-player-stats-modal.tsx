@@ -1,10 +1,12 @@
-import { Shield, User, X } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { ArrowUpRight, Shield, User, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
 import { pointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
+import { show as playersShow } from '@/routes/players';
 import type { JornadaStats, Player, Team } from '@/types/models';
 
 export interface HqPlayerStatsEntry {
@@ -161,6 +163,14 @@ export function HqPlayerStatsModal({
                         );
                     })}
                 </div>
+
+                <Link
+                    href={playersShow(player.id).url}
+                    className="flex items-center justify-center gap-1.5 border-t border-hq-border py-2.5 font-mono text-[11px] font-bold text-hq-lime hover:bg-hq-panel-alt"
+                >
+                    VER FICHA COMPLETA
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
             </div>
         </div>
     );

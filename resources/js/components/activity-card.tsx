@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import {
     ArrowDownToLine,
     ArrowUpFromLine,
@@ -17,6 +18,7 @@ import {
     formatRelativeTime,
 } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { show as playersShow } from '@/routes/players';
 import type { SeasonActivity, SeasonActivityType } from '@/types/models';
 
 export const TYPE_ICONS: Record<SeasonActivityType, LucideIcon> = {
@@ -50,32 +52,39 @@ function describeActivityBody(activity: SeasonActivity): ReactNode {
     const team = (
         <b className="text-hq-lime">{activity.source_season_team.name}</b>
     );
-    const player = activity.player?.nickname;
+    const player = activity.player && (
+        <Link
+            href={playersShow(activity.player.id).url}
+            className="font-bold hover:underline"
+        >
+            {activity.player.nickname}
+        </Link>
+    );
 
     switch (activity.type) {
         case 'signing':
             return (
                 <>
-                    {team} fichó a <b>{player}</b>
+                    {team} fichó a {player}
                 </>
             );
         case 'sale':
             return (
                 <>
-                    {team} vendió a <b>{player}</b>
+                    {team} vendió a {player}
                 </>
             );
         case 'buyout':
             return (
                 <>
-                    {team} pagó la cláusula de <b>{player}</b> a{' '}
+                    {team} pagó la cláusula de {player} a{' '}
                     <b>{activity.target_season_team?.name}</b>
                 </>
             );
         case 'shield':
             return (
                 <>
-                    {team} blindó a <b>{player}</b>
+                    {team} blindó a {player}
                 </>
             );
         case 'weekly_prize':
@@ -138,12 +147,17 @@ export function ActivityCard({ activity }: { activity: SeasonActivity }) {
                     )}
                 </div>
                 {activity.player && (
-                    <EntityImage
-                        src={activity.player.image}
-                        alt={activity.player.nickname}
-                        fallback={User}
-                        className="h-12 w-12 shrink-0 border border-hq-border-strong bg-hq-panel-alt"
-                    />
+                    <Link
+                        href={playersShow(activity.player.id).url}
+                        className="shrink-0"
+                    >
+                        <EntityImage
+                            src={activity.player.image}
+                            alt={activity.player.nickname}
+                            fallback={User}
+                            className="h-12 w-12 border border-hq-border-strong bg-hq-panel-alt"
+                        />
+                    </Link>
                 )}
                 {activity.type === 'buyout' && activity.target_season_team && (
                     <div className="flex shrink-0 flex-col items-center gap-0.5">
