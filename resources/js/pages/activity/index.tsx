@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import type { ReactElement } from 'react';
-import { ActivityEntry, TYPE_LABELS } from '@/components/activity-entry';
-import { MultiSelect } from '@/components/multi-select';
+import { ActivityCard, TYPE_LABELS } from '@/components/activity-card';
+import { HqMultiSelect } from '@/components/hq-multi-select';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { index as activityIndex } from '@/routes/activity';
@@ -67,75 +67,93 @@ export default function ActivityIndex({
     ).map(([value, label]) => ({ value, label }));
 
     return (
-        <div className="py-10">
-            <Head title="Actividad" />
+        <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
+            <div className="mx-auto max-w-7xl px-6 py-9">
+                <Head title="Actividad" />
 
-            <div className="flex flex-wrap gap-3">
-                <MultiSelect
-                    label="Equipo"
-                    options={teamOptions}
-                    selected={filters.team.map(String)}
-                    onChange={(next) =>
-                        applyFilters(next.map(Number), filters.type)
-                    }
-                />
+                <h1 className="mb-6 font-display text-3xl text-hq-paper uppercase">
+                    Actividad
+                </h1>
 
-                <MultiSelect
-                    label="Tipo"
-                    options={typeOptions}
-                    selected={filters.type}
-                    onChange={(next) =>
-                        applyFilters(filters.team, next as SeasonActivityType[])
-                    }
-                />
-            </div>
+                <div className="mb-7 flex flex-wrap gap-2.5">
+                    <HqMultiSelect
+                        label="Equipo"
+                        options={teamOptions}
+                        selected={filters.team.map(String)}
+                        onChange={(next) =>
+                            applyFilters(next.map(Number), filters.type)
+                        }
+                    />
 
-            {activities.data.length === 0 ? (
-                <p className="mt-8 text-neutral-500">
-                    No hay actividad que coincida con estos filtros.
-                </p>
-            ) : (
-                <div className="mt-8 flex flex-col gap-8">
-                    {groups.map(([day, entries]) => (
-                        <section key={day}>
-                            <h2 className="text-sm font-semibold text-neutral-500 capitalize">
-                                {day}
-                            </h2>
-                            <ul className="mt-2 divide-y divide-neutral-200">
-                                {entries.map((entry) => (
-                                    <ActivityEntry
-                                        key={entry.id}
-                                        activity={entry}
-                                    />
-                                ))}
-                            </ul>
-                        </section>
-                    ))}
+                    <HqMultiSelect
+                        label="Tipo"
+                        options={typeOptions}
+                        selected={filters.type}
+                        onChange={(next) =>
+                            applyFilters(
+                                filters.team,
+                                next as SeasonActivityType[],
+                            )
+                        }
+                    />
                 </div>
-            )}
 
-            {activities.last_page > 1 && (
-                <nav
-                    aria-label="Paginación"
-                    className="mt-8 flex flex-wrap gap-1"
-                >
-                    {activities.links.map((link, index) => (
-                        <Link
-                            key={index}
-                            href={link.url ?? '#'}
-                            preserveScroll
-                            className={cn(
-                                'rounded-md px-3 py-1.5 text-sm',
-                                link.active
-                                    ? 'bg-neutral-900 text-white'
-                                    : 'text-neutral-600 hover:bg-neutral-100',
-                                !link.url && 'pointer-events-none opacity-40',
-                            )}
-                            dangerouslySetInnerHTML={{ __html: link.label }}
-                        />
-                    ))}
-                </nav>
-            )}
+                {activities.data.length === 0 ? (
+                    <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
+                        <p className="mb-2 text-3xl">📋</p>
+                        <p className="font-display text-lg text-hq-paper uppercase">
+                            Sin actividad
+                        </p>
+                        <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
+                            No hay actividad que coincida con estos filtros.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-7">
+                        {groups.map(([day, entries]) => (
+                            <section key={day}>
+                                <h2 className="mb-2.5 border-b border-hq-border pb-1.5 font-mono text-[10px] tracking-widest text-hq-moss-dim uppercase">
+                                    {day}
+                                </h2>
+                                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                                    {entries.map((entry) => (
+                                        <ActivityCard
+                                            key={entry.id}
+                                            activity={entry}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        ))}
+                    </div>
+                )}
+
+                {activities.last_page > 1 && (
+                    <nav
+                        aria-label="Paginación"
+                        className="mt-8 flex flex-wrap gap-1.5"
+                    >
+                        {activities.links.map((link, index) => (
+                            <Link
+                                key={index}
+                                href={link.url ?? '#'}
+                                preserveScroll
+                                className={cn(
+                                    'border px-3 py-1.5 font-mono text-[11px] font-bold',
+                                    link.active
+                                        ? 'border-hq-lime bg-hq-lime text-hq-ink'
+                                        : 'border-hq-border text-hq-moss hover:border-hq-border-strong',
+                                    !link.url &&
+                                        'pointer-events-none opacity-40',
+                                )}
+                                dangerouslySetInnerHTML={{
+                                    __html: link.label,
+                                }}
+                            />
+                        ))}
+                    </nav>
+                )}
+            </div>
         </div>
     );
 }
