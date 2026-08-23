@@ -136,7 +136,7 @@ export function HqPlayerStatsModal({
                 <div className="grid grid-cols-2">
                     {BODY_STAT_ORDER.map((key, index) => {
                         const [value, delta] = stats[key] ?? [0, 0];
-                        const isZero = value === 0;
+                        const isZero = value === 0 && delta === 0;
 
                         return (
                             <div

@@ -145,7 +145,7 @@ export function HqPlayerMatchTimeline({
                     <div className="grid grid-cols-2">
                         {BODY_STAT_ORDER.map((key, index) => {
                             const [value, delta] = selectedScore.stats[key] ?? [0, 0];
-                            const isZero = value === 0;
+                            const isZero = value === 0 && delta === 0;
 
                             return (
                                 <div
