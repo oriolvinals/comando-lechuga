@@ -1,17 +1,24 @@
-# Colores extraídos de los escudos de los equipos fantasy
+# Colores de los escudos de los equipos fantasy
 
-Extraídos el 2026-08-23 analizando los píxeles de cada PNG directamente (sin librerías de imagen — decodificador PNG manual en Node usando `zlib`, descartando píxeles transparentes y agrupando por tono/saturación en vez de por rango RGB estrecho). Pensado para cuando estos colores se conviertan en un campo de `SeasonTeam` (p. ej. `crest_color_primary` / `crest_color_secondary`) y se usen en sitios como la franja de "quién tenía al jugador" en la ficha de jugador.
+Ahora viven en `season_teams.primary_color` / `secondary_color` (migración
+`2026_08_23_190000_add_colors_to_season_teams_table`). Rellenados a mano el
+2026-08-23 mirando cada escudo directamente (`public/images/teams/*.png`),
+no por un script de clustering de píxeles — el primer intento automático
+(descartar transparencia/casi-blanco/casi-negro y agrupar por tono) acertó
+la mayoría de colores principales pero se equivocó en CID F.C (dio un
+marrón como secundario cuando el escudo es claramente azul marino + dorado).
 
-| Equipo | Principal | Secundario | Nota |
-|---|---|---|---|
-| Cruza FC | `#8a0607` (rojo) | — | un solo tono, sin secundario claro |
-| CID F.C | `#021025` (azul marino) | `#2a1206` (marrón) | logo pequeño, paleta oscura y ambigua — revisar a mano |
-| Gauchitos F.C | `#ecb21c` (dorado) | `#022c19` (verde oscuro) | el más "de escudo" clásico — dos colores claros |
-| DukeBlack9 | `#0355f9` (azul) | — | un solo tono |
-| DUBI F.C | `#441d70` (morado) | — | recalculado filtrando por tono (hue 250–300°, saturación ≥0.35) tras que el primer intento (agrupar por bucket RGB) lo perdiera entre los negros del fondo |
-| Ariobretxa | `#571a78` (morado) | `#fde216` (amarillo) | dos colores claros |
-| planuky | `#0a97a4` (turquesa) | `#021a34` (azul marino) | fondo blanco descartado del cálculo |
+| Equipo | Principal | Secundario |
+|---|---|---|
+| Cruza FC | `#8a0607` (rojo) | `#171210` (negro, cinta/borde) |
+| CID F.C | `#2f5fd8` (azul claro, rayos) | `#8a1228` (rojo, franjas) |
+| Gauchitos F.C | `#f0c419` (dorado) | `#0f3d24` (verde oscuro) |
+| DukeBlack9 | `#3d7dfd` (azul claro, calavera) | `#0a0a0a` (negro) |
+| DUBI F.C | `#7a2fd6` (morado vivo) | `#0a0a0a` (negro) |
+| Ariobretxa | `#5c1f8a` (morado) | `#f0c419` (amarillo) |
+| planuky | `#12a0ad` (turquesa) | `#0d2b46` (azul marino) |
 
-**Método:** decodificar el PNG (soporta color types 0/2/3/4/6), descartar píxeles con alpha bajo, descartar casi-blanco/casi-negro/gris (saturación baja) para el primer intento por bucket; para DUBI F.C se usó en su lugar un filtro directo por tono HSL ya que la paleta era muy oscura y el bucketing por rango RGB diluía el morado real entre los negros.
-
-**Pendiente:** CID F.C sigue con paleta ambigua (logo pequeño, colores oscuros mezclados) — revisar a mano o re-extraer con el mismo método por tono usado en DUBI F.C si hace falta un color fiable.
+**Criterio:** el principal es el color más distintivo/de marca del escudo
+(no necesariamente el que más superficie ocupa) — en los escudos negro +
+un solo acento vivo (DukeBlack9, DUBI F.C) el acento es el principal y el
+negro el secundario, no al revés.
