@@ -29,6 +29,7 @@ interface PlayerShowProps {
     marketHistory: PlayerMarketPoint[];
     scores: PlayerFichaScore[];
     ownershipActivity: OwnershipActivity[];
+    teamJoinedAt: Record<string, string>;
     teamFixtures: Fixture[];
     [key: string]: unknown;
 }
@@ -48,11 +49,13 @@ export default function PlayerShow({
     marketHistory,
     scores,
     ownershipActivity,
+    teamJoinedAt,
     teamFixtures,
 }: PlayerShowProps) {
     const ownershipSegments = buildOwnershipTimeline(
         ownershipActivity,
         owner?.season_team ?? null,
+        teamJoinedAt,
     );
 
     return (

@@ -105,6 +105,20 @@ class PlayersController extends Controller
             ->orderBy('occurred_at')
             ->get();
 
+        // A player already on a manager's squad when that manager joined the league
+        // has no signing/buyout of their own to explain it — this is true not just for
+        // the current owner, but for whichever team a sale/buyout implies held the
+        // player *before* the earliest recorded activity. Every team's join date lets
+        // the frontend fall back to it instead of crediting a team further back than
+        // they've actually existed in the league.
+        $teamJoinedAt = SeasonActivity::query()
+            ->where('season_id', $season->id)
+            ->where('type', SeasonActivityType::JoinedLeague)
+            ->get(['source_season_team_id', 'occurred_at'])
+            ->mapWithKeys(fn (SeasonActivity $activity): array => [
+                (string) $activity->source_season_team_id => $activity->occurred_at,
+            ]);
+
         // Fixtures for the player's current club up to the current week, including weeks
         // that haven't produced a PlayerScore yet — lets the match timeline link to a
         // fixture (e.g. "aún no jugada") before any stats exist for it.
@@ -125,6 +139,7 @@ class PlayersController extends Controller
             'marketHistory' => $marketHistory,
             'scores' => $scores,
             'ownershipActivity' => $ownershipActivity,
+            'teamJoinedAt' => $teamJoinedAt,
             'teamFixtures' => $teamFixtures,
         ]);
     }

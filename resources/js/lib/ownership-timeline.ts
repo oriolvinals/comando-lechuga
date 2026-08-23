@@ -20,26 +20,62 @@ export interface OwnershipSegment {
  * fichó/pagó la cláusula ... a {target}"); `sale` returns the player to the
  * free market. The final segment is forced to `currentOwner` (the real
  * SeasonTeamPlayer row) rather than the reconstructed state, since a
- * player's ownership can predate the activity log (e.g. an initial squad
- * assignment with no captured signing event).
+ * player's ownership can predate the activity log.
+ *
+ * A player can also have ownership *before* the earliest recorded activity —
+ * either because they were on a manager's squad when that manager joined the
+ * league (no activity at all), or because the first recorded activity is
+ * itself a sale/buyout that implies an unrecorded prior owner (e.g. a buyout
+ * only tells us who bought the player, not who held them before). We infer
+ * that "leading owner" from the first activity's type/fields, then fall back
+ * to `teamJoinedAt[leadingOwner.id]` (that team's own `joined_league` date)
+ * as the start of their ownership, with a free-market segment before it —
+ * rather than crediting the team with owning the player back through the
+ * whole chart's date range.
  */
 export function buildOwnershipTimeline(
     activities: OwnershipActivity[],
     currentOwner: SeasonTeam | null,
+    teamJoinedAt: Record<string, string>,
 ): OwnershipSegment[] {
     const segments: OwnershipSegment[] = [];
-    let segmentStart: string | null = null;
-    let owner: SeasonTeam | null = null;
-    let startedBy: OwnershipSegmentOrigin | null = null;
+    const first = activities[0] ?? null;
 
-    for (const activity of activities) {
-        segments.push({ from: segmentStart, to: activity.occurred_at, seasonTeam: owner, startedBy });
-        segmentStart = activity.occurred_at;
-        owner = activity.type === 'sale' ? null : activity.source_season_team;
-        startedBy = { type: activity.type, amount: activity.amount };
+    const leadingOwner: SeasonTeam | null =
+        first === null
+            ? currentOwner
+            : first.type === 'sale'
+              ? first.source_season_team
+              : first.type === 'buyout'
+                ? first.target_season_team
+                : null;
+    const leadingEnd = first?.occurred_at ?? null;
+
+    if (leadingOwner === null) {
+        segments.push({ from: null, to: leadingEnd, seasonTeam: null, startedBy: null });
+    } else {
+        const joinedAt = teamJoinedAt[leadingOwner.id] ?? null;
+
+        if (joinedAt !== null) {
+            segments.push({ from: null, to: joinedAt, seasonTeam: null, startedBy: null });
+            segments.push({ from: joinedAt, to: leadingEnd, seasonTeam: leadingOwner, startedBy: null });
+        } else {
+            segments.push({ from: null, to: leadingEnd, seasonTeam: leadingOwner, startedBy: null });
+        }
     }
 
-    segments.push({ from: segmentStart, to: null, seasonTeam: currentOwner, startedBy });
+    for (let index = 0; index < activities.length; index++) {
+        const activity = activities[index];
+        const isLast = index === activities.length - 1;
+        const owner = isLast ? currentOwner : activity.type === 'sale' ? null : activity.source_season_team;
+
+        segments.push({
+            from: activity.occurred_at,
+            to: activities[index + 1]?.occurred_at ?? null,
+            seasonTeam: owner,
+            startedBy: { type: activity.type, amount: activity.amount },
+        });
+    }
 
     return segments;
 }

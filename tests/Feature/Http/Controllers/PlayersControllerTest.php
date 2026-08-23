@@ -517,6 +517,55 @@ test('excludes fixtures for teams other than the player current team', function 
     $response->assertInertia(fn (Assert $page) => $page->has('teamFixtures', 0));
 });
 
+test('includes every team join date, keyed by season team id', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $ownerTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $otherTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create();
+    SeasonTeamPlayer::factory()->create([
+        'season_team_id' => $ownerTeam->id,
+        'player_id' => $player->id,
+    ]);
+    $ownerJoined = SeasonActivity::factory()->create([
+        'season_id' => $season->id,
+        'type' => SeasonActivityType::JoinedLeague,
+        'source_season_team_id' => $ownerTeam->id,
+        'player_id' => null,
+        'occurred_at' => now()->subDays(20),
+    ]);
+    $otherJoined = SeasonActivity::factory()->create([
+        'season_id' => $season->id,
+        'type' => SeasonActivityType::JoinedLeague,
+        'source_season_team_id' => $otherTeam->id,
+        'player_id' => null,
+        'occurred_at' => now()->subDays(25),
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where("teamJoinedAt.{$ownerTeam->id}", $ownerJoined->occurred_at->toJSON())
+        ->where("teamJoinedAt.{$otherTeam->id}", $otherJoined->occurred_at->toJSON())
+    );
+});
+
+test('has an empty team-joined map when no team has recorded joining the league', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->where('teamJoinedAt', []));
+});
+
 test('excludes non-ownership activity types like shields and weekly prizes', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
