@@ -15,6 +15,15 @@ const POSITION_COLOR_CLASSES: Record<PlayerPosition, string> = {
     coach: 'border-hq-border-strong bg-hq-border/40 text-hq-moss',
 };
 
+/** Solid (non-translucent) position accent — e.g. a colored side border on a card. */
+export const POSITION_ACCENT_BORDER_CLASSES: Record<PlayerPosition, string> = {
+    goalkeeper: 'border-hq-por',
+    defender: 'border-hq-def',
+    midfield: 'border-hq-med',
+    striker: 'border-hq-del',
+    coach: 'border-hq-border-strong',
+};
+
 interface HqPositionTagProps {
     position: PlayerPosition;
     className?: string;

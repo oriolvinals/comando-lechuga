@@ -1,10 +1,15 @@
+import { Link } from '@inertiajs/react';
 import { Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
-import { HqPositionTag } from '@/components/hq-position-tag';
+import {
+    HqPositionTag,
+    POSITION_ACCENT_BORDER_CLASSES,
+} from '@/components/hq-position-tag';
 import { HqSection } from '@/components/hq-section';
 import { formatCurrency } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
 import { cn } from '@/lib/utils';
+import { show as playersShow } from '@/routes/players';
 import type { MarketPlayer } from '@/types/models';
 
 interface MarketPanelProps {
@@ -13,60 +18,73 @@ interface MarketPanelProps {
 
 function MarketCard({ listing }: { listing: MarketPlayer }) {
     const countdown = useCountdown(listing.expires_at);
+    const player = listing.player;
 
     return (
-        <div className="hq-card-cut px-4 py-4 text-center">
-            {listing.bids > 0 && (
-                <span className="absolute top-2 right-2 rounded bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-hq-ember">
-                    {listing.bids} {listing.bids === 1 ? 'PUJA' : 'PUJAS'}
-                </span>
+        <Link
+            href={playersShow(player.id).url}
+            className={cn(
+                'hq-card-cut block border-l-[3px] px-3 py-2.5 transition-[filter] hover:brightness-125',
+                POSITION_ACCENT_BORDER_CLASSES[player.position],
             )}
-            <EntityImage
-                src={listing.player.image}
-                alt={listing.player.nickname}
-                fallback={User}
-                className="mx-auto mb-2 h-14 w-14 border border-hq-border-strong bg-hq-panel-alt"
-            />
-            <p className="text-sm font-extrabold text-hq-paper">
-                {listing.player.nickname}
-            </p>
-            <div className="mt-1.5 flex items-center justify-center gap-1.5">
+        >
+            <div className="flex items-center gap-2">
                 <EntityImage
-                    src={listing.player.team.logo}
-                    alt={listing.player.team.name}
+                    src={player.image}
+                    alt={player.nickname}
+                    fallback={User}
+                    className="h-[30px] w-[30px] shrink-0 border border-hq-border-strong bg-hq-panel-alt"
+                />
+                <span className="flex-1 truncate text-[13px] font-extrabold text-hq-paper">
+                    {player.nickname}
+                </span>
+                <span className="shrink-0 bg-hq-border px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-moss">
+                    {player.points} PTS
+                </span>
+            </div>
+
+            <div className="mt-1.5 flex items-center gap-1.5">
+                <EntityImage
+                    src={player.team.logo}
+                    alt={player.team.name}
                     fallback={Shield}
                     shape="square"
-                    className="h-8 w-8"
+                    className="h-[11px] w-[11px]"
                 />
-                <HqPositionTag position={listing.player.position} />
-            </div>
-            <p className="mt-2 font-mono text-[10px] text-hq-moss">
-                <span className="block font-display text-base text-hq-paper">
-                    {listing.player.points}
+                <span className="font-mono text-[10px] text-hq-moss">
+                    {player.team.short_name}
                 </span>
-                PTS
-            </p>
-            <p className="mt-2.5 font-mono text-sm font-bold text-hq-lime">
-                {countdown}
-            </p>
-            <span className="hq-tag-cut mt-2 inline-block bg-hq-khaki px-2.5 py-1 font-mono text-xs font-bold text-hq-ink">
+                <HqPositionTag position={player.position} />
+            </div>
+
+            <p className="mt-1.5 font-mono text-[12px] font-bold text-hq-paper">
                 {formatCurrency(listing.value)}
-            </span>
-            {listing.player.market_value_difference !== 0 && (
-                <p
-                    className={cn(
-                        'mt-1.5 font-mono text-[10px] font-bold',
-                        listing.player.market_value_difference > 0
-                            ? 'text-hq-lime'
-                            : 'text-hq-live',
-                    )}
-                >
-                    {listing.player.market_value_difference > 0 ? '▲' : '▼'}{' '}
-                    {listing.player.market_value_difference > 0 ? '+' : ''}
-                    {formatCurrency(listing.player.market_value_difference)}
-                </p>
-            )}
-        </div>
+                {player.market_value_difference !== 0 && (
+                    <span
+                        className={cn(
+                            'ml-2 text-[10px]',
+                            player.market_value_difference > 0
+                                ? 'text-hq-lime'
+                                : 'text-hq-live',
+                        )}
+                    >
+                        {player.market_value_difference > 0 ? '▲' : '▼'}{' '}
+                        {formatCurrency(Math.abs(player.market_value_difference))}
+                    </span>
+                )}
+            </p>
+
+            <div className="mt-1 flex items-center justify-between">
+                <span className="font-mono text-[11px] font-bold text-hq-lime">
+                    {countdown}
+                </span>
+                {listing.bids > 0 && (
+                    <span className="border border-hq-ember bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
+                        {listing.bids} {listing.bids === 1 ? 'PUJA' : 'PUJAS'}
+                    </span>
+                )}
+            </div>
+        </Link>
     );
 }
 
@@ -84,7 +102,7 @@ export function MarketPanel({ market }: MarketPanelProps) {
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                     {market.map((listing) => (
                         <MarketCard key={listing.id} listing={listing} />
                     ))}
