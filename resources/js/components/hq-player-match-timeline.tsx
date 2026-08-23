@@ -92,7 +92,10 @@ export function HqPlayerMatchTimeline({
                             {selectedScore.fixture.guest_score}{' '}
                             {selectedScore.fixture.guest_team.short_name}
                         </span>
-                        {didNotPlayMatch(selectedScore.stats) && (
+                        {didNotPlayMatch(
+                            selectedScore.stats,
+                            selectedScore.fixture.state,
+                        ) && (
                             <span className="border border-hq-moss-dim px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-moss-dim uppercase">
                                 No jugó
                             </span>

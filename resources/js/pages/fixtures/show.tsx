@@ -9,6 +9,7 @@ import { MatchEventIcons } from '@/components/match-event-icons';
 import AppLayout from '@/layouts/app-layout';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
+import { didNotPlayMatch } from '@/lib/player-labels';
 import { pointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
@@ -91,23 +92,25 @@ const LEGEND_ITEMS = [
     },
 ];
 
-function didNotPlay(score: PlayerScore): boolean {
-    return (score.stats.mins_played?.[0] ?? 0) === 0;
-}
-
 function TeamColumn({
     scores,
     minPlayedRows,
     showDazn,
+    fixtureState,
     onSelect,
 }: {
     scores: PlayerScore[];
     minPlayedRows: number;
     showDazn: boolean;
+    fixtureState: Fixture['state'];
     onSelect: (score: PlayerScore) => void;
 }) {
-    const played = scores.filter((score) => !didNotPlay(score));
-    const benched = scores.filter(didNotPlay);
+    const played = scores.filter(
+        (score) => !didNotPlayMatch(score.stats, fixtureState),
+    );
+    const benched = scores.filter((score) =>
+        didNotPlayMatch(score.stats, fixtureState),
+    );
     const fillerCount = Math.max(0, minPlayedRows - played.length);
 
     return (
@@ -235,8 +238,8 @@ export default function FixtureShow({
         (score) => score.team_id === fixture.guest_team.id,
     );
     const minPlayedRows = Math.max(
-        localScores.filter((score) => !didNotPlay(score)).length,
-        guestScores.filter((score) => !didNotPlay(score)).length,
+        localScores.filter((score) => !didNotPlayMatch(score.stats, fixture.state)).length,
+        guestScores.filter((score) => !didNotPlayMatch(score.stats, fixture.state)).length,
     );
 
     return (
@@ -433,6 +436,7 @@ export default function FixtureShow({
                                         scores={localScores}
                                         minPlayedRows={minPlayedRows}
                                         showDazn={fixture.state === 'finished'}
+                                        fixtureState={fixture.state}
                                         onSelect={setSelectedScore}
                                     />
                                 </div>
@@ -446,6 +450,7 @@ export default function FixtureShow({
                                         scores={guestScores}
                                         minPlayedRows={minPlayedRows}
                                         showDazn={fixture.state === 'finished'}
+                                        fixtureState={fixture.state}
                                         onSelect={setSelectedScore}
                                     />
                                 </div>

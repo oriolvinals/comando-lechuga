@@ -1,4 +1,9 @@
-import type { JornadaStats, PlayerPosition, PlayerStatus } from '@/types/models';
+import type {
+    FixtureState,
+    JornadaStats,
+    PlayerPosition,
+    PlayerStatus,
+} from '@/types/models';
 
 export const POSITION_LABELS: Record<PlayerPosition, string> = {
     goalkeeper: 'Portero',
@@ -64,8 +69,16 @@ export const JORNADA_STAT_ORDER = [
     'marca_points',
 ] as const;
 
-export function didNotPlayMatch(stats: JornadaStats): boolean {
-    return (stats.mins_played?.[0] ?? 0) === 0;
+/**
+ * While a match is still live, `mins_played` keeps climbing until kickoff-to-final —
+ * a player showing 0 minutes mid-match hasn't necessarily been left out, the stat
+ * just hasn't caught up yet. Only trust a 0 as "didn't play" once the match is over.
+ */
+export function didNotPlayMatch(
+    stats: JornadaStats,
+    fixtureState: FixtureState,
+): boolean {
+    return fixtureState === 'finished' && (stats.mins_played?.[0] ?? 0) === 0;
 }
 
 export const JORNADA_STAT_LABELS: Record<string, string> = {
