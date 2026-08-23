@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
+import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
@@ -112,7 +113,7 @@ function TeamColumn({
                 <div
                     key={`filler-${index}`}
                     className={cn(
-                        'flex items-center gap-2.5 border-b border-hq-ink px-3 py-2.5 last:border-b-0',
+                        'hidden items-center gap-2.5 border-b border-hq-ink px-3 py-2.5 last:border-b-0 sm:flex',
                         (played.length + index) % 2 === 1 &&
                             'bg-hq-panel-alt/50',
                     )}
@@ -205,7 +206,7 @@ function PlayerRow({
                     {score.points}
                 </span>
                 {showDazn && marcaPoints !== undefined && (
-                    <span className="flex items-center gap-1 font-mono text-[9px] text-hq-moss-dim">
+                    <span className="flex items-center gap-1 font-mono text-[11px] text-hq-moss-dim">
                         <img
                             src="/images/dazn-logo.png"
                             alt="DAZN"
@@ -224,6 +225,7 @@ export default function FixtureShow({
     weekFixtures,
     scores,
 }: FixtureShowProps) {
+    const [activeTeam, setActiveTeam] = useState<'local' | 'guest'>('local');
     const isLive = isLiveFixtureState(fixture.state);
     const hasScore = isLive || fixture.state === 'finished';
     const localScores = scores.filter(
@@ -316,34 +318,34 @@ export default function FixtureShow({
 
                     <div
                         className={cn(
-                            'flex items-center justify-center gap-7 border bg-gradient-to-br from-hq-panel-alt to-hq-panel px-6 py-6',
+                            'flex items-center justify-between gap-2 border bg-gradient-to-br from-hq-panel-alt to-hq-panel px-4 py-4 sm:justify-center sm:gap-7 sm:px-6 sm:py-6',
                             isLive ? 'border-hq-live' : 'border-hq-border-strong',
                         )}
                     >
-                        <div className="flex w-36 flex-col items-center gap-2">
+                        <div className="flex w-20 min-w-0 flex-col items-center gap-1.5 sm:w-36 sm:gap-2">
                             <EntityImage
                                 src={fixture.local_team.logo}
                                 alt={fixture.local_team.name}
                                 fallback={Shield}
                                 shape="square"
-                                className="h-14 w-14 bg-transparent"
+                                className="h-9 w-9 bg-transparent sm:h-14 sm:w-14"
                             />
-                            <span className="text-center font-display text-sm text-hq-paper uppercase">
+                            <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
                                 {fixture.local_team.name}
                             </span>
                         </div>
-                        <div className="text-center">
-                            <p className="mb-1.5 font-mono text-[10px] tracking-widest text-hq-moss uppercase">
+                        <div className="shrink-0 text-center">
+                            <p className="mb-1 font-mono text-[9px] tracking-widest text-hq-moss uppercase sm:mb-1.5 sm:text-[10px]">
                                 Jornada {fixture.week_number}
                             </p>
-                            <div className="font-display text-4xl text-hq-paper">
+                            <div className="font-display text-2xl whitespace-nowrap text-hq-paper sm:text-4xl">
                                 {hasScore
                                     ? `${fixture.local_score} – ${fixture.guest_score}`
                                     : 'VS'}
                             </div>
                             <p
                                 className={cn(
-                                    'mt-1.5 flex items-center justify-center gap-1.5 font-mono text-[10px] tracking-widest uppercase',
+                                    'mt-1 flex items-center justify-center gap-1.5 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:mt-1.5 sm:text-[10px]',
                                     isLive
                                         ? 'text-hq-live'
                                         : 'text-hq-lime',
@@ -357,15 +359,15 @@ export default function FixtureShow({
                                     : FIXTURE_STATE_LABELS[fixture.state]}
                             </p>
                         </div>
-                        <div className="flex w-36 flex-col items-center gap-2">
+                        <div className="flex w-20 min-w-0 flex-col items-center gap-1.5 sm:w-36 sm:gap-2">
                             <EntityImage
                                 src={fixture.guest_team.logo}
                                 alt={fixture.guest_team.name}
                                 fallback={Shield}
                                 shape="square"
-                                className="h-14 w-14 bg-transparent"
+                                className="h-9 w-9 bg-transparent sm:h-14 sm:w-14"
                             />
-                            <span className="text-center font-display text-sm text-hq-paper uppercase">
+                            <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
                                 {fixture.guest_team.name}
                             </span>
                         </div>
@@ -382,23 +384,87 @@ export default function FixtureShow({
                                 puntos de cada jugador
                             </p>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <TeamColumn
-                                scores={localScores}
-                                minPlayedRows={minPlayedRows}
-                                showDazn={fixture.state === 'finished'}
-                            />
-                            <TeamColumn
-                                scores={guestScores}
-                                minPlayedRows={minPlayedRows}
-                                showDazn={fixture.state === 'finished'}
-                            />
-                        </div>
+    ) : (
+                        <>
+                            <div className="mt-6 flex border border-b-0 border-hq-border sm:hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTeam('local')}
+                                    className={cn(
+                                        'flex flex-1 items-center justify-center gap-2 py-2 font-mono text-xs font-bold tracking-wider uppercase transition-colors',
+                                        activeTeam === 'local'
+                                            ? 'bg-hq-lime text-hq-ink'
+                                            : 'border-b border-hq-border text-hq-moss',
+                                    )}
+                                >
+                                    <img
+                                        src={fixture.local_team.logo}
+                                        alt=""
+                                        className="h-4 w-4 object-contain"
+                                    />
+                                    {fixture.local_team.short_name}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTeam('guest')}
+                                    className={cn(
+                                        'flex flex-1 items-center justify-center gap-2 py-2 font-mono text-xs font-bold tracking-wider uppercase transition-colors',
+                                        activeTeam === 'guest'
+                                            ? 'bg-hq-lime text-hq-ink'
+                                            : 'border-b border-hq-border text-hq-moss',
+                                    )}
+                                >
+                                    <img
+                                        src={fixture.guest_team.logo}
+                                        alt=""
+                                        className="h-4 w-4 object-contain"
+                                    />
+                                    {fixture.guest_team.short_name}
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div
+                                    className={cn(
+                                        activeTeam !== 'local' &&
+                                            'hidden sm:block',
+                                    )}
+                                >
+                                    <TeamColumn
+                                        scores={localScores}
+                                        minPlayedRows={minPlayedRows}
+                                        showDazn={
+                                            fixture.state === 'finished'
+                                        }
+                                    />
+                                </div>
+                                <div
+                                    className={cn(
+                                        activeTeam !== 'guest' &&
+                                            'hidden sm:block',
+                                    )}
+                                >
+                                    <TeamColumn
+                                        scores={guestScores}
+                                        minPlayedRows={minPlayedRows}
+                                        showDazn={
+                                            fixture.state === 'finished'
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </>
                     )}
 
                     {fixture.state !== 'scheduled' && (
-                        <div className="mt-5 flex flex-wrap gap-2 border border-hq-border bg-hq-panel px-3.5 py-2.5 font-mono text-[10px] text-hq-moss">
+                        <>
+                            <div className="mt-6 mb-2.5 flex items-center gap-2.5">
+                                <span className="h-px flex-1 bg-hq-border" />
+                                <span className="font-mono text-[10px] tracking-[.15em] text-hq-moss-dim uppercase">
+                                    Leyenda de iconos
+                                </span>
+                                <span className="h-px flex-1 bg-hq-border" />
+                            </div>
+                            <div className="flex flex-wrap gap-2 border border-hq-border bg-hq-panel px-3.5 py-2.5 font-mono text-[10px] text-hq-moss">
                             {LEGEND_ITEMS.map((item) => (
                                 <span
                                     key={item.label}
@@ -408,7 +474,8 @@ export default function FixtureShow({
                                     {item.label}
                                 </span>
                             ))}
-                        </div>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>
