@@ -15,22 +15,52 @@ use App\Models\PlayerMarket;
 use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonActivity;
+use App\Models\SeasonTeam;
 use App\Models\SeasonTeamLineupPlayer;
 use App\Models\SeasonTeamPlayer;
 use App\Models\Team;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PlayersController extends Controller
 {
+    /**
+     * Diacritics found in LaLiga squads (Spanish, Portuguese, French, German
+     * names) — folded away so a search for "Valentin" also matches "Valentín".
+     * SQLite has no built-in unaccent, so the column side is folded with
+     * nested REPLACE() while the search term is folded in PHP via Str::ascii().
+     */
+    private const array ACCENT_FOLD = [
+        'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a', 'ã' => 'a',
+        'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
+        'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o', 'õ' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
+        'ñ' => 'n',
+        'ç' => 'c',
+    ];
+
+    private static function foldedNicknameSql(): string
+    {
+        $expression = 'LOWER(nickname)';
+
+        foreach (self::ACCENT_FOLD as $accented => $plain) {
+            $expression = "REPLACE({$expression}, '{$accented}', '{$plain}')";
+        }
+
+        return $expression;
+    }
+
     public function index(PlayerFilter $filter): Response
     {
         $season = Season::current();
 
         $positions = $filter->getPositions();
         $teams = $filter->getTeams();
+        $seasonTeams = $filter->getSeasonTeams();
         $statuses = $filter->getStatuses();
         $search = $filter->getSearch();
         $sort = $filter->getSort();
@@ -40,8 +70,15 @@ class PlayersController extends Controller
             ->with('team')
             ->when($positions !== [], fn ($query) => $query->whereIn('position', $positions))
             ->when($teams !== [], fn ($query) => $query->whereIn('team_id', $teams))
+            ->when($seasonTeams !== [], fn ($query) => $query->whereHas(
+                'seasonTeamPlayers',
+                fn ($query) => $query->whereIn('season_team_id', $seasonTeams),
+            ))
             ->when($statuses !== [], fn ($query) => $query->whereIn('status', $statuses))
-            ->when($search !== null, fn ($query) => $query->where('nickname', 'like', '%'.$search.'%'))
+            ->when($search !== null, fn ($query) => $query->whereRaw(
+                self::foldedNicknameSql().' LIKE ?',
+                ['%'.Str::lower(Str::ascii($search)).'%'],
+            ))
             ->orderBy($sort->column(), $direction->value)
             ->paginate(30)
             ->withQueryString();
@@ -52,12 +89,19 @@ class PlayersController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $seasonTeamOptions = SeasonTeam::query()
+            ->where('season_id', $season->id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return Inertia::render('players/index', [
             'players' => $players,
             'teams' => $realTeams,
+            'seasonTeams' => $seasonTeamOptions,
             'filters' => [
                 'position' => array_map(fn (PlayerPosition $position): string => $position->value, $positions),
                 'team' => $teams,
+                'seasonTeam' => $seasonTeams,
                 'status' => array_map(fn (PlayerStatus $status): string => $status->value, $statuses),
                 'search' => $search,
                 'sort' => $sort->value,

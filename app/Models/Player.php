@@ -65,6 +65,12 @@ class Player extends Model
         return $this->hasMany(SeasonTeamLineupPlayer::class);
     }
 
+    /** @return HasMany<SeasonTeamPlayer, $this> */
+    public function seasonTeamPlayers(): HasMany
+    {
+        return $this->hasMany(SeasonTeamPlayer::class);
+    }
+
     /** @return HasOne<MarketPlayer, $this> */
     public function marketPlayer(): HasOne
     {

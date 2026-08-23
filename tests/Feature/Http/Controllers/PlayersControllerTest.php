@@ -67,6 +67,24 @@ test('searches players by nickname', function (): void {
     );
 });
 
+test('searches players by nickname ignoring accents', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    $match = Player::factory()->create(['nickname' => 'Óscar Valentín']);
+    Player::factory()->create(['nickname' => 'Pedri']);
+
+    $response = $this->get(route('players.index', ['search' => 'valentin']));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('players.data', 1)
+        ->where('players.data.0.id', $match->id)
+    );
+});
+
 test('filters players by several positions at once', function (): void {
     Season::factory()->create([
         'start_date' => now()->subDay(),
@@ -101,6 +119,51 @@ test('filters players by several teams at once', function (): void {
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page->has('players.data', 2));
+});
+
+test('filters players by fantasy season team', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    $ownerTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $otherTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+
+    $owned = Player::factory()->create();
+    SeasonTeamPlayer::factory()->create(['season_team_id' => $ownerTeam->id, 'player_id' => $owned->id]);
+
+    Player::factory()->create();
+
+    $response = $this->get(route('players.index', ['season_team' => (string) $ownerTeam->id]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('players.data', 1)
+        ->where('players.data.0.id', $owned->id)
+    );
+});
+
+test('lists fantasy season teams for the current season only, for the team filter', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $otherSeason = Season::factory()->create([
+        'start_date' => now()->subYears(2),
+        'end_date' => now()->subYear(),
+    ]);
+
+    $currentTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    SeasonTeam::factory()->create(['season_id' => $otherSeason->id]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('seasonTeams', 1)
+        ->where('seasonTeams.0.id', $currentTeam->id)
+    );
 });
 
 test('filters players by several statuses at once', function (): void {

@@ -8,7 +8,7 @@ import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
 import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
 import { pointsBadgeClass } from '@/lib/points';
-import { STATUS_LABELS } from '@/lib/player-labels';
+import { STATUS_BADGE_CLASS, STATUS_LABELS } from '@/lib/player-labels';
 import { cn } from '@/lib/utils';
 import type {
     Fixture,
@@ -33,13 +33,6 @@ interface PlayerShowProps {
     teamFixtures: Fixture[];
     [key: string]: unknown;
 }
-
-const STATUS_BADGE_CLASS: Record<string, string> = {
-    injured: 'border-hq-live text-hq-live bg-hq-live/10',
-    suspended: 'border-hq-live text-hq-live bg-hq-live/10',
-    doubtful: 'border-hq-gold text-hq-gold bg-hq-gold/10',
-    out_of_league: 'border-hq-moss text-hq-moss bg-hq-moss/10',
-};
 
 export default function PlayerShow({
     player,

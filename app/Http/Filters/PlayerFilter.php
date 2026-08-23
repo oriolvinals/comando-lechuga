@@ -18,6 +18,9 @@ final class PlayerFilter extends BaseRequestFilter
     /** @var int[] */
     private readonly array $teams;
 
+    /** @var int[] */
+    private readonly array $seasonTeams;
+
     /** @var PlayerStatus[] */
     private readonly array $statuses;
 
@@ -31,6 +34,7 @@ final class PlayerFilter extends BaseRequestFilter
     {
         $this->positions = $this->parseEnumList(PlayerPosition::class, $request->string('position')->toString());
         $this->teams = $this->parseIntList($request->string('team')->toString());
+        $this->seasonTeams = $this->parseIntList($request->string('season_team')->toString());
         $this->statuses = $this->parseEnumList(PlayerStatus::class, $request->string('status')->toString());
         $this->search = $this->parseString($request->string('search')->toString());
         $this->sort = $this->parseEnum(PlayerSort::class, $request->string('sort')->toString()) ?? PlayerSort::Points;
@@ -51,6 +55,14 @@ final class PlayerFilter extends BaseRequestFilter
     public function getTeams(): array
     {
         return $this->teams;
+    }
+
+    /**
+     * @return int[]
+     */
+    public function getSeasonTeams(): array
+    {
+        return $this->seasonTeams;
     }
 
     /**

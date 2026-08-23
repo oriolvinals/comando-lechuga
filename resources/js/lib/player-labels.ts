@@ -45,6 +45,22 @@ export const STATUS_COLORS: Record<PlayerStatus, string> = {
     out_of_league: 'text-neutral-400',
 };
 
+/** Comando HQ status badge colors — 'ok' is intentionally absent, callers hide the badge instead. */
+export const STATUS_BADGE_CLASS: Partial<Record<PlayerStatus, string>> = {
+    injured: 'border-hq-live text-hq-live bg-hq-live/10',
+    suspended: 'border-hq-live text-hq-live bg-hq-live/10',
+    doubtful: 'border-hq-gold text-hq-gold bg-hq-gold/10',
+    out_of_league: 'border-hq-moss text-hq-moss bg-hq-moss/10',
+};
+
+/** Short form for space-constrained badges (list rows) — 'ok' is intentionally absent. */
+export const STATUS_SHORT_LABELS: Partial<Record<PlayerStatus, string>> = {
+    injured: 'Lesión',
+    suspended: 'Sanción',
+    doubtful: 'Duda',
+    out_of_league: 'Baja',
+};
+
 export const JORNADA_STAT_ORDER = [
     'mins_played',
     'goals',
