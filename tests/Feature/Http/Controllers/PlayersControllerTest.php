@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
+use App\Enums\SeasonActivityType;
+use App\Models\Fixture;
+use App\Models\MarketPlayer;
 use App\Models\Player;
+use App\Models\PlayerMarket;
+use App\Models\PlayerScore;
 use App\Models\Season;
+use App\Models\SeasonActivity;
 use App\Models\SeasonTeam;
 use App\Models\SeasonTeamPlayer;
 use App\Models\Team;
@@ -262,4 +268,269 @@ test('echoes the current filters back', function (): void {
         ->where('filters.sort', 'value')
         ->where('filters.direction', 'asc')
     );
+});
+
+test('renders the player show page', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('players/show')
+        ->where('player.id', $player->id)
+    );
+});
+
+test('shows the owning team and clause details when the player is owned', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id, 'name' => 'Gauchitos F.C']);
+    $player = Player::factory()->create();
+    SeasonTeamPlayer::factory()->create([
+        'season_team_id' => $seasonTeam->id,
+        'player_id' => $player->id,
+        'buyout_clause' => 4_272_558,
+        'shielded' => false,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('owner.season_team.name', 'Gauchitos F.C')
+        ->where('owner.buyout_clause', 4_272_558)
+        ->where('owner.shielded', false)
+    );
+});
+
+test('shows no owner in the ficha for a free player', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->where('owner', null));
+});
+
+test('shows the market listing when the player is free and listed', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    MarketPlayer::factory()->create(['player_id' => $player->id, 'bids' => 2, 'sale_price' => 751_587]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('marketListing.bids', 2)
+        ->where('marketListing.sale_price', 751_587)
+    );
+});
+
+test('has no market listing when the player is not listed', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->where('marketListing', null));
+});
+
+test('orders the market value history by date ascending', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(1), 'value' => 2_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(3), 'value' => 1_500_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(2), 'value' => 1_800_000]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('marketHistory', 3)
+        ->where('marketHistory.0.value', 1_500_000)
+        ->where('marketHistory.1.value', 1_800_000)
+        ->where('marketHistory.2.value', 2_000_000)
+    );
+});
+
+test('only includes market history for this player', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $otherPlayer = Player::factory()->create();
+    PlayerMarket::factory()->create(['player_id' => $otherPlayer->id]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->has('marketHistory', 0));
+});
+
+test('orders the player scores by week number ascending', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $weekTwoFixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2]);
+    $weekOneFixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    $weekTwoScore = PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $weekTwoFixture->id]);
+    $weekOneScore = PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $weekOneFixture->id]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('scores', 2)
+        ->where('scores.0.id', $weekOneScore->id)
+        ->where('scores.1.id', $weekTwoScore->id)
+    );
+});
+
+test('only includes scores for this player', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $otherPlayer = Player::factory()->create();
+    PlayerScore::factory()->create(['player_id' => $otherPlayer->id]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->has('scores', 0));
+});
+
+test('includes ownership-affecting activity for this player, ordered chronologically', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $signing = SeasonActivity::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'type' => SeasonActivityType::Signing,
+        'occurred_at' => now()->subDays(2),
+    ]);
+    $buyout = SeasonActivity::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'type' => SeasonActivityType::Buyout,
+        'occurred_at' => now()->subDay(),
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('ownershipActivity', 2)
+        ->where('ownershipActivity.0.id', $signing->id)
+        ->where('ownershipActivity.1.id', $buyout->id)
+    );
+});
+
+test('includes the player current team fixture for a week with no score yet', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 2,
+    ]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 2,
+        'team_local_id' => $player->team_id,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('teamFixtures', 1)
+        ->where('teamFixtures.0.id', $fixture->id)
+    );
+});
+
+test('excludes the player current team fixtures beyond the current week', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 2,
+    ]);
+    $player = Player::factory()->create();
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 3,
+        'team_local_id' => $player->team_id,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->has('teamFixtures', 0));
+});
+
+test('excludes fixtures for teams other than the player current team', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 2,
+    ]);
+    $otherLocal = Team::factory()->create();
+    $otherGuest = Team::factory()->create();
+    $player = Player::factory()->create();
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $otherLocal->id,
+        'team_guest_id' => $otherGuest->id,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->has('teamFixtures', 0));
+});
+
+test('excludes non-ownership activity types like shields and weekly prizes', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    SeasonActivity::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'type' => SeasonActivityType::Shield,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->has('ownershipActivity', 0));
 });

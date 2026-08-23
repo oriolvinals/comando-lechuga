@@ -1,4 +1,4 @@
-import type { PlayerPosition, PlayerStatus } from '@/types/models';
+import type { JornadaStats, PlayerPosition, PlayerStatus } from '@/types/models';
 
 export const POSITION_LABELS: Record<PlayerPosition, string> = {
     goalkeeper: 'Portero',
@@ -63,6 +63,10 @@ export const JORNADA_STAT_ORDER = [
     'poss_lost_all',
     'marca_points',
 ] as const;
+
+export function didNotPlayMatch(stats: JornadaStats): boolean {
+    return (stats.mins_played?.[0] ?? 0) === 0;
+}
 
 export const JORNADA_STAT_LABELS: Record<string, string> = {
     mins_played: 'Minutos jugados',

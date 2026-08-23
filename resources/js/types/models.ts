@@ -26,6 +26,7 @@ export interface Player {
     market_value: number;
     market_value_difference: number;
     points: number;
+    average_points: string;
     owner_team: OwnerTeam | null;
 }
 
@@ -120,6 +121,46 @@ export interface SeasonTeamPlayer {
     buyout_clause_locked_until: string;
     shielded: boolean;
     player: Player;
+}
+
+export interface PlayerOwnership {
+    id: number;
+    buyout_clause: number;
+    buyout_clause_locked_until: string;
+    shielded: boolean;
+    season_team: SeasonTeam;
+}
+
+export interface PlayerMarketPoint {
+    date: string;
+    value: number;
+}
+
+export interface PlayerFichaMarketListing {
+    id: number;
+    expires_at: string;
+    bids: number;
+    sale_price: number;
+    value: number;
+}
+
+export interface PlayerFichaScore {
+    id: number;
+    team_id: number;
+    team: Team;
+    points: number;
+    stats: JornadaStats;
+    ideal_formation: boolean;
+    fixture: Fixture;
+}
+
+export interface OwnershipActivity {
+    id: number;
+    type: SeasonActivityType;
+    occurred_at: string;
+    amount: number | null;
+    source_season_team: SeasonTeam;
+    target_season_team: SeasonTeam | null;
 }
 
 export interface PaginationLink {

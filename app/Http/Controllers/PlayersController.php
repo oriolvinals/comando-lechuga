@@ -6,9 +6,14 @@ namespace App\Http\Controllers;
 
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
+use App\Enums\SeasonActivityType;
 use App\Http\Filters\PlayerFilter;
+use App\Models\Fixture;
+use App\Models\MarketPlayer;
 use App\Models\Player;
+use App\Models\PlayerMarket;
 use App\Models\Season;
+use App\Models\SeasonActivity;
 use App\Models\SeasonTeamPlayer;
 use App\Models\Team;
 use Illuminate\Database\Eloquent\Collection;
@@ -56,6 +61,71 @@ class PlayersController extends Controller
                 'sort' => $sort->value,
                 'direction' => $direction->value,
             ],
+        ]);
+    }
+
+    private const array OWNERSHIP_ACTIVITY_TYPES = [
+        SeasonActivityType::Signing,
+        SeasonActivityType::Sale,
+        SeasonActivityType::Buyout,
+    ];
+
+    public function show(Player $player): Response
+    {
+        $player->load('team');
+        $season = Season::current();
+
+        $owner = SeasonTeamPlayer::query()
+            ->where('player_id', $player->id)
+            ->whereHas('seasonTeam', fn ($query) => $query->where('season_id', $season->id))
+            ->with('seasonTeam')
+            ->first();
+
+        $marketListing = MarketPlayer::query()
+            ->where('player_id', $player->id)
+            ->first();
+
+        $marketHistory = PlayerMarket::query()
+            ->where('player_id', $player->id)
+            ->orderBy('date')
+            ->get(['date', 'value']);
+
+        $scores = $player->scores()
+            ->whereHas('fixture', fn ($query) => $query->where('season_id', $season->id))
+            ->with(['fixture.localTeam', 'fixture.guestTeam', 'team'])
+            ->get()
+            ->sortBy(fn ($score) => $score->fixture->week_number)
+            ->values();
+
+        $ownershipActivity = SeasonActivity::query()
+            ->where('season_id', $season->id)
+            ->where('player_id', $player->id)
+            ->whereIn('type', self::OWNERSHIP_ACTIVITY_TYPES)
+            ->with(['sourceSeasonTeam', 'targetSeasonTeam'])
+            ->orderBy('occurred_at')
+            ->get();
+
+        // Fixtures for the player's current club up to the current week, including weeks
+        // that haven't produced a PlayerScore yet — lets the match timeline link to a
+        // fixture (e.g. "aún no jugada") before any stats exist for it.
+        $teamFixtures = Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('week_number', '<=', $season->current_week)
+            ->where(fn ($query) => $query
+                ->where('team_local_id', $player->team_id)
+                ->orWhere('team_guest_id', $player->team_id))
+            ->with(['localTeam', 'guestTeam'])
+            ->get();
+
+        return Inertia::render('players/show', [
+            'player' => $player,
+            'season' => $season,
+            'owner' => $owner,
+            'marketListing' => $marketListing,
+            'marketHistory' => $marketHistory,
+            'scores' => $scores,
+            'ownershipActivity' => $ownershipActivity,
+            'teamFixtures' => $teamFixtures,
         ]);
     }
 
