@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { formatRelativeTime } from '@/lib/format';
+import { useNow } from '@/lib/use-now';
 
 /**
  * Relative day text ("dentro de 8 días") while 24h+ remain, switching to a
@@ -8,14 +8,7 @@ import { formatRelativeTime } from '@/lib/format';
  * `buyout_clause_locked_until`.
  */
 export function useLockCountdown(targetIso: string): string {
-    const [now, setNow] = useState(() => Date.now());
-
-    useEffect(() => {
-        const interval = setInterval(() => setNow(Date.now()), 1000);
-
-        return () => clearInterval(interval);
-    }, []);
-
+    const now = useNow();
     const diffMs = new Date(targetIso).getTime() - now;
 
     if (diffMs <= 0) {

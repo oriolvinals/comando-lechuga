@@ -5,6 +5,7 @@ import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
+import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { PlayerFichaMarketListing, PlayerOwnership } from '@/types/models';
@@ -43,82 +44,7 @@ export function HqPlayerPropertyCard({
     marketValue,
 }: HqPlayerPropertyCardProps) {
     if (owner !== null) {
-        const locked =
-            !owner.shielded &&
-            new Date(owner.buyout_clause_locked_until).getTime() > Date.now();
-        const shielded = owner.shielded;
-
-        return (
-            <div className="hq-card-cut p-4">
-                <p className="mb-2 font-mono text-[10px] tracking-wide text-hq-moss uppercase">
-                    Propiedad
-                </p>
-                <Link
-                    href={seasonTeamsShow(owner.season_team.id).url}
-                    className="mb-2.5 inline-flex items-center gap-2 hover:opacity-80"
-                >
-                    <EntityImage
-                        src={owner.season_team.logo}
-                        alt={owner.season_team.name}
-                        fallback={Shield}
-                        shape="square"
-                        className="h-7 w-7"
-                    />
-                    <span className="text-sm font-bold text-hq-paper">
-                        {owner.season_team.name}
-                    </span>
-                </Link>
-
-                {shielded ? (
-                    <LockStatus
-                        icon={<ShieldCheck className="h-[13px] w-[13px]" />}
-                        label="Blindado"
-                        colorClass="text-hq-def"
-                        borderClass="border-hq-def"
-                        bgClass="bg-hq-def/10"
-                        targetIso={owner.buyout_clause_locked_until}
-                    >
-                        <ClauseDifference
-                            clause={owner.buyout_clause}
-                            marketValue={marketValue}
-                        />
-                    </LockStatus>
-                ) : locked ? (
-                    <LockStatus
-                        icon={<Lock className="h-[13px] w-[13px]" />}
-                        label="Cláusula bloqueada"
-                        colorClass="text-hq-moss"
-                        borderClass="border-hq-border-strong"
-                        bgClass="bg-hq-moss/10"
-                        targetIso={owner.buyout_clause_locked_until}
-                    >
-                        <ClauseDifference
-                            clause={owner.buyout_clause}
-                            marketValue={marketValue}
-                        />
-                    </LockStatus>
-                ) : (
-                    <div className="border border-hq-lime bg-hq-lime/10 px-2.5 py-2">
-                        <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold text-hq-lime uppercase">
-                            <Lock className="h-[13px] w-[13px] rotate-45" />
-                            Cláusula abierta
-                        </div>
-                        <p className="mt-0.5 font-mono text-xs font-bold whitespace-nowrap text-hq-paper">
-                            {formatCurrency(owner.buyout_clause)}{' '}
-                            {owner.buyout_clause !== marketValue && (
-                                <span className="text-[10px] font-bold text-hq-khaki">
-                                    (+
-                                    {formatCurrency(
-                                        owner.buyout_clause - marketValue,
-                                    )}
-                                    )
-                                </span>
-                            )}
-                        </p>
-                    </div>
-                )}
-            </div>
-        );
+        return <OwnedStatus owner={owner} marketValue={marketValue} />;
     }
 
     if (marketListing !== null) {
@@ -134,6 +60,93 @@ export function HqPlayerPropertyCard({
             <p className="mt-1 font-mono text-[10px] text-hq-moss-dim">
                 sin equipo fantasy
             </p>
+        </div>
+    );
+}
+
+function OwnedStatus({
+    owner,
+    marketValue,
+}: {
+    owner: PlayerOwnership;
+    marketValue: number;
+}) {
+    const now = useNow();
+    const locked =
+        !owner.shielded &&
+        new Date(owner.buyout_clause_locked_until).getTime() > now;
+    const shielded = owner.shielded;
+
+    return (
+        <div className="hq-card-cut p-4">
+            <p className="mb-2 font-mono text-[10px] tracking-wide text-hq-moss uppercase">
+                Propiedad
+            </p>
+            <Link
+                href={seasonTeamsShow(owner.season_team.id).url}
+                className="mb-2.5 inline-flex items-center gap-2 hover:opacity-80"
+            >
+                <EntityImage
+                    src={owner.season_team.logo}
+                    alt={owner.season_team.name}
+                    fallback={Shield}
+                    shape="square"
+                    className="h-7 w-7"
+                />
+                <span className="text-sm font-bold text-hq-paper">
+                    {owner.season_team.name}
+                </span>
+            </Link>
+
+            {shielded ? (
+                <LockStatus
+                    icon={<ShieldCheck className="h-[13px] w-[13px]" />}
+                    label="Blindado"
+                    colorClass="text-hq-def"
+                    borderClass="border-hq-def"
+                    bgClass="bg-hq-def/10"
+                    targetIso={owner.buyout_clause_locked_until}
+                >
+                    <ClauseDifference
+                        clause={owner.buyout_clause}
+                        marketValue={marketValue}
+                    />
+                </LockStatus>
+            ) : locked ? (
+                <LockStatus
+                    icon={<Lock className="h-[13px] w-[13px]" />}
+                    label="Cláusula bloqueada"
+                    colorClass="text-hq-moss"
+                    borderClass="border-hq-border-strong"
+                    bgClass="bg-hq-moss/10"
+                    countdownColorClass="text-hq-gold"
+                    targetIso={owner.buyout_clause_locked_until}
+                >
+                    <ClauseDifference
+                        clause={owner.buyout_clause}
+                        marketValue={marketValue}
+                    />
+                </LockStatus>
+            ) : (
+                <div className="border border-hq-lime bg-hq-lime/10 px-2.5 py-2">
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold text-hq-lime uppercase">
+                        <Lock className="h-[13px] w-[13px] rotate-45" />
+                        Cláusula abierta
+                    </div>
+                    <p className="mt-0.5 font-mono text-xs font-bold whitespace-nowrap text-hq-paper">
+                        {formatCurrency(owner.buyout_clause)}{' '}
+                        {owner.buyout_clause !== marketValue && (
+                            <span className="text-[10px] font-bold text-hq-khaki">
+                                (+
+                                {formatCurrency(
+                                    owner.buyout_clause - marketValue,
+                                )}
+                                )
+                            </span>
+                        )}
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
@@ -156,7 +169,7 @@ function MarketListingStatus({
             <p className="mb-2 font-mono text-[10px] font-bold tracking-wide text-hq-moss uppercase">
                 En el mercado
             </p>
-            <p className="my-1 font-mono text-2xl font-bold text-hq-lime">
+            <p className="my-1 font-mono text-2xl font-bold text-hq-gold">
                 {countdown}
             </p>
             <span className="hq-tag-cut inline-block bg-hq-khaki px-3 py-1.5 font-mono text-sm font-bold text-hq-ink">
@@ -172,6 +185,7 @@ function LockStatus({
     colorClass,
     borderClass,
     bgClass,
+    countdownColorClass = 'text-hq-paper',
     targetIso,
     children,
 }: {
@@ -180,6 +194,7 @@ function LockStatus({
     colorClass: string;
     borderClass: string;
     bgClass: string;
+    countdownColorClass?: string;
     targetIso: string;
     children: ReactNode;
 }) {
@@ -196,7 +211,7 @@ function LockStatus({
                 {icon}
                 {label}
             </div>
-            <p className="mt-0.5 font-mono text-xs text-hq-paper">
+            <p className={cn('mt-0.5 font-mono text-xs', countdownColorClass)}>
                 {countdown}
             </p>
             {children}

@@ -30,18 +30,23 @@ function pointsBadgeTierClass(points: number | null): string {
     if (points === null) {
         return 'border-hq-border-strong bg-hq-border-strong text-hq-moss';
     }
+
     if (points < 0) {
         return 'border-hq-live bg-hq-live text-white';
     }
+
     if (points < 5) {
         return 'border-hq-gold bg-hq-gold text-hq-ink';
     }
+
     if (points < 9) {
         return 'border-hq-lime bg-hq-lime text-hq-ink';
     }
+
     if (points < 14) {
         return 'border-hq-azure bg-hq-azure text-white';
     }
+
     return 'border-hq-violet bg-hq-violet text-white';
 }
 
@@ -55,12 +60,15 @@ function nameMaxWidthForRowCount(count: number): string {
     if (count <= 2) {
         return 'max-w-28';
     }
+
     if (count === 3) {
         return 'max-w-24';
     }
+
     if (count === 4) {
         return 'max-w-20';
     }
+
     return 'max-w-16';
 }
 

@@ -75,7 +75,7 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
             </p>
 
             <div className="mt-1 flex items-center justify-between">
-                <span className="font-mono text-[11px] font-bold text-hq-lime">
+                <span className="font-mono text-[11px] font-bold text-hq-gold">
                     {countdown}
                 </span>
                 {listing.bids > 0 && (

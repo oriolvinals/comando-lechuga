@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useNow } from '@/lib/use-now';
 
 function formatRemaining(diffMs: number): string {
     if (diffMs <= 0) {
@@ -20,13 +20,7 @@ function formatRemaining(diffMs: number): string {
 }
 
 export function useCountdown(targetIso: string): string {
-    const [now, setNow] = useState(() => Date.now());
-
-    useEffect(() => {
-        const interval = setInterval(() => setNow(Date.now()), 1000);
-
-        return () => clearInterval(interval);
-    }, []);
+    const now = useNow();
 
     return formatRemaining(new Date(targetIso).getTime() - now);
 }

@@ -74,12 +74,14 @@ export function HqPlayerValueChart({
 
     useEffect(() => {
         const el = containerRef.current;
+
         if (!el) {
             return;
         }
 
         const observer = new ResizeObserver((entries) => {
             const entry = entries[0];
+
             if (entry) {
                 setWidth(Math.max(200, Math.round(entry.contentRect.width)));
             }
@@ -118,6 +120,7 @@ export function HqPlayerValueChart({
 
     const valorGeometry = useMemo(() => {
         const n = visibleHistory.length;
+
         if (n === 0) {
             return null;
         }
@@ -152,6 +155,7 @@ export function HqPlayerValueChart({
                 segmentOwner = owner;
             }
         }
+
         bandSegments.push({
             x: segmentStartX,
             width: width - segmentStartX,
@@ -163,6 +167,7 @@ export function HqPlayerValueChart({
 
     const puntosGeometry = useMemo(() => {
         const n = scores.length;
+
         if (n === 0) {
             return null;
         }
@@ -190,6 +195,7 @@ export function HqPlayerValueChart({
             color: owner === null ? 'var(--color-hq-moss-dim)' : teamColor(owner.primary_color),
         }));
         const boundaries: number[] = [];
+
         for (let index = 1; index < n; index++) {
             if (owners[index]?.id !== owners[index - 1]?.id) {
                 boundaries.push(index * slot);
@@ -201,9 +207,11 @@ export function HqPlayerValueChart({
 
     function handleMove(clientX: number) {
         const svg = svgRef.current;
+
         if (!svg) {
             return;
         }
+
         const rect = svg.getBoundingClientRect();
         const relX = ((clientX - rect.left) / rect.width) * width;
         const pxRatio = rect.width / width;

@@ -7,8 +7,8 @@ import { HqPositionTag } from '@/components/hq-position-tag';
 import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
 import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
-import { matchPointsBadgeClass } from '@/lib/points';
 import { STATUS_BADGE_CLASS, STATUS_LABELS } from '@/lib/player-labels';
+import { matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import type {
     Fixture,

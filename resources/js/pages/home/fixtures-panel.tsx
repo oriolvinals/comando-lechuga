@@ -6,6 +6,7 @@ import { HqWeekPicker } from '@/components/hq-week-picker';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
+import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
 import { show as fixturesShow } from '@/routes/fixtures';
@@ -21,11 +22,12 @@ const COUNTDOWN_THRESHOLD_MS = 2 * 60 * 60 * 1000;
 
 function FixtureCard({ fixture }: { fixture: Fixture }) {
     const countdown = useCountdown(fixture.date);
+    const now = useNow();
     const isLive = isLiveFixtureState(fixture.state);
     const isFinished = fixture.state === 'finished';
     const hasScore = isLive || isFinished;
     const isScheduled = fixture.state === 'scheduled';
-    const remainingMs = new Date(fixture.date).getTime() - Date.now();
+    const remainingMs = new Date(fixture.date).getTime() - now;
     const startsSoon =
         isScheduled && remainingMs > 0 && remainingMs < COUNTDOWN_THRESHOLD_MS;
 
