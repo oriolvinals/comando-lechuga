@@ -466,7 +466,7 @@ export function HqPlayerValueChart({
                             className="flex items-center gap-1.5 font-mono text-[11px] text-hq-moss"
                         >
                             <span
-                                className="h-2 w-2 shrink-0 rounded-full"
+                                className="h-2 w-2 shrink-0 rounded-[1px]"
                                 style={{ backgroundColor: entry.color }}
                             />
                             {entry.label}
