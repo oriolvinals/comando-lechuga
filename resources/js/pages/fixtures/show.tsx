@@ -151,7 +151,7 @@ function TeamColumn({
                     key={score.id}
                     score={score}
                     alt={index % 2 === 1}
-                    showDazn={showDazn}
+                    showDazn={false}
                     onSelect={onSelect}
                 />
             ))}
