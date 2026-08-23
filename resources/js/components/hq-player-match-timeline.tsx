@@ -5,7 +5,7 @@ import { MatchEventIcons } from '@/components/match-event-icons';
 import { formatMatchDateTime } from '@/lib/format';
 import { didNotPlayMatch, JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
 import { pointsBadgeClass } from '@/lib/points';
-import { seasonTeamColor } from '@/lib/season-team-colors';
+import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import { show as seasonTeamsShow } from '@/routes/season-teams';
@@ -119,8 +119,9 @@ export function HqPlayerMatchTimeline({
                                     <span
                                         className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                                         style={{
-                                            backgroundColor: seasonTeamColor(
-                                                selectedScore.lineup_team.id,
+                                            backgroundColor: teamColor(
+                                                selectedScore.lineup_team
+                                                    .primary_color,
                                             ),
                                         }}
                                     />

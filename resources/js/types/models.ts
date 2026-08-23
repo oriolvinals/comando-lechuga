@@ -60,6 +60,8 @@ export interface SeasonTeam {
     id: number;
     name: string;
     logo: string;
+    primary_color: string | null;
+    secondary_color: string | null;
     total_points: number;
     live_points: number;
     position: number;

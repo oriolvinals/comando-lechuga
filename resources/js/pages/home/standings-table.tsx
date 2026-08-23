@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Minus, Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { HqSection } from '@/components/hq-section';
 import { formatCurrency } from '@/lib/format';
+import { crestTintStyle } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { SeasonTeam } from '@/types/models';
@@ -56,6 +57,7 @@ export function StandingsTable({
                                     alt={team.name}
                                     fallback={Shield}
                                     shape="square"
+                                    style={crestTintStyle(team.primary_color)}
                                     className="hq-crest-cut h-16 w-16 bg-hq-border p-1.5 text-hq-khaki"
                                 />
                                 <div className="flex-1">

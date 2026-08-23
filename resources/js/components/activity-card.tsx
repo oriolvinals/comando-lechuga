@@ -17,6 +17,7 @@ import {
     formatFullDateTime,
     formatRelativeTime,
 } from '@/lib/format';
+import { crestTintStyle } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
 import { show as seasonTeamsShow } from '@/routes/season-teams';
@@ -158,6 +159,9 @@ export function ActivityCard({ activity }: { activity: SeasonActivity }) {
                         alt={activity.source_season_team.name}
                         fallback={Shield}
                         shape="square"
+                        style={crestTintStyle(
+                            activity.source_season_team.primary_color,
+                        )}
                         className="hq-crest-cut h-11 w-11 bg-hq-border p-1 text-hq-khaki"
                     />
                     {activity.type === 'buyout' && (
@@ -192,6 +196,9 @@ export function ActivityCard({ activity }: { activity: SeasonActivity }) {
                             alt={activity.target_season_team.name}
                             fallback={Shield}
                             shape="square"
+                            style={crestTintStyle(
+                                activity.target_season_team.primary_color,
+                            )}
                             className="hq-crest-cut h-11 w-11 bg-hq-border p-1 text-hq-khaki"
                         />
                         <span className="font-mono text-[8px] font-bold tracking-wide text-hq-moss uppercase">

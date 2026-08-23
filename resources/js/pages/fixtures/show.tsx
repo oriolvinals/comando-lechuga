@@ -11,7 +11,7 @@ import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
 import { didNotPlayMatch } from '@/lib/player-labels';
 import { pointsBadgeClass } from '@/lib/points';
-import { seasonTeamColor } from '@/lib/season-team-colors';
+import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import { show as seasonTeamsShow } from '@/routes/season-teams';
@@ -176,7 +176,7 @@ function PlayerRow({
         <div
             onClick={() => onSelect(score)}
             className={cn(
-                'flex cursor-pointer items-center gap-2.5 border-b border-hq-ink px-3 py-2.5 last:border-b-0 hover:bg-hq-panel-alt',
+                'flex cursor-pointer items-center gap-2.5 border-b border-hq-ink px-3 py-2.5 last:border-b-0',
                 alt && 'bg-hq-panel-alt/50',
             )}
         >
@@ -192,7 +192,7 @@ function PlayerRow({
                     className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-hq-ink whitespace-nowrap"
                 />
             </div>
-            <div className="flex flex-1 flex-col justify-center gap-0.5">
+            <div className="flex flex-1 flex-col items-start justify-center gap-0.5">
                 <span className="text-[12.5px] font-bold text-hq-paper">
                     {score.player.nickname}
                 </span>
@@ -209,8 +209,8 @@ function PlayerRow({
                         <span
                             className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                             style={{
-                                backgroundColor: seasonTeamColor(
-                                    score.lineup_team.id,
+                                backgroundColor: teamColor(
+                                    score.lineup_team.primary_color,
                                 ),
                             }}
                         />

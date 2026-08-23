@@ -6,7 +6,7 @@ import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
 import type { OwnershipSegment } from '@/lib/ownership-timeline';
 import { ownerAtDate, segmentAtDate } from '@/lib/ownership-timeline';
-import { seasonTeamColor } from '@/lib/season-team-colors';
+import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import type { PlayerFichaScore, PlayerMarketPoint } from '@/types/models';
 
@@ -99,7 +99,7 @@ export function HqPlayerValueChart({
                 seen.set(key, {
                     label: segment.seasonTeam?.name ?? 'Libre',
                     color: segment.seasonTeam
-                        ? seasonTeamColor(segment.seasonTeam.id)
+                        ? teamColor(segment.seasonTeam.primary_color)
                         : 'var(--color-hq-moss-dim)',
                 });
             }
@@ -145,7 +145,7 @@ export function HqPlayerValueChart({
                 bandSegments.push({
                     x: segmentStartX,
                     width: xAt(index) - segmentStartX,
-                    color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : seasonTeamColor(segmentOwner.id),
+                    color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : teamColor(segmentOwner.primary_color),
                 });
                 boundaries.push(xAt(index));
                 segmentStartX = xAt(index);
@@ -155,7 +155,7 @@ export function HqPlayerValueChart({
         bandSegments.push({
             x: segmentStartX,
             width: width - segmentStartX,
-            color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : seasonTeamColor(segmentOwner.id),
+            color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : teamColor(segmentOwner.primary_color),
         });
 
         return { xAt, yAt, linePoints, bandSegments, boundaries };
@@ -187,7 +187,7 @@ export function HqPlayerValueChart({
         const bandSegments = owners.map((owner, index) => ({
             x: index * slot,
             width: slot,
-            color: owner === null ? 'var(--color-hq-moss-dim)' : seasonTeamColor(owner.id),
+            color: owner === null ? 'var(--color-hq-moss-dim)' : teamColor(owner.primary_color),
         }));
         const boundaries: number[] = [];
         for (let index = 1; index < n; index++) {

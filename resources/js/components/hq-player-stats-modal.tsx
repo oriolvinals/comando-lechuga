@@ -5,7 +5,7 @@ import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
 import { pointsBadgeClass } from '@/lib/points';
-import { seasonTeamColor } from '@/lib/season-team-colors';
+import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
 import { show as seasonTeamsShow } from '@/routes/season-teams';
@@ -102,8 +102,8 @@ export function HqPlayerStatsModal({
                             <span
                                 className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                                 style={{
-                                    backgroundColor: seasonTeamColor(
-                                        lineupTeam.id,
+                                    backgroundColor: teamColor(
+                                        lineupTeam.primary_color,
                                     ),
                                 }}
                             />

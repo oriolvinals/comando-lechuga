@@ -7,6 +7,7 @@ import { HqLineupPitch } from '@/components/hq-lineup-pitch';
 import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqWeekPicker } from '@/components/hq-week-picker';
 import AppLayout from '@/layouts/app-layout';
+import { crestTintStyle } from '@/lib/season-team-colors';
 import {
     index as seasonTeamsIndex,
     show as seasonTeamsShow,
@@ -91,6 +92,10 @@ export default function SeasonTeamsIndex({
                                                 alt={lineup.season_team.name}
                                                 fallback={Shield}
                                                 shape="square"
+                                                style={crestTintStyle(
+                                                    lineup.season_team
+                                                        .primary_color,
+                                                )}
                                                 className="hq-crest-cut h-16 w-16 shrink-0 bg-hq-border p-2 text-hq-khaki"
                                             />
                                             <span className="flex-1 truncate text-sm font-extrabold text-hq-paper">

@@ -55,7 +55,7 @@ export function HqPlayerPropertyCard({
                 </p>
                 <Link
                     href={seasonTeamsShow(owner.season_team.id).url}
-                    className="mb-2.5 flex items-center gap-2 hover:opacity-80"
+                    className="mb-2.5 inline-flex items-center gap-2 hover:opacity-80"
                 >
                     <EntityImage
                         src={owner.season_team.logo}

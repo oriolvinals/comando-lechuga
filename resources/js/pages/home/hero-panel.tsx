@@ -1,6 +1,7 @@
 import { Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
+import { crestTintStyle } from '@/lib/season-team-colors';
 import type { SeasonTeam } from '@/types/models';
 
 interface HeroPanelProps {
@@ -36,6 +37,7 @@ export function HeroPanel({ week, leader, totalTeams }: HeroPanelProps) {
                             alt={leader.name}
                             fallback={Shield}
                             shape="square"
+                            style={crestTintStyle(leader.primary_color)}
                             className="hq-crest-cut h-20 w-20 shrink-0 bg-hq-border p-2 text-hq-khaki"
                         />
                         <div className="flex-1">
