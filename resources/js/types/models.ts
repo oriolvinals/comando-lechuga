@@ -46,6 +46,7 @@ export interface Fixture {
 export interface PlayerScore {
     id: number;
     team_id: number;
+    team: Team;
     points: number;
     stats: JornadaStats;
     ideal_formation: boolean;

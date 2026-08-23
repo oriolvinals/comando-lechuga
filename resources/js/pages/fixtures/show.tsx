@@ -1,13 +1,15 @@
 import { Head, Link } from '@inertiajs/react';
-import { Shield } from 'lucide-react';
+import { Shield, User } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { MatchEventIcons } from '@/components/match-event-icons';
 import AppLayout from '@/layouts/app-layout';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
+import { pointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import type { Fixture, PlayerScore } from '@/types/models';
@@ -90,10 +92,12 @@ function TeamColumn({
     scores,
     minPlayedRows,
     showDazn,
+    onSelect,
 }: {
     scores: PlayerScore[];
     minPlayedRows: number;
     showDazn: boolean;
+    onSelect: (score: PlayerScore) => void;
 }) {
     const played = scores.filter((score) => !didNotPlay(score));
     const benched = scores.filter(didNotPlay);
@@ -107,6 +111,7 @@ function TeamColumn({
                     score={score}
                     alt={index % 2 === 1}
                     showDazn={showDazn}
+                    onSelect={onSelect}
                 />
             ))}
             {Array.from({ length: fillerCount }, (_, index) => (
@@ -132,55 +137,40 @@ function TeamColumn({
                     score={score}
                     alt={index % 2 === 1}
                     showDazn={showDazn}
+                    onSelect={onSelect}
                 />
             ))}
         </div>
     );
 }
 
-function pointsBadgeClass(points: number): string {
-    if (points >= 12) {
-        return 'bg-hq-lime text-hq-ink';
-    }
-
-    if (points >= 6) {
-        return 'bg-hq-lime/15 text-hq-lime';
-    }
-
-    if (points >= 3) {
-        return 'bg-hq-gold/20 text-hq-gold';
-    }
-
-    if (points < 0) {
-        return 'bg-hq-live text-white';
-    }
-
-    return 'bg-hq-border text-hq-moss';
-}
-
 function PlayerRow({
     score,
     alt,
     showDazn,
+    onSelect,
 }: {
     score: PlayerScore;
     alt: boolean;
     showDazn: boolean;
+    onSelect: (score: PlayerScore) => void;
 }) {
     const marcaPoints = score.stats.marca_points?.[1];
 
     return (
         <div
+            onClick={() => onSelect(score)}
             className={cn(
-                'flex items-center gap-2.5 border-b border-hq-ink px-3 py-2.5 last:border-b-0',
+                'flex cursor-pointer items-center gap-2.5 border-b border-hq-ink px-3 py-2.5 last:border-b-0 hover:bg-hq-panel-alt',
                 alt && 'bg-hq-panel-alt/50',
             )}
         >
             <div className="relative h-14 w-11 shrink-0">
-                <img
+                <EntityImage
                     src={score.player.image}
                     alt={score.player.nickname}
-                    className="absolute top-0 h-11 w-11 rounded-full bg-hq-border object-cover object-top"
+                    fallback={User}
+                    className="absolute top-0 h-11 w-11 bg-hq-border"
                 />
                 <HqPositionTag
                     position={score.player.position}
@@ -226,6 +216,9 @@ export default function FixtureShow({
     scores,
 }: FixtureShowProps) {
     const [activeTeam, setActiveTeam] = useState<'local' | 'guest'>('local');
+    const [selectedScore, setSelectedScore] = useState<PlayerScore | null>(
+        null,
+    );
     const isLive = isLiveFixtureState(fixture.state);
     const hasScore = isLive || fixture.state === 'finished';
     const localScores = scores.filter(
@@ -435,6 +428,7 @@ export default function FixtureShow({
                                         showDazn={
                                             fixture.state === 'finished'
                                         }
+                                        onSelect={setSelectedScore}
                                     />
                                 </div>
                                 <div
@@ -449,6 +443,7 @@ export default function FixtureShow({
                                         showDazn={
                                             fixture.state === 'finished'
                                         }
+                                        onSelect={setSelectedScore}
                                     />
                                 </div>
                             </div>
@@ -479,6 +474,23 @@ export default function FixtureShow({
                     )}
                 </div>
             </div>
+            <HqPlayerStatsModal
+                entry={
+                    selectedScore
+                        ? {
+                              player: selectedScore.player,
+                              team: selectedScore.team,
+                              points: selectedScore.points,
+                              daznPoints:
+                                  fixture.state === 'finished'
+                                      ? selectedScore.stats.marca_points?.[1]
+                                      : undefined,
+                              stats: selectedScore.stats,
+                          }
+                        : null
+                }
+                onClose={() => setSelectedScore(null)}
+            />
         </>
     );
 }
