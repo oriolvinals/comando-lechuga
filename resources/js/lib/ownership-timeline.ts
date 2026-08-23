@@ -95,6 +95,11 @@ function localDateKey(isoString: string): string {
     return LOCAL_DATE_FORMATTER.format(new Date(isoString));
 }
 
+/** Whether `dateIso` falls on the same league-local day the segment began (i.e. the day of its signing/sale/buyout). */
+export function isSegmentStart(segment: OwnershipSegment, dateIso: string): boolean {
+    return segment.from !== null && localDateKey(segment.from) === localDateKey(dateIso);
+}
+
 export function segmentAtDate(
     segments: OwnershipSegment[],
     dateIso: string,

@@ -1,11 +1,13 @@
-import { Shield } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TYPE_LABELS } from '@/components/activity-card';
-import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
 import type { OwnershipSegment } from '@/lib/ownership-timeline';
-import { ownerAtDate, segmentAtDate } from '@/lib/ownership-timeline';
+import {
+    isSegmentStart,
+    ownerAtDate,
+    segmentAtDate,
+} from '@/lib/ownership-timeline';
 import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import type { PlayerFichaScore, PlayerMarketPoint } from '@/types/models';
@@ -24,8 +26,11 @@ interface HqPlayerValueChartProps {
     ownershipSegments: OwnershipSegment[];
 }
 
-function describeOrigin(segment: OwnershipSegment | null): string | null {
-    if (!segment?.startedBy) {
+function describeOrigin(
+    segment: OwnershipSegment | null,
+    dateIso: string,
+): string | null {
+    if (!segment?.startedBy || !isSegmentStart(segment, dateIso)) {
         return null;
     }
 
@@ -50,8 +55,9 @@ interface TooltipState {
     y: number;
     date: string;
     value: string;
+    diff: number | null;
     ownerName: string;
-    ownerLogo: string | null;
+    ownerColor: string;
     action: string | null;
 }
 
@@ -132,9 +138,20 @@ export function HqPlayerValueChart({
         const yAt = (value: number) =>
             max === min ? HEIGHT / 2 : HEIGHT - ((value - min) / (max - min)) * HEIGHT;
 
-        const linePoints = visibleHistory
-            .map((point, index) => `${xAt(index).toFixed(1)},${yAt(point.value).toFixed(1)}`)
-            .join(' ');
+        const lineSegments = visibleHistory.slice(1).map((point, index) => {
+            const previous = visibleHistory[index];
+
+            return {
+                x1: xAt(index),
+                y1: yAt(previous.value),
+                x2: xAt(index + 1),
+                y2: yAt(point.value),
+                color:
+                    point.value >= previous.value
+                        ? 'var(--color-hq-lime)'
+                        : 'var(--color-hq-live)',
+            };
+        });
 
         const bandSegments: { x: number; width: number; color: string }[] = [];
         const boundaries: number[] = [];
@@ -162,7 +179,7 @@ export function HqPlayerValueChart({
             color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : teamColor(segmentOwner.primary_color),
         });
 
-        return { xAt, yAt, linePoints, bandSegments, boundaries };
+        return { xAt, yAt, lineSegments, bandSegments, boundaries };
     }, [visibleHistory, ownershipSegments, width]);
 
     const puntosGeometry = useMemo(() => {
@@ -220,6 +237,7 @@ export function HqPlayerValueChart({
             const n = visibleHistory.length;
             const index = Math.max(0, Math.min(n - 1, Math.round((relX / width) * (n - 1))));
             const point = visibleHistory[index];
+            const previous = index > 0 ? visibleHistory[index - 1] : null;
             const segment = segmentAtDate(ownershipSegments, point.date);
             const x = valorGeometry.xAt(index);
             const y = valorGeometry.yAt(point.value);
@@ -230,9 +248,12 @@ export function HqPlayerValueChart({
                 y: rect.top + y * pxRatio,
                 date: formatDateLabel(point.date),
                 value: formatCurrency(point.value),
+                diff: previous ? point.value - previous.value : null,
                 ownerName: segment?.seasonTeam?.name ?? 'Libre',
-                ownerLogo: segment?.seasonTeam?.logo ?? null,
-                action: describeOrigin(segment),
+                ownerColor: segment?.seasonTeam
+                    ? teamColor(segment.seasonTeam.primary_color)
+                    : 'var(--color-hq-moss-dim)',
+                action: describeOrigin(segment, point.date),
             });
         } else if (mode === 'puntos' && puntosGeometry) {
             const n = scores.length;
@@ -247,8 +268,11 @@ export function HqPlayerValueChart({
                 y: rect.top + bar.y * pxRatio,
                 date: `Jornada ${score.fixture.week_number}`,
                 value: `${score.points} puntos`,
+                diff: null,
                 ownerName: segment?.seasonTeam?.name ?? 'Libre',
-                ownerLogo: segment?.seasonTeam?.logo ?? null,
+                ownerColor: segment?.seasonTeam
+                    ? teamColor(segment.seasonTeam.primary_color)
+                    : 'var(--color-hq-moss-dim)',
                 action: null,
             });
         }
@@ -332,14 +356,19 @@ export function HqPlayerValueChart({
                             setHoverPoint(null);
                         }}
                     >
-                        {mode === 'valor' && valorGeometry && (
-                            <polyline
-                                points={valorGeometry.linePoints}
-                                fill="none"
-                                stroke="var(--color-hq-lime)"
-                                strokeWidth={2.5}
-                            />
-                        )}
+                        {mode === 'valor' &&
+                            valorGeometry &&
+                            valorGeometry.lineSegments.map((segment, index) => (
+                                <line
+                                    key={index}
+                                    x1={segment.x1}
+                                    y1={segment.y1}
+                                    x2={segment.x2}
+                                    y2={segment.y2}
+                                    stroke={segment.color}
+                                    strokeWidth={2.5}
+                                />
+                            ))}
                         {mode === 'puntos' &&
                             puntosGeometry &&
                             puntosGeometry.bars.map((bar) => (
@@ -495,16 +524,24 @@ export function HqPlayerValueChart({
                         <div className="mt-0.5 text-sm font-bold text-hq-paper">
                             {tooltip.value}
                         </div>
+                        {tooltip.diff !== null && tooltip.diff !== 0 && (
+                            <div
+                                className={cn(
+                                    'mt-0.5 font-bold',
+                                    tooltip.diff > 0
+                                        ? 'text-hq-lime'
+                                        : 'text-hq-live',
+                                )}
+                            >
+                                {tooltip.diff > 0 ? '▲' : '▼'}{' '}
+                                {formatCurrency(Math.abs(tooltip.diff))}
+                            </div>
+                        )}
                         <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
-                            {tooltip.ownerLogo && (
-                                <EntityImage
-                                    src={tooltip.ownerLogo}
-                                    alt={tooltip.ownerName}
-                                    fallback={Shield}
-                                    shape="square"
-                                    className="h-3.5 w-3.5"
-                                />
-                            )}
+                            <span
+                                className="h-2 w-2 shrink-0 rounded-[1px]"
+                                style={{ backgroundColor: tooltip.ownerColor }}
+                            />
                             {tooltip.ownerName}
                         </div>
                         {tooltip.action && (
