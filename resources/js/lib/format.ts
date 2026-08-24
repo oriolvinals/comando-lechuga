@@ -6,6 +6,13 @@ export function formatCurrency(amount: number): string {
     }).format(amount);
 }
 
+/** One decimal, dropped entirely when it rounds to a whole number (e.g. `11.5` stays, `4` not `4.0`). */
+export function formatAverage(value: number): string {
+    const rounded = Math.round(value * 10) / 10;
+
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 export function isFutureDate(isoDate: string): boolean {
     return new Date(isoDate).getTime() > Date.now();
 }

@@ -5,7 +5,7 @@ import { HqPlayerPropertyCard } from '@/components/hq-player-property-card';
 import { HqPlayerValueChart } from '@/components/hq-player-value-chart';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import AppLayout from '@/layouts/app-layout';
-import { formatCurrency } from '@/lib/format';
+import { formatAverage, formatCurrency } from '@/lib/format';
 import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
 import { didNotPlayMatch, STATUS_BADGE_CLASS, STATUS_LABELS } from '@/lib/player-labels';
 import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
@@ -120,7 +120,7 @@ export default function PlayerShow({
                                         ),
                                     )}
                                 >
-                                    {player.average_points}
+                                    {formatAverage(Number(player.average_points))}
                                 </span>
                             </div>
                             {daznAverage !== null && (
@@ -134,7 +134,7 @@ export default function PlayerShow({
                                             daznPointsBadgeClass(daznAverage),
                                         )}
                                     >
-                                        {daznAverage.toFixed(2)}
+                                        {formatAverage(daznAverage)}
                                     </span>
                                 </div>
                             )}
