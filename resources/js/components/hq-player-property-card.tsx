@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Lock, Shield, ShieldCheck, UserX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { resolveClauseStatus } from '@/lib/clause-status';
 import { formatCurrency } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
@@ -16,7 +17,7 @@ interface HqPlayerPropertyCardProps {
     marketValue: number;
 }
 
-function ClauseDifference({
+export function ClauseDifference({
     clause,
     marketValue,
 }: {
@@ -72,10 +73,11 @@ function OwnedStatus({
     marketValue: number;
 }) {
     const now = useNow();
-    const locked =
-        !owner.shielded &&
-        new Date(owner.buyout_clause_locked_until).getTime() > now;
-    const shielded = owner.shielded;
+    const status = resolveClauseStatus(
+        owner.shielded,
+        owner.buyout_clause_locked_until,
+        now,
+    );
 
     return (
         <div className="hq-card-cut p-4">
@@ -98,7 +100,7 @@ function OwnedStatus({
                 </span>
             </Link>
 
-            {shielded ? (
+            {status === 'shielded' ? (
                 <LockStatus
                     icon={<ShieldCheck className="h-[13px] w-[13px]" />}
                     label="Blindado"
@@ -112,7 +114,7 @@ function OwnedStatus({
                         marketValue={marketValue}
                     />
                 </LockStatus>
-            ) : locked ? (
+            ) : status === 'locked' ? (
                 <LockStatus
                     icon={<Lock className="h-[13px] w-[13px]" />}
                     label="Cláusula bloqueada"
