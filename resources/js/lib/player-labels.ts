@@ -13,6 +13,15 @@ export const POSITION_LABELS: Record<PlayerPosition, string> = {
     coach: 'Entrenador',
 };
 
+/** Plural group headers for a roster grouped by position (e.g. the team ficha's "Plantilla actual"). */
+export const POSITION_GROUP_LABELS: Record<PlayerPosition, string> = {
+    goalkeeper: 'Porteros',
+    defender: 'Defensas',
+    midfield: 'Centrocampistas',
+    striker: 'Delanteros',
+    coach: 'Entrenadores',
+};
+
 export const POSITION_ABBREVIATIONS: Record<PlayerPosition, string> = {
     goalkeeper: 'POR',
     defender: 'DEF',
