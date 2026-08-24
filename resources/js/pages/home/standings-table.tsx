@@ -19,6 +19,12 @@ const MEDAL_BORDERS = [
     'border-l-hq-bronze',
 ];
 
+const MEDAL_BACKGROUNDS = [
+    'color-mix(in srgb, var(--color-hq-gold) 14%, var(--color-hq-panel))',
+    'color-mix(in srgb, var(--color-hq-silver) 10%, var(--color-hq-panel))',
+    'color-mix(in srgb, var(--color-hq-bronze) 12%, var(--color-hq-panel))',
+];
+
 export function StandingsTable({
     standings,
     currentWeek,
@@ -33,10 +39,14 @@ export function StandingsTable({
                         <Link
                             key={team.id}
                             href={seasonTeamsShow(team.id).url}
+                            style={
+                                index < 3
+                                    ? { backgroundColor: MEDAL_BACKGROUNDS[index] }
+                                    : undefined
+                            }
                             className={cn(
                                 'flex items-center gap-4 border border-l-4 border-hq-border bg-hq-panel px-4 py-3 transition-[filter] hover:brightness-125',
                                 index < 3 && MEDAL_BORDERS[index],
-                                index === 0 && 'bg-hq-panel-alt',
                             )}
                         >
                             <span className="w-6 font-display text-xl text-hq-moss-dim">

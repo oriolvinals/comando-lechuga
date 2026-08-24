@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
 import { crestTintStyle } from '@/lib/season-team-colors';
@@ -15,6 +16,7 @@ interface HeroPanelProps {
 const PODIUM_SIZES = {
     1: {
         border: 'border-l-hq-gold',
+        tint: 'rgba(224, 184, 63, 0.16)',
         row: 'gap-3 px-4 py-4 sm:gap-5 sm:px-6 sm:py-5',
         crest: 'h-20 w-20',
         name: 'text-2xl',
@@ -24,6 +26,7 @@ const PODIUM_SIZES = {
     },
     2: {
         border: 'border-l-hq-silver',
+        tint: 'rgba(199, 205, 214, 0.12)',
         row: 'gap-2.5 px-3.5 py-3 sm:gap-4 sm:px-5 sm:py-3.5',
         crest: 'h-14 w-14',
         name: 'text-lg',
@@ -33,6 +36,7 @@ const PODIUM_SIZES = {
     },
     3: {
         border: 'border-l-hq-bronze',
+        tint: 'rgba(201, 121, 63, 0.14)',
         row: 'gap-2 px-3 py-2.5 sm:gap-3.5 sm:px-4 sm:py-3',
         crest: 'h-11 w-11',
         name: 'text-base',
@@ -56,6 +60,7 @@ function PodiumRow({
     return (
         <Link
             href={seasonTeamsShow(team.id).url}
+            style={{ '--hq-panel-tint': size.tint } as CSSProperties}
             className={cn(
                 'hq-panel-cut flex items-center border-l-4 text-left transition-[filter] hover:brightness-125',
                 size.border,

@@ -88,11 +88,13 @@ body {
     inset: 1px;
     z-index: -1;
     clip-path: inherit;
-    background: linear-gradient(
-        to bottom right,
-        var(--color-hq-panel-alt),
-        var(--color-hq-panel)
-    );
+    background:
+        linear-gradient(var(--hq-panel-tint, transparent), var(--hq-panel-tint, transparent)),
+        linear-gradient(
+            to bottom right,
+            var(--color-hq-panel-alt),
+            var(--color-hq-panel)
+        );
 }
 
 .hq-tag-cut {
