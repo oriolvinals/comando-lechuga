@@ -11,5 +11,5 @@ export const FIXTURE_STATE_LABELS: Record<FixtureState, string> = {
     first_half: '1ª PARTE',
     half_time: 'DESCANSO',
     second_half: '2ª PARTE',
-    finished: 'FINAL',
+    finished: 'FINALIZADO',
 };
