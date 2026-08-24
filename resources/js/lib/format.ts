@@ -27,6 +27,15 @@ export function formatMatchDateTime(isoDate: string): string {
     }).format(new Date(isoDate));
 }
 
+export function formatMatchDateShort(isoDate: string): string {
+    return new Intl.DateTimeFormat('es-ES', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(new Date(isoDate));
+}
+
 export function formatTime(isoDate: string): string {
     return new Intl.DateTimeFormat('es-ES', {
         hour: '2-digit',

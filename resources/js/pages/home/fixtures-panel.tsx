@@ -4,7 +4,7 @@ import { EntityImage } from '@/components/entity-image';
 import { HqSection } from '@/components/hq-section';
 import { HqWeekPicker } from '@/components/hq-week-picker';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
-import { formatMatchDateTime } from '@/lib/format';
+import { formatMatchDateShort, formatMatchDateTime } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
@@ -100,6 +100,11 @@ function FixtureCard({ fixture }: { fixture: Fixture }) {
                         : formatMatchDateTime(fixture.date)
                     : FIXTURE_STATE_LABELS[fixture.state]}
             </p>
+            {!isScheduled && (
+                <p className="mt-0.5 font-mono text-[9px] text-hq-moss-dim uppercase">
+                    {formatMatchDateShort(fixture.date)}
+                </p>
+            )}
         </Link>
     );
 }

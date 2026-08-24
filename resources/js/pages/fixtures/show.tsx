@@ -336,6 +336,13 @@ export default function FixtureShow({
                                                   weekFixture.state
                                               ]}
                                     </div>
+                                    {weekFixture.state !== 'scheduled' && (
+                                        <div className="mt-0.5 text-center text-[9px] text-hq-moss-dim uppercase">
+                                            {formatMatchDateTime(
+                                                weekFixture.date,
+                                            )}
+                                        </div>
+                                    )}
                                 </Link>
                             );
                         })}
@@ -370,19 +377,28 @@ export default function FixtureShow({
                                     ? `${fixture.local_score} – ${fixture.guest_score}`
                                     : 'VS'}
                             </div>
-                            <p
-                                className={cn(
-                                    'mt-1 flex items-center justify-center gap-1.5 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:mt-1.5 sm:text-[10px]',
-                                    isLive ? 'text-hq-live' : 'text-hq-lime',
+                            <div className="mt-1 sm:mt-1.5">
+                                <p
+                                    className={cn(
+                                        'flex items-center justify-center gap-1.5 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:text-[10px]',
+                                        isLive
+                                            ? 'text-hq-live'
+                                            : 'text-hq-lime',
+                                    )}
+                                >
+                                    {isLive && (
+                                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
+                                    )}
+                                    {fixture.state === 'scheduled'
+                                        ? formatMatchDateTime(fixture.date)
+                                        : FIXTURE_STATE_LABELS[fixture.state]}
+                                </p>
+                                {fixture.state !== 'scheduled' && (
+                                    <p className="mt-1 font-mono text-[8px] tracking-widest whitespace-nowrap text-hq-moss-dim uppercase sm:text-[9px]">
+                                        {formatMatchDateTime(fixture.date)}
+                                    </p>
                                 )}
-                            >
-                                {isLive && (
-                                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
-                                )}
-                                {fixture.state === 'scheduled'
-                                    ? formatMatchDateTime(fixture.date)
-                                    : FIXTURE_STATE_LABELS[fixture.state]}
-                            </p>
+                            </div>
                         </div>
                         <div className="flex w-20 min-w-0 flex-col items-center gap-1.5 sm:w-36 sm:gap-2">
                             <EntityImage
