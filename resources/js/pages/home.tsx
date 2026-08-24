@@ -37,11 +37,7 @@ export default function Home({
             <Head title="Inicio" />
             <div className="hq-texture hq-bleed border-y border-hq-border">
                 <div className="mx-auto max-w-7xl px-6">
-                    <HeroPanel
-                        week={filters.week}
-                        leader={standings[0]}
-                        totalTeams={standings.length}
-                    />
+                    <HeroPanel week={filters.week} standings={standings} />
                     <FixturesPanel
                         fixtures={fixtures}
                         season={season}
