@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Fecha en partidos finalizados</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@500;600;700;800&family=Inter:wght@500;600;700;800&display=swap');
+
+  :root {
+    --hq-ink: #10130c;
+    --hq-panel: #171b10;
+    --hq-panel-alt: #1a2013;
+    --hq-border: #262b1c;
+    --hq-border-strong: #3a4228;
+    --hq-lime: #c4ff3d;
+    --hq-khaki: #c9b98a;
+    --hq-live: #ff3d5a;
+    --hq-paper: #f2f0e4;
+    --hq-moss: #9aa382;
+    --hq-moss-dim: #5a6248;
+    --hq-gold: #e0b83f;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--hq-ink); }
+  body {
+    font-family: 'Inter', Arial, sans-serif;
+    color: var(--hq-paper);
+    padding: 48px 20px 96px;
+  }
+
+  .wrap { max-width: 1040px; margin: 0 auto; }
+
+  .intro { margin: 0 0 44px; max-width: 640px; }
+  .intro .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.25em;
+    color: var(--hq-lime);
+    margin: 0 0 10px;
+  }
+  .intro h1 {
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: 28px;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+  .intro p {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--hq-moss);
+    margin: 0;
+  }
+
+  section { margin: 0 0 52px; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 18px;
+  }
+  .section-label .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--hq-ink);
+    background: var(--hq-khaki);
+    padding: 2px 6px;
+  }
+  .section-label h2 {
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--hq-paper);
+    margin: 0;
+  }
+  .section-label .rule { flex: 1; height: 1px; background: var(--hq-border); }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 680px) { .pair { grid-template-columns: 1fr; } }
+
+  .card-frame {
+    border: 1px solid var(--hq-border);
+    background: var(--hq-panel);
+  }
+  .card-frame .frame-tag {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--hq-border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .frame-tag.is-before { color: var(--hq-moss-dim); }
+  .frame-tag.is-after { color: var(--hq-lime); }
+  .card-frame .frame-body { padding: 22px 18px; }
+
+  /* ---- ficha header recreation ---- */
+  .fixture-strip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 20px;
+    border: 1px solid var(--hq-border-strong);
+    background: linear-gradient(to bottom right, var(--hq-panel-alt), var(--hq-panel));
+  }
+  .fixture-team { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 96px; }
+  .crest {
+    width: 52px; height: 52px;
+    background: var(--hq-border);
+    clip-path: polygon(15% 0, 100% 0, 100% 85%, 85% 100%, 0 100%, 0 15%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 18px;
+    color: var(--hq-khaki);
+  }
+  .fixture-team span.name {
+    font-family: 'Anton', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .fixture-mid { text-align: center; }
+  .fixture-mid .jornada {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--hq-moss);
+    margin: 0 0 6px;
+  }
+  .fixture-mid .score {
+    font-family: 'Anton', sans-serif;
+    font-size: 34px;
+  }
+  .fixture-mid .status {
+    margin: 8px 0 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--hq-lime);
+  }
+  .fixture-mid .status.stacked-date {
+    margin-top: 4px;
+    color: var(--hq-moss-dim);
+    letter-spacing: 0.1em;
+  }
+  .fixture-mid .status .dot-sep { color: var(--hq-moss-dim); margin: 0 6px; }
+
+  /* ---- home fixture card recreation ---- */
+  .home-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 560px) { .home-grid { grid-template-columns: repeat(2, 1fr); } }
+  .fx-card {
+    position: relative;
+    border: 1px solid var(--hq-border);
+    background: var(--hq-panel);
+    border-radius: 6px;
+    padding: 14px 12px;
+    text-align: center;
+  }
+  .fx-card .pip {
+    position: absolute; top: 10px; right: 10px;
+    width: 8px; height: 8px; border-radius: 999px;
+    background: var(--hq-lime);
+  }
+  .fx-card .row { display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .fx-card .crest-sm {
+    width: 42px; height: 42px;
+    border: 1px solid var(--hq-border-strong);
+    background: rgba(58,66,40,0.4);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 13px;
+    color: var(--hq-khaki);
+  }
+  .fx-card .short {
+    margin: 5px 0 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--hq-moss);
+  }
+  .fx-card .fx-score {
+    font-family: 'Anton', sans-serif;
+    font-size: 21px;
+  }
+  .fx-card .fx-score .sep { color: var(--hq-moss-dim); }
+  .fx-card .fx-status {
+    margin: 10px 0 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--hq-moss-dim);
+  }
+  .fx-card .fx-status .dot-sep { margin: 0 4px; }
+  .fx-card .fx-status.two-line { line-height: 1.6; }
+
+  .note {
+    margin: 14px 0 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--hq-moss);
+  }
+  .note b { color: var(--hq-paper); font-weight: 700; }
+
+  .verdict {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--hq-gold);
+  }
+  .verdict::before { content: '★'; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="intro">
+      <p class="kicker">▸ REVISIÓN DE DISEÑO</p>
+      <h1>Fecha en partidos finalizados</h1>
+      <p>Ahora, en cuanto un partido pasa a "FINALIZADO", la etiqueta de fecha desaparece y solo queda el estado. Propuesta: mantener la fecha visible siempre, en ambos sitios donde aparece un partido — la ficha del partido y el bloque de Jornadas de la home. Dos variantes por sitio para elegir.</p>
+    </div>
+
+    <section>
+      <div class="section-label">
+        <span class="num">01</span>
+        <h2>Ficha del partido — cabecera</h2>
+        <span class="rule"></span>
+      </div>
+
+      <div class="pair">
+        <div class="card-frame">
+          <div class="frame-tag is-before">Ahora</div>
+          <div class="frame-body">
+            <div class="fixture-strip">
+              <div class="fixture-team">
+                <div class="crest">CID</div>
+                <span class="name">CID F.C</span>
+              </div>
+              <div class="fixture-mid">
+                <p class="jornada">Jornada 02</p>
+                <div class="score">2 – 1</div>
+                <p class="status">Finalizado</p>
+              </div>
+              <div class="fixture-team">
+                <div class="crest">CFC</div>
+                <span class="name">Cruza FC</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-frame">
+          <div class="frame-tag is-after">Propuesta A — dos líneas</div>
+          <div class="frame-body">
+            <div class="fixture-strip">
+              <div class="fixture-team">
+                <div class="crest">CID</div>
+                <span class="name">CID F.C</span>
+              </div>
+              <div class="fixture-mid">
+                <p class="jornada">Jornada 02</p>
+                <div class="score">2 – 1</div>
+                <p class="status">Finalizado</p>
+                <p class="status stacked-date">vie 21 mar, 20:00</p>
+              </div>
+              <div class="fixture-team">
+                <div class="crest">CFC</div>
+                <span class="name">Cruza FC</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pair" style="margin-top: 12px;">
+        <div class="card-frame">
+          <div class="frame-tag is-after">Propuesta B — una línea</div>
+          <div class="frame-body">
+            <div class="fixture-strip">
+              <div class="fixture-team">
+                <div class="crest">CID</div>
+                <span class="name">CID F.C</span>
+              </div>
+              <div class="fixture-mid">
+                <p class="jornada">Jornada 02</p>
+                <div class="score">2 – 1</div>
+                <p class="status">Finalizado<span class="dot-sep">·</span>vie 21 mar, 20:00</p>
+              </div>
+              <div class="fixture-team">
+                <div class="crest">CFC</div>
+                <span class="name">Cruza FC</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+
+      <p class="note">La franja de <b>jornadas de la semana</b> (los mini-recuadros por encima de la cabecera) tiene el mismo problema y el mismo arreglo — hoy solo cambia entre fecha (programado) y estado (en juego / finalizado); pasaría a mostrar estado + fecha igual que la cabecera.</p>
+      <div class="verdict">Recomendado: propuesta A</div>
+    </section>
+
+    <section>
+      <div class="section-label">
+        <span class="num">02</span>
+        <h2>Página principal — Jornadas</h2>
+        <span class="rule"></span>
+      </div>
+
+      <div class="pair">
+        <div class="card-frame">
+          <div class="frame-tag is-before">Ahora</div>
+          <div class="frame-body">
+            <div class="home-grid">
+              <div class="fx-card">
+                <span class="pip"></span>
+                <div class="row">
+                  <div>
+                    <div class="crest-sm">CID</div>
+                    <p class="short">CID</p>
+                  </div>
+                  <div class="fx-score">2<span class="sep"> – </span>1</div>
+                  <div>
+                    <div class="crest-sm">CFC</div>
+                    <p class="short">CFC</p>
+                  </div>
+                </div>
+                <p class="fx-status">Finalizado</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-frame">
+          <div class="frame-tag is-after">Propuesta A — dos líneas</div>
+          <div class="frame-body">
+            <div class="home-grid">
+              <div class="fx-card">
+                <span class="pip"></span>
+                <div class="row">
+                  <div>
+                    <div class="crest-sm">CID</div>
+                    <p class="short">CID</p>
+                  </div>
+                  <div class="fx-score">2<span class="sep"> – </span>1</div>
+                  <div>
+                    <div class="crest-sm">CFC</div>
+                    <p class="short">CFC</p>
+                  </div>
+                </div>
+                <p class="fx-status two-line">Finalizado<br>21 mar, 20:00</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pair" style="margin-top: 12px;">
+        <div class="card-frame">
+          <div class="frame-tag is-after">Propuesta B — una línea</div>
+          <div class="frame-body">
+            <div class="home-grid">
+              <div class="fx-card">
+                <span class="pip"></span>
+                <div class="row">
+                  <div>
+                    <div class="crest-sm">CID</div>
+                    <p class="short">CID</p>
+                  </div>
+                  <div class="fx-score">2<span class="sep"> – </span>1</div>
+                  <div>
+                    <div class="crest-sm">CFC</div>
+                    <p class="short">CFC</p>
+                  </div>
+                </div>
+                <p class="fx-status">Finalizado<span class="dot-sep">·</span>21 mar</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+
+      <p class="note">En la home la tarjeta es mucho más estrecha (hasta 5 por fila en escritorio), así que la fecha larga con hora no cabe cómoda en una sola línea. Propuesta B recorta a solo día+mes (sin hora ni año) para que quepa; propuesta A la separa en una segunda línea con la fecha completa.</p>
+      <div class="verdict">Recomendado: propuesta A</div>
+    </section>
+  </div>
+</body>
+</html>

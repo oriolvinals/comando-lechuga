@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Hero — podio top 3</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@500;600;700;800&display=swap');
+
+  :root {
+    --hq-ink: #10130c;
+    --hq-panel: #171b10;
+    --hq-panel-alt: #1a2013;
+    --hq-border: #262b1c;
+    --hq-border-strong: #3a4228;
+    --hq-lime: #c4ff3d;
+    --hq-khaki: #c9b98a;
+    --hq-paper: #f2f0e4;
+    --hq-moss: #9aa382;
+    --hq-moss-dim: #5a6248;
+    --hq-gold: #e0b83f;
+    --hq-silver: #c7cdd6;
+    --hq-bronze: #c9793f;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--hq-ink); }
+  body {
+    font-family: 'Inter', Arial, sans-serif;
+    color: var(--hq-paper);
+    padding: 40px 16px 80px;
+  }
+
+  .hq-texture {
+    background-color: var(--hq-ink);
+    background-image:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(196,255,61,0.1), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 110% 20%, rgba(201,185,138,0.1), transparent 55%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 5px);
+    border-top: 1px solid var(--hq-border);
+    border-bottom: 1px solid var(--hq-border);
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  .hero {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 36px 0 28px;
+  }
+  .hero-logo {
+    width: 320px;
+    height: 320px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+  .hero-copy { flex: 1; min-width: 0; }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.25em;
+    color: var(--hq-lime);
+    margin: 0 0 12px;
+  }
+
+  h1 {
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: 34px;
+    line-height: 1.05;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--hq-paper);
+    text-shadow: 3px 3px 0 rgba(196,255,61,0.25);
+    margin: 0 0 26px;
+    max-width: 640px;
+  }
+  h1 span { color: var(--hq-lime); }
+
+  /* podium stack */
+  .podium { display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
+
+  .rank-panel {
+    position: relative;
+    isolation: isolate;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+    background-color: var(--hq-border-strong);
+  }
+  .rank-panel::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    clip-path: inherit;
+    background: linear-gradient(to bottom right, var(--hq-panel-alt), var(--hq-panel));
+  }
+
+  .rank-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border-left: 4px solid var(--medal);
+    padding: 18px 22px;
+  }
+  .crest-slot {
+    flex-shrink: 0;
+    background: var(--hq-border);
+    padding: 8px;
+    clip-path: polygon(15% 0, 100% 0, 100% 85%, 85% 100%, 0 100%, 0 15%);
+  }
+  .crest-slot img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+  .rank-info { flex: 1; min-width: 0; }
+  .rank-name {
+    font-weight: 800;
+    color: var(--hq-paper);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .rank-value {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--hq-moss-dim);
+    margin: 2px 0 0;
+  }
+
+  .rank-score { text-align: right; flex-shrink: 0; }
+  .rank-live {
+    display: inline-block;
+    background: rgba(196,255,61,0.1);
+    color: var(--hq-lime);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin: 0 0 4px;
+    white-space: nowrap;
+  }
+  .rank-points {
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    color: var(--hq-paper);
+    line-height: 1;
+  }
+
+  /* size 1 — leader */
+  .rank-1 { --medal: var(--hq-gold); }
+  .rank-1 .crest-slot { width: 80px; height: 80px; }
+  .rank-1 .rank-name { font-size: 24px; }
+  .rank-1 .rank-value { font-size: 12px; }
+  .rank-1 .rank-points { font-size: 48px; }
+
+  /* size 2 — second */
+  .rank-2 { --medal: var(--hq-silver); }
+  .rank-2 .rank-row { padding: 13px 20px; gap: 15px; }
+  .rank-2 .crest-slot { width: 58px; height: 58px; padding: 6px; }
+  .rank-2 .rank-name { font-size: 17px; }
+  .rank-2 .rank-value { font-size: 11px; }
+  .rank-2 .rank-points { font-size: 32px; }
+  .rank-2 .rank-live { font-size: 10px; padding: 3px 7px; }
+
+  /* size 3 — third */
+  .rank-3 { --medal: var(--hq-bronze); }
+  .rank-3 .rank-row { padding: 10px 18px; gap: 13px; }
+  .rank-3 .crest-slot { width: 44px; height: 44px; padding: 5px; }
+  .rank-3 .rank-name { font-size: 14px; }
+  .rank-3 .rank-value { font-size: 10px; }
+  .rank-3 .rank-points { font-size: 24px; }
+  .rank-3 .rank-live { font-size: 9px; padding: 2px 6px; }
+
+  @media (max-width: 760px) {
+    .hero { flex-direction: column; text-align: center; gap: 20px; }
+    .hero-logo { width: 220px; height: 220px; }
+    h1 { max-width: none; }
+    .podium { max-width: none; width: 100%; }
+    .rank-row { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="hq-texture">
+    <div class="wrap">
+      <div class="hero">
+        <img class="hero-logo" src="https://comando-lechuga.test/images/logo.png" alt="Comando Lechuga" />
+        <div class="hero-copy">
+          <p class="eyebrow">▸ PARTE DE OPERACIONES — JORNADA 02</p>
+          <h1>1 campeón. <span>7 excusas.</span></h1>
+
+          <div class="podium">
+            <div class="rank-panel rank-1">
+              <div class="rank-row">
+                <div class="crest-slot"><img src="https://comando-lechuga.test/images/teams/37394771.png" alt="CID F.C" /></div>
+                <div class="rank-info">
+                  <p class="rank-name">CID F.C</p>
+                  <p class="rank-value">240.696.638 €</p>
+                </div>
+                <div class="rank-score">
+                  <span class="rank-live">J2 +42</span>
+                  <div class="rank-points">85</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rank-panel rank-2">
+              <div class="rank-row">
+                <div class="crest-slot"><img src="https://comando-lechuga.test/images/teams/37394676.png" alt="Cruza FC" /></div>
+                <div class="rank-info">
+                  <p class="rank-name">Cruza FC</p>
+                  <p class="rank-value">189.347.225 €</p>
+                </div>
+                <div class="rank-score">
+                  <span class="rank-live">J2 +36</span>
+                  <div class="rank-points">83</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rank-panel rank-3">
+              <div class="rank-row">
+                <div class="crest-slot"><img src="https://comando-lechuga.test/images/teams/37394521.png" alt="Gauchitos F.C" /></div>
+                <div class="rank-info">
+                  <p class="rank-name">Gauchitos F.C</p>
+                  <p class="rank-value">246.934.250 €</p>
+                </div>
+                <div class="rank-score">
+                  <span class="rank-live">J2 +40</span>
+                  <div class="rank-points">74</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
