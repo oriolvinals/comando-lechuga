@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqMultiSelect } from '@/components/hq-multi-select';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { HqRecentScores } from '@/components/hq-recent-scores';
 import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
 import {
@@ -13,6 +14,7 @@ import {
     STATUS_LABELS,
     STATUS_SHORT_LABELS,
 } from '@/lib/player-labels';
+import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { index as playersIndex, show as playersShow } from '@/routes/players';
 import { show as seasonTeamsShow } from '@/routes/season-teams';
@@ -126,12 +128,13 @@ function PlayerRow({ player }: { player: Player }) {
                                 onClick={goToOwnerTeam}
                                 className="flex min-w-0 items-center gap-1.5 hover:text-hq-paper"
                             >
-                                <EntityImage
-                                    src={ownerTeam.logo}
-                                    alt={ownerTeam.name}
-                                    fallback={Shield}
-                                    shape="square"
-                                    className="h-[18px] w-[18px] shrink-0"
+                                <span
+                                    className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
+                                    style={{
+                                        backgroundColor: teamColor(
+                                            ownerTeam.primary_color,
+                                        ),
+                                    }}
                                 />
                                 <span className="truncate">
                                     {ownerTeam.name}
@@ -143,6 +146,10 @@ function PlayerRow({ player }: { player: Player }) {
                     </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-6">
+                    <HqRecentScores
+                        scores={player.recent_scores}
+                        className="w-[130px]"
+                    />
                     <div className="w-[130px] shrink-0 text-right">
                         <p className="font-mono text-[13px] font-bold text-hq-paper">
                             {formatCurrency(player.market_value)}
@@ -241,12 +248,13 @@ function PlayerRow({ player }: { player: Player }) {
                                 onClick={goToOwnerTeam}
                                 className="flex min-w-0 items-center gap-1.5 hover:text-hq-paper"
                             >
-                                <EntityImage
-                                    src={ownerTeam.logo}
-                                    alt={ownerTeam.name}
-                                    fallback={Shield}
-                                    shape="square"
-                                    className="h-3.5 w-3.5 shrink-0"
+                                <span
+                                    className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
+                                    style={{
+                                        backgroundColor: teamColor(
+                                            ownerTeam.primary_color,
+                                        ),
+                                    }}
                                 />
                                 <span className="max-w-[110px] truncate">
                                     {ownerTeam.name}
@@ -256,6 +264,9 @@ function PlayerRow({ player }: { player: Player }) {
                             <span className="text-hq-moss-dim">Libre</span>
                         )}
                     </div>
+                </div>
+                <div className="mt-2 border-t border-hq-ink pt-2">
+                    <HqRecentScores scores={player.recent_scores} />
                 </div>
             </div>
         </Link>
@@ -441,6 +452,9 @@ export default function PlayersIndex({
                                 </span>
                             </div>
                             <div className="flex items-center gap-6">
+                                <span className="w-[130px] shrink-0">
+                                    Últimas 3 jornadas
+                                </span>
                                 <span className="w-[130px] shrink-0 text-right">
                                     Valor
                                 </span>

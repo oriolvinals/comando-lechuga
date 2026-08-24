@@ -259,7 +259,11 @@ test('shows the owning fantasy team when a player is owned', function (): void {
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id, 'name' => 'Ariobretxa']);
+    $seasonTeam = SeasonTeam::factory()->create([
+        'season_id' => $season->id,
+        'name' => 'Ariobretxa',
+        'primary_color' => '#c4ff3d',
+    ]);
     $player = Player::factory()->create();
 
     SeasonTeamPlayer::factory()->create([
@@ -274,6 +278,7 @@ test('shows the owning fantasy team when a player is owned', function (): void {
         ->where('players.data.0.owner_team.id', $seasonTeam->id)
         ->where('players.data.0.owner_team.name', 'Ariobretxa')
         ->where('players.data.0.owner_team.logo', $seasonTeam->logo)
+        ->where('players.data.0.owner_team.primary_color', '#c4ff3d')
     );
 });
 
@@ -288,6 +293,90 @@ test('shows no owner for a free player', function (): void {
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page->where('players.data.0.owner_team', null));
+});
+
+test('includes points for the last 3 played matches, ordered by fixture date oldest first', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    // Week numbers deliberately out of date order, so the test actually exercises
+    // sorting by fixture date rather than by week_number or insertion order.
+    $earliest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 4, 'date' => now()->subDays(30)]);
+    $middle = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'date' => now()->subDays(20)]);
+    $latest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 5, 'date' => now()->subDays(10)]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $earliest->id, 'points' => 7]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $middle->id, 'points' => 2]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $latest->id, 'points' => 11]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('players.data.0.recent_scores', [7, 2, 11])
+    );
+});
+
+test('only takes the 3 most recent matches, dropping older ones', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $oldest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(40)]);
+    $second = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(30)]);
+    $third = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20)]);
+    $fourth = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(10)]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $oldest->id, 'points' => 99]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $second->id, 'points' => 3]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $third->id, 'points' => 5]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fourth->id, 'points' => 8]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('players.data.0.recent_scores', [3, 5, 8])
+    );
+});
+
+test('pads with null at the end when a player has fewer than 3 matches of history', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay()]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'points' => 9]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('players.data.0.recent_scores', [9, null, null])
+    );
+});
+
+test('excludes scores from a fixture in a different season for the recent scores', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $otherSeason = Season::factory()->create([
+        'start_date' => now()->subYears(2),
+        'end_date' => now()->subYear(),
+    ]);
+    $player = Player::factory()->create();
+    $otherSeasonFixture = Fixture::factory()->create(['season_id' => $otherSeason->id]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $otherSeasonFixture->id, 'points' => 9]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('players.data.0.recent_scores', [null, null, null])
+    );
 });
 
 test('lists the real teams for the team filter', function (): void {

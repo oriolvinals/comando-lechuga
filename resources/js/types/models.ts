@@ -15,6 +15,7 @@ export interface OwnerTeam {
     id: number;
     name: string;
     logo: string;
+    primary_color: string | null;
 }
 
 export interface Player {
@@ -29,6 +30,8 @@ export interface Player {
     points: number;
     average_points: string;
     owner_team: OwnerTeam | null;
+    /** Points for the last 3 played matches, oldest first, ordered by fixture date — null-padded at the end when fewer than 3 exist. */
+    recent_scores: (number | null)[];
 }
 
 export type FixtureState =
