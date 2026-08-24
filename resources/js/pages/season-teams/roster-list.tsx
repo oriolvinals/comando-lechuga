@@ -21,14 +21,19 @@ const GROUP_ORDER: PlayerPosition[] = [
     'coach',
 ];
 
-function RosterClauseStatus({ entry }: { entry: SeasonTeamPlayer }) {
-    const now = useNow();
+function RosterClauseStatus({
+    entry,
+    now,
+}: {
+    entry: SeasonTeamPlayer;
+    now: number;
+}) {
     const status = resolveClauseStatus(
         entry.shielded,
         entry.buyout_clause_locked_until,
         now,
     );
-    const countdown = useLockCountdown(entry.buyout_clause_locked_until);
+    const countdown = useLockCountdown(entry.buyout_clause_locked_until, now);
 
     if (status === 'shielded') {
         return (
@@ -72,18 +77,11 @@ function RosterClauseStatus({ entry }: { entry: SeasonTeamPlayer }) {
                 <Lock className="h-[13px] w-[13px] rotate-45" />
                 Cláusula abierta
             </div>
-            <p className="mt-0.5 font-mono text-[10px] font-bold whitespace-nowrap text-hq-lime">
-                {formatCurrency(entry.buyout_clause)}
-                {entry.buyout_clause !== entry.player.market_value && (
-                    <span className="ml-1 font-bold text-hq-live">
-                        (+
-                        {formatCurrency(
-                            entry.buyout_clause - entry.player.market_value,
-                        )}
-                        )
-                    </span>
-                )}
-            </p>
+            <ClauseDifference
+                clause={entry.buyout_clause}
+                marketValue={entry.player.market_value}
+                valueColorClass="text-hq-lime"
+            />
         </div>
     );
 }
@@ -108,7 +106,7 @@ function MarketValueDiff({ entry }: { entry: SeasonTeamPlayer }) {
     );
 }
 
-function RosterRow({ entry }: { entry: SeasonTeamPlayer }) {
+function RosterRow({ entry, now }: { entry: SeasonTeamPlayer; now: number }) {
     return (
         <Link href={playersShow(entry.player.id).url} className="block">
             {/* Desktop / tablet row */}
@@ -137,13 +135,10 @@ function RosterRow({ entry }: { entry: SeasonTeamPlayer }) {
                     </div>
                 </div>
 
-                <RosterClauseStatus entry={entry} />
+                <RosterClauseStatus entry={entry} now={now} />
 
                 <div className="flex shrink-0 items-center gap-4">
-                    <HqRecentScores
-                        scores={entry.player.recent_scores}
-                        size="md"
-                    />
+                    <HqRecentScores scores={entry.player.recent_scores} />
                     <div className="h-8 w-px bg-hq-border" />
                     <div className="flex w-[76px] shrink-0 justify-center">
                         <MarketValueDiff entry={entry} />
@@ -192,7 +187,7 @@ function RosterRow({ entry }: { entry: SeasonTeamPlayer }) {
                 </div>
 
                 <div className="mt-2 border-t border-hq-ink pt-2">
-                    <RosterClauseStatus entry={entry} />
+                    <RosterClauseStatus entry={entry} now={now} />
                 </div>
 
                 <div className="mt-2 flex items-center justify-between border-t border-hq-ink pt-2">
@@ -212,6 +207,8 @@ interface RosterListProps {
 }
 
 export function RosterList({ roster }: RosterListProps) {
+    const now = useNow();
+
     if (roster.length === 0) {
         return (
             <p className="font-mono text-[11px] text-hq-moss-dim">
@@ -236,7 +233,7 @@ export function RosterList({ roster }: RosterListProps) {
                         </span>
                     </div>
                     {group.entries.map((entry) => (
-                        <RosterRow key={entry.id} entry={entry} />
+                        <RosterRow key={entry.id} entry={entry} now={now} />
                     ))}
                 </div>
             ))}

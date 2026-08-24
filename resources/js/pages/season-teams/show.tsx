@@ -58,15 +58,27 @@ export default function SeasonTeamShow({
                     <HqTeamPointsChart lineupHistory={lineupHistory} />
 
                     <div className="mt-8 flex flex-col gap-5 lg:flex-row lg:items-start">
-                        <div className="min-w-0 flex-1">
-                            <h2 className="mb-3 font-display text-lg text-hq-paper uppercase">
+                        <section
+                            aria-labelledby="roster-heading"
+                            className="min-w-0 flex-1"
+                        >
+                            <h2
+                                id="roster-heading"
+                                className="mb-3 font-display text-lg text-hq-paper uppercase"
+                            >
                                 Plantilla actual
                             </h2>
                             <RosterList roster={roster} />
-                        </div>
+                        </section>
 
-                        <div className="w-full shrink-0 lg:w-[340px]">
-                            <h2 className="mb-3 font-display text-lg text-hq-paper uppercase">
+                        <section
+                            aria-labelledby="activity-heading"
+                            className="w-full shrink-0 lg:w-[340px]"
+                        >
+                            <h2
+                                id="activity-heading"
+                                className="mb-3 font-display text-lg text-hq-paper uppercase"
+                            >
                                 Actividad
                             </h2>
                             {activity.length === 0 ? (
@@ -83,7 +95,7 @@ export default function SeasonTeamShow({
                                     ))}
                                 </div>
                             )}
-                        </div>
+                        </section>
                     </div>
 
                     <div className="mt-10 border-t border-dashed border-hq-border pt-6">

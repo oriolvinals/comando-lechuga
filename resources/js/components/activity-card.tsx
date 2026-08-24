@@ -42,7 +42,7 @@ export const TYPE_LABELS: Record<SeasonActivityType, string> = {
     joined_league: 'Nuevo manager',
 };
 
-export const TYPE_COLORS: Record<SeasonActivityType, string> = {
+const TYPE_COLORS: Record<SeasonActivityType, string> = {
     signing: 'text-hq-lime',
     sale: 'text-hq-ember',
     buyout: 'text-hq-med',

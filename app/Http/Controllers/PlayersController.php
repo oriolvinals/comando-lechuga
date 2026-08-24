@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
+use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Filters\PlayerFilter;
 use App\Models\Fixture;
 use App\Models\MarketPlayer;

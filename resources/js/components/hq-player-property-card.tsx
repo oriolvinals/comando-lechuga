@@ -20,9 +20,11 @@ interface HqPlayerPropertyCardProps {
 export function ClauseDifference({
     clause,
     marketValue,
+    valueColorClass = 'text-hq-khaki',
 }: {
     clause: number;
     marketValue: number;
+    valueColorClass?: string;
 }) {
     if (clause === marketValue) {
         return (
@@ -32,11 +34,19 @@ export function ClauseDifference({
         );
     }
 
+    const diff = clause - marketValue;
+
     return (
-        <p className="mt-0.5 font-mono text-[10px] whitespace-nowrap text-hq-khaki">
+        <p
+            className={cn(
+                'mt-0.5 font-mono text-[10px] whitespace-nowrap',
+                valueColorClass,
+            )}
+        >
             {formatCurrency(clause)}{' '}
             <span className="text-hq-live">
-                (+{formatCurrency(clause - marketValue)})
+                ({diff >= 0 ? '+' : ''}
+                {formatCurrency(diff)})
             </span>
         </p>
     );
@@ -111,6 +121,7 @@ function OwnedStatus({
                     borderClass="border-hq-def"
                     bgClass="bg-hq-def/10"
                     targetIso={owner.buyout_clause_locked_until}
+                    now={now}
                 >
                     <ClauseDifference
                         clause={owner.buyout_clause}
@@ -126,6 +137,7 @@ function OwnedStatus({
                     bgClass="bg-hq-moss/10"
                     countdownColorClass="text-hq-gold"
                     targetIso={owner.buyout_clause_locked_until}
+                    now={now}
                 >
                     <ClauseDifference
                         clause={owner.buyout_clause}
@@ -192,6 +204,7 @@ function LockStatus({
     bgClass,
     countdownColorClass = 'text-hq-paper',
     targetIso,
+    now,
     children,
 }: {
     icon: ReactNode;
@@ -201,9 +214,10 @@ function LockStatus({
     bgClass: string;
     countdownColorClass?: string;
     targetIso: string;
+    now: number;
     children: ReactNode;
 }) {
-    const countdown = useLockCountdown(targetIso);
+    const countdown = useLockCountdown(targetIso, now);
 
     return (
         <div className={cn('border px-2.5 py-2', borderClass, bgClass)}>
