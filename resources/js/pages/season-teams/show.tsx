@@ -48,10 +48,10 @@ export default function SeasonTeamShow({
         <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
             <Head title={seasonTeam.name} />
 
-            <div className="mx-auto max-w-6xl">
-                <TeamHero seasonTeam={seasonTeam} />
+            <div className="mx-auto max-w-7xl px-6 pb-9">
+                <TeamHero seasonTeam={seasonTeam} season={season} />
 
-                <div className="p-6">
+                <div className="mt-6">
                     <h2 className="mb-3 font-display text-lg text-hq-paper uppercase">
                         Evolución de puntos
                     </h2>
@@ -65,7 +65,7 @@ export default function SeasonTeamShow({
                             <RosterList roster={roster} />
                         </div>
 
-                        <div className="w-full shrink-0 lg:w-[280px]">
+                        <div className="w-full shrink-0 lg:w-[340px]">
                             <h2 className="mb-3 font-display text-lg text-hq-paper uppercase">
                                 Actividad
                             </h2>

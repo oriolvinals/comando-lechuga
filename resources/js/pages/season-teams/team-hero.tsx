@@ -1,9 +1,9 @@
-import { ArrowDown, ArrowUp, Minus, Shield } from 'lucide-react';
+import { ArrowDown, ArrowUp, Shield } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
 import { crestTintStyle } from '@/lib/season-team-colors';
-import type { SeasonTeam } from '@/types/models';
+import type { Season, SeasonTeam } from '@/types/models';
 
 /** Medal color per podium spot — same palette as the home hero's PODIUM_SIZES. Outside the podium the crest keeps a neutral border. */
 const MEDAL_COLOR_VARS: Record<number, string> = {
@@ -37,16 +37,15 @@ function RankTrend({
         );
     }
 
-    return (
-        <Minus className="h-[11px] w-[11px] text-hq-moss" strokeWidth={3.5} />
-    );
+    return null;
 }
 
 interface TeamHeroProps {
     seasonTeam: SeasonTeam;
+    season: Season;
 }
 
-export function TeamHero({ seasonTeam }: TeamHeroProps) {
+export function TeamHero({ seasonTeam, season }: TeamHeroProps) {
     const medal = MEDAL_COLOR_VARS[seasonTeam.position];
     const borderColor = medal ?? 'var(--color-hq-border-strong)';
     const chipTextColor = medal ?? 'var(--color-hq-paper)';
@@ -62,10 +61,10 @@ export function TeamHero({ seasonTeam }: TeamHeroProps) {
             }
         >
             <div
-                className="pointer-events-none absolute inset-0 opacity-15"
+                className="pointer-events-none absolute inset-0 opacity-25"
                 style={{
                     background:
-                        'linear-gradient(115deg, var(--pc) 0%, transparent 38%), linear-gradient(-65deg, var(--sc) 0%, transparent 45%)',
+                        'linear-gradient(100deg, var(--pc) 0%, var(--sc) 100%)',
                 }}
             />
             <div className="relative flex flex-wrap items-center gap-5">
@@ -114,7 +113,7 @@ export function TeamHero({ seasonTeam }: TeamHeroProps) {
                     </div>
                     <div className="border border-hq-border bg-hq-panel-alt/80 px-4 py-2 text-center">
                         <div className="font-mono text-[9px] text-hq-moss uppercase">
-                            En directo
+                            J{season.current_week} en directo
                         </div>
                         <div className="mt-0.5 font-display text-xl text-hq-lime">
                             +{seasonTeam.live_points}

@@ -34,7 +34,10 @@ export function ClauseDifference({
 
     return (
         <p className="mt-0.5 font-mono text-[10px] whitespace-nowrap text-hq-khaki">
-            {formatCurrency(clause)} (+{formatCurrency(clause - marketValue)})
+            {formatCurrency(clause)}{' '}
+            <span className="text-hq-live">
+                (+{formatCurrency(clause - marketValue)})
+            </span>
         </p>
     );
 }
