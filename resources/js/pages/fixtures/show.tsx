@@ -285,7 +285,7 @@ export default function FixtureShow({
                                     key={weekFixture.id}
                                     href={fixturesShow(weekFixture.id).url}
                                     className={cn(
-                                        'shrink-0 border bg-hq-panel px-2.5 py-2 text-center font-mono transition-colors',
+                                        'shrink-0 border bg-hq-panel px-3 py-2.5 text-center font-mono transition-colors',
                                         weekFixture.id === fixture.id
                                             ? 'border-hq-lime bg-hq-panel-alt'
                                             : weekFixtureIsLive
@@ -293,25 +293,25 @@ export default function FixtureShow({
                                               : 'border-hq-border hover:border-hq-border-strong',
                                     )}
                                 >
-                                    <div className="mb-0.5 flex items-center justify-center gap-1.5">
+                                    <div className="mb-1 flex items-center justify-center gap-2">
                                         <img
                                             src={weekFixture.local_team.logo}
                                             alt={weekFixture.local_team.name}
-                                            className="h-[18px] w-[18px] object-contain"
+                                            className="h-5 w-5 object-contain"
                                         />
-                                        <span className="text-xs font-bold text-hq-paper">
+                                        <span className="text-sm font-bold text-hq-paper">
                                             {weekFixtureHasScore
                                                 ? weekFixture.local_score
                                                 : ''}
                                         </span>
                                     </div>
-                                    <div className="mb-1 flex items-center justify-center gap-1.5">
+                                    <div className="mb-1.5 flex items-center justify-center gap-2">
                                         <img
                                             src={weekFixture.guest_team.logo}
                                             alt={weekFixture.guest_team.name}
-                                            className="h-[18px] w-[18px] object-contain"
+                                            className="h-5 w-5 object-contain"
                                         />
-                                        <span className="text-xs font-bold text-hq-paper">
+                                        <span className="text-sm font-bold text-hq-paper">
                                             {weekFixtureHasScore
                                                 ? weekFixture.guest_score
                                                 : ''}
@@ -319,7 +319,7 @@ export default function FixtureShow({
                                     </div>
                                     <div
                                         className={cn(
-                                            'flex items-center justify-center gap-1 text-[8px] uppercase',
+                                            'flex items-center justify-center gap-1 text-[9px] uppercase',
                                             weekFixtureIsLive
                                                 ? 'text-hq-live'
                                                 : 'text-hq-moss-dim',
