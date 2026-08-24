@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
+use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
 use App\Models\Season;
 use App\Models\SeasonActivity;
@@ -18,6 +19,7 @@ use Inertia\Response;
 class SeasonTeamsController extends Controller
 {
     use AttachesActivityValueDifference;
+    use AttachesRecentScores;
     use ResolvesRequestedWeek;
 
     public function index(Request $request): Response
@@ -41,10 +43,14 @@ class SeasonTeamsController extends Controller
 
     public function show(SeasonTeam $seasonTeam): Response
     {
+        $season = Season::current();
+
         $roster = SeasonTeamPlayer::query()
             ->where('season_team_id', $seasonTeam->id)
             ->with('player.team')
             ->get();
+
+        $this->attachRecentScores($roster->pluck('player'), $season);
 
         $lineupHistory = SeasonTeamLineup::query()
             ->where('season_team_id', $seasonTeam->id)
@@ -64,6 +70,7 @@ class SeasonTeamsController extends Controller
         $this->attachValueDifferences($activity);
 
         return Inertia::render('season-teams/show', [
+            'season' => $season,
             'seasonTeam' => $seasonTeam,
             'roster' => $roster,
             'lineupHistory' => $lineupHistory,
