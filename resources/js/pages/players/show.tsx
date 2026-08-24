@@ -7,8 +7,8 @@ import { HqPositionTag } from '@/components/hq-position-tag';
 import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
 import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
-import { STATUS_BADGE_CLASS, STATUS_LABELS } from '@/lib/player-labels';
-import { matchPointsBadgeClass } from '@/lib/points';
+import { didNotPlayMatch, STATUS_BADGE_CLASS, STATUS_LABELS } from '@/lib/player-labels';
+import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import type {
     Fixture,
@@ -50,6 +50,19 @@ export default function PlayerShow({
         owner?.season_team ?? null,
         teamJoinedAt,
     );
+
+    const daznScores = scores.filter(
+        (score) =>
+            !didNotPlayMatch(score.stats, score.fixture.state) &&
+            score.stats.marca_points,
+    );
+    const daznAverage =
+        daznScores.length > 0
+            ? daznScores.reduce(
+                  (sum, score) => sum + score.stats.marca_points[1],
+                  0,
+              ) / daznScores.length
+            : null;
 
     return (
         <>
@@ -110,6 +123,21 @@ export default function PlayerShow({
                                     {player.average_points}
                                 </span>
                             </div>
+                            {daznAverage !== null && (
+                                <div className="flex items-center justify-between border-t border-hq-border py-1.5">
+                                    <span className="font-mono text-[11px] text-hq-moss">
+                                        MEDIA DAZN
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            'px-1.5 font-mono font-bold',
+                                            daznPointsBadgeClass(daznAverage),
+                                        )}
+                                    >
+                                        {daznAverage.toFixed(2)}
+                                    </span>
+                                </div>
+                            )}
                             <div className="flex items-center justify-between border-t border-hq-border py-1.5">
                                 <span className="font-mono text-[11px] text-hq-moss">
                                     VALOR
