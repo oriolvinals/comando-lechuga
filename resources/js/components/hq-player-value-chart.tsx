@@ -142,14 +142,31 @@ export function HqPlayerValueChart({
         const yAt = (value: number) =>
             max === min ? HEIGHT / 2 : HEIGHT - ((value - min) / (max - min)) * HEIGHT;
 
+        // Catmull-Rom-to-Bezier: each segment's control points lean on the
+        // neighboring points (clamped at the ends), so the curve passes
+        // through every value but arrives/leaves each one on a smooth
+        // tangent instead of a sharp elbow.
         const lineSegments = visibleHistory.slice(1).map((point, index) => {
             const previous = visibleHistory[index];
+            const before = visibleHistory[index - 1] ?? previous;
+            const after = visibleHistory[index + 2] ?? point;
+
+            const x0 = xAt(Math.max(0, index - 1));
+            const y0 = yAt(before.value);
+            const x1 = xAt(index);
+            const y1 = yAt(previous.value);
+            const x2 = xAt(index + 1);
+            const y2 = yAt(point.value);
+            const x3 = xAt(Math.min(n - 1, index + 2));
+            const y3 = yAt(after.value);
+
+            const cp1x = x1 + (x2 - x0) / 6;
+            const cp1y = y1 + (y2 - y0) / 6;
+            const cp2x = x2 - (x3 - x1) / 6;
+            const cp2y = y2 - (y3 - y1) / 6;
 
             return {
-                x1: xAt(index),
-                y1: yAt(previous.value),
-                x2: xAt(index + 1),
-                y2: yAt(point.value),
+                d: `M ${x1},${y1} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${x2},${y2}`,
                 color:
                     point.value >= previous.value
                         ? 'var(--color-hq-lime)'
@@ -363,14 +380,13 @@ export function HqPlayerValueChart({
                         {mode === 'valor' &&
                             valorGeometry &&
                             valorGeometry.lineSegments.map((segment, index) => (
-                                <line
+                                <path
                                     key={index}
-                                    x1={segment.x1}
-                                    y1={segment.y1}
-                                    x2={segment.x2}
-                                    y2={segment.y2}
+                                    d={segment.d}
                                     stroke={segment.color}
                                     strokeWidth={2.5}
+                                    fill="none"
+                                    strokeLinecap="round"
                                 />
                             ))}
                         {mode === 'puntos' &&
