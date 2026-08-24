@@ -55,7 +55,7 @@ function describeActivityBody(activity: SeasonActivity): ReactNode {
     const team = (
         <Link
             href={seasonTeamsShow(activity.source_season_team.id).url}
-            className="font-bold text-hq-lime hover:underline"
+            className="font-bold text-hq-khaki hover:underline"
         >
             {activity.source_season_team.name}
         </Link>
@@ -63,7 +63,7 @@ function describeActivityBody(activity: SeasonActivity): ReactNode {
     const player = activity.player && (
         <Link
             href={playersShow(activity.player.id).url}
-            className="font-bold hover:underline"
+            className="font-bold text-hq-khaki hover:underline"
         >
             {activity.player.nickname}
         </Link>
@@ -93,7 +93,7 @@ function describeActivityBody(activity: SeasonActivity): ReactNode {
                                     activity.target_season_team.id,
                                 ).url
                             }
-                            className="font-bold hover:underline"
+                            className="font-bold text-hq-khaki hover:underline"
                         >
                             {activity.target_season_team.name}
                         </Link>
@@ -174,7 +174,7 @@ export function ActivityCard({
                         className="hq-crest-cut h-11 w-11 bg-hq-border p-1 text-hq-khaki"
                     />
                     {activity.type === 'buyout' && (
-                        <span className="font-mono text-[8px] font-bold tracking-wide text-hq-lime uppercase">
+                        <span className="font-mono text-[8px] font-bold tracking-wide text-hq-khaki uppercase">
                             Ficha
                         </span>
                     )}
