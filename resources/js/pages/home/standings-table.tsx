@@ -30,10 +30,11 @@ export function StandingsTable({
                     const moved = team.position - team.last_position;
 
                     return (
-                        <div
+                        <Link
                             key={team.id}
+                            href={seasonTeamsShow(team.id).url}
                             className={cn(
-                                'flex items-center gap-4 border border-l-4 border-hq-border bg-hq-panel px-4 py-3',
+                                'flex items-center gap-4 border border-l-4 border-hq-border bg-hq-panel px-4 py-3 transition-[filter] hover:brightness-125',
                                 index < 3 && MEDAL_BORDERS[index],
                                 index === 0 && 'bg-hq-panel-alt',
                             )}
@@ -48,34 +49,29 @@ export function StandingsTable({
                             ) : (
                                 <Minus className="h-4 w-4 shrink-0 text-hq-moss-dim" />
                             )}
-                            <Link
-                                href={seasonTeamsShow(team.id).url}
-                                className="flex flex-1 items-center gap-4 hover:opacity-80"
-                            >
-                                <EntityImage
-                                    src={team.logo}
-                                    alt={team.name}
-                                    fallback={Shield}
-                                    shape="square"
-                                    style={crestTintStyle(team.primary_color)}
-                                    className="hq-crest-cut h-16 w-16 bg-hq-border p-1.5 text-hq-khaki"
-                                />
-                                <div className="flex-1">
-                                    <p className="text-lg font-extrabold text-hq-paper">
-                                        {team.name}
-                                    </p>
-                                    <p className="font-mono text-[11px] text-hq-moss-dim">
-                                        {formatCurrency(team.value)}
-                                    </p>
-                                </div>
-                            </Link>
+                            <EntityImage
+                                src={team.logo}
+                                alt={team.name}
+                                fallback={Shield}
+                                shape="square"
+                                style={crestTintStyle(team.primary_color)}
+                                className="hq-crest-cut h-16 w-16 bg-hq-border p-1.5 text-hq-khaki"
+                            />
+                            <div className="flex-1">
+                                <p className="text-lg font-extrabold text-hq-paper">
+                                    {team.name}
+                                </p>
+                                <p className="font-mono text-[11px] text-hq-moss-dim">
+                                    {formatCurrency(team.value)}
+                                </p>
+                            </div>
                             <span className="mr-1 rounded bg-hq-lime/10 px-2 py-1 font-mono text-[11px] text-hq-lime">
                                 J{currentWeek} +{team.live_points}
                             </span>
                             <span className="font-display text-3xl text-hq-paper">
                                 {team.total_points}
                             </span>
-                        </div>
+                        </Link>
                     );
                 })}
             </div>

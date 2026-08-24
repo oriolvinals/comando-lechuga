@@ -1,8 +1,10 @@
+import { Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
 import { crestTintStyle } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
+import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { SeasonTeam } from '@/types/models';
 
 interface HeroPanelProps {
@@ -52,9 +54,10 @@ function PodiumRow({
     const size = PODIUM_SIZES[rank];
 
     return (
-        <div
+        <Link
+            href={seasonTeamsShow(team.id).url}
             className={cn(
-                'hq-panel-cut flex items-center border-l-4 text-left',
+                'hq-panel-cut flex items-center border-l-4 text-left transition-[filter] hover:brightness-125',
                 size.border,
                 size.row,
             )}
@@ -91,7 +94,7 @@ function PodiumRow({
                     {team.total_points}
                 </div>
             </div>
-        </div>
+        </Link>
     );
 }
 
