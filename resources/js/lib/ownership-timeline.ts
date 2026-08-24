@@ -31,7 +31,9 @@ export interface OwnershipSegment {
  * to `teamJoinedAt[leadingOwner.id]` (that team's own `joined_league` date)
  * as the start of their ownership, with a free-market segment before it —
  * rather than crediting the team with owning the player back through the
- * whole chart's date range.
+ * whole chart's date range. That inferred segment is tagged `startedBy: {
+ * type: 'joined_league' }` so the UI can call out that the player came in
+ * with the team's original squad rather than via a recorded signing.
  */
 export function buildOwnershipTimeline(
     activities: OwnershipActivity[],
@@ -58,7 +60,12 @@ export function buildOwnershipTimeline(
 
         if (joinedAt !== null) {
             segments.push({ from: null, to: joinedAt, seasonTeam: null, startedBy: null });
-            segments.push({ from: joinedAt, to: leadingEnd, seasonTeam: leadingOwner, startedBy: null });
+            segments.push({
+                from: joinedAt,
+                to: leadingEnd,
+                seasonTeam: leadingOwner,
+                startedBy: { type: 'joined_league', amount: null },
+            });
         } else {
             segments.push({ from: null, to: leadingEnd, seasonTeam: leadingOwner, startedBy: null });
         }

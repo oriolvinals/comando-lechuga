@@ -34,6 +34,10 @@ function describeOrigin(
         return null;
     }
 
+    if (segment.startedBy.type === 'joined_league') {
+        return 'Se unió a la liga';
+    }
+
     const label = TYPE_LABELS[segment.startedBy.type];
 
     return segment.startedBy.amount === null
