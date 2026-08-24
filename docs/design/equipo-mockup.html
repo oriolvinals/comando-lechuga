@@ -1,0 +1,321 @@
+<title>Ficha de equipo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@500;600;700;800&display=swap');
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #10130c; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 28px 24px 80px; font-family: 'Inter', Arial, sans-serif; color: #f2f0e4; }
+
+  .intro {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #9aa382;
+    line-height: 1.7; max-width: 860px; margin: 0 0 28px;
+  }
+  .intro b { color: #f2f0e4; }
+  .intro li { margin-bottom: 4px; }
+
+  .frame { background: #10130c; border: 1px solid #262b1c; border-radius: 12px; overflow: hidden; }
+
+  .pg-header { padding: 12px 22px; border-bottom: 1px solid #262b1c; display: flex; align-items: center; justify-content: space-between; }
+  .pg-brand { display: flex; align-items: center; gap: 9px; font-family: 'Anton', sans-serif; font-size: 15px; color: #f2f0e4; text-transform: uppercase; }
+  .pg-brand span { color: #c4ff3d; }
+  .pg-nav { display: flex; gap: 5px; }
+  .pg-nav a { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 5px 10px; border: 1px solid #262b1c; color: #9aa382; }
+  .pg-nav a.active { background: #c4ff3d; color: #10130c; border-color: #c4ff3d; }
+
+  .crest { display: flex; align-items: center; justify-content: center; background: #262b1c; border: 1px solid #3a4228; clip-path: polygon(15% 0, 100% 0, 100% 85%, 85% 100%, 0 100%, 0 15%); }
+
+  /* ---- hero ---- */
+  .hero { position: relative; padding: 26px 26px 22px; overflow: hidden; background: #10130c; }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(115deg, var(--pc) 0%, transparent 38%), linear-gradient(-65deg, var(--sc) 0%, transparent 45%);
+    opacity: 0.16;
+  }
+  .hero-inner { position: relative; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .hero-crest { width: 84px; height: 84px; font-size: 34px; flex-shrink: 0; }
+  .hero-name { font-family: 'Anton', sans-serif; font-size: 30px; text-transform: uppercase; margin: 0; }
+  .hero-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #9aa382; margin-top: 4px; }
+  .stat-tiles { display: flex; gap: 10px; margin-left: auto; flex-wrap: wrap; }
+  .stat-tile { background: #171b10cc; border: 1px solid #262b1c; padding: 8px 16px; text-align: center; min-width: 84px; }
+  .stat-tile .k { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #9aa382; text-transform: uppercase; }
+  .stat-tile .v { font-family: 'Anton', sans-serif; font-size: 20px; color: #f2f0e4; margin-top: 2px; }
+  .stat-tile .v.lime { color: #c4ff3d; }
+
+  /* ---- crest carries the league position: medal-colored border on the podium, ---- */
+  /* ---- plus a small rank chip overlapping its corner (same motif as the pitch's points badge) ---- */
+  /* clip-path + CSS `border` clips the border itself at the angled corners, breaking it —
+     same double-layer trick as .hq-card-cut: outer shape painted in the medal color,
+     inner shape (inset via padding) painted with the real background, both sharing the clip-path. */
+  .hero-crest-wrap { position: relative; flex-shrink: 0; }
+  .hero-crest-outer {
+    width: 84px; height: 84px; padding: 3px;
+    clip-path: polygon(15% 0, 100% 0, 100% 85%, 85% 100%, 0 100%, 0 15%);
+    background: var(--medal, #3a4228);
+  }
+  .hero-crest.crest {
+    width: 100%; height: 100%; border: none;
+    clip-path: inherit;
+  }
+  .rank-chip {
+    position: absolute; right: -8px; bottom: -8px;
+    display: flex; align-items: center; gap: 3px;
+    background: #10130c; border: 2px solid var(--medal, #3a4228);
+    padding: 2px 6px 2px 5px;
+    font-family: 'Anton', sans-serif; font-size: 14px; color: var(--medal, #f2f0e4);
+  }
+  .rank-chip .trend { display: flex; align-items: center; }
+  .rank-chip .trend svg { display: block; }
+
+  .body-pad { padding: 22px; }
+
+  .section-title { font-family: 'Anton', sans-serif; font-size: 15px; text-transform: uppercase; color: #f2f0e4; margin: 0 0 12px; }
+  .section-title .hint { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #5a6248; text-transform: none; letter-spacing: 0; margin-left: 8px; }
+
+  /* ---- evolution chart ---- */
+  .chart-box { border: 1px solid #262b1c; background: #171b10; padding: 16px; margin-bottom: 30px; }
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 90px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .bar { width: 60%; background: #c4ff3d; opacity: 0.4; }
+  .bar-pts { font-family: 'Anton', sans-serif; font-size: 11px; color: #c4ff3d; margin-bottom: 3px; }
+  .bar-wk { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #5a6248; margin-top: 6px; }
+
+  /* ---- layout: roster + activity rail ---- */
+  .layout-dash { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 34px; }
+  .rail { width: 260px; flex-shrink: 0; }
+  .main-side { flex: 1; min-width: 0; }
+
+  .group-head { display: flex; align-items: center; gap: 8px; margin: 20px 0 8px; }
+  .group-head:first-child { margin-top: 0; }
+  .postag { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 800; padding: 3px 7px; border: 1px solid; }
+  .pos-por { color: #ff8c3d; border-color: #ff8c3d66; background: #ff8c3d1a; }
+  .pos-def { color: #b388ff; border-color: #b388ff66; background: #b388ff1a; }
+  .pos-med { color: #4dabf7; border-color: #4dabf766; background: #4dabf71a; }
+  .pos-del { color: #ffd54a; border-color: #ffd54a66; background: #ffd54a1a; }
+  .group-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5a6248; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .roster-row {
+    display: flex; align-items: center; gap: 12px; background: #171b10; border: 1px solid #262b1c;
+    padding: 9px 14px; margin-bottom: 6px;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+  .r-avatar { width: 38px; height: 38px; border-radius: 50%; background: #1a2013; border: 1px solid #3a4228; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .r-id { width: 160px; min-width: 0; }
+  .r-name { font-size: 13px; font-weight: 800; color: #f2f0e4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .r-club { display: flex; align-items: center; gap: 5px; margin-top: 2px; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #5a6248; }
+  .r-form { display: flex; gap: 3px; flex-shrink: 0; }
+  .r-form span { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; border: 1px solid; }
+  .fm-hi { color: #b388ff; border-color: #b388ff66; background: #b388ff14; }
+  .fm-mid { color: #4dabf7; border-color: #4dabf766; background: #4dabf714; }
+  .fm-lo { color: #9aa382; border-color: #3a4228; background: transparent; }
+  .fm-none { color: #3a4228; border-color: #262b1c; border-style: dashed; }
+
+  /* ---- clause block, matching HqPlayerPropertyCard's OwnedStatus/LockStatus language ---- */
+  .r-clause { width: 190px; flex-shrink: 0; }
+  .cl-label { display: flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+  .cl-value { margin-top: 2px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: #f2f0e4; white-space: nowrap; }
+  .cl-diff { font-size: 9px; font-weight: 700; color: #c9b98a; }
+  .cl-diff.eq { color: #5a6248; }
+  .cl-open .cl-label { color: #c4ff3d; }
+  .cl-locked .cl-label { color: #9aa382; }
+  .cl-locked .cl-countdown { color: #e0b83f; }
+  .cl-shield .cl-label { color: #b388ff; }
+  .cl-shield .cl-countdown { color: #f2f0e4; }
+
+  .r-pts { width: 40px; flex-shrink: 0; text-align: center; font-family: 'Anton', sans-serif; font-size: 18px; color: #c4ff3d; }
+
+  .rail-head { font-family: 'Anton', sans-serif; font-size: 14px; text-transform: uppercase; margin: 0 0 10px; }
+  .mini-activity { display: flex; flex-direction: column; gap: 7px; }
+  .mini-row { background: #171b10; border: 1px solid #262b1c; padding: 8px 10px; font-size: 11.5px; line-height: 1.4; color: #d9d6c8; }
+  .mini-row b { color: #c9b98a; }
+  .mini-row time { display: block; margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #5a6248; }
+
+  /* ---- alineación de la jornada ---- */
+  .lineup-section { border-top: 1px dashed #262b1c; padding-top: 26px; }
+  .lineup-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .week-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #c4ff3d; background: #c4ff3d; color: #10130c; padding: 8px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 800; }
+  .lineup-wrap { max-width: 300px; margin: 0 auto; }
+  .pitch { position: relative; aspect-ratio: 280/440; width: 100%; border: 2px solid #0e4a24; background: repeating-linear-gradient(180deg, #1f7a3f 0px, #1f7a3f 11%, #1a6b37 11%, #1a6b37 22%); }
+  .pitch .lines { position: absolute; inset: 8px; border: 2px solid rgba(255,255,255,.75); }
+  .pitch .halfway { position: absolute; top: 50%; left: 8px; right: 8px; border-top: 2px solid rgba(255,255,255,.75); }
+  .pitch .circle { position: absolute; top: 50%; left: 50%; width: 26%; height: 26%; transform: translate(-50%,-50%); border-radius: 50%; border: 2px solid rgba(255,255,255,.75); }
+  .prow { position: absolute; left: 8px; right: 8px; display: flex; justify-content: space-evenly; }
+  .pplayer { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .pdot { position: relative; width: 34px; height: 34px; border-radius: 50%; border: 2px solid white; background: #262b1c; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .pscore { position: absolute; right: -5px; bottom: -4px; width: 20px; height: 16px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 800; border: 1px solid; }
+  .sc-violet { background: #b388ff; border-color: #b388ff; color: #10130c; }
+  .sc-azure { background: #4dabf7; border-color: #4dabf7; color: #fff; }
+  .sc-lime { background: #c4ff3d; border-color: #c4ff3d; color: #10130c; }
+  .sc-gold { background: #e0b83f; border-color: #e0b83f; color: #10130c; }
+  .pname { font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 800; color: #f2f0e4; background: rgba(16,19,12,.85); padding: 1px 5px; border-radius: 3px; max-width: 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .callout { margin-top: 20px; padding: 14px 16px; border: 1px solid #262b1c; background: #171b10; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #9aa382; line-height: 1.7; }
+  .callout b { color: #f2f0e4; }
+</style>
+
+<div class="wrap">
+  <p class="intro">
+    Opción B afinada con los dos comentarios:
+  </p>
+  <ul class="intro">
+    <li>— Se añade una sección <b>"Alineación de la jornada"</b> con el mismo selector de semana y el mismo campo (<code>HqWeekPicker</code> + <code>HqLineupPitch</code>) que ya existen en <code>/equipos</code>, pero aquí navegando el histórico de <b>este</b> equipo — no sustituye al gráfico de evolución, lo complementa: el gráfico da la tendencia, esto da el detalle táctico de una jornada concreta.</li>
+    <li>— Cada fila de la <b>plantilla actual</b> informa la cláusula igual que en la ficha de jugador: etiqueta de estado (abierta/bloqueada/blindada) con su color y cuenta atrás cuando aplica, y debajo el importe de la cláusula con la diferencia respecto al valor de mercado entre paréntesis — es literalmente <code>ClauseDifference</code> + <code>LockStatus</code> reutilizados, no un dato nuevo.</li>
+    <li>— Más énfasis en la <b>posición de la liga</b>: el escudo lleva el borde del color de medalla (oro/plata/bronce, mismo <code>MEDAL_BORDERS</code> que ya usan la clasificación del home y `/equipos`) cuando el equipo está en el podio, y un chip con el número + flecha de tendencia superpuesto en la esquina — mismo motivo visual que el badge de puntos del campo. Fuera del podio, el escudo mantiene su borde neutro y el chip pasa a color paper.</li>
+  </ul>
+
+  <div class="frame">
+    <div class="pg-header">
+      <div class="pg-brand">COMANDO <span>LECHUGA</span></div>
+      <div class="pg-nav"><a>Inicio</a><a>Equipos</a><a>Jugadores</a><a>Actividad</a></div>
+    </div>
+
+    <div class="hero" style="--pc:#d81f2a; --sc:#f2c230;">
+      <div class="hero-inner">
+        <div class="hero-crest-wrap" style="--medal:#c9793f;">
+          <div class="hero-crest-outer">
+            <div class="hero-crest crest">🛡️</div>
+          </div>
+          <div class="rank-chip">
+            3.º
+            <span class="trend">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#c4ff3d" stroke-width="3.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div>
+          <h1 class="hero-name">Atlético Lechuga</h1>
+        </div>
+        <div class="stat-tiles">
+          <div class="stat-tile"><div class="k">Puntos</div><div class="v">742</div></div>
+          <div class="stat-tile"><div class="k">En directo</div><div class="v lime">+38</div></div>
+          <div class="stat-tile"><div class="k">Valor</div><div class="v">312,4M</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="body-pad">
+      <h2 class="section-title">Evolución de puntos</h2>
+      <div class="chart-box">
+        <div class="bars">
+          <div class="bar-col"><span class="bar-pts">58</span><div class="bar" style="height:70%"></div><span class="bar-wk">J10</span></div>
+          <div class="bar-col"><span class="bar-pts">41</span><div class="bar" style="height:48%"></div><span class="bar-wk">J11</span></div>
+          <div class="bar-col"><span class="bar-pts">66</span><div class="bar" style="height:82%"></div><span class="bar-wk">J12</span></div>
+          <div class="bar-col"><span class="bar-pts">35</span><div class="bar" style="height:40%"></div><span class="bar-wk">J13</span></div>
+          <div class="bar-col"><span class="bar-pts">71</span><div class="bar" style="height:100%"></div><span class="bar-wk">J14</span></div>
+        </div>
+      </div>
+
+      <div class="layout-dash">
+        <div class="main-side">
+          <h2 class="section-title">Plantilla actual</h2>
+
+          <div class="group-head"><span class="postag pos-por">POR</span><span class="group-label">Porteros</span></div>
+          <div class="roster-row">
+            <div class="r-avatar">👤</div>
+            <div class="r-id"><div class="r-name">Guaje</div><div class="r-club">🛡 Naranjito FC</div></div>
+            <div class="r-form"><span class="fm-mid">4</span><span class="fm-none">–</span><span class="fm-hi">9</span></div>
+            <div class="r-clause cl-open">
+              <div class="cl-label">🔓 Cláusula abierta</div>
+              <div class="cl-value">6,1M <span class="cl-diff eq">(=)</span></div>
+            </div>
+            <div class="r-pts">61</div>
+          </div>
+
+          <div class="group-head"><span class="postag pos-def">DEF</span><span class="group-label">Defensas</span></div>
+          <div class="roster-row">
+            <div class="r-avatar">👤</div>
+            <div class="r-id"><div class="r-name">Tarugo</div><div class="r-club">🛡 CD Repollo</div></div>
+            <div class="r-form"><span class="fm-lo">1</span><span class="fm-mid">3</span><span class="fm-mid">5</span></div>
+            <div class="r-clause cl-locked">
+              <div class="cl-label">🔒 Bloqueada <span class="cl-countdown">· 2D 4H</span></div>
+              <div class="cl-value">14,2M <span class="cl-diff">(+1,4M)</span></div>
+            </div>
+            <div class="r-pts">38</div>
+          </div>
+          <div class="roster-row">
+            <div class="r-avatar">👤</div>
+            <div class="r-id"><div class="r-name">Espárrago</div><div class="r-club">🛡 UD Alcachofa</div></div>
+            <div class="r-form"><span class="fm-hi">8</span><span class="fm-hi">10</span><span class="fm-mid">6</span></div>
+            <div class="r-clause cl-shield">
+              <div class="cl-label">🛡 Blindado <span class="cl-countdown">· 5D 12H</span></div>
+              <div class="cl-value">22,9M <span class="cl-diff">(+3,0M)</span></div>
+            </div>
+            <div class="r-pts">74</div>
+          </div>
+
+          <div class="roster-row">
+            <div class="r-avatar">👤</div>
+            <div class="r-id"><div class="r-name">Naranja</div><div class="r-club">🛡 Naranjito FC</div></div>
+            <div class="r-form"><span class="fm-mid">5</span><span class="fm-hi">8</span><span class="fm-lo">2</span></div>
+            <div class="r-clause cl-shield">
+              <div class="cl-label">🛡 Blindado <span class="cl-countdown">· 03:14:52</span></div>
+              <div class="cl-value">18,6M <span class="cl-diff">(+2,1M)</span></div>
+            </div>
+            <div class="r-pts">45</div>
+          </div>
+
+          <div class="group-head"><span class="postag pos-del">DEL</span><span class="group-label">Delanteros</span></div>
+          <div class="roster-row">
+            <div class="r-avatar">👤</div>
+            <div class="r-id"><div class="r-name">Berenjena</div><div class="r-club">🛡 Real Berenjena</div></div>
+            <div class="r-form"><span class="fm-hi">11</span><span class="fm-mid">6</span><span class="fm-hi">9</span></div>
+            <div class="r-clause cl-open">
+              <div class="cl-label">🔓 Cláusula abierta</div>
+              <div class="cl-value">41,0M <span class="cl-diff eq">(=)</span></div>
+            </div>
+            <div class="r-pts">96</div>
+          </div>
+        </div>
+
+        <div class="rail">
+          <h2 class="rail-head">Actividad</h2>
+          <div class="mini-activity">
+            <div class="mini-row"><b>Atlético Lechuga</b> fichó a Guaje<time>Hace 3h</time></div>
+            <div class="mini-row"><b>CD Repollo</b> pagó la cláusula de Tarugo a UD Alcachofa<time>Ayer</time></div>
+            <div class="mini-row"><b>Real Berenjena</b> ganó el premio de la jornada 14<time>Hace 2 días</time></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lineup-section">
+        <div class="lineup-head">
+          <h2 class="section-title">Alineación de la jornada<span class="hint">histórico de este equipo, no el selector global de /equipos</span></h2>
+          <button class="week-btn" type="button">JORNADA 14 ▾</button>
+        </div>
+        <div class="lineup-wrap">
+          <div class="pitch">
+            <div class="lines"></div>
+            <div class="halfway"></div>
+            <div class="circle"></div>
+            <div class="prow" style="top:10%;">
+              <div class="pplayer"><div class="pdot">👤<span class="pscore sc-gold">4</span></div><span class="pname">Guaje</span></div>
+            </div>
+            <div class="prow" style="top:32%;">
+              <div class="pplayer"><div class="pdot">👤<span class="pscore sc-azure">9</span></div><span class="pname">Tarugo</span></div>
+              <div class="pplayer"><div class="pdot">👤<span class="pscore sc-violet">15</span></div><span class="pname">Espárrago</span></div>
+            </div>
+            <div class="prow" style="top:55%;">
+              <div class="pplayer"><div class="pdot">👤<span class="pscore sc-lime">7</span></div><span class="pname">Naranja</span></div>
+              <div class="pplayer"><div class="pdot">👤<span class="pscore sc-azure">10</span></div><span class="pname">Repollo</span></div>
+            </div>
+            <div class="prow" style="top:78%;">
+              <div class="pplayer"><div class="pdot">👤<span class="pscore sc-violet">16</span></div><span class="pname">Berenjena</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    Backend a mayores de lo ya hablado: <b>ninguno nuevo por la alineación</b>
+    (reutiliza <code>lineupHistory</code>, que ya trae la plantilla completa
+    por jornada vía <code>SeasonTeamLineup.players</code>) — solo hace falta
+    exponer un selector de semana en el controlador tal y como ya funciona en
+    <code>/equipos</code>. El campo de "Forma" (últimas 3 jornadas por
+    jugador del roster) sigue siendo el único dato nuevo pendiente.<br><br>
+    Contador por debajo de 24h (fila "Naranja" arriba): ya viene gratis de
+    <code>useLockCountdown</code> — pasa de texto relativo a un reloj
+    HH:MM:SS en vivo dentro del último día, igual para blindaje que para
+    cláusula bloqueada, sin distinguir el caso a mano.
+  </div>
+</div>

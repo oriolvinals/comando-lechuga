@@ -1,5 +1,4 @@
 import { formatRelativeTime } from '@/lib/format';
-import { useNow } from '@/lib/use-now';
 
 /**
  * Relative day text ("dentro de 8 días") while 24h+ remain, switching to a
@@ -7,8 +6,7 @@ import { useNow } from '@/lib/use-now';
  * both a locked buyout clause and a shield, since both key off
  * `buyout_clause_locked_until`.
  */
-export function useLockCountdown(targetIso: string): string {
-    const now = useNow();
+export function useLockCountdown(targetIso: string, now: number): string {
     const diffMs = new Date(targetIso).getTime() - now;
 
     if (diffMs <= 0) {

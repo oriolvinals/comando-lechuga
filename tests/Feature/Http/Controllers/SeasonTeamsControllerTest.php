@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Enums\SeasonActivityType;
+use App\Models\Fixture;
 use App\Models\Player;
+use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonActivity;
 use App\Models\SeasonTeam;
@@ -249,5 +251,47 @@ test('shows the team activity as source or target', function (): void {
         ->has('activity', 2)
         ->where('activity.0.id', $asSource->id)
         ->where('activity.1.id', $asTarget->id)
+    );
+});
+
+test('includes the current season in the show payload', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 12,
+        'total_weeks' => 38,
+    ]);
+    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+
+    $response = $this->get(route('season-teams.show', $seasonTeam));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('season.current_week', 12)
+        ->where('season.total_weeks', 38)
+    );
+});
+
+test('attaches recent scores to each roster player', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create();
+    SeasonTeamPlayer::factory()->create([
+        'season_team_id' => $seasonTeam->id,
+        'player_id' => $player->id,
+    ]);
+    $earliest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20)]);
+    $latest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(10)]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $earliest->id, 'points' => 4]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $latest->id, 'points' => 9]);
+
+    $response = $this->get(route('season-teams.show', $seasonTeam));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('roster.0.player.recent_scores', [4, 9, null])
     );
 });

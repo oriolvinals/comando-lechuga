@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
+use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Filters\PlayerFilter;
 use App\Models\Fixture;
 use App\Models\MarketPlayer;
@@ -27,6 +28,8 @@ use Inertia\Response;
 
 class PlayersController extends Controller
 {
+    use AttachesRecentScores;
+
     /**
      * Diacritics found in LaLiga squads (Spanish, Portuguese, French, German
      * names) — folded away so a search for "Valentin" also matches "Valentín".
@@ -85,7 +88,7 @@ class PlayersController extends Controller
             ->withQueryString();
 
         $this->attachOwnership($players, $season->id);
-        $this->attachRecentScores($players, $season);
+        $this->attachRecentScores($players->getCollection(), $season);
 
         $realTeams = Team::query()
             ->orderBy('name')
@@ -230,44 +233,6 @@ class PlayersController extends Controller
                 'logo' => $seasonTeam->logo,
                 'primary_color' => $seasonTeam->primary_color,
             ];
-        });
-    }
-
-    /**
-     * Attaches each player's points for their last 3 played matches (oldest first,
-     * left to right), ordered by fixture date — every fixture a player's team plays
-     * produces a PlayerScore row (even a benched player scores 0), so this is never
-     * sparse because of a skipped jornada. It only comes back shorter than 3 — padded
-     * with null at the end — for a player without 3 matches of history yet.
-     *
-     * @param  LengthAwarePaginator<int, Player>  $players
-     */
-    private function attachRecentScores(LengthAwarePaginator $players, Season $season): void
-    {
-        /** @var Collection<int, Player> $entries */
-        $entries = $players->getCollection();
-        $playerIds = $entries->pluck('id')->all();
-
-        $scoresByPlayer = PlayerScore::query()
-            ->whereIn('player_id', $playerIds)
-            ->whereHas('fixture', fn ($query) => $query->where('season_id', $season->id))
-            ->with('fixture:id,date')
-            ->get()
-            ->groupBy('player_id');
-
-        $entries->each(function (Player $player) use ($scoresByPlayer): void {
-            $points = ($scoresByPlayer->get($player->id) ?? collect())
-                ->sortByDesc(fn (PlayerScore $score) => $score->fixture->date)
-                ->take(3)
-                ->sortBy(fn (PlayerScore $score) => $score->fixture->date)
-                ->values()
-                ->map(fn (PlayerScore $score): int => $score->points)
-                ->all();
-
-            /** @var array<int, int|null> $padded */
-            $padded = array_pad($points, 3, null);
-
-            $player->recent_scores = $padded;
         });
     }
 }
