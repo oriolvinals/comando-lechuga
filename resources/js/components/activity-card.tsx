@@ -42,7 +42,7 @@ export const TYPE_LABELS: Record<SeasonActivityType, string> = {
     joined_league: 'Nuevo manager',
 };
 
-const TYPE_COLORS: Record<SeasonActivityType, string> = {
+export const TYPE_COLORS: Record<SeasonActivityType, string> = {
     signing: 'text-hq-lime',
     sale: 'text-hq-ember',
     buyout: 'text-hq-med',
@@ -51,7 +51,17 @@ const TYPE_COLORS: Record<SeasonActivityType, string> = {
     joined_league: 'text-hq-moss',
 };
 
-function describeActivityBody(activity: SeasonActivity): ReactNode {
+/** Solid background classes for the activity timeline's left accent bar — same palette as TYPE_COLORS. */
+export const TYPE_BAR_CLASSES: Record<SeasonActivityType, string> = {
+    signing: 'bg-hq-lime',
+    sale: 'bg-hq-ember',
+    buyout: 'bg-hq-med',
+    shield: 'bg-hq-def',
+    weekly_prize: 'bg-hq-gold',
+    joined_league: 'bg-hq-moss',
+};
+
+export function describeActivityBody(activity: SeasonActivity): ReactNode {
     const team = (
         <Link
             href={seasonTeamsShow(activity.source_season_team.id).url}
@@ -117,7 +127,7 @@ function describeActivityBody(activity: SeasonActivity): ReactNode {
     }
 }
 
-function isFavorableDifference(activity: SeasonActivity): boolean {
+export function isFavorableDifference(activity: SeasonActivity): boolean {
     if (activity.value_difference === null) {
         return false;
     }
