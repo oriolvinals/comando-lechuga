@@ -1,48 +1,31 @@
-# Coolify builds this directly (Build Pack: Nixpacks). No Docker involved —
-# Nixpacks auto-detects the PHP/Node toolchain from composer.json/package.json
-# and this file only *adds* to that default plan (the "..." entries below
-# keep everything Nixpacks already decided and layer this on top).
-#
-# Runs exactly two processes, both under supervisor for auto-restart:
-# nginx and php-fpm. No queue worker (nothing in this app dispatches a
-# queued job) and no SSR node process (see .env / docs/deploy-coolify.md —
-# INERTIA_SSR_ENABLED=false in production).
-#
-# Migrations/cache warmup are NOT in this file — they run once per deploy
-# via Coolify's own "Pre-deployment Command" (see docs/deploy-coolify.md),
-# which only routes traffic to the new container if that command succeeds.
-
 [phases.setup]
 nixPkgs = ["...", "python311Packages.supervisor"]
 
 [phases.build]
 cmds = [
-    "...",
     "mkdir -p /etc/supervisor/conf.d/",
     "cp /assets/worker-*.conf /etc/supervisor/conf.d/",
     "cp /assets/supervisord.conf /etc/supervisord.conf",
     "chmod +x /assets/start.sh",
+    "..."
 ]
 
 [start]
-cmd = "/assets/start.sh"
+cmd = '/assets/start.sh'
 
 [staticAssets]
 "start.sh" = '''
 #!/bin/bash
-set -e
 
-# storage/ and bootstrap/cache must be writable by the php-fpm/nginx user.
+# Ensure storage and bootstrap cache are writable by www-data
 chown -R www-data:www-data /app/storage /app/bootstrap/cache
 chmod -R 775 /app/storage /app/bootstrap/cache
 
-php /app/artisan storage:link || true
-
-# Render the nginx config template (fills in $PORT etc.) using Nixpacks'
-# own templating helper.
+# Transform the nginx configuration
 node /assets/scripts/prestart.mjs /assets/nginx.template.conf /etc/nginx.conf
 
-exec supervisord -c /etc/supervisord.conf -n
+# Start supervisor
+supervisord -c /etc/supervisord.conf -n
 '''
 
 "supervisord.conf" = '''
@@ -55,7 +38,7 @@ logfile_maxbytes=50MB
 logfile_backups=10
 loglevel=info
 pidfile=/assets/supervisord.pid
-nodaemon=true
+nodaemon=false
 silent=false
 minfds=1024
 minprocs=200
@@ -90,6 +73,22 @@ stdout_logfile=/var/log/worker-phpfpm.log
 stderr_logfile=/var/log/worker-phpfpm.log
 '''
 
+"worker-laravel.conf" = '''
+[program:worker-laravel]
+process_name=%(program_name)s_%(process_num)02d
+command=bash -c 'exec php /app/artisan queue:work --sleep=3 --tries=3 --max-time=3600'
+user=www-data
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+numprocs=12 # To reduce memory/CPU usage, change to 2.
+startsecs=0
+stopwaitsecs=3600
+stdout_logfile=/var/log/worker-laravel.log
+stderr_logfile=/var/log/worker-laravel.log
+'''
+
 "php-fpm.conf" = '''
 [www]
 listen = 127.0.0.1:9000
@@ -98,89 +97,86 @@ group = www-data
 listen.owner = www-data
 listen.group = www-data
 pm = dynamic
-pm.max_children = 20
-pm.min_spare_servers = 2
-pm.max_spare_servers = 10
-pm.start_servers = 4
+pm.max_children = 50
+pm.min_spare_servers = 4
+pm.max_spare_servers = 32
+pm.start_servers = 18
 clear_env = no
-php_admin_value[post_max_size] = 25M
-php_admin_value[upload_max_filesize] = 25M
-php_admin_value[opcache.enable] = 1
-php_admin_value[opcache.validate_timestamps] = 0
-php_admin_value[opcache.memory_consumption] = 192
-php_admin_value[opcache.interned_strings_buffer] = 16
-php_admin_value[opcache.max_accelerated_files] = 20000
+php_admin_value[post_max_size] = 35M
+php_admin_value[upload_max_filesize] = 30M
 '''
 
 "nginx.template.conf" = '''
 user www-data www-data;
-worker_processes auto;
+worker_processes 5;
 daemon off;
 
 worker_rlimit_nofile 8192;
 
 events {
-  worker_connections 4096;
+  worker_connections  4096;  # Default: 1024
 }
 
 http {
     include    $!{nginx}/conf/mime.types;
-    default_type application/octet-stream;
+    index    index.html index.htm index.php;
 
+    default_type application/octet-stream;
     log_format   main '$remote_addr - $remote_user [$time_local]  $status '
         '"$request" $body_bytes_sent "$http_referer" '
         '"$http_user_agent" "$http_x_forwarded_for"';
-    access_log /dev/stdout main;
-    error_log /dev/stderr;
-
+    access_log /var/log/nginx-access.log;
+    error_log /var/log/nginx-error.log;
     sendfile     on;
     tcp_nopush   on;
-    gzip on;
-    gzip_comp_level 5;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+    server_names_hash_bucket_size 128; # this seems to be required for some vhosts
 
     server {
         listen ${PORT};
         listen [::]:${PORT};
-        server_name _;
-        root /app/public;
+        server_name localhost;
+
+        $if(NIXPACKS_PHP_ROOT_DIR) (
+            root ${NIXPACKS_PHP_ROOT_DIR};
+        ) else (
+            root /app;
+        )
+
+        add_header X-Content-Type-Options "nosniff";
+
+        client_max_body_size 35M;
+     
         index index.php;
+     
         charset utf-8;
+     
 
-        client_max_body_size 25M;
-
-        add_header X-Content-Type-Options "nosniff" always;
-        add_header X-Frame-Options "SAMEORIGIN" always;
-
+        $if(NIXPACKS_PHP_FALLBACK_PATH) (
+            location / {
+                try_files $uri $uri/ ${NIXPACKS_PHP_FALLBACK_PATH}?$query_string;
+            }
+        ) else (
+          location / {
+                try_files $uri $uri/ /index.php?$query_string;
+           }
+        )
+     
         location = /favicon.ico { access_log off; log_not_found off; }
         location = /robots.txt  { access_log off; log_not_found off; }
-
-        # Long-cache the hashed Vite build output.
-        location ^~ /build/ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-            try_files $uri =404;
-        }
-
-        location / {
-            try_files $uri $uri/ /index.php?$query_string;
-        }
-
-        error_page 404 /index.php;
-
+     
+        $if(IS_LARAVEL) (
+            error_page 404 /index.php;
+        ) else ()
+     
         location ~ \.php$ {
+            fastcgi_buffer_size 8k;
             fastcgi_pass 127.0.0.1:9000;
             fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
             include $!{nginx}/conf/fastcgi_params;
             include $!{nginx}/conf/fastcgi.conf;
-            fastcgi_read_timeout 300;
         }
-
+     
         location ~ /\.(?!well-known).* {
-            deny all;
-        }
-
-        location ~ ^/(storage|vendor)/.*\.php$ {
             deny all;
         }
     }
