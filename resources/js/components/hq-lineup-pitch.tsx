@@ -133,7 +133,7 @@ export function HqLineupPitch({
                                             alt={entry.player.team.name}
                                             fallback={Shield}
                                             shape="square"
-                                            className="absolute -top-1.5 -left-1.5 h-4 w-4 border border-white bg-hq-border"
+                                            className="absolute -top-1.5 -left-1.5 h-4 w-4 rounded-[2px] border border-white bg-hq-border"
                                         />
                                         <span
                                             className={cn(
