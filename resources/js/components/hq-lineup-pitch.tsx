@@ -126,14 +126,15 @@ export function HqLineupPitch({
                                             src={entry.player.image}
                                             alt={entry.player.nickname}
                                             fallback={User}
-                                            className="h-12 w-12 border-2 border-white bg-hq-border"
+                                            shape="square"
+                                            className="h-12 w-12 rounded-[3px] border-2 border-white bg-hq-border"
                                         />
                                         <EntityImage
                                             src={entry.player.team.logo}
                                             alt={entry.player.team.name}
                                             fallback={Shield}
                                             shape="square"
-                                            className="absolute -top-1.5 -left-1.5 h-4 w-4 rounded-[2px] border border-white bg-hq-border"
+                                            className="absolute -top-1.5 -left-1.5 h-4 w-4 rounded-[2px] bg-hq-border"
                                         />
                                         <span
                                             className={cn(
