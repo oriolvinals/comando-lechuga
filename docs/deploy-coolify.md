@@ -125,3 +125,18 @@ overriding `[phases.install]` in `nixpacks.toml` to pass `--no-dev` (skips
 installing that tooling at all — it's never needed to build or run the
 app) and by requiring `"php": "^8.5"` in `composer.json` so the app's own
 build/runtime PHP is new enough regardless.
+
+`composer.json`'s version constraint alone likely isn't enough, though:
+Nixpacks' own PHP provider only recognizes 8.1–8.4 in its version-detection
+table (confirmed against its docs at the time this was written), even
+though the underlying nixpkgs repo does have a `php85` package. So
+`nixpacks.toml` also pins it explicitly — `nixPkgs = ["...", "php85", ...]`,
+Nixpacks' documented way to override just the interpreter version. This
+is the least-tested part of the whole setup: if the pinned nixpkgs
+revision Nixpacks itself uses doesn't have `php85` yet, or if overriding
+the version this way skips the automatic wiring of the `ext-curl`/
+`ext-pdo_mysql` requirements from `composer.json`, the build will fail
+differently than before. If that happens, dropping `composer.json` back to
+`"php": "^8.4"` (a confirmed-supported version, and already enough to fix
+the phpunit parse error above) and removing the `php85` line here is the
+safe fallback.
