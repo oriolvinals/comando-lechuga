@@ -1,0 +1,188 @@
+# Coolify builds this directly (Build Pack: Nixpacks). No Docker involved —
+# Nixpacks auto-detects the PHP/Node toolchain from composer.json/package.json
+# and this file only *adds* to that default plan (the "..." entries below
+# keep everything Nixpacks already decided and layer this on top).
+#
+# Runs exactly two processes, both under supervisor for auto-restart:
+# nginx and php-fpm. No queue worker (nothing in this app dispatches a
+# queued job) and no SSR node process (see .env / docs/deploy-coolify.md —
+# INERTIA_SSR_ENABLED=false in production).
+#
+# Migrations/cache warmup are NOT in this file — they run once per deploy
+# via Coolify's own "Pre-deployment Command" (see docs/deploy-coolify.md),
+# which only routes traffic to the new container if that command succeeds.
+
+[phases.setup]
+nixPkgs = ["...", "python311Packages.supervisor"]
+
+[phases.build]
+cmds = [
+    "...",
+    "mkdir -p /etc/supervisor/conf.d/",
+    "cp /assets/worker-*.conf /etc/supervisor/conf.d/",
+    "cp /assets/supervisord.conf /etc/supervisord.conf",
+    "chmod +x /assets/start.sh",
+]
+
+[start]
+cmd = "/assets/start.sh"
+
+[staticAssets]
+"start.sh" = '''
+#!/bin/bash
+set -e
+
+# storage/ and bootstrap/cache must be writable by the php-fpm/nginx user.
+chown -R www-data:www-data /app/storage /app/bootstrap/cache
+chmod -R 775 /app/storage /app/bootstrap/cache
+
+php /app/artisan storage:link || true
+
+# Render the nginx config template (fills in $PORT etc.) using Nixpacks'
+# own templating helper.
+node /assets/scripts/prestart.mjs /assets/nginx.template.conf /etc/nginx.conf
+
+exec supervisord -c /etc/supervisord.conf -n
+'''
+
+"supervisord.conf" = '''
+[unix_http_server]
+file=/assets/supervisor.sock
+
+[supervisord]
+logfile=/var/log/supervisord.log
+logfile_maxbytes=50MB
+logfile_backups=10
+loglevel=info
+pidfile=/assets/supervisord.pid
+nodaemon=true
+silent=false
+minfds=1024
+minprocs=200
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+[supervisorctl]
+serverurl=unix:///assets/supervisor.sock
+
+[include]
+files = /etc/supervisor/conf.d/*.conf
+'''
+
+"worker-nginx.conf" = '''
+[program:worker-nginx]
+process_name=%(program_name)s_%(process_num)02d
+command=nginx -c /etc/nginx.conf
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/worker-nginx.log
+stderr_logfile=/var/log/worker-nginx.log
+'''
+
+"worker-phpfpm.conf" = '''
+[program:worker-phpfpm]
+process_name=%(program_name)s_%(process_num)02d
+command=php-fpm -y /assets/php-fpm.conf -F
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/worker-phpfpm.log
+stderr_logfile=/var/log/worker-phpfpm.log
+'''
+
+"php-fpm.conf" = '''
+[www]
+listen = 127.0.0.1:9000
+user = www-data
+group = www-data
+listen.owner = www-data
+listen.group = www-data
+pm = dynamic
+pm.max_children = 20
+pm.min_spare_servers = 2
+pm.max_spare_servers = 10
+pm.start_servers = 4
+clear_env = no
+php_admin_value[post_max_size] = 25M
+php_admin_value[upload_max_filesize] = 25M
+php_admin_value[opcache.enable] = 1
+php_admin_value[opcache.validate_timestamps] = 0
+php_admin_value[opcache.memory_consumption] = 192
+php_admin_value[opcache.interned_strings_buffer] = 16
+php_admin_value[opcache.max_accelerated_files] = 20000
+'''
+
+"nginx.template.conf" = '''
+user www-data www-data;
+worker_processes auto;
+daemon off;
+
+worker_rlimit_nofile 8192;
+
+events {
+  worker_connections 4096;
+}
+
+http {
+    include    $!{nginx}/conf/mime.types;
+    default_type application/octet-stream;
+
+    log_format   main '$remote_addr - $remote_user [$time_local]  $status '
+        '"$request" $body_bytes_sent "$http_referer" '
+        '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /dev/stdout main;
+    error_log /dev/stderr;
+
+    sendfile     on;
+    tcp_nopush   on;
+    gzip on;
+    gzip_comp_level 5;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+
+    server {
+        listen ${PORT};
+        listen [::]:${PORT};
+        server_name _;
+        root /app/public;
+        index index.php;
+        charset utf-8;
+
+        client_max_body_size 25M;
+
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+
+        location = /favicon.ico { access_log off; log_not_found off; }
+        location = /robots.txt  { access_log off; log_not_found off; }
+
+        # Long-cache the hashed Vite build output.
+        location ^~ /build/ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            try_files $uri =404;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        error_page 404 /index.php;
+
+        location ~ \.php$ {
+            fastcgi_pass 127.0.0.1:9000;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            include $!{nginx}/conf/fastcgi_params;
+            include $!{nginx}/conf/fastcgi.conf;
+            fastcgi_read_timeout 300;
+        }
+
+        location ~ /\.(?!well-known).* {
+            deny all;
+        }
+
+        location ~ ^/(storage|vendor)/.*\.php$ {
+            deny all;
+        }
+    }
+}
+'''

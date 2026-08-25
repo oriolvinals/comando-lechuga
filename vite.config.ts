@@ -13,25 +13,25 @@ export default defineConfig({
             refresh: true,
             fonts: [
                 bunny('Inter', {
-                    weights: [500, 600, 700, 800],
+                    weights: [500, 600, 700, 800]
                 }),
                 bunny('Anton', {
-                    weights: [400],
+                    weights: [400]
                 }),
                 bunny('JetBrains Mono', {
-                    weights: [500, 700],
-                }),
-            ],
+                    weights: [500, 700]
+                })
+            ]
         }),
-        inertia(),
+        inertia({ ssr: false }),
         react({
             babel: {
-                plugins: ['babel-plugin-react-compiler'],
-            },
+                plugins: ['babel-plugin-react-compiler']
+            }
         }),
         tailwindcss(),
         wayfinder({
-            formVariants: true,
-        }),
-    ],
+            formVariants: true
+        })
+    ]
 });

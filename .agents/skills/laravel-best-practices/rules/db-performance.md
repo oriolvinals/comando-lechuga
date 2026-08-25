@@ -38,7 +38,7 @@ Enable this in `AppServiceProvider::boot()` to catch N+1 issues during developme
 ```php
 public function boot(): void
 {
-    Model::preventLazyLoading(!app()->isProduction());
+    Model::preventLazyLoading(! app()->isProduction());
 }
 ```
 
