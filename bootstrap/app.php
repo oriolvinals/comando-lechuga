@@ -87,7 +87,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->onOneServer();
 
         $schedule->command('season:sync-activity')
-            ->everyTwoMinutes()
+            ->everyMinute()
             ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();
