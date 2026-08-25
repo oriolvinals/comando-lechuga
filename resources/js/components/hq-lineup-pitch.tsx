@@ -50,6 +50,28 @@ function pointsBadgeTierClass(points: number | null): string {
     return 'border-hq-violet bg-hq-violet text-white';
 }
 
+/**
+ * The name pill's max-width, tuned per row density: 60px is the floor for a
+ * full 5-player row, and it only needs to grow from there as a row has more
+ * room to spare. A 1-2 player row has none of that pressure, so it's left
+ * uncapped (just `w-full` inside the button).
+ */
+function nameMaxWidthForRowCount(count: number): string {
+    if (count >= 5) {
+        return 'max-w-[60px]';
+    }
+
+    if (count === 4) {
+        return 'max-w-[65px]';
+    }
+
+    if (count === 3) {
+        return 'max-w-[70px]';
+    }
+
+    return '';
+}
+
 interface HqLineupPitchProps {
     players: SeasonTeamLineupPlayerEntry[];
     onSelectPlayer: (entry: SeasonTeamLineupPlayerEntry) => void;
@@ -81,54 +103,65 @@ export function HqLineupPitch({
                     <div className="absolute bottom-2 left-1/2 h-[13.5%] w-[55%] -translate-x-1/2 border-2 border-b-0 border-white/75" />
                 </div>
 
-                {rows.map((row) => (
-                    <div
-                        key={row.position}
-                        className="absolute right-2 left-2 z-10 flex justify-evenly"
-                        style={{ top: row.top }}
-                    >
-                        {row.entries.map((entry) => (
-                            <button
-                                key={entry.id}
-                                type="button"
-                                onClick={() => onSelectPlayer(entry)}
-                                className="flex min-w-0 cursor-pointer flex-col items-center gap-1"
-                            >
-                                <span className="relative shrink-0">
-                                    <EntityImage
-                                        src={entry.player.image}
-                                        alt={entry.player.nickname}
-                                        fallback={User}
-                                        shape="square"
-                                        className="h-12 w-12 rounded-[3px] border-2 border-white bg-hq-border object-cover object-bottom"
-                                    />
-                                    <EntityImage
-                                        src={entry.player.team.logo}
-                                        alt={entry.player.team.name}
-                                        fallback={Shield}
-                                        shape="square"
-                                        className="absolute -top-2 -left-2 h-5 w-5 rounded-[3px] bg-hq-border p-0.5"
-                                    />
+                {rows.map((row) => {
+                    const nameMaxWidth = nameMaxWidthForRowCount(
+                        row.entries.length,
+                    );
+
+                    return (
+                        <div
+                            key={row.position}
+                            className="absolute right-2 left-2 z-10 flex justify-evenly"
+                            style={{ top: row.top }}
+                        >
+                            {row.entries.map((entry) => (
+                                <button
+                                    key={entry.id}
+                                    type="button"
+                                    onClick={() => onSelectPlayer(entry)}
+                                    className="flex min-w-0 cursor-pointer flex-col items-center gap-1"
+                                >
+                                    <span className="relative shrink-0">
+                                        <EntityImage
+                                            src={entry.player.image}
+                                            alt={entry.player.nickname}
+                                            fallback={User}
+                                            shape="square"
+                                            className="h-12 w-12 rounded-[3px] border-2 border-white bg-hq-border object-cover object-bottom"
+                                        />
+                                        <EntityImage
+                                            src={entry.player.team.logo}
+                                            alt={entry.player.team.name}
+                                            fallback={Shield}
+                                            shape="square"
+                                            className="absolute -top-2 -left-2 h-5 w-5 rounded-[3px] bg-hq-border p-0.5"
+                                        />
+                                        <span
+                                            className={cn(
+                                                'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
+                                                pointsBadgeTierClass(
+                                                    entry.points,
+                                                ),
+                                            )}
+                                        >
+                                            {entry.points ?? '–'}
+                                        </span>
+                                    </span>
                                     <span
                                         className={cn(
-                                            'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
-                                            pointsBadgeTierClass(
-                                                entry.points,
-                                            ),
+                                            'w-full min-w-0 rounded-[3px] bg-hq-ink/85 px-1.5 py-px text-center',
+                                            nameMaxWidth,
                                         )}
                                     >
-                                        {entry.points ?? '–'}
+                                        <span className="block min-w-0 truncate font-mono text-[10px] font-bold text-hq-paper">
+                                            {entry.player.nickname}
+                                        </span>
                                     </span>
-                                </span>
-                                <span className="w-full max-w-[60px] min-w-0 rounded-[3px] bg-hq-ink/85 px-1.5 py-px text-center">
-                                    <span className="block min-w-0 truncate font-mono text-[10px] font-bold text-hq-paper">
-                                        {entry.player.nickname}
-                                    </span>
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                ))}
+                                </button>
+                            ))}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
