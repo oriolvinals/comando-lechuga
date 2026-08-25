@@ -45,7 +45,15 @@ return Application::configure(basePath: dirname(__DIR__))
             ->onOneServer();
 
         $schedule->command('season:sync-player-markets')
-            ->everyTenMinutes()
+            ->everyFiveMinutes()
+            ->between('00:00', '04:00')
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        $schedule->command('season:sync-player-markets')
+            ->everyThirtyMinutes()
+            ->unlessBetween('00:00', '04:00')
             ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();
