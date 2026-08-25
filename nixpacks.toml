@@ -1,6 +1,19 @@
 [phases.setup]
 nixPkgs = ["...", "python311Packages.supervisor"]
 
+# Override (not merge) the default install step: Nixpacks' own default is
+# `composer install --ignore-platform-reqs` with no --no-dev, which pulls
+# in phpunit/pest. phpunit 13.3.1's Runner/Version.php uses PHP 8.4's
+# "new without parentheses" chaining, so anything short of PHP 8.4 fails to
+# even parse it — and `nunomaduro/collision` (a real, non-dev dependency)
+# probes for that class at autoload time regardless. None of that test
+# tooling is needed to build or run the app anyway.
+[phases.install]
+cmds = [
+    "composer install --no-dev --no-interaction --optimize-autoloader",
+    "npm ci",
+]
+
 [phases.build]
 cmds = [
     "mkdir -p /etc/supervisor/conf.d/",
@@ -71,22 +84,6 @@ autostart=true
 autorestart=true
 stdout_logfile=/var/log/worker-phpfpm.log
 stderr_logfile=/var/log/worker-phpfpm.log
-'''
-
-"worker-laravel.conf" = '''
-[program:worker-laravel]
-process_name=%(program_name)s_%(process_num)02d
-command=bash -c 'exec php /app/artisan queue:work --sleep=3 --tries=3 --max-time=3600'
-user=www-data
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-numprocs=12 # To reduce memory/CPU usage, change to 2.
-startsecs=0
-stopwaitsecs=3600
-stdout_logfile=/var/log/worker-laravel.log
-stderr_logfile=/var/log/worker-laravel.log
 '''
 
 "php-fpm.conf" = '''

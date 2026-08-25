@@ -43,6 +43,9 @@ network, not `localhost`.
 | `INERTIA_SSR_ENABLED` | `false` — see [SSR](#ssr) |
 | `LA_LIGA_LOGIN_EMAIL` / `LA_LIGA_LOGIN_PASSWORD` | your real La Liga Fantasy account credentials |
 | the other `LA_LIGA_*` vars | copy as-is from `.env.example`, not secrets |
+| `NIXPACKS_PHP_ROOT_DIR` | `/app/public` — the nginx template in `nixpacks.toml` falls back to `/app` without this, which would serve `.env` and the whole app tree as static files |
+| `NIXPACKS_PHP_FALLBACK_PATH` | `/index.php` |
+| `IS_LARAVEL` | `true` |
 
 ## 4. Pre-deployment command
 
@@ -110,3 +113,15 @@ before relying on it, and check the build logs closely — the two most
 likely failure points are the `nginx.template.conf` template syntax
 (Nixpacks' own `$if(...)`/`${VAR}` engine) and the supervisor process
 definitions in `nixpacks.toml`'s `[staticAssets]`.
+
+One real issue already hit and fixed: Nixpacks' *default* install step runs
+`composer install` without `--no-dev`, which pulls in `phpunit/phpunit`.
+That version's `Runner/Version.php` uses PHP 8.4's "call a method directly
+on `new`" syntax (`new VersionId(...)->asString()`), which some PHP
+versions can't even parse — `nunomaduro/collision` (a real, non-dev
+dependency) touches that class at autoload time regardless, so the build
+crashed on `composer install`'s `post-autoload-dump` step. Fixed by
+overriding `[phases.install]` in `nixpacks.toml` to pass `--no-dev` (skips
+installing that tooling at all — it's never needed to build or run the
+app) and by requiring `"php": "^8.5"` in `composer.json` so the app's own
+build/runtime PHP is new enough regardless.
