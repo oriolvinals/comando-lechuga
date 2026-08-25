@@ -117,7 +117,7 @@ export function HeroPanel({ week, standings }: HeroPanelProps) {
             />
             <div className="w-full flex-1">
                 <p className="mb-3 font-mono text-[11px] font-bold tracking-[.25em] text-hq-lime">
-                    ▸ PARTE DE OPERACIONES — JORNADA{' '}
+                    ▸ CUARTEL DE OPERACIONES — JORNADA{' '}
                     {String(week).padStart(2, '0')}
                 </p>
                 <h1 className="mb-6 font-display text-2xl leading-[1.05] tracking-wide text-hq-paper uppercase [text-shadow:3px_3px_0_rgba(196,255,61,0.25)] sm:max-w-xl sm:text-3xl lg:text-4xl">
