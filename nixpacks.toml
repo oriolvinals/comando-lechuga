@@ -1,17 +1,12 @@
 [phases.setup]
-# composer.json requires "php": "^8.4" — a version Nixpacks' own PHP
-# provider actually recognizes (unlike 8.5, which it didn't), so plain
-# auto-detection from composer.json is enough here; no explicit php84 pin
-# needed in nixPkgs.
-nixPkgs = ["...", "python311Packages.supervisor"]
+nixpkgsArchive = "044bfe75bfe4c7bbe043dc17b5e42ea823b84a09"
+nixPkgs = [
+    "php85",
+    "php85Packages.composer",
+    "...",
+    "python311Packages.supervisor",
+]
 
-# Override (not merge) the default install step: Nixpacks' own default is
-# `composer install --ignore-platform-reqs` with no --no-dev, which pulls
-# in phpunit/pest. phpunit 13.3.1's Runner/Version.php uses PHP 8.4's
-# "new without parentheses" chaining, so anything short of PHP 8.4 fails to
-# even parse it — and `nunomaduro/collision` (a real, non-dev dependency)
-# probes for that class at autoload time regardless. None of that test
-# tooling is needed to build or run the app anyway.
 [phases.install]
 cmds = [
     "composer install --no-dev --no-interaction --optimize-autoloader",
@@ -24,7 +19,9 @@ cmds = [
     "cp /assets/worker-*.conf /etc/supervisor/conf.d/",
     "cp /assets/supervisord.conf /etc/supervisord.conf",
     "chmod +x /assets/start.sh",
-    "..."
+    "...",
+    "npm prune --omit=dev",
+    "npm cache clean --force",
 ]
 
 [start]
@@ -34,12 +31,8 @@ cmd = '/assets/start.sh'
 "start.sh" = '''
 #!/bin/bash
 
-# nginx opens its compiled-in default error log (/var/log/nginx/error.log)
-# before it has parsed the config, so that directory must exist or the
-# master process aborts with [emerg] and supervisor gives up after 8 tries.
-# The Nixpacks image installs nginx but never creates it.
-mkdir -p /var/log/nginx
-chown -R www-data:www-data /var/log/nginx
+mkdir -p /var/log/nginx /var/cache/nginx
+chown -R www-data:www-data /var/log/nginx /var/cache/nginx
 
 # Ensure storage and bootstrap cache are writable by www-data
 chown -R www-data:www-data /app/storage /app/bootstrap/cache
