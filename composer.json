@@ -9,7 +9,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.4",
+        "php": "8.5.*",
         "ext-curl": "*",
         "ext-pdo_mysql": "*",
         "inertiajs/inertia-laravel": "^3.0",
