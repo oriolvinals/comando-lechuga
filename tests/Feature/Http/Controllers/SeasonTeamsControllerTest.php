@@ -295,3 +295,35 @@ test('attaches recent scores to each roster player', function (): void {
         ->where('roster.0.player.recent_scores', [4, 9, null])
     );
 });
+
+test('marks recent scores as used only for jornadas this team actually lined the player up', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create();
+    SeasonTeamPlayer::factory()->create([
+        'season_team_id' => $seasonTeam->id,
+        'player_id' => $player->id,
+    ]);
+
+    $week1 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => now()->subDays(20)]);
+    $week2 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => now()->subDays(10)]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $week1->id, 'points' => 4]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $week2->id, 'points' => 9]);
+
+    $lineup = SeasonTeamLineup::factory()->create(['season_team_id' => $seasonTeam->id, 'week_number' => 2]);
+    SeasonTeamLineupPlayer::factory()->create([
+        'season_team_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+    ]);
+
+    $response = $this->get(route('season-teams.show', $seasonTeam));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('roster.0.player.recent_scores', [4, 9, null])
+        ->where('roster.0.player.recent_scores_used', [false, true, null])
+    );
+});

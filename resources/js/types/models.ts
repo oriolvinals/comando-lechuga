@@ -32,6 +32,8 @@ export interface Player {
     owner_team: OwnerTeam | null;
     /** Points for the last 3 played matches, oldest first, ordered by fixture date — null-padded at the end when fewer than 3 exist. */
     recent_scores: (number | null)[];
+    /** Per recent_scores slot, whether the player was in a given team's lineup that week. Only present on the team ficha. */
+    recent_scores_used?: (boolean | null)[];
 }
 
 export type FixtureState =

@@ -50,7 +50,7 @@ class SeasonTeamsController extends Controller
             ->with('player.team')
             ->get();
 
-        $this->attachRecentScores($roster->pluck('player'), $season);
+        $this->attachRecentScores($roster->pluck('player'), $season, $seasonTeam->id);
 
         $lineupHistory = SeasonTeamLineup::query()
             ->where('season_team_id', $seasonTeam->id)

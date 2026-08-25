@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils';
 
 interface HqRecentScoresProps {
     scores: (number | null)[];
+    /** Per-slot: was the player in this team's lineup that week? Omit entirely outside the team ficha, where the question doesn't apply. */
+    used?: (boolean | null)[];
     className?: string;
     size?: 'md' | 'sm';
 }
@@ -15,25 +17,40 @@ const SIZE_CLASSES: Record<'md' | 'sm', string> = {
 /** Points for the last 3 played matches — a dash where the player has no match history yet. */
 export function HqRecentScores({
     scores,
+    used,
     className,
     size = 'md',
 }: HqRecentScoresProps) {
     return (
         <div className={cn('flex shrink-0 gap-1', className)}>
-            {scores.map((points, index) => (
-                <span
-                    key={index}
-                    className={cn(
-                        'flex shrink-0 items-center justify-center border font-mono font-bold',
-                        SIZE_CLASSES[size],
-                        points !== null
-                            ? matchPointsBadgeClass(points)
-                            : 'border-dashed border-hq-border-strong text-hq-moss-dim',
-                    )}
-                >
-                    {points ?? '–'}
-                </span>
-            ))}
+            {scores.map((points, index) => {
+                const wasUsed = used?.[index];
+
+                return (
+                    <span
+                        key={index}
+                        className={cn(
+                            'relative flex shrink-0 items-center justify-center border font-mono font-bold',
+                            SIZE_CLASSES[size],
+                            points !== null
+                                ? matchPointsBadgeClass(points)
+                                : 'border-dashed border-hq-border-strong text-hq-moss-dim',
+                        )}
+                    >
+                        {points ?? '–'}
+                        {wasUsed !== undefined && wasUsed !== null && (
+                            <span
+                                className={cn(
+                                    'absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full',
+                                    wasUsed
+                                        ? 'bg-hq-lime'
+                                        : 'border border-hq-border-strong',
+                                )}
+                            />
+                        )}
+                    </span>
+                );
+            })}
         </div>
     );
 }

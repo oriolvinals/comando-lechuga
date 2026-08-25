@@ -152,7 +152,10 @@ function RosterRow({ entry, now }: { entry: SeasonTeamPlayer; now: number }) {
                 <RosterClauseStatus entry={entry} now={now} />
 
                 <div className="flex shrink-0 items-center gap-4">
-                    <HqRecentScores scores={entry.player.recent_scores} />
+                    <HqRecentScores
+                        scores={entry.player.recent_scores}
+                        used={entry.player.recent_scores_used}
+                    />
                     <div className="h-8 w-px bg-hq-border" />
                     <div className="flex w-[76px] shrink-0 justify-center">
                         <MarketValueDiff entry={entry} />
@@ -217,6 +220,7 @@ function RosterRow({ entry, now }: { entry: SeasonTeamPlayer; now: number }) {
                 <div className="mt-2 flex items-center justify-between border-t border-hq-ink pt-2">
                     <HqRecentScores
                         scores={entry.player.recent_scores}
+                        used={entry.player.recent_scores_used}
                         size="sm"
                     />
                     <MarketValueDiff entry={entry} />
