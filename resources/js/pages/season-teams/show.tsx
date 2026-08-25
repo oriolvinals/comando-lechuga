@@ -34,9 +34,7 @@ export default function SeasonTeamShow({
     lineupHistory,
     activity,
 }: SeasonTeamShowProps) {
-    const [selectedWeek, setSelectedWeek] = useState(
-        lineupHistory[0]?.week_number ?? season.current_week,
-    );
+    const [selectedWeek, setSelectedWeek] = useState(season.current_week);
     const [selectedPlayer, setSelectedPlayer] =
         useState<SeasonTeamLineupPlayerEntry | null>(null);
 

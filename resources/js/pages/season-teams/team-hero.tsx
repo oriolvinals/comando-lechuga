@@ -72,7 +72,9 @@ export function TeamHero({ seasonTeam, season }: TeamHeroProps) {
                     <div
                         className="h-full w-full p-[3px]"
                         style={{
-                            backgroundColor: borderColor,
+                            backgroundColor: medal
+                                ? `color-mix(in srgb, ${medal} 60%, transparent)`
+                                : borderColor,
                             clipPath:
                                 'polygon(15% 0, 100% 0, 100% 85%, 85% 100%, 0 100%, 0 15%)',
                         }}

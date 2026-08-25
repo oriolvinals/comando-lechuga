@@ -6,7 +6,11 @@ import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { resolveClauseStatus } from '@/lib/clause-status';
 import { formatCurrency } from '@/lib/format';
-import { POSITION_GROUP_LABELS } from '@/lib/player-labels';
+import {
+    POSITION_GROUP_LABELS,
+    STATUS_BADGE_CLASS,
+    STATUS_SHORT_LABELS,
+} from '@/lib/player-labels';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
@@ -133,6 +137,16 @@ function RosterRow({ entry, now }: { entry: SeasonTeamPlayer; now: number }) {
                             {entry.player.team.short_name}
                         </span>
                     </div>
+                    {entry.player.status !== 'ok' && (
+                        <span
+                            className={cn(
+                                'mt-1 inline-block border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
+                                STATUS_BADGE_CLASS[entry.player.status],
+                            )}
+                        >
+                            {STATUS_SHORT_LABELS[entry.player.status]}
+                        </span>
+                    )}
                 </div>
 
                 <RosterClauseStatus entry={entry} now={now} />
@@ -180,6 +194,16 @@ function RosterRow({ entry, now }: { entry: SeasonTeamPlayer; now: number }) {
                                 {entry.player.team.short_name}
                             </span>
                         </div>
+                        {entry.player.status !== 'ok' && (
+                            <span
+                                className={cn(
+                                    'mt-1 inline-block border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
+                                    STATUS_BADGE_CLASS[entry.player.status],
+                                )}
+                            >
+                                {STATUS_SHORT_LABELS[entry.player.status]}
+                            </span>
+                        )}
                     </div>
                     <span className="shrink-0 font-display text-xl text-hq-lime">
                         {entry.player.points}

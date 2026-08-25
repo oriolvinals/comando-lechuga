@@ -8,7 +8,7 @@ import type {
 export const POSITION_LABELS: Record<PlayerPosition, string> = {
     goalkeeper: 'Portero',
     defender: 'Defensa',
-    midfield: 'Centrocampista',
+    midfield: 'Mediocampista',
     striker: 'Delantero',
     coach: 'Entrenador',
 };
@@ -17,7 +17,7 @@ export const POSITION_LABELS: Record<PlayerPosition, string> = {
 export const POSITION_GROUP_LABELS: Record<PlayerPosition, string> = {
     goalkeeper: 'Porteros',
     defender: 'Defensas',
-    midfield: 'Centrocampistas',
+    midfield: 'Mediocampistas',
     striker: 'Delanteros',
     coach: 'Entrenadores',
 };
