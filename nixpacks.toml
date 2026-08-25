@@ -1,10 +1,9 @@
 [phases.setup]
-# Nixpacks' own version auto-detection (from composer.json's "php": "^8.5")
-# only recognizes 8.1-8.4 as of this writing, so it likely wouldn't pick
-# 8.5 on its own — pin it explicitly. This is Nixpacks' documented way to
-# override just the interpreter version while keeping everything else "..."
-# would have added.
-nixPkgs = ["...", "php85", "python311Packages.supervisor"]
+# composer.json requires "php": "^8.4" — a version Nixpacks' own PHP
+# provider actually recognizes (unlike 8.5, which it didn't), so plain
+# auto-detection from composer.json is enough here; no explicit php84 pin
+# needed in nixPkgs.
+nixPkgs = ["...", "python311Packages.supervisor"]
 
 # Override (not merge) the default install step: Nixpacks' own default is
 # `composer install --ignore-platform-reqs` with no --no-dev, which pulls
