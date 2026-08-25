@@ -15,6 +15,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             season: Season;
+            liveMatchday: boolean;
             [key: string]: unknown;
         };
     }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\FixtureState;
+use App\Models\Fixture;
 use App\Models\Season;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -45,6 +47,13 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'season' => Season::current(),
+            'liveMatchday' => Fixture::query()
+                ->whereIn('state', [
+                    FixtureState::FirstHalf,
+                    FixtureState::HalfTime,
+                    FixtureState::SecondHalf,
+                ])
+                ->exists(),
         ];
     }
 }
