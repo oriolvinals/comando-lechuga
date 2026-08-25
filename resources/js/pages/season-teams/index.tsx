@@ -136,6 +136,11 @@ export default function SeasonTeamsIndex({
                               player: selectedPlayer.player,
                               team: selectedPlayer.player.team,
                               points: selectedPlayer.points ?? 0,
+                              daznPoints:
+                                  selectedPlayer.stats?.mins_played !==
+                                  undefined
+                                      ? selectedPlayer.stats.marca_points?.[1]
+                                      : undefined,
                               stats: selectedPlayer.stats ?? {},
                           }
                         : null
