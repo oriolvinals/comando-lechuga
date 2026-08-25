@@ -1,16 +1,19 @@
 <?php
 
-use App\Console\Commands\SyncCurrentSeasonPlayers;
-use App\Enums\PlayerPosition;
+use App\Console\Commands\SyncCurrentSeasonPlayerPhotos;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
+use App\Http\Integrations\LaLigaFantasy\Requests\GetAssetRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayersRequest;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
+use Illuminate\Support\Facades\Storage;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('creates and updates players for the active season teams', function (): void {
+test('downloads and stores photos for players on the active season teams', function (): void {
+    Storage::fake('public');
+
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -19,9 +22,13 @@ test('creates and updates players for the active season teams', function (): voi
     $season->teams()->attach($team);
     $existingPlayer = Player::factory()->create([
         'fantasy_id' => 68,
-        'nickname' => 'Old nickname',
-        'image' => 'images/player/68.png',
+        'nickname' => 'Unai Simón',
+        'image' => '',
         'team_id' => $team->id,
+    ]);
+    $otherTeamPlayer = Player::factory()->create([
+        'fantasy_id' => 99,
+        'image' => '',
     ]);
 
     $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
@@ -38,29 +45,29 @@ test('creates and updates players for the active season teams', function (): voi
                 'teamId' => 3,
             ],
             [
-                'id' => 69,
+                'id' => 99,
                 'positionId' => 2,
-                'nickname' => 'New player',
-                'playerStatus' => 'doubtful',
-                'marketValue' => '200000000',
-                'points' => 12,
-                'averagePoints' => 4.5,
-                'image' => 'https://assets-fantasy.llt-services.com/players/t174/p69/256x256/p69.png',
-                'teamId' => 3,
+                'nickname' => 'Not rostered',
+                'playerStatus' => 'ok',
+                'marketValue' => '1000000',
+                'points' => 0,
+                'averagePoints' => 0,
+                'image' => 'https://assets-fantasy.llt-services.com/players/t174/p99/256x256/p99.png',
+                'teamId' => 999,
             ],
         ]),
+        GetAssetRequest::class => MockResponse::make('player image'),
     ]));
 
     app()->instance(LaLigaFantasyConnector::class, $connector);
 
-    $this->artisan(SyncCurrentSeasonPlayers::class)
-        ->expectsOutput('2 players synchronized.')
+    $this->artisan(SyncCurrentSeasonPlayerPhotos::class)
+        ->expectsOutput('1 player photos synchronized.')
         ->assertSuccessful();
 
-    expect(Player::query()->count())->toBe(2)
-        ->and($existingPlayer->refresh())
-        ->nickname->toBe('Unai Simón')
-        ->and($existingPlayer->position)->toBe(PlayerPosition::Goalkeeper)
-        ->and($existingPlayer->image)->toBe('images/player/68.png')
-        ->and($existingPlayer->team_id)->toBe($team->id);
+    expect($existingPlayer->refresh()->image)->toBe('images/player/68.png')
+        ->and($otherTeamPlayer->refresh()->image)->toBe('');
+
+    Storage::disk('public')->assertExists('images/player/68.png');
+    Storage::disk('public')->assertMissing('images/player/99.png');
 });

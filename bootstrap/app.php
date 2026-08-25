@@ -38,6 +38,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
+        $schedule->command('season:sync-player-photos')
+            ->daily()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->command('season:sync-player-markets')
             ->everyTenMinutes()
             ->runInBackground()
