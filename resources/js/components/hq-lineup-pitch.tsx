@@ -62,11 +62,11 @@ function nameMaxWidthForRowCount(count: number): string {
     }
 
     if (count === 4) {
-        return 'max-w-[65px]';
+        return 'max-w-[70px]';
     }
 
     if (count === 3) {
-        return 'max-w-[70px]';
+        return 'max-w-[85px]';
     }
 
     return '';
@@ -119,37 +119,35 @@ export function HqLineupPitch({
                                     key={entry.id}
                                     type="button"
                                     onClick={() => onSelectPlayer(entry)}
-                                    className="flex min-w-0 cursor-pointer flex-col items-center gap-1"
+                                    className="relative shrink-0 cursor-pointer"
                                 >
-                                    <span className="relative shrink-0">
-                                        <EntityImage
-                                            src={entry.player.image}
-                                            alt={entry.player.nickname}
-                                            fallback={User}
-                                            shape="square"
-                                            className="h-12 w-12 rounded-[3px] border-2 border-white bg-hq-border object-cover object-bottom"
-                                        />
-                                        <EntityImage
-                                            src={entry.player.team.logo}
-                                            alt={entry.player.team.name}
-                                            fallback={Shield}
-                                            shape="square"
-                                            className="absolute -top-2 -left-2 h-5 w-5 rounded-[3px] bg-hq-border p-0.5"
-                                        />
-                                        <span
-                                            className={cn(
-                                                'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
-                                                pointsBadgeTierClass(
-                                                    entry.points,
-                                                ),
-                                            )}
-                                        >
-                                            {entry.points ?? '–'}
-                                        </span>
+                                    <EntityImage
+                                        src={entry.player.image}
+                                        alt={entry.player.nickname}
+                                        fallback={User}
+                                        shape="square"
+                                        className="h-12 w-12 rounded-[3px] border-2 border-white bg-hq-border object-cover object-bottom"
+                                    />
+                                    <EntityImage
+                                        src={entry.player.team.logo}
+                                        alt={entry.player.team.name}
+                                        fallback={Shield}
+                                        shape="square"
+                                        className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-[3px] bg-hq-panel p-1"
+                                    />
+                                    <span
+                                        className={cn(
+                                            'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
+                                            pointsBadgeTierClass(
+                                                entry.points,
+                                            ),
+                                        )}
+                                    >
+                                        {entry.points ?? '–'}
                                     </span>
                                     <span
                                         className={cn(
-                                            'w-full min-w-0 rounded-[3px] bg-hq-ink/85 px-1.5 py-px text-center',
+                                            'absolute top-full left-1/2 mt-1 min-w-0 -translate-x-1/2 rounded-[3px] bg-hq-ink/85 px-1.5 py-px text-center',
                                             nameMaxWidth,
                                         )}
                                     >
