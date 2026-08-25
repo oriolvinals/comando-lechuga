@@ -14,10 +14,10 @@ import type {
  * the opposite box — with an even ~22-23% rhythm between lines.
  */
 const ROWS: { position: PlayerPosition; top: string }[] = [
-    { position: 'goalkeeper', top: '10%' },
-    { position: 'defender', top: '32%' },
-    { position: 'midfield', top: '55%' },
-    { position: 'striker', top: '78%' },
+    { position: 'goalkeeper', top: '6%' },
+    { position: 'defender', top: '28%' },
+    { position: 'midfield', top: '51%' },
+    { position: 'striker', top: '74%' },
 ];
 
 /**
