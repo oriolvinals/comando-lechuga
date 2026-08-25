@@ -121,7 +121,12 @@ body {
     inset: 1px;
     z-index: -1;
     clip-path: inherit;
-    background-color: var(--color-hq-panel);
+    background:
+        linear-gradient(
+            var(--hq-card-tint, transparent),
+            var(--hq-card-tint, transparent)
+        ),
+        var(--color-hq-panel);
 }
 
 .hq-bleed {

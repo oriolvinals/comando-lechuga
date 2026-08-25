@@ -24,3 +24,19 @@ export function crestTintStyle(
 
     return { backgroundColor: `${primaryColor}1a` };
 }
+
+/**
+ * Sets the `--hq-card-tint` custom property an `hq-card-cut` block reads,
+ * washing its background with the team's real `primary_color` column.
+ * Returns `undefined` until the field is populated, so the block keeps its
+ * default neutral panel background.
+ */
+export function cardTintStyle(
+    primaryColor: string | null,
+): { '--hq-card-tint': string } | undefined {
+    if (!primaryColor) {
+        return undefined;
+    }
+
+    return { '--hq-card-tint': `${primaryColor}26` };
+}

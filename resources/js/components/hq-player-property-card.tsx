@@ -1,9 +1,10 @@
 import { Link } from '@inertiajs/react';
 import { Lock, Shield, ShieldCheck, UserX } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { resolveClauseStatus } from '@/lib/clause-status';
 import { formatCurrency } from '@/lib/format';
+import { cardTintStyle } from '@/lib/season-team-colors';
 import { useCountdown } from '@/lib/use-countdown';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
 import { useNow } from '@/lib/use-now';
@@ -93,7 +94,12 @@ function OwnedStatus({
     );
 
     return (
-        <div className="hq-card-cut p-4">
+        <div
+            className="hq-card-cut p-4"
+            style={
+                cardTintStyle(owner.season_team.primary_color) as CSSProperties
+            }
+        >
             <p className="mb-2 font-mono text-[10px] tracking-wide text-hq-moss uppercase">
                 Propiedad
             </p>
