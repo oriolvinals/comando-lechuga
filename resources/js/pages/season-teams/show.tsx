@@ -109,7 +109,7 @@ export default function SeasonTeamShow({
                             />
                         </div>
 
-                        <div className="mx-auto max-w-[300px]">
+                        <div className="mx-auto max-w-[360px]">
                             {lineupForWeek ? (
                                 <HqLineupPitch
                                     players={lineupForWeek.players}
