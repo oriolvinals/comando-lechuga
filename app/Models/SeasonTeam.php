@@ -24,7 +24,7 @@ class SeasonTeam extends Model
         'name' => '',
         'logo' => '',
         'total_points' => 0,
-        'live_points' => 0,
+        'live_points' => null,
         'position' => 1,
         'last_position' => 1,
         'value' => 0,

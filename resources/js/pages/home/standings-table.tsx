@@ -75,9 +75,11 @@ export function StandingsTable({
                                     {formatCurrency(team.value)}
                                 </p>
                             </div>
-                            <span className="mr-1 rounded bg-hq-lime/10 px-2 py-1 font-mono text-[11px] text-hq-lime">
-                                J{currentWeek} +{team.live_points}
-                            </span>
+                            {team.live_points !== null && (
+                                <span className="mr-1 rounded bg-hq-lime/10 px-2 py-1 font-mono text-[11px] text-hq-lime">
+                                    J{currentWeek} +{team.live_points}
+                                </span>
+                            )}
                             <span className="font-display text-3xl text-hq-paper">
                                 {team.total_points}
                             </span>

@@ -66,7 +66,7 @@ export interface SeasonTeam {
     primary_color: string | null;
     secondary_color: string | null;
     total_points: number;
-    live_points: number;
+    live_points: number | null;
     position: number;
     last_position: number;
     value: number;

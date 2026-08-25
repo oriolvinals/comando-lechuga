@@ -68,6 +68,48 @@ test('updates an existing season team without touching its name', function (): v
         ->and($seasonTeam->logo)->toBe('images/teams/37394521.png');
 });
 
+test('stores a null live points when the API omits it', function (): void {
+    Cache::forget('la_liga_fantasy.access_token');
+
+    $season = Season::factory()->create([
+        'fantasy_id' => '017834818',
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
+    $loginConnector->shouldReceive('accessToken')
+        ->once()
+        ->andReturn('header.eyJleHAiOjE3ODc0MTc3NTB9.signature');
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetLeagueStandingRequest::class => MockResponse::make([
+            [
+                'position' => 1,
+                'previousPosition' => 1,
+                'points' => 10,
+                'team' => [
+                    'id' => '888888888',
+                    'teamValue' => 100,
+                    'manager' => [
+                        'id' => 1,
+                        'managerName' => 'No Live Points FC',
+                        'avatar' => 'https://example.com/avatar.png',
+                    ],
+                ],
+            ],
+        ]),
+    ]));
+
+    app()->instance(LaLigaLoginConnector::class, $loginConnector);
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonStanding::class)->assertSuccessful();
+
+    $seasonTeam = SeasonTeam::query()->where('fantasy_id', 888888888)->sole();
+
+    expect($seasonTeam->live_points)->toBeNull();
+});
+
 test('leaves the logo empty when no matching image exists on disk', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 

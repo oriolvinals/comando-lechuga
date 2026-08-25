@@ -21,7 +21,7 @@ class SeasonTeamFactory extends Factory
             'name' => $this->faker->unique()->city().' FC',
             'logo' => $this->faker->imageUrl(),
             'total_points' => $this->faker->numberBetween(0, 1000),
-            'live_points' => 0,
+            'live_points' => null,
             'position' => $this->faker->numberBetween(1, 20),
             'last_position' => $this->faker->numberBetween(1, 20),
             'value' => $this->faker->numberBetween(0, 500000000),

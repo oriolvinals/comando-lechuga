@@ -61,7 +61,7 @@ class SyncCurrentSeasonStanding extends Command
                 $seasonTeam->fill([
                     'fantasy_user_id' => (int) $managerData['id'],
                     'total_points' => (int) $standingData['points'],
-                    'live_points' => (int) $standingData['livePoints'],
+                    'live_points' => isset($standingData['livePoints']) ? (int) $standingData['livePoints'] : null,
                     'position' => (int) $standingData['position'],
                     'last_position' => (int) $standingData['previousPosition'],
                     'value' => (int) $teamData['teamValue'],

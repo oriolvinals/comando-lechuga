@@ -111,14 +111,16 @@ export function TeamHero({ seasonTeam, season }: TeamHeroProps) {
                             {seasonTeam.total_points}
                         </div>
                     </div>
-                    <div className="border border-hq-border bg-hq-panel-alt/80 px-4 py-2 text-center">
-                        <div className="font-mono text-[9px] text-hq-moss uppercase">
-                            J{season.current_week} en directo
+                    {seasonTeam.live_points !== null && (
+                        <div className="border border-hq-border bg-hq-panel-alt/80 px-4 py-2 text-center">
+                            <div className="font-mono text-[9px] text-hq-moss uppercase">
+                                J{season.current_week} en directo
+                            </div>
+                            <div className="mt-0.5 font-display text-xl text-hq-lime">
+                                +{seasonTeam.live_points}
+                            </div>
                         </div>
-                        <div className="mt-0.5 font-display text-xl text-hq-lime">
-                            +{seasonTeam.live_points}
-                        </div>
-                    </div>
+                    )}
                     <div className="border border-hq-border bg-hq-panel-alt/80 px-4 py-2 text-center">
                         <div className="font-mono text-[9px] text-hq-moss uppercase">
                             Valor

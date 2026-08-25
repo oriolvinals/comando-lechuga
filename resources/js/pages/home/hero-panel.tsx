@@ -87,14 +87,16 @@ function PodiumRow({
                 </p>
             </div>
             <div className="shrink-0 text-right">
-                <span
-                    className={cn(
-                        'mb-1 inline-block rounded bg-hq-lime/10 font-mono text-hq-lime',
-                        size.live,
-                    )}
-                >
-                    J{week} +{team.live_points}
-                </span>
+                {team.live_points !== null && (
+                    <span
+                        className={cn(
+                            'mb-1 inline-block rounded bg-hq-lime/10 font-mono text-hq-lime',
+                            size.live,
+                        )}
+                    >
+                        J{week} +{team.live_points}
+                    </span>
+                )}
                 <div className={cn('font-display text-hq-paper', size.points)}>
                     {team.total_points}
                 </div>
