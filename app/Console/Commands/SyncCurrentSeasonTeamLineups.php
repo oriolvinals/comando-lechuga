@@ -88,7 +88,7 @@ class SyncCurrentSeasonTeamLineups extends Command
                             $weekStats = is_array($lastStats)
                                 ? Arr::first(
                                     $lastStats,
-                                    fn ($stat) => is_array($stat) && ($stat['weekNumber'] ?? null) === $weekNumber,
+                                    fn ($stat): bool => is_array($stat) && ($stat['weekNumber'] ?? null) === $weekNumber,
                                 )
                                 : null;
 

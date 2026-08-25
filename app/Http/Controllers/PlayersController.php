@@ -47,7 +47,7 @@ class PlayersController extends Controller
     ];
 
     /** @return literal-string */
-    private static function foldedNicknameSql(): string
+    private function foldedNicknameSql(): string
     {
         $expression = 'LOWER(nickname)';
 
@@ -80,7 +80,7 @@ class PlayersController extends Controller
             ))
             ->when($statuses !== [], fn ($query) => $query->whereIn('status', $statuses))
             ->when($search !== null, fn ($query) => $query->whereRaw(
-                self::foldedNicknameSql().' LIKE ?',
+                $this->foldedNicknameSql().' LIKE ?',
                 ['%'.Str::lower(Str::ascii($search)).'%'],
             ))
             ->orderBy($sort->column(), $direction->value)

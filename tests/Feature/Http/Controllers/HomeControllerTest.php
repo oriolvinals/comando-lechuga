@@ -11,6 +11,7 @@ use App\Models\Season;
 use App\Models\SeasonActivity;
 use App\Models\SeasonTeam;
 use App\Models\Team;
+use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('renders the home page', function (): void {
@@ -22,7 +23,7 @@ test('renders the home page', function (): void {
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->component('home'));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->component('home'));
 });
 
 test('shows the fixtures for the requested week', function (): void {
@@ -45,7 +46,7 @@ test('shows the fixtures for the requested week', function (): void {
     $response = $this->get(route('home', ['week' => 5]));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->component('home')
         ->where('filters.week', 5)
         ->has('fixtures', 1)
@@ -64,7 +65,7 @@ test('defaults to the season current week when no week is given', function (): v
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->where('filters.week', 7));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('filters.week', 7));
 });
 
 test('clamps the requested week between 1 and the total number of weeks', function (): void {
@@ -76,10 +77,10 @@ test('clamps the requested week between 1 and the total number of weeks', functi
     ]);
 
     $tooHigh = $this->get(route('home', ['week' => 999]));
-    $tooHigh->assertInertia(fn (Assert $page) => $page->where('filters.week', 38));
+    $tooHigh->assertInertia(fn (Assert $page): AssertableInertia => $page->where('filters.week', 38));
 
     $tooLow = $this->get(route('home', ['week' => 0]));
-    $tooLow->assertInertia(fn (Assert $page) => $page->where('filters.week', 1));
+    $tooLow->assertInertia(fn (Assert $page): AssertableInertia => $page->where('filters.week', 1));
 });
 
 test('shows the standings ordered by position', function (): void {
@@ -95,7 +96,7 @@ test('shows the standings ordered by position', function (): void {
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('standings', 3)
         ->where('standings.0.id', $first->id)
         ->where('standings.1.id', $second->id)
@@ -125,7 +126,7 @@ test('shows all current market players ordered by soonest to expire', function (
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('market', 2)
         ->where('market.0.id', $expiresSoon->id)
         ->where('market.1.id', $expiresLater->id)
@@ -154,7 +155,7 @@ test('excludes market listings that have already expired', function (): void {
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('market', 1)
         ->where('market.0.id', $active->id)
     );
@@ -180,7 +181,7 @@ test('excludes coaches from the market listing', function (): void {
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('market', 1)
         ->where('market.0.id', $strikerListing->id)
     );
@@ -216,7 +217,7 @@ test('shows the 10 most recent activity entries in the current season, newest fi
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('activity', 10)
         ->where('activity.0.id', $mostRecent->id)
     );
@@ -241,7 +242,7 @@ test('shows the local and guest team names for each fixture', function (): void 
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('fixtures.0.local_team.name', 'Real Sociedad')
         ->where('fixtures.0.guest_team.name', 'Villarreal CF')
     );
@@ -271,7 +272,7 @@ test('shows the difference between the amount paid and the market value on that 
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('activity.0.id', $activity->id)
         ->where('activity.0.value_difference', 50_000)
     );
@@ -288,7 +289,7 @@ test('shows the season current week and total weeks for the week selector', func
     $response = $this->get(route('home'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('season.current_week', 12)
         ->where('season.total_weeks', 38)
     );

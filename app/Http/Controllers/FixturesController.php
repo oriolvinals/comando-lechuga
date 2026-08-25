@@ -37,7 +37,7 @@ class FixturesController extends Controller
             ->with(['player', 'team'])
             ->get()
             ->sortByDesc('points')
-            ->sortBy(fn ($score) => self::POSITION_ORDER[$score->player->position->value])
+            ->sortBy(fn ($score): int => self::POSITION_ORDER[$score->player->position->value])
             ->values();
 
         // Which fantasy team fielded each player in their lineup this jornada — distinct

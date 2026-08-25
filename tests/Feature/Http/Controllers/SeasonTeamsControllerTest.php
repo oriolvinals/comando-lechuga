@@ -12,6 +12,7 @@ use App\Models\SeasonTeam;
 use App\Models\SeasonTeamLineup;
 use App\Models\SeasonTeamLineupPlayer;
 use App\Models\SeasonTeamPlayer;
+use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('renders the season teams index page', function (): void {
@@ -23,7 +24,7 @@ test('renders the season teams index page', function (): void {
     $response = $this->get(route('season-teams.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->component('season-teams/index'));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->component('season-teams/index'));
 });
 
 test('shows the season current week and total weeks for the week selector', function (): void {
@@ -37,7 +38,7 @@ test('shows the season current week and total weeks for the week selector', func
     $response = $this->get(route('season-teams.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('filters.week', 9)
         ->where('season.current_week', 9)
         ->where('season.total_weeks', 38)
@@ -52,10 +53,10 @@ test('clamps the requested week between 1 and the total number of weeks', functi
     ]);
 
     $tooHigh = $this->get(route('season-teams.index', ['week' => 999]));
-    $tooHigh->assertInertia(fn (Assert $page) => $page->where('filters.week', 38));
+    $tooHigh->assertInertia(fn (Assert $page): AssertableInertia => $page->where('filters.week', 38));
 
     $tooLow = $this->get(route('season-teams.index', ['week' => 0]));
-    $tooLow->assertInertia(fn (Assert $page) => $page->where('filters.week', 1));
+    $tooLow->assertInertia(fn (Assert $page): AssertableInertia => $page->where('filters.week', 1));
 });
 
 test('shows the lineups for the requested week ordered by points descending', function (): void {
@@ -85,7 +86,7 @@ test('shows the lineups for the requested week ordered by points descending', fu
     $response = $this->get(route('season-teams.index', ['week' => 5]));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('lineups', 2)
         ->where('lineups.0.id', $highLineup->id)
         ->where('lineups.0.season_team.name', 'Ariobretxa')
@@ -113,7 +114,7 @@ test('shows the lineup players for each team', function (): void {
     $response = $this->get(route('season-teams.index', ['week' => 1]));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('lineups.0.players', 1)
         ->where('lineups.0.players.0.player.nickname', 'Lamine Yamal')
         ->where('lineups.0.players.0.points', 12)
@@ -134,7 +135,7 @@ test('excludes teams without a lineup for the requested week', function (): void
     $response = $this->get(route('season-teams.index', ['week' => 1]));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('lineups', 0));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('lineups', 0));
 });
 
 test('only shows lineups for the current season', function (): void {
@@ -155,7 +156,7 @@ test('only shows lineups for the current season', function (): void {
     $response = $this->get(route('season-teams.index', ['week' => 1]));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('lineups', 1));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('lineups', 1));
 });
 
 test('renders the season team show page', function (): void {
@@ -168,7 +169,7 @@ test('renders the season team show page', function (): void {
     $response = $this->get(route('season-teams.show', $seasonTeam));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->component('season-teams/show')
         ->where('seasonTeam.id', $seasonTeam->id)
     );
@@ -191,7 +192,7 @@ test('shows the current roster for the team', function (): void {
     $response = $this->get(route('season-teams.show', $seasonTeam));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('roster', 1)
         ->where('roster.0.player.nickname', 'Pedri')
         ->where('roster.0.buyout_clause', 25_000_000)
@@ -211,7 +212,7 @@ test('shows the lineup history for the team, most recent week first', function (
     $response = $this->get(route('season-teams.show', $seasonTeam));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('lineupHistory', 2)
         ->where('lineupHistory.0.id', $week3->id)
         ->where('lineupHistory.1.id', $week1->id)
@@ -247,7 +248,7 @@ test('shows the team activity as source or target', function (): void {
     $response = $this->get(route('season-teams.show', $seasonTeam));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('activity', 2)
         ->where('activity.0.id', $asSource->id)
         ->where('activity.1.id', $asTarget->id)
@@ -266,7 +267,7 @@ test('includes the current season in the show payload', function (): void {
     $response = $this->get(route('season-teams.show', $seasonTeam));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('season.current_week', 12)
         ->where('season.total_weeks', 38)
     );
@@ -291,7 +292,7 @@ test('attaches recent scores to each roster player', function (): void {
     $response = $this->get(route('season-teams.show', $seasonTeam));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('roster.0.player.recent_scores', [4, 9, null])
     );
 });
@@ -322,7 +323,7 @@ test('marks recent scores as used only for jornadas this team actually lined the
     $response = $this->get(route('season-teams.show', $seasonTeam));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('roster.0.player.recent_scores', [4, 9, null])
         ->where('roster.0.player.recent_scores_used', [false, true, null])
     );

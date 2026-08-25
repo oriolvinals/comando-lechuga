@@ -11,6 +11,7 @@ use App\Models\SeasonTeam;
 use App\Models\SeasonTeamLineup;
 use App\Models\SeasonTeamLineupPlayer;
 use App\Models\Team;
+use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('renders the fixture show page', function (): void {
@@ -23,7 +24,7 @@ test('renders the fixture show page', function (): void {
     $response = $this->get(route('fixtures.show', $fixture));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->component('fixtures/show')
         ->where('fixture.id', $fixture->id)
     );
@@ -46,7 +47,7 @@ test('shows the other fixtures from the same week and season', function (): void
     $response = $this->get(route('fixtures.show', $fixture));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('weekFixtures', 2)
         ->where('weekFixtures.0.id', $fixture->id)
         ->where('weekFixtures.1.id', $sameWeek->id)
@@ -74,7 +75,7 @@ test('orders scores by position (goalkeeper, defender, midfield, striker) then b
     $response = $this->get(route('fixtures.show', $fixture));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('scores', 4)
         ->where('scores.0.id', $goalkeeperScore->id)
         ->where('scores.1.id', $defenderScore->id)
@@ -95,7 +96,7 @@ test('excludes coaches from the scores', function (): void {
     $response = $this->get(route('fixtures.show', $fixture));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('scores', 0));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('scores', 0));
 });
 
 test('only includes scores for this fixture', function (): void {
@@ -110,7 +111,7 @@ test('only includes scores for this fixture', function (): void {
     $response = $this->get(route('fixtures.show', $fixture));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('scores', 0));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('scores', 0));
 });
 
 test('includes the fantasy team that fielded a player in their lineup that jornada', function (): void {
@@ -129,7 +130,7 @@ test('includes the fantasy team that fielded a player in their lineup that jorna
     $response = $this->get(route('fixtures.show', $fixture));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('scores.0.lineup_team.id', $seasonTeam->id)
     );
 });
@@ -146,7 +147,7 @@ test('has no lineup team for a player not fielded in any lineup that jornada', f
     $response = $this->get(route('fixtures.show', $fixture));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('scores.0.lineup_team', null)
     );
 });
@@ -167,7 +168,7 @@ test('excludes a lineup from a different week for the same player', function ():
     $response = $this->get(route('fixtures.show', $fixture));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('scores.0.lineup_team', null)
     );
 });

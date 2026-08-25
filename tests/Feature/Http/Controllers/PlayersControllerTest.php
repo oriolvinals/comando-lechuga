@@ -17,6 +17,7 @@ use App\Models\SeasonTeamLineup;
 use App\Models\SeasonTeamLineupPlayer;
 use App\Models\SeasonTeamPlayer;
 use App\Models\Team;
+use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('renders the players index page', function (): void {
@@ -28,7 +29,7 @@ test('renders the players index page', function (): void {
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->component('players/index'));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->component('players/index'));
 });
 
 test('paginates players, 30 per page', function (): void {
@@ -42,7 +43,7 @@ test('paginates players, 30 per page', function (): void {
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.total', 35)
         ->where('players.per_page', 30)
         ->has('players.data', 30)
@@ -61,7 +62,7 @@ test('searches players by nickname', function (): void {
     $response = $this->get(route('players.index', ['search' => 'yamal']));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('players.data', 1)
         ->where('players.data.0.id', $match->id)
     );
@@ -79,7 +80,7 @@ test('searches players by nickname ignoring accents', function (): void {
     $response = $this->get(route('players.index', ['search' => 'valentin']));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('players.data', 1)
         ->where('players.data.0.id', $match->id)
     );
@@ -98,7 +99,7 @@ test('filters players by several positions at once', function (): void {
     $response = $this->get(route('players.index', ['position' => 'goalkeeper,striker']));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('players.data', 2));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('players.data', 2));
 });
 
 test('filters players by several teams at once', function (): void {
@@ -118,7 +119,7 @@ test('filters players by several teams at once', function (): void {
     $response = $this->get(route('players.index', ['team' => "{$first->id},{$second->id}"]));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('players.data', 2));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('players.data', 2));
 });
 
 test('filters players by fantasy season team', function (): void {
@@ -138,7 +139,7 @@ test('filters players by fantasy season team', function (): void {
     $response = $this->get(route('players.index', ['season_team' => (string) $ownerTeam->id]));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('players.data', 1)
         ->where('players.data.0.id', $owned->id)
     );
@@ -160,7 +161,7 @@ test('lists fantasy season teams for the current season only, for the team filte
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('seasonTeams', 1)
         ->where('seasonTeams.0.id', $currentTeam->id)
     );
@@ -179,7 +180,7 @@ test('filters players by several statuses at once', function (): void {
     $response = $this->get(route('players.index', ['status' => 'injured,suspended']));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('players.data', 2));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('players.data', 2));
 });
 
 test('sorts players by points descending by default', function (): void {
@@ -194,7 +195,7 @@ test('sorts players by points descending by default', function (): void {
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.id', $high->id)
         ->where('players.data.1.id', $low->id)
     );
@@ -212,7 +213,7 @@ test('sorts players by market value when requested', function (): void {
     $response = $this->get(route('players.index', ['sort' => 'value']));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.id', $expensive->id)
         ->where('players.data.1.id', $cheap->id)
     );
@@ -230,7 +231,7 @@ test('sorts players by market value difference when requested', function (): voi
     $response = $this->get(route('players.index', ['sort' => 'difference']));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.id', $risen->id)
         ->where('players.data.1.id', $dropped->id)
     );
@@ -248,7 +249,7 @@ test('reverses the sort direction when requested', function (): void {
     $response = $this->get(route('players.index', ['direction' => 'asc']));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.id', $low->id)
         ->where('players.data.1.id', $high->id)
     );
@@ -274,7 +275,7 @@ test('shows the owning fantasy team when a player is owned', function (): void {
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.owner_team.id', $seasonTeam->id)
         ->where('players.data.0.owner_team.name', 'Ariobretxa')
         ->where('players.data.0.owner_team.logo', $seasonTeam->logo)
@@ -292,7 +293,7 @@ test('shows no owner for a free player', function (): void {
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->where('players.data.0.owner_team', null));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('players.data.0.owner_team', null));
 });
 
 test('includes points for the last 3 played matches, ordered by fixture date oldest first', function (): void {
@@ -313,7 +314,7 @@ test('includes points for the last 3 played matches, ordered by fixture date old
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.recent_scores', [7, 2, 11])
     );
 });
@@ -336,7 +337,7 @@ test('only takes the 3 most recent matches, dropping older ones', function (): v
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.recent_scores', [3, 5, 8])
     );
 });
@@ -353,7 +354,7 @@ test('pads with null at the end when a player has fewer than 3 matches of histor
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.recent_scores', [9, null, null])
     );
 });
@@ -374,7 +375,7 @@ test('excludes scores from a fixture in a different season for the recent scores
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.recent_scores', [null, null, null])
     );
 });
@@ -391,7 +392,7 @@ test('lists the real teams for the team filter', function (): void {
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('teams', 2)
         ->where('teams.0.name', 'Athletic Club')
         ->where('teams.1.name', 'Villarreal CF')
@@ -415,7 +416,7 @@ test('echoes the current filters back', function (): void {
     ]));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('filters.position', ['goalkeeper', 'striker'])
         ->where('filters.team', [$team->id])
         ->where('filters.status', ['injured'])
@@ -435,7 +436,7 @@ test('renders the player show page', function (): void {
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->component('players/show')
         ->where('player.id', $player->id)
     );
@@ -458,7 +459,7 @@ test('shows the owning team and clause details when the player is owned', functi
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('owner.season_team.name', 'Gauchitos F.C')
         ->where('owner.buyout_clause', 4_272_558)
         ->where('owner.shielded', false)
@@ -475,7 +476,7 @@ test('shows no owner in the ficha for a free player', function (): void {
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->where('owner', null));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('owner', null));
 });
 
 test('shows the market listing when the player is free and listed', function (): void {
@@ -489,7 +490,7 @@ test('shows the market listing when the player is free and listed', function ():
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('marketListing.bids', 2)
         ->where('marketListing.sale_price', 751_587)
     );
@@ -505,7 +506,7 @@ test('has no market listing when the player is not listed', function (): void {
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->where('marketListing', null));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('marketListing', null));
 });
 
 test('orders the market value history by date ascending', function (): void {
@@ -521,7 +522,7 @@ test('orders the market value history by date ascending', function (): void {
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('marketHistory', 3)
         ->where('marketHistory.0.value', 1_500_000)
         ->where('marketHistory.1.value', 1_800_000)
@@ -541,7 +542,7 @@ test('only includes market history for this player', function (): void {
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('marketHistory', 0));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('marketHistory', 0));
 });
 
 test('orders the player scores by week number ascending', function (): void {
@@ -558,7 +559,7 @@ test('orders the player scores by week number ascending', function (): void {
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('scores', 2)
         ->where('scores.0.id', $weekOneScore->id)
         ->where('scores.1.id', $weekTwoScore->id)
@@ -577,7 +578,7 @@ test('only includes scores for this player', function (): void {
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('scores', 0));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('scores', 0));
 });
 
 test('includes the fantasy team that fielded the player in their lineup that week', function (): void {
@@ -596,7 +597,7 @@ test('includes the fantasy team that fielded the player in their lineup that wee
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('scores.0.lineup_team.id', $seasonTeam->id)
     );
 });
@@ -613,7 +614,7 @@ test('has no lineup team for a week the player was not fielded in any lineup', f
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('scores.0.lineup_team', null)
     );
 });
@@ -634,7 +635,7 @@ test('excludes lineup teams from a different season', function (): void {
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('scores.0.lineup_team', null)
     );
 });
@@ -661,7 +662,7 @@ test('includes ownership-affecting activity for this player, ordered chronologic
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('ownershipActivity', 2)
         ->where('ownershipActivity.0.id', $signing->id)
         ->where('ownershipActivity.1.id', $buyout->id)
@@ -684,7 +685,7 @@ test('includes the player current team fixture for a week with no score yet', fu
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('teamFixtures', 1)
         ->where('teamFixtures.0.id', $fixture->id)
     );
@@ -706,7 +707,7 @@ test('excludes the player current team fixtures beyond the current week', functi
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('teamFixtures', 0));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('teamFixtures', 0));
 });
 
 test('excludes fixtures for teams other than the player current team', function (): void {
@@ -728,7 +729,7 @@ test('excludes fixtures for teams other than the player current team', function 
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('teamFixtures', 0));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('teamFixtures', 0));
 });
 
 test('includes every team join date, keyed by season team id', function (): void {
@@ -761,7 +762,7 @@ test('includes every team join date, keyed by season team id', function (): void
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where("teamJoinedAt.{$ownerTeam->id}", $ownerJoined->occurred_at->toJSON())
         ->where("teamJoinedAt.{$otherTeam->id}", $otherJoined->occurred_at->toJSON())
     );
@@ -777,7 +778,7 @@ test('has an empty team-joined map when no team has recorded joining the league'
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->where('teamJoinedAt', []));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('teamJoinedAt', []));
 });
 
 test('excludes non-ownership activity types like shields and weekly prizes', function (): void {
@@ -795,5 +796,5 @@ test('excludes non-ownership activity types like shields and weekly prizes', fun
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->has('ownershipActivity', 0));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('ownershipActivity', 0));
 });

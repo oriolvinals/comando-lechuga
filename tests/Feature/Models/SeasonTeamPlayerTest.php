@@ -4,7 +4,7 @@ use App\Models\Player;
 use App\Models\SeasonTeam;
 use App\Models\SeasonTeamPlayer;
 
-test('belongs to a season team and a player and stores the clause state', function () {
+test('belongs to a season team and a player and stores the clause state', function (): void {
     $seasonTeam = SeasonTeam::factory()->create();
     $player = Player::factory()->create();
     $lockedUntil = now()->addWeek();
