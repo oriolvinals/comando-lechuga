@@ -36,10 +36,16 @@ class SyncCurrentSeasonPlayerScoreStats extends Command
         $scoresUpdated = 0;
 
         foreach ($players as $player) {
-            $playerStats = $connector
+            $playerData = $connector
                 ->getPlayer($player->fantasy_id)
                 ->throw()
-                ->json('playerStats', []);
+                ->json();
+
+            if (isset($playerData['points'])) {
+                $player->update(['points' => (int) $playerData['points']]);
+            }
+
+            $playerStats = $playerData['playerStats'] ?? [];
 
             if (!is_array($playerStats)) {
                 continue;

@@ -18,7 +18,7 @@ test('updates the stats and ideal formation flag for an existing player score', 
     ]);
     $team = Team::factory()->create();
     $season->teams()->attach($team);
-    $player = Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id]);
+    $player = Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id, 'points' => 40]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
     $score = PlayerScore::factory()->create([
         'player_id' => $player->id,
@@ -31,6 +31,7 @@ test('updates the stats and ideal formation flag for an existing player score', 
 
     $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
         GetPlayerRequest::class => MockResponse::make([
+            'points' => 47,
             'playerStats' => [
                 [
                     'stats' => [
@@ -58,7 +59,8 @@ test('updates the stats and ideal formation flag for an existing player score', 
         'marca_points' => [-1, 3],
     ])
         ->and($score->ideal_formation)->toBeTrue()
-        ->and($score->points)->toBe(9);
+        ->and($score->points)->toBe(9)
+        ->and($player->refresh()->points)->toBe(47);
 });
 
 test('does not create a score when none exists for that fixture', function (): void {
