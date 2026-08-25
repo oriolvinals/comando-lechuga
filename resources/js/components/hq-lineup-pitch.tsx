@@ -119,7 +119,7 @@ export function HqLineupPitch({
                                     key={entry.id}
                                     type="button"
                                     onClick={() => onSelectPlayer(entry)}
-                                    className="flex min-w-0 flex-col items-center gap-1"
+                                    className="flex min-w-0 cursor-pointer flex-col items-center gap-1"
                                 >
                                     <span className="relative shrink-0">
                                         <EntityImage

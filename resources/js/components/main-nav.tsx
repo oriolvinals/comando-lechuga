@@ -53,7 +53,7 @@ export function MainNav() {
                 onClick={() => setOpen((value) => !value)}
                 aria-expanded={open}
                 aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
-                className="border border-hq-border p-2 text-hq-paper sm:hidden"
+                className="cursor-pointer border border-hq-border p-2 text-hq-paper sm:hidden"
             >
                 {open ? (
                     <X className="h-4 w-4" />

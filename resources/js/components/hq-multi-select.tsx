@@ -75,7 +75,7 @@ export function HqMultiSelect({
                 onClick={() => setOpen((prev) => !prev)}
                 aria-expanded={open}
                 className={cn(
-                    'flex items-center gap-1.5 border px-3 py-2 font-mono text-[11px] font-bold tracking-wide uppercase transition-colors',
+                    'flex cursor-pointer items-center gap-1.5 border px-3 py-2 font-mono text-[11px] font-bold tracking-wide uppercase transition-colors',
                     hasSelection
                         ? 'border-hq-lime text-hq-lime'
                         : 'border-hq-border bg-hq-panel text-hq-moss hover:border-hq-border-strong',

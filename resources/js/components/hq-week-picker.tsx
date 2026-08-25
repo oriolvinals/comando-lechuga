@@ -52,7 +52,7 @@ export function HqWeekPicker({
                 type="button"
                 onClick={() => setOpen((value) => !value)}
                 aria-expanded={open}
-                className="flex items-center gap-2 border border-hq-lime bg-hq-lime px-3.5 py-2 font-mono text-xs font-bold text-hq-ink"
+                className="flex cursor-pointer items-center gap-2 border border-hq-lime bg-hq-lime px-3.5 py-2 font-mono text-xs font-bold text-hq-ink"
             >
                 JORNADA {String(week).padStart(2, '0')}
                 <ChevronDown
@@ -77,7 +77,7 @@ export function HqWeekPicker({
                                 setOpen(false);
                             }}
                             className={cn(
-                                'py-1.5 text-center font-mono text-[11px] font-bold',
+                                'cursor-pointer py-1.5 text-center font-mono text-[11px] font-bold',
                                 weekNumber === week
                                     ? 'bg-hq-lime text-hq-ink'
                                     : weekNumber <= playedThroughWeek

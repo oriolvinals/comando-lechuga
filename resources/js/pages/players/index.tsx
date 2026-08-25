@@ -126,7 +126,7 @@ function PlayerRow({ player }: { player: Player }) {
                                 role="link"
                                 tabIndex={0}
                                 onClick={goToOwnerTeam}
-                                className="flex min-w-0 items-center gap-1.5 hover:text-hq-paper"
+                                className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
                             >
                                 <span
                                     className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
@@ -246,7 +246,7 @@ function PlayerRow({ player }: { player: Player }) {
                                 role="link"
                                 tabIndex={0}
                                 onClick={goToOwnerTeam}
-                                className="flex min-w-0 items-center gap-1.5 hover:text-hq-paper"
+                                className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
                             >
                                 <span
                                     className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
