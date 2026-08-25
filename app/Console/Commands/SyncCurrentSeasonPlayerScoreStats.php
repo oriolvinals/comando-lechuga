@@ -83,6 +83,9 @@ class SyncCurrentSeasonPlayerScoreStats extends Command
                 ->where('player_id', $playerId)
                 ->whereHas('fixture', fn ($query) => $query->where('week_number', $weekNumber))
                 ->update([
+                    ...isset($scoreData['totalPoints'])
+                        ? ['points' => (int) $scoreData['totalPoints']]
+                        : [],
                     'stats' => json_encode($stats, JSON_THROW_ON_ERROR),
                     'ideal_formation' => (bool) ($scoreData['isInIdealFormation'] ?? false),
                 ]);

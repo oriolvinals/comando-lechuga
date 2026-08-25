@@ -24,7 +24,7 @@ test('updates the stats and ideal formation flag for an existing player score', 
         'player_id' => $player->id,
         'fixture_id' => $fixture->id,
         'team_id' => $team->id,
-        'points' => 9,
+        'points' => 3,
         'stats' => [],
         'ideal_formation' => false,
     ]);
@@ -61,6 +61,45 @@ test('updates the stats and ideal formation flag for an existing player score', 
         ->and($score->ideal_formation)->toBeTrue()
         ->and($score->points)->toBe(9)
         ->and($player->refresh()->points)->toBe(47);
+});
+
+test('leaves existing points untouched when totalPoints is missing', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    $player = Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    $score = PlayerScore::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'team_id' => $team->id,
+        'points' => 5,
+        'stats' => [],
+        'ideal_formation' => false,
+    ]);
+
+    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make([
+            'playerStats' => [
+                [
+                    'stats' => ['goals' => [1, 5]],
+                    'weekNumber' => 1,
+                    'isInIdealFormation' => true,
+                ],
+            ],
+        ]),
+    ]));
+
+    app()->instance(LaLigaFantasyConnector::class, $connector);
+
+    $this->artisan(SyncCurrentSeasonPlayerScoreStats::class)
+        ->expectsOutput('1 player scores updated with stats.')
+        ->assertSuccessful();
+
+    expect($score->refresh()->points)->toBe(5);
 });
 
 test('does not create a score when none exists for that fixture', function (): void {
