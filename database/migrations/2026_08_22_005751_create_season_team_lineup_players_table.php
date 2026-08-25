@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('player_id')->nullable(false)->constrained()->cascadeOnDelete();
             $table->integer('points')->nullable(false)->default(0);
             $table->string('position')->nullable(false)->default('');
-            $table->unique(['season_team_lineup_id', 'player_id']);
+            $table->unique(['season_team_lineup_id', 'player_id'], 'season_team_lineup_players_unique');
         });
     }
 
