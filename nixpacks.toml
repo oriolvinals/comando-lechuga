@@ -1,11 +1,5 @@
 [phases.setup]
-nixpkgsArchive = "044bfe75bfe4c7bbe043dc17b5e42ea823b84a09"
-nixPkgs = [
-    "php85",
-    "php85Packages.composer",
-    "...",
-    "python311Packages.supervisor",
-]
+nixPkgs = ["...", "python311Packages.supervisor"]
 
 [phases.install]
 cmds = [
@@ -31,8 +25,8 @@ cmd = '/assets/start.sh'
 "start.sh" = '''
 #!/bin/bash
 
-mkdir -p /var/log/nginx /var/cache/nginx
-chown -R www-data:www-data /var/log/nginx /var/cache/nginx
+mkdir -p /var/log/nginx
+chown -R www-data:www-data /var/log/nginx
 
 # Ensure storage and bootstrap cache are writable by www-data
 chown -R www-data:www-data /app/storage /app/bootstrap/cache
