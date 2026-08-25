@@ -98,7 +98,7 @@ export function HqLineupPitch({
                 <div className="absolute inset-0 overflow-hidden">
                     <div className="absolute inset-2 border-2 border-white/75" />
                     <div className="absolute top-1/2 right-2 left-2 border-t-2 border-white/75" />
-                    <div className="absolute top-1/2 left-1/2 h-[26%] w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/75" />
+                    <div className="absolute top-1/2 left-1/2 aspect-square w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/75" />
                     <div className="absolute top-2 left-1/2 h-[13.5%] w-[55%] -translate-x-1/2 border-2 border-t-0 border-white/75" />
                     <div className="absolute bottom-2 left-1/2 h-[13.5%] w-[55%] -translate-x-1/2 border-2 border-b-0 border-white/75" />
                 </div>
@@ -126,7 +126,7 @@ export function HqLineupPitch({
                                             src={entry.player.image}
                                             alt={entry.player.nickname}
                                             fallback={User}
-                                            className="h-10 w-10 border-2 border-white bg-hq-border"
+                                            className="h-12 w-12 border-2 border-white bg-hq-border"
                                         />
                                         <span
                                             className={cn(
