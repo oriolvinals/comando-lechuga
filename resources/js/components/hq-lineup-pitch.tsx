@@ -128,6 +128,13 @@ export function HqLineupPitch({
                                             fallback={User}
                                             className="h-12 w-12 border-2 border-white bg-hq-border"
                                         />
+                                        <EntityImage
+                                            src={entry.player.team.logo}
+                                            alt={entry.player.team.name}
+                                            fallback={Shield}
+                                            shape="square"
+                                            className="absolute -top-1.5 -left-1.5 h-4 w-4 border border-white bg-hq-border"
+                                        />
                                         <span
                                             className={cn(
                                                 'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
@@ -141,18 +148,11 @@ export function HqLineupPitch({
                                     </span>
                                     <span
                                         className={cn(
-                                            'flex w-full min-w-0 items-center gap-1 rounded-[3px] bg-hq-ink/85 px-1.5 py-px',
+                                            'w-full min-w-0 rounded-[3px] bg-hq-ink/85 px-1.5 py-px text-center',
                                             nameMaxWidth,
                                         )}
                                     >
-                                        <EntityImage
-                                            src={entry.player.team.logo}
-                                            alt={entry.player.team.name}
-                                            fallback={Shield}
-                                            shape="square"
-                                            className="h-3 w-3 shrink-0"
-                                        />
-                                        <span className="min-w-0 truncate font-mono text-[10px] font-bold text-hq-paper">
+                                        <span className="block min-w-0 truncate font-mono text-[10px] font-bold text-hq-paper">
                                             {entry.player.nickname}
                                         </span>
                                     </span>
