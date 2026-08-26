@@ -1,5 +1,4 @@
 import { ArrowDown, ArrowUp, Shield } from 'lucide-react';
-import type { CSSProperties } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
 import { crestTintStyle } from '@/lib/season-team-colors';
@@ -49,32 +48,20 @@ export function TeamHero({ seasonTeam, season }: TeamHeroProps) {
     const medal = MEDAL_COLOR_VARS[seasonTeam.position];
     const borderColor = medal ?? 'var(--color-hq-border-strong)';
     const chipTextColor = medal ?? 'var(--color-hq-paper)';
+    const crestFillStyle = medal
+        ? {
+              backgroundColor: `color-mix(in srgb, ${medal} 22%, var(--color-hq-border))`,
+          }
+        : crestTintStyle(seasonTeam.primary_color);
 
     return (
-        <div
-            className="relative overflow-hidden p-6"
-            style={
-                {
-                    '--pc': seasonTeam.primary_color ?? 'transparent',
-                    '--sc': seasonTeam.secondary_color ?? 'transparent',
-                } as CSSProperties
-            }
-        >
-            <div
-                className="pointer-events-none absolute inset-0 opacity-25"
-                style={{
-                    background:
-                        'linear-gradient(100deg, var(--pc) 0%, var(--sc) 100%)',
-                }}
-            />
+        <div className="relative p-6">
             <div className="relative flex flex-wrap items-center gap-5">
                 <div className="relative h-[84px] w-[84px] shrink-0">
                     <div
                         className="h-full w-full p-[3px]"
                         style={{
-                            backgroundColor: medal
-                                ? `color-mix(in srgb, ${medal} 60%, transparent)`
-                                : borderColor,
+                            backgroundColor: medal ?? borderColor,
                             clipPath:
                                 'polygon(15% 0, 100% 0, 100% 85%, 85% 100%, 0 100%, 0 15%)',
                         }}
@@ -84,7 +71,7 @@ export function TeamHero({ seasonTeam, season }: TeamHeroProps) {
                             alt={seasonTeam.name}
                             fallback={Shield}
                             shape="square"
-                            style={crestTintStyle(seasonTeam.primary_color)}
+                            style={crestFillStyle}
                             className="hq-crest-cut h-full w-full bg-hq-border p-2 text-hq-khaki"
                         />
                     </div>

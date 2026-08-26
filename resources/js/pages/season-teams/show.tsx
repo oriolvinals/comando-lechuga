@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { useState } from 'react';
 import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
 import { HqLineupPitch } from '@/components/hq-lineup-pitch';
@@ -43,10 +43,30 @@ export default function SeasonTeamShow({
     );
 
     return (
-        <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
+        <div
+            className="hq-texture hq-bleed relative min-h-[calc(100vh-95px)] border-y border-hq-border"
+            style={
+                {
+                    '--pc': seasonTeam.primary_color ?? 'transparent',
+                    '--sc': seasonTeam.secondary_color ?? 'transparent',
+                } as CSSProperties
+            }
+        >
             <Head title={seasonTeam.name} />
 
-            <div className="mx-auto max-w-7xl px-6 pb-9">
+            <div
+                className="pointer-events-none absolute inset-0 opacity-25"
+                style={{
+                    background:
+                        'linear-gradient(100deg, var(--pc) 0%, var(--sc) 100%)',
+                    maskImage:
+                        'linear-gradient(to bottom, black 0%, black 12%, transparent 55%)',
+                    WebkitMaskImage:
+                        'linear-gradient(to bottom, black 0%, black 12%, transparent 55%)',
+                }}
+            />
+
+            <div className="relative mx-auto max-w-7xl px-6 pb-9">
                 <TeamHero seasonTeam={seasonTeam} season={season} />
 
                 <div className="mt-6">
