@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\SyncCurrentSeasonPlayerScores;
+use App\Enums\PlayerStatus;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetWeekStatsRequest;
 use App\Models\Fixture;
@@ -20,6 +21,7 @@ test('creates player scores with the fixture and team from the week stats', func
 
     $localTeam = Team::factory()->create(['fantasy_id' => 14]);
     $visitorTeam = Team::factory()->create(['fantasy_id' => 21]);
+    $season->teams()->attach([$localTeam->id, $visitorTeam->id]);
 
     $fixture = Fixture::factory()->create([
         'fantasy_id' => 12,
@@ -29,8 +31,8 @@ test('creates player scores with the fixture and team from the week stats', func
         'team_guest_id' => $visitorTeam->id,
     ]);
 
-    $localPlayer = Player::factory()->create(['fantasy_id' => 886, 'team_id' => $localTeam->id]);
-    $visitorPlayer = Player::factory()->create(['fantasy_id' => 2577, 'team_id' => $visitorTeam->id]);
+    $localPlayer = Player::factory()->create(['fantasy_id' => 886, 'team_id' => $localTeam->id, 'status' => PlayerStatus::Ok]);
+    $visitorPlayer = Player::factory()->create(['fantasy_id' => 2577, 'team_id' => $visitorTeam->id, 'status' => PlayerStatus::Ok]);
 
     $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
         GetWeekStatsRequest::class => MockResponse::make([
@@ -77,12 +79,13 @@ test('updates the points and team without touching existing stats', function ():
     ]);
 
     $team = Team::factory()->create(['fantasy_id' => 14]);
+    $season->teams()->attach($team->id);
     $fixture = Fixture::factory()->create([
         'fantasy_id' => 12,
         'season_id' => $season->id,
         'week_number' => 1,
     ]);
-    $player = Player::factory()->create(['fantasy_id' => 886, 'team_id' => $team->id]);
+    $player = Player::factory()->create(['fantasy_id' => 886, 'team_id' => $team->id, 'status' => PlayerStatus::Ok]);
 
     $score = PlayerScore::factory()->create([
         'player_id' => $player->id,
@@ -118,4 +121,45 @@ test('updates the points and team without touching existing stats', function ():
         ->and($score->team_id)->toBe($team->id)
         ->and($score->stats)->toBe(['goals' => [1, 5]])
         ->and($score->ideal_formation)->toBeTrue();
+});
+
+test('does not create a score for a player with out-of-league status', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+
+    $team = Team::factory()->create(['fantasy_id' => 14]);
+    $season->teams()->attach($team->id);
+    Fixture::factory()->create([
+        'fantasy_id' => 12,
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+    ]);
+    Player::factory()->create(['fantasy_id' => 886, 'team_id' => $team->id, 'status' => PlayerStatus::OutOfLeague]);
+
+    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetWeekStatsRequest::class => MockResponse::make([
+            [
+                'id' => 12,
+                'local' => [
+                    'id' => 14,
+                    'players' => [
+                        ['id' => 886, 'teamId' => 14, 'weekPoints' => 9],
+                    ],
+                ],
+                'visitor' => ['id' => 21, 'players' => []],
+            ],
+        ]),
+    ]));
+
+    app()->instance(LaLigaFantasyConnector::class, $connector);
+
+    $this->artisan(SyncCurrentSeasonPlayerScores::class)
+        ->expectsOutput('0 player scores synchronized.')
+        ->assertSuccessful();
+
+    expect(PlayerScore::query()->count())->toBe(0);
 });

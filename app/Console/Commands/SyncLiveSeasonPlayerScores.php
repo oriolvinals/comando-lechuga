@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Console\Commands\Concerns\FiltersLiveFixtures;
 use App\Console\Commands\Concerns\SyncsPlayerScores;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Season;
@@ -15,10 +16,11 @@ use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Throwable;
 
-#[Signature('season:sync-player-scores')]
-#[Description('Synchronize all current season player scores from La Liga Fantasy')]
-class SyncCurrentSeasonPlayerScores extends Command
+#[Signature('season:sync-live-player-scores')]
+#[Description('Synchronize player scores for weeks with a live or recently finished fixture')]
+class SyncLiveSeasonPlayerScores extends Command
 {
+    use FiltersLiveFixtures;
     use SyncsPlayerScores;
 
     /**
@@ -31,11 +33,13 @@ class SyncCurrentSeasonPlayerScores extends Command
     {
         $season = Season::current();
 
-        $scoresSynchronized = $this->syncPlayerScoresForWeeks(
-            $season,
-            range(1, $season->current_week),
-            $connector,
-        );
+        $weekNumbers = $this->liveOrRecentlyFinishedFixtures($season)
+            ->pluck('week_number')
+            ->unique()
+            ->values()
+            ->all();
+
+        $scoresSynchronized = $this->syncPlayerScoresForWeeks($season, $weekNumbers, $connector);
 
         $this->info($scoresSynchronized.' player scores synchronized.');
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\SyncCurrentSeasonPlayerScoreStats;
+use App\Enums\PlayerStatus;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerRequest;
 use App\Models\Fixture;
@@ -18,7 +19,7 @@ test('updates the stats and ideal formation flag for an existing player score', 
     ]);
     $team = Team::factory()->create();
     $season->teams()->attach($team);
-    $player = Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id, 'points' => 40]);
+    $player = Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id, 'points' => 40, 'status' => PlayerStatus::Ok]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
     $score = PlayerScore::factory()->create([
         'player_id' => $player->id,
@@ -70,7 +71,7 @@ test('leaves existing points untouched when totalPoints is missing', function ()
     ]);
     $team = Team::factory()->create();
     $season->teams()->attach($team);
-    $player = Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id]);
+    $player = Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id, 'status' => PlayerStatus::Ok]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
     $score = PlayerScore::factory()->create([
         'player_id' => $player->id,
@@ -109,7 +110,7 @@ test('does not create a score when none exists for that fixture', function (): v
     ]);
     $team = Team::factory()->create();
     $season->teams()->attach($team);
-    Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id]);
+    Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id, 'status' => PlayerStatus::Ok]);
 
     $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
         GetPlayerRequest::class => MockResponse::make([
@@ -131,4 +132,30 @@ test('does not create a score when none exists for that fixture', function (): v
         ->assertSuccessful();
 
     expect(PlayerScore::query()->count())->toBe(0);
+});
+
+test('excludes players with out-of-league status', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+
+    $activePlayer = Player::factory()->create(['fantasy_id' => 2534, 'team_id' => $team->id, 'points' => 0, 'status' => PlayerStatus::Ok]);
+    $outOfLeaguePlayer = Player::factory()->create(['fantasy_id' => 9999, 'team_id' => $team->id, 'points' => 0, 'status' => PlayerStatus::OutOfLeague]);
+
+    // Only one response is queued: if the out-of-league player were also fetched, this would run out and fail.
+    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make(['points' => 12, 'playerStats' => []]),
+    ]));
+
+    app()->instance(LaLigaFantasyConnector::class, $connector);
+
+    $this->artisan(SyncCurrentSeasonPlayerScoreStats::class)
+        ->expectsOutput('0 player scores updated with stats.')
+        ->assertSuccessful();
+
+    expect($activePlayer->refresh()->points)->toBe(12)
+        ->and($outOfLeaguePlayer->refresh()->points)->toBe(0);
 });
