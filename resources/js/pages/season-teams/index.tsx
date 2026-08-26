@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqLineupPitch } from '@/components/hq-lineup-pitch';
 import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
-import { HqWeekPicker } from '@/components/hq-week-picker';
+import { HqWeekScrollPicker } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
 import { crestTintStyle } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ import type {
     Season,
     SeasonTeamLineup,
     SeasonTeamLineupPlayerEntry,
+    WeekProgressMap,
 } from '@/types/models';
 
 const MEDAL_BORDERS = [
@@ -29,6 +30,7 @@ interface SeasonTeamsIndexProps {
     season: Season;
     filters: { week: number };
     lineups: SeasonTeamLineup[];
+    weekProgress: WeekProgressMap;
     [key: string]: unknown;
 }
 
@@ -36,6 +38,7 @@ export default function SeasonTeamsIndex({
     season,
     filters,
     lineups,
+    weekProgress,
 }: SeasonTeamsIndexProps) {
     const [selectedPlayer, setSelectedPlayer] =
         useState<SeasonTeamLineupPlayerEntry | null>(null);
@@ -44,7 +47,7 @@ export default function SeasonTeamsIndex({
         router.get(
             seasonTeamsIndex().url,
             { week: nextWeek },
-            { preserveScroll: true },
+            { preserveScroll: true, preserveState: true },
         );
     };
 
@@ -59,10 +62,11 @@ export default function SeasonTeamsIndex({
                     </h1>
 
                     <div className="mb-6">
-                        <HqWeekPicker
+                        <HqWeekScrollPicker
                             week={filters.week}
                             maxWeek={season.total_weeks}
                             playedThroughWeek={season.current_week}
+                            weekProgress={weekProgress}
                             onChange={goToWeek}
                         />
                     </div>

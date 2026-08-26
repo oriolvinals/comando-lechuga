@@ -5,7 +5,7 @@ import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry
 import { HqLineupPitch } from '@/components/hq-lineup-pitch';
 import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqTeamPointsChart } from '@/components/hq-team-points-chart';
-import { HqWeekPicker } from '@/components/hq-week-picker';
+import { HqWeekScrollPicker } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
 import { RosterList } from '@/pages/season-teams/roster-list';
 import { TeamHero } from '@/pages/season-teams/team-hero';
@@ -16,6 +16,7 @@ import type {
     SeasonTeamLineup,
     SeasonTeamLineupPlayerEntry,
     SeasonTeamPlayer,
+    WeekProgressMap,
 } from '@/types/models';
 
 interface SeasonTeamShowProps {
@@ -24,6 +25,7 @@ interface SeasonTeamShowProps {
     roster: SeasonTeamPlayer[];
     lineupHistory: SeasonTeamLineup[];
     startedWeeks: number[];
+    weekProgress: WeekProgressMap;
     activity: SeasonActivity[];
     [key: string]: unknown;
 }
@@ -34,6 +36,7 @@ export default function SeasonTeamShow({
     roster,
     lineupHistory,
     startedWeeks,
+    weekProgress,
     activity,
 }: SeasonTeamShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(season.current_week);
@@ -122,16 +125,19 @@ export default function SeasonTeamShow({
                     </div>
 
                     <div className="mt-10 border-t border-dashed border-hq-border pt-6">
-                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5">
+                        <div className="mb-4 flex flex-col gap-2.5">
                             <h2 className="font-display text-lg text-hq-paper uppercase">
                                 Alineación de la jornada
                             </h2>
-                            <HqWeekPicker
-                                week={selectedWeek}
-                                maxWeek={season.total_weeks}
-                                playedThroughWeek={season.current_week}
-                                onChange={setSelectedWeek}
-                            />
+                            <div className="min-w-0">
+                                <HqWeekScrollPicker
+                                    week={selectedWeek}
+                                    maxWeek={season.total_weeks}
+                                    playedThroughWeek={season.current_week}
+                                    weekProgress={weekProgress}
+                                    onChange={setSelectedWeek}
+                                />
+                            </div>
                         </div>
 
                         <div className="mx-auto max-w-[360px]">

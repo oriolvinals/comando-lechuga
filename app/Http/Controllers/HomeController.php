@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
@@ -73,35 +72,6 @@ class HomeController extends Controller
             'market' => $market,
             'activity' => $activity,
         ]);
-    }
-
-    /**
-     * How far along each jornada is, for the week picker's coloring: 'none'
-     * (no fixture finished yet), 'partial' (some but not all), or 'all'
-     * (every fixture finished). Keyed by week number — cast to object at the
-     * call site, since PHP normalizes a numeric string key back to int and
-     * a plain array here could otherwise serialize as a sparse JSON array.
-     *
-     * @return array<int, 'none'|'partial'|'all'>
-     */
-    private function weekProgress(Season $season): array
-    {
-        return Fixture::query()
-            ->where('season_id', $season->id)
-            ->get(['week_number', 'state'])
-            ->groupBy('week_number')
-            ->mapWithKeys(function (Collection $fixtures, int $weekNumber): array {
-                $finished = $fixtures->where('state', FixtureState::Finished)->count();
-
-                $status = match (true) {
-                    $finished === 0 => 'none',
-                    $finished === $fixtures->count() => 'all',
-                    default => 'partial',
-                };
-
-                return [$weekNumber => $status];
-            })
-            ->all();
     }
 
     /**

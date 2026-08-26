@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Concerns;
 use App\Enums\FixtureState;
 use App\Models\Fixture;
 use App\Models\Season;
+use Illuminate\Support\Collection;
 
 trait FiltersSeasonWeeks
 {
@@ -69,5 +70,34 @@ trait FiltersSeasonWeeks
         $lastPastWeek = $season->current_week - 1;
 
         return $lastPastWeek >= 1 ? range(1, $lastPastWeek) : [];
+    }
+
+    /**
+     * How far along each jornada is, for a week picker's coloring: 'none'
+     * (no fixture finished yet), 'partial' (some but not all), or 'all'
+     * (every fixture finished). Keyed by week number — cast to object at the
+     * call site, since PHP normalizes a numeric string key back to int and
+     * a plain array here could otherwise serialize as a sparse JSON array.
+     *
+     * @return array<int, 'none'|'partial'|'all'>
+     */
+    private function weekProgress(Season $season): array
+    {
+        return Fixture::query()
+            ->where('season_id', $season->id)
+            ->get(['week_number', 'state'])
+            ->groupBy('week_number')
+            ->mapWithKeys(function (Collection $fixtures, int $weekNumber): array {
+                $finished = $fixtures->where('state', FixtureState::Finished)->count();
+
+                $status = match (true) {
+                    $finished === 0 => 'none',
+                    $finished === $fixtures->count() => 'all',
+                    default => 'partial',
+                };
+
+                return [$weekNumber => $status];
+            })
+            ->all();
     }
 }

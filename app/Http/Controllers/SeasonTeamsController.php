@@ -40,6 +40,10 @@ class SeasonTeamsController extends Controller
             'season' => $season,
             'filters' => ['week' => $week],
             'lineups' => $lineups,
+            // Cast to object: PHP normalizes numeric string keys back to
+            // int, so a plain array here could serialize as a sparse JSON
+            // array instead of the {"1": "all", ...} object the frontend expects.
+            'weekProgress' => (object) $this->weekProgress($season),
         ]);
     }
 
@@ -77,6 +81,10 @@ class SeasonTeamsController extends Controller
             'roster' => $roster,
             'lineupHistory' => $lineupHistory,
             'startedWeeks' => $this->startedWeekNumbers($season),
+            // Cast to object: PHP normalizes numeric string keys back to
+            // int, so a plain array here could serialize as a sparse JSON
+            // array instead of the {"1": "all", ...} object the frontend expects.
+            'weekProgress' => (object) $this->weekProgress($season),
             'activity' => $activity,
         ]);
     }
