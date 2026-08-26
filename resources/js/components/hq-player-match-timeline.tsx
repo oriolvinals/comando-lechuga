@@ -52,10 +52,10 @@ export function HqPlayerMatchTimeline({
                                     type="button"
                                     onClick={() => setSelectedWeek(week)}
                                     className={cn(
-                                        'flex h-14 w-14 shrink-0 flex-col items-center justify-center border-2 font-mono',
+                                        'flex h-14 w-14 shrink-0 cursor-pointer flex-col items-center justify-center border-2 font-mono',
                                         selectedWeek === week
                                             ? 'border-hq-paper'
-                                            : 'border-transparent',
+                                            : 'border-transparent hover:border-hq-border-strong',
                                         score
                                             ? matchPointsBadgeClass(
                                                   score.points,

@@ -49,8 +49,8 @@ function FixtureCard({ fixture }: { fixture: Fixture }) {
                     fixture.state === 'scheduled' && 'bg-hq-moss-dim',
                 )}
             />
-            <div className="flex items-center justify-center gap-4">
-                <div>
+            <div className="flex items-center justify-center gap-2 sm:gap-4">
+                <div className="shrink-0">
                     <EntityImage
                         src={fixture.local_team.logo}
                         alt={fixture.local_team.name}
@@ -63,17 +63,17 @@ function FixtureCard({ fixture }: { fixture: Fixture }) {
                     </p>
                 </div>
                 {hasScore ? (
-                    <div className="flex items-center gap-2 font-display text-2xl text-hq-paper">
+                    <div className="flex shrink-0 items-center gap-1 font-display text-xl text-hq-paper sm:gap-2 sm:text-2xl">
                         <span>{fixture.local_score}</span>
                         <span className="text-hq-moss-dim">–</span>
                         <span>{fixture.guest_score}</span>
                     </div>
                 ) : (
-                    <span className="font-display text-lg text-hq-moss">
+                    <span className="shrink-0 font-display text-lg text-hq-moss">
                         VS
                     </span>
                 )}
-                <div>
+                <div className="shrink-0">
                     <EntityImage
                         src={fixture.guest_team.logo}
                         alt={fixture.guest_team.name}
