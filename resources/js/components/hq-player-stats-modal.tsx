@@ -57,14 +57,14 @@ export function HqPlayerStatsModal({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/60 p-4"
+            className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center overflow-y-auto bg-black/60 p-4"
             onClick={onClose}
         >
             <div
-                className="w-full max-w-sm cursor-default border border-hq-border-strong bg-hq-ink"
+                className="max-h-[85vh] w-full max-w-sm cursor-default overflow-y-auto border border-hq-border-strong bg-hq-ink"
                 onClick={(event) => event.stopPropagation()}
             >
-                <div className="flex justify-end p-2">
+                <div className="sticky top-0 z-10 flex justify-end bg-hq-ink p-2">
                     <button
                         type="button"
                         onClick={onClose}
