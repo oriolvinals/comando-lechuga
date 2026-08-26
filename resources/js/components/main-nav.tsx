@@ -2,13 +2,11 @@ import { Link, usePage } from '@inertiajs/react';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { home } from '@/routes';
 import { index as activityIndex } from '@/routes/activity';
 import { index as playersIndex } from '@/routes/players';
 import { index as seasonTeamsIndex } from '@/routes/season-teams';
 
 const navItems = [
-    { label: 'Inicio', href: home().url },
     { label: 'Equipos', href: seasonTeamsIndex().url },
     { label: 'Jugadores', href: playersIndex().url },
     { label: 'Actividad', href: activityIndex().url },
