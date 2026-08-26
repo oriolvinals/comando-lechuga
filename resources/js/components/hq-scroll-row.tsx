@@ -7,12 +7,15 @@ interface HqScrollRowProps {
     children: ReactNode;
     className?: string;
     contentClassName?: string;
+    /** The thin progress rail under the row — on by default, some rows (e.g. a jornada picker) don't want it. */
+    showProgress?: boolean;
 }
 
 export function HqScrollRow({
     children,
     className,
     contentClassName,
+    showProgress = true,
 }: HqScrollRowProps) {
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [scrollStart, setScrollStart] = useState(0);
@@ -100,7 +103,7 @@ export function HqScrollRow({
                 </button>
             )}
 
-            {showControls && (
+            {showControls && showProgress && (
                 <div className="relative mt-2.5 h-0.5 overflow-hidden bg-hq-border">
                     <div
                         className="absolute top-0 h-full bg-hq-lime"

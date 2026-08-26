@@ -2,7 +2,7 @@ import { Link, router } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { HqSection } from '@/components/hq-section';
-import { HqWeekPicker } from '@/components/hq-week-picker';
+import { HqWeekScrollPicker } from '@/components/hq-week-scroll-picker';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateShort, formatMatchDateTime } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
@@ -10,12 +10,13 @@ import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
 import { show as fixturesShow } from '@/routes/fixtures';
-import type { Fixture, Season } from '@/types/models';
+import type { Fixture, Season, WeekProgressMap } from '@/types/models';
 
 interface FixturesPanelProps {
     fixtures: Fixture[];
     season: Season;
     week: number;
+    weekProgress: WeekProgressMap;
 }
 
 const COUNTDOWN_THRESHOLD_MS = 2 * 60 * 60 * 1000;
@@ -109,18 +110,28 @@ function FixtureCard({ fixture }: { fixture: Fixture }) {
     );
 }
 
-export function FixturesPanel({ fixtures, season, week }: FixturesPanelProps) {
+export function FixturesPanel({
+    fixtures,
+    season,
+    week,
+    weekProgress,
+}: FixturesPanelProps) {
     const goToWeek = (nextWeek: number) => {
-        router.get(home().url, { week: nextWeek }, { preserveScroll: true });
+        router.get(
+            home().url,
+            { week: nextWeek },
+            { preserveScroll: true, preserveState: true },
+        );
     };
 
     return (
         <HqSection title="Jornadas">
             <div className="mb-4">
-                <HqWeekPicker
+                <HqWeekScrollPicker
                     week={week}
                     maxWeek={season.total_weeks}
                     playedThroughWeek={season.current_week}
+                    weekProgress={weekProgress}
                     onChange={goToWeek}
                 />
             </div>

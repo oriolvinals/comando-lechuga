@@ -7,6 +7,7 @@ import type {
     Season,
     SeasonActivity,
     SeasonTeam,
+    WeekProgressMap,
 } from '@/types/models';
 import { ActivityPanel } from './home/activity-panel';
 import { FixturesPanel } from './home/fixtures-panel';
@@ -19,6 +20,7 @@ interface HomeProps {
     filters: { week: number };
     fixtures: Fixture[];
     standings: SeasonTeam[];
+    weekProgress: WeekProgressMap;
     market: MarketPlayer[];
     activity: SeasonActivity[];
     [key: string]: unknown;
@@ -29,6 +31,7 @@ export default function Home({
     filters,
     fixtures,
     standings,
+    weekProgress,
     market,
     activity,
 }: HomeProps) {
@@ -42,6 +45,7 @@ export default function Home({
                         fixtures={fixtures}
                         season={season}
                         week={filters.week}
+                        weekProgress={weekProgress}
                     />
                     <StandingsTable standings={standings} />
                     <MarketPanel market={market} />

@@ -190,3 +190,7 @@ export interface Paginated<T> {
     total: number;
     links: PaginationLink[];
 }
+
+/** How far along a jornada is, keyed by week number as a string. */
+export type WeekProgress = 'none' | 'partial' | 'all';
+export type WeekProgressMap = Record<string, WeekProgress>;
