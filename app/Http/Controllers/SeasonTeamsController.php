@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
+use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
 use App\Models\Season;
 use App\Models\SeasonActivity;
@@ -20,6 +21,7 @@ class SeasonTeamsController extends Controller
 {
     use AttachesActivityValueDifference;
     use AttachesRecentScores;
+    use FiltersSeasonWeeks;
     use ResolvesRequestedWeek;
 
     public function index(Request $request): Response
@@ -74,6 +76,7 @@ class SeasonTeamsController extends Controller
             'seasonTeam' => $seasonTeam,
             'roster' => $roster,
             'lineupHistory' => $lineupHistory,
+            'startedWeeks' => $this->startedWeekNumbers($season),
             'activity' => $activity,
         ]);
     }

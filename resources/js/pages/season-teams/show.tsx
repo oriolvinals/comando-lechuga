@@ -23,6 +23,7 @@ interface SeasonTeamShowProps {
     seasonTeam: SeasonTeam;
     roster: SeasonTeamPlayer[];
     lineupHistory: SeasonTeamLineup[];
+    startedWeeks: number[];
     activity: SeasonActivity[];
     [key: string]: unknown;
 }
@@ -32,6 +33,7 @@ export default function SeasonTeamShow({
     seasonTeam,
     roster,
     lineupHistory,
+    startedWeeks,
     activity,
 }: SeasonTeamShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(season.current_week);
@@ -73,7 +75,10 @@ export default function SeasonTeamShow({
                     <h2 className="mb-3 font-display text-lg text-hq-paper uppercase">
                         Evolución de puntos
                     </h2>
-                    <HqTeamPointsChart lineupHistory={lineupHistory} />
+                    <HqTeamPointsChart
+                        lineupHistory={lineupHistory}
+                        startedWeeks={startedWeeks}
+                    />
 
                     <div className="mt-8 flex flex-col gap-5 lg:flex-row lg:items-start">
                         <section

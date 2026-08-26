@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { EntityImage } from '@/components/entity-image';
-import { formatCurrency } from '@/lib/format';
+import { teamFormBadgeClass } from '@/lib/points';
 import { crestTintStyle } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
 import { show as seasonTeamsShow } from '@/routes/season-teams';
@@ -20,7 +20,6 @@ const PODIUM_SIZES = {
         row: 'gap-3 px-4 py-4 sm:gap-5 sm:px-6 sm:py-5',
         crest: 'h-20 w-20',
         name: 'text-2xl',
-        value: 'text-xs',
         live: 'px-2 py-1 text-[11px]',
         points: 'text-5xl',
     },
@@ -30,7 +29,6 @@ const PODIUM_SIZES = {
         row: 'gap-2.5 px-3.5 py-3 sm:gap-4 sm:px-5 sm:py-3.5',
         crest: 'h-14 w-14',
         name: 'text-lg',
-        value: 'text-[11px]',
         live: 'px-1.5 py-0.5 text-[10px]',
         points: 'text-3xl',
     },
@@ -40,7 +38,6 @@ const PODIUM_SIZES = {
         row: 'gap-2 px-3 py-2.5 sm:gap-3.5 sm:px-4 sm:py-3',
         crest: 'h-11 w-11',
         name: 'text-base',
-        value: 'text-[10px]',
         live: 'px-1.5 py-0.5 text-[9px]',
         points: 'text-2xl',
     },
@@ -82,15 +79,13 @@ function PodiumRow({
                 <p className={cn('truncate font-extrabold text-hq-paper', size.name)}>
                     {team.name}
                 </p>
-                <p className={cn('font-mono text-hq-moss', size.value)}>
-                    {formatCurrency(team.value)}
-                </p>
             </div>
             <div className="shrink-0 text-right">
                 {team.live_points !== null && (
                     <span
                         className={cn(
-                            'mb-1 inline-block rounded bg-hq-lime/10 font-mono text-hq-lime',
+                            'mb-1 inline-block rounded font-mono',
+                            teamFormBadgeClass(team.live_points),
                             size.live,
                         )}
                     >

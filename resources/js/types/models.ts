@@ -72,6 +72,7 @@ export interface SeasonTeam {
     position: number;
     last_position: number;
     value: number;
+    recent_form: (number | null)[];
 }
 
 export interface MarketPlayer {

@@ -43,10 +43,7 @@ export default function Home({
                         season={season}
                         week={filters.week}
                     />
-                    <StandingsTable
-                        standings={standings}
-                        currentWeek={season.current_week}
-                    />
+                    <StandingsTable standings={standings} />
                     <MarketPanel market={market} />
                     <ActivityPanel activity={activity} />
                 </div>

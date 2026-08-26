@@ -12,6 +12,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property array<int, int|null> $recent_form Points for the team's last 3 played jornadas, oldest first, ordered by week number; null-padded at the end when fewer than 3 exist. Computed at query time by HomeController; not a database column.
+ */
 #[Table(name: 'season_teams', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['fantasy_id', 'fantasy_user_id', 'name', 'logo', 'primary_color', 'secondary_color', 'total_points', 'live_points', 'position', 'last_position', 'value', 'season_id'])]
 class SeasonTeam extends Model

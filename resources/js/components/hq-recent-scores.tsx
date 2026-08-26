@@ -7,6 +7,8 @@ interface HqRecentScoresProps {
     used?: (boolean | null)[];
     className?: string;
     size?: 'md' | 'sm';
+    /** Color tier for a slot's value — defaults to the per-player scale; pass {@link teamFormBadgeClass} for team-level totals. */
+    badgeClass?: (points: number) => string;
 }
 
 const SIZE_CLASSES: Record<'md' | 'sm', string> = {
@@ -20,6 +22,7 @@ export function HqRecentScores({
     used,
     className,
     size = 'md',
+    badgeClass = matchPointsBadgeClass,
 }: HqRecentScoresProps) {
     return (
         <div className={cn('flex shrink-0 gap-1', className)}>
@@ -33,8 +36,8 @@ export function HqRecentScores({
                             'relative flex shrink-0 items-center justify-center border font-mono font-bold',
                             SIZE_CLASSES[size],
                             points !== null
-                                ? matchPointsBadgeClass(points)
-                                : 'border-dashed border-hq-border-strong text-hq-moss-dim',
+                                ? badgeClass(points)
+                                : 'border-dashed border-hq-border-strong bg-hq-border-strong/40 text-hq-moss-dim',
                         )}
                     >
                         {points ?? '–'}
