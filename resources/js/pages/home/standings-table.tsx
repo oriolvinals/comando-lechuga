@@ -71,7 +71,7 @@ export function StandingsTable({
                                 <p className="text-lg font-extrabold text-hq-paper">
                                     {team.name}
                                 </p>
-                                <p className="font-mono text-[11px] text-hq-moss-dim">
+                                <p className="font-mono text-[11px] text-hq-moss">
                                     {formatCurrency(team.value)}
                                 </p>
                             </div>

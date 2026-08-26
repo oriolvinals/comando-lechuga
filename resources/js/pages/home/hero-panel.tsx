@@ -82,7 +82,7 @@ function PodiumRow({
                 <p className={cn('truncate font-extrabold text-hq-paper', size.name)}>
                     {team.name}
                 </p>
-                <p className={cn('font-mono text-hq-moss-dim', size.value)}>
+                <p className={cn('font-mono text-hq-moss', size.value)}>
                     {formatCurrency(team.value)}
                 </p>
             </div>
