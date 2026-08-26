@@ -37,7 +37,11 @@ function RosterClauseStatus({
         entry.buyout_clause_locked_until,
         now,
     );
-    const countdown = useLockCountdown(entry.buyout_clause_locked_until, now);
+    const shieldCountdown = useLockCountdown(entry.shielded_until, now);
+    const lockCountdown = useLockCountdown(
+        entry.buyout_clause_locked_until,
+        now,
+    );
 
     if (status === 'shielded') {
         return (
@@ -46,7 +50,7 @@ function RosterClauseStatus({
                     <ShieldCheck className="h-[13px] w-[13px]" />
                     Blindado
                     <span className="text-hq-paper normal-case">
-                        · {countdown}
+                        · {shieldCountdown}
                     </span>
                 </div>
                 <ClauseDifference
@@ -64,7 +68,7 @@ function RosterClauseStatus({
                     <Lock className="h-[13px] w-[13px]" />
                     Bloqueado
                     <span className="text-hq-gold normal-case">
-                        · {countdown}
+                        · {lockCountdown}
                     </span>
                 </div>
                 <ClauseDifference

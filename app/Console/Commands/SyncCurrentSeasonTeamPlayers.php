@@ -76,6 +76,10 @@ class SyncCurrentSeasonTeamPlayers extends Command
                             'buyout_clause_locked_until' => CarbonImmutable::parse((string) $playerEntry['buyoutClauseLockedEndTime'])
                                 ->setTimezone((string) config('app.timezone')),
                             'shielded' => (bool) ($playerEntry['isShielded'] ?? false),
+                            'shielded_until' => isset($playerEntry['shieldedEndDate'])
+                                ? CarbonImmutable::parse((string) $playerEntry['shieldedEndDate'])
+                                    ->setTimezone((string) config('app.timezone'))
+                                : null,
                         ],
                     );
 

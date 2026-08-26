@@ -129,6 +129,7 @@ export interface SeasonTeamPlayer {
     buyout_clause: number;
     buyout_clause_locked_until: string;
     shielded: boolean;
+    shielded_until: string | null;
     player: Player;
 }
 
@@ -137,6 +138,7 @@ export interface PlayerOwnership {
     buyout_clause: number;
     buyout_clause_locked_until: string;
     shielded: boolean;
+    shielded_until: string | null;
     season_team: SeasonTeam;
 }
 

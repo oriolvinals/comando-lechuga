@@ -126,7 +126,7 @@ function OwnedStatus({
                     colorClass="text-hq-def"
                     borderClass="border-hq-def"
                     bgClass="bg-hq-def/10"
-                    targetIso={owner.buyout_clause_locked_until}
+                    targetIso={owner.shielded_until}
                     now={now}
                 >
                     <ClauseDifference
@@ -219,7 +219,7 @@ function LockStatus({
     borderClass: string;
     bgClass: string;
     countdownColorClass?: string;
-    targetIso: string;
+    targetIso: string | null;
     now: number;
     children: ReactNode;
 }) {

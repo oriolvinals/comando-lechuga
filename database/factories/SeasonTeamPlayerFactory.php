@@ -22,6 +22,7 @@ class SeasonTeamPlayerFactory extends Factory
             'buyout_clause' => $this->faker->numberBetween(1000000, 50000000),
             'buyout_clause_locked_until' => now()->addWeek(),
             'shielded' => false,
+            'shielded_until' => null,
         ];
     }
 }

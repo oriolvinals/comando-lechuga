@@ -2,11 +2,19 @@ import { formatRelativeTime } from '@/lib/format';
 
 /**
  * Relative day text ("dentro de 8 días") while 24h+ remain, switching to a
- * live-ticking HH:MM:SS countdown once inside the final day — same rule for
- * both a locked buyout clause and a shield, since both key off
- * `buyout_clause_locked_until`.
+ * live-ticking HH:MM:SS countdown once inside the final day. Used for both
+ * a locked buyout clause (`buyout_clause_locked_until`) and a shield
+ * (`shielded_until`) — pass whichever deadline applies; `null` (e.g. a
+ * shielded row synced before `shielded_until` existed) reads as expired.
  */
-export function useLockCountdown(targetIso: string, now: number): string {
+export function useLockCountdown(
+    targetIso: string | null,
+    now: number,
+): string {
+    if (targetIso === null) {
+        return 'Disponible';
+    }
+
     const diffMs = new Date(targetIso).getTime() - now;
 
     if (diffMs <= 0) {

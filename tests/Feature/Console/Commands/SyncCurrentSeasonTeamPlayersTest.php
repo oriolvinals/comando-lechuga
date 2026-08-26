@@ -64,8 +64,56 @@ test('creates the current squad for each season team and skips unresolved player
         ->and($seasonTeamPlayer->player_id)->toBe($player->id)
         ->and($seasonTeamPlayer->buyout_clause)->toBe(35273936)
         ->and($seasonTeamPlayer->shielded)->toBeFalse()
+        ->and($seasonTeamPlayer->shielded_until)->toBeNull()
         ->and($seasonTeamPlayer->buyout_clause_locked_until->toIso8601String())
         ->toBe('2026-08-25T20:00:49+02:00');
+});
+
+test('stores the shield expiry date for a shielded player', function (): void {
+    Cache::forget('la_liga_fantasy.access_token');
+
+    $season = Season::factory()->create([
+        'fantasy_id' => '017834818',
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $seasonTeam = SeasonTeam::factory()->create([
+        'season_id' => $season->id,
+        'fantasy_id' => 37394521,
+    ]);
+    Player::factory()->create(['fantasy_id' => 988]);
+
+    $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
+    $loginConnector->shouldReceive('accessToken')
+        ->once()
+        ->andReturn('header.eyJleHAiOjE3ODc0MTc3NTB9.signature');
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetLeagueTeamRequest::class => MockResponse::make([
+            'players' => [
+                [
+                    'buyoutClause' => 35273936,
+                    'buyoutClauseLockedEndTime' => '2026-08-14T20:10:21+02:00',
+                    'isShielded' => true,
+                    'shieldedEndDate' => '2026-08-27T21:03:25+02:00',
+                    'playerMaster' => ['id' => '988'],
+                ],
+            ],
+        ]),
+    ]));
+
+    app()->instance(LaLigaLoginConnector::class, $loginConnector);
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonTeamPlayers::class)->assertSuccessful();
+
+    $seasonTeamPlayer = SeasonTeamPlayer::query()->sole();
+
+    expect($seasonTeamPlayer->shielded)->toBeTrue()
+        ->and($seasonTeamPlayer->shielded_until?->toIso8601String())
+        ->toBe('2026-08-27T21:03:25+02:00')
+        ->and($seasonTeamPlayer->buyout_clause_locked_until->toIso8601String())
+        ->toBe('2026-08-14T20:10:21+02:00');
 });
 
 test('removes players that are no longer part of the current squad', function (): void {

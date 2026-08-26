@@ -20,10 +20,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int $buyout_clause
  * @property-read CarbonImmutable $buyout_clause_locked_until
  * @property-read bool $shielded
+ * @property-read CarbonImmutable|null $shielded_until
  */
 #[UseFactory(SeasonTeamPlayerFactory::class)]
 #[Table(name: 'season_team_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['season_team_id', 'player_id', 'buyout_clause', 'buyout_clause_locked_until', 'shielded'])]
+#[Fillable(['season_team_id', 'player_id', 'buyout_clause', 'buyout_clause_locked_until', 'shielded', 'shielded_until'])]
 class SeasonTeamPlayer extends Model
 {
     /** @use HasFactory<SeasonTeamPlayerFactory> */
@@ -59,6 +60,7 @@ class SeasonTeamPlayer extends Model
             'buyout_clause' => 'int',
             'buyout_clause_locked_until' => 'immutable_datetime',
             'shielded' => 'bool',
+            'shielded_until' => 'immutable_datetime',
         ];
     }
 }
