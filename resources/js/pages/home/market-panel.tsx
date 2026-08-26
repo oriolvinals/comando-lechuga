@@ -1,5 +1,6 @@
-import { Link } from '@inertiajs/react';
-import { Shield, User } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { RefreshCw, Shield, User } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import {
     HqPositionTag,
@@ -14,6 +15,96 @@ import type { MarketPlayer } from '@/types/models';
 
 interface MarketPanelProps {
     market: MarketPlayer[];
+}
+
+type RefreshStatus = 'idle' | 'loading' | 'no-news' | 'new-bids';
+
+// Local reloads can resolve in a few ms, which lets React batch the
+// 'loading' and result updates into one paint and skip the spin entirely.
+const MIN_LOADING_MS = 450;
+const RESULT_FLASH_MS = 1600;
+
+function totalBids(market: MarketPlayer[]) {
+    return market.reduce((sum, listing) => sum + listing.bids, 0);
+}
+
+function RefreshMarketButton({ market }: { market: MarketPlayer[] }) {
+    const [status, setStatus] = useState<RefreshStatus>('idle');
+    const pendingTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+    useEffect(() => () => clearTimeout(pendingTimeout.current), []);
+
+    const handleRefresh = () => {
+        if (status === 'loading') {
+            return;
+        }
+
+        const previousBids = totalBids(market);
+        const startedAt = Date.now();
+        setStatus('loading');
+
+        const settle = (next: RefreshStatus) => {
+            clearTimeout(pendingTimeout.current);
+            const delay = Math.max(0, MIN_LOADING_MS - (Date.now() - startedAt));
+            pendingTimeout.current = setTimeout(() => {
+                setStatus(next);
+                if (next !== 'idle') {
+                    pendingTimeout.current = setTimeout(
+                        () => setStatus('idle'),
+                        RESULT_FLASH_MS,
+                    );
+                }
+            }, delay);
+        };
+
+        router.reload({
+            only: ['market'],
+            onSuccess: (page) => {
+                const updatedMarket = page.props.market as MarketPlayer[];
+                settle(
+                    totalBids(updatedMarket) > previousBids
+                        ? 'new-bids'
+                        : 'no-news',
+                );
+            },
+            onError: () => settle('idle'),
+        });
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={status === 'loading'}
+            title="Actualizar mercado"
+            aria-label="Actualizar mercado"
+            className={cn(
+                'hq-tag-cut h-9 w-9 shrink-0 cursor-pointer p-px transition-colors',
+                status === 'loading' &&
+                    'cursor-not-allowed bg-hq-border-strong',
+                status === 'no-news' && 'bg-hq-lime',
+                status === 'new-bids' && 'bg-hq-ember',
+                status === 'idle' && 'bg-hq-border-strong hover:bg-hq-lime',
+            )}
+        >
+            <span
+                className={cn(
+                    'hq-tag-cut flex h-full w-full items-center justify-center',
+                    status === 'loading' && 'bg-hq-panel-alt text-hq-moss',
+                    status === 'no-news' && 'bg-hq-lime/10 text-hq-lime',
+                    status === 'new-bids' && 'bg-hq-ember/10 text-hq-ember',
+                    status === 'idle' && 'bg-hq-panel-alt text-hq-lime',
+                )}
+            >
+                <RefreshCw
+                    className={cn(
+                        'h-4 w-4',
+                        status === 'loading' && 'animate-spin',
+                    )}
+                />
+            </span>
+        </button>
+    );
 }
 
 function MarketCard({ listing }: { listing: MarketPlayer }) {
@@ -90,7 +181,10 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
 
 export function MarketPanel({ market }: MarketPanelProps) {
     return (
-        <HqSection title="Mercado">
+        <HqSection
+            title="Mercado"
+            action={<RefreshMarketButton market={market} />}
+        >
             {market.length === 0 ? (
                 <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
                     <p className="mb-2 text-3xl">🗃️</p>
