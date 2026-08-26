@@ -32,21 +32,21 @@ test('renders the players index page', function (): void {
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->component('players/index'));
 });
 
-test('paginates players, 30 per page', function (): void {
+test('paginates players, 15 per page', function (): void {
     Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
 
-    Player::factory()->count(35)->create();
+    Player::factory()->count(20)->create();
 
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('players.total', 35)
-        ->where('players.per_page', 30)
-        ->has('players.data', 30)
+        ->where('players.total', 20)
+        ->where('players.per_page', 15)
+        ->has('players.data', 15)
     );
 });
 

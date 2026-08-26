@@ -84,7 +84,7 @@ class PlayersController extends Controller
                 ['%'.Str::lower(Str::ascii($search)).'%'],
             ))
             ->orderBy($sort->column(), $direction->value)
-            ->paginate(30)
+            ->paginate(15)
             ->withQueryString();
 
         $this->attachOwnership($players, $season->id);
