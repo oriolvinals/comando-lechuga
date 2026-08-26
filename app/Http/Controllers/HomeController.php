@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\PlayerPosition;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
+use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
 use App\Models\Fixture;
@@ -22,6 +23,7 @@ use Inertia\Response;
 class HomeController extends Controller
 {
     use AttachesActivityValueDifference;
+    use AttachesRecentScores;
     use FiltersSeasonWeeks;
     use ResolvesRequestedWeek;
 
@@ -50,6 +52,8 @@ class HomeController extends Controller
             ->where('expires_at', '>', now())
             ->orderBy('expires_at')
             ->get();
+
+        $this->attachRecentScores($market->pluck('player'), $season);
 
         $activity = SeasonActivity::query()
             ->where('season_id', $season->id)

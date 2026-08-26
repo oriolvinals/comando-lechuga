@@ -7,6 +7,7 @@ use App\Models\Fixture;
 use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
+use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonActivity;
 use App\Models\SeasonTeam;
@@ -158,6 +159,24 @@ test('excludes market listings that have already expired', function (): void {
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('market', 1)
         ->where('market.0.id', $active->id)
+    );
+});
+
+test('includes recent scores for each market listing player', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay()]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'points' => 9]);
+    MarketPlayer::factory()->create(['player_id' => $player->id]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('market.0.player.recent_scores', [9, null, null])
     );
 });
 

@@ -6,6 +6,7 @@ import {
     HqPositionTag,
     POSITION_ACCENT_BORDER_CLASSES,
 } from '@/components/hq-position-tag';
+import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqSection } from '@/components/hq-section';
 import { formatCurrency } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
@@ -165,13 +166,14 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                 )}
             </p>
 
-            {listing.bids > 0 && (
-                <div className="mt-1 flex items-center justify-end">
-                    <span className="border border-hq-ember bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+                <HqRecentScores scores={player.recent_scores} size="sm" />
+                {listing.bids > 0 && (
+                    <span className="shrink-0 border border-hq-ember bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
                         {listing.bids} {listing.bids === 1 ? 'PUJA' : 'PUJAS'}
                     </span>
-                </div>
-            )}
+                )}
+            </div>
         </Link>
     );
 }
