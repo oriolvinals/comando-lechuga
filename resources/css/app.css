@@ -8,6 +8,10 @@ body {
     overflow-x: hidden;
 }
 
+html {
+    scrollbar-gutter: stable;
+}
+
 @theme {
     --font-sans:
         'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
