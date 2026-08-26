@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { HqScrollRow } from '@/components/hq-scroll-row';
 import { MatchEventIcons } from '@/components/match-event-icons';
 import AppLayout from '@/layouts/app-layout';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
@@ -260,8 +261,12 @@ export default function FixtureShow({
         (score) => score.team_id === fixture.guest_team.id,
     );
     const minPlayedRows = Math.max(
-        localScores.filter((score) => !didNotPlayMatch(score.stats, fixture.state)).length,
-        guestScores.filter((score) => !didNotPlayMatch(score.stats, fixture.state)).length,
+        localScores.filter(
+            (score) => !didNotPlayMatch(score.stats, fixture.state),
+        ).length,
+        guestScores.filter(
+            (score) => !didNotPlayMatch(score.stats, fixture.state),
+        ).length,
     );
 
     return (
@@ -271,7 +276,7 @@ export default function FixtureShow({
             />
             <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
                 <div className="mx-auto max-w-7xl px-6 py-9">
-                    <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+                    <HqScrollRow className="mb-5">
                         {weekFixtures.map((weekFixture) => {
                             const weekFixtureIsLive = isLiveFixtureState(
                                 weekFixture.state,
@@ -346,7 +351,7 @@ export default function FixtureShow({
                                 </Link>
                             );
                         })}
-                    </div>
+                    </HqScrollRow>
 
                     <div
                         className={cn(

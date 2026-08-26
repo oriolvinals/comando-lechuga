@@ -1,9 +1,14 @@
 import { Link } from '@inertiajs/react';
 import { ArrowUpRight } from 'lucide-react';
 import { useState } from 'react';
+import { HqScrollRow } from '@/components/hq-scroll-row';
 import { MatchEventIcons } from '@/components/match-event-icons';
 import { formatMatchDateTime } from '@/lib/format';
-import { didNotPlayMatch, JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
+import {
+    didNotPlayMatch,
+    JORNADA_STAT_LABELS,
+    JORNADA_STAT_ORDER,
+} from '@/lib/player-labels';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { teamColor } from '@/lib/season-team-colors';
 import { cn } from '@/lib/utils';
@@ -11,7 +16,9 @@ import { show as fixturesShow } from '@/routes/fixtures';
 import { show as seasonTeamsShow } from '@/routes/season-teams';
 import type { Fixture, PlayerFichaScore, PlayerPosition } from '@/types/models';
 
-const BODY_STAT_ORDER = JORNADA_STAT_ORDER.filter((key) => key !== 'marca_points');
+const BODY_STAT_ORDER = JORNADA_STAT_ORDER.filter(
+    (key) => key !== 'marca_points',
+);
 
 interface HqPlayerMatchTimelineProps {
     scores: PlayerFichaScore[];
@@ -27,8 +34,12 @@ export function HqPlayerMatchTimeline({
     playerPosition,
 }: HqPlayerMatchTimelineProps) {
     const [selectedWeek, setSelectedWeek] = useState(currentWeek);
-    const scoresByWeek = new Map(scores.map((score) => [score.fixture.week_number, score]));
-    const fixturesByWeek = new Map(teamFixtures.map((fixture) => [fixture.week_number, fixture]));
+    const scoresByWeek = new Map(
+        scores.map((score) => [score.fixture.week_number, score]),
+    );
+    const fixturesByWeek = new Map(
+        teamFixtures.map((fixture) => [fixture.week_number, fixture]),
+    );
     const selectedScore = scoresByWeek.get(selectedWeek) ?? null;
     const selectedFixture = fixturesByWeek.get(selectedWeek) ?? null;
 
@@ -38,43 +49,38 @@ export function HqPlayerMatchTimeline({
                 Partidos
             </h2>
 
-            <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-9 bg-gradient-to-r from-hq-ink to-transparent" />
-                <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-9 bg-gradient-to-l from-hq-ink to-transparent" />
-                <div className="flex gap-2 overflow-x-auto px-1 py-1 pb-3">
-                    {Array.from({ length: currentWeek }, (_, index) => index + 1).map(
-                        (week) => {
-                            const score = scoresByWeek.get(week);
+            <HqScrollRow contentClassName="px-1 py-1 pb-3">
+                {Array.from(
+                    { length: currentWeek },
+                    (_, index) => index + 1,
+                ).map((week) => {
+                    const score = scoresByWeek.get(week);
 
-                            return (
-                                <button
-                                    key={week}
-                                    type="button"
-                                    onClick={() => setSelectedWeek(week)}
-                                    className={cn(
-                                        'flex h-14 w-14 shrink-0 cursor-pointer flex-col items-center justify-center border-2 font-mono',
-                                        selectedWeek === week
-                                            ? 'border-hq-paper'
-                                            : 'border-transparent hover:border-hq-border-strong',
-                                        score
-                                            ? matchPointsBadgeClass(
-                                                  score.points,
-                                              )
-                                            : 'border-dashed border-hq-border-strong text-hq-moss-dim',
-                                    )}
-                                >
-                                    <span className="text-[10px] font-bold opacity-80">
-                                        J{week}
-                                    </span>
-                                    <span className="font-display text-lg leading-none">
-                                        {score ? score.points : '—'}
-                                    </span>
-                                </button>
-                            );
-                        },
-                    )}
-                </div>
-            </div>
+                    return (
+                        <button
+                            key={week}
+                            type="button"
+                            onClick={() => setSelectedWeek(week)}
+                            className={cn(
+                                'flex h-14 w-14 shrink-0 cursor-pointer flex-col items-center justify-center border-2 font-mono',
+                                selectedWeek === week
+                                    ? 'border-hq-paper'
+                                    : 'border-transparent hover:border-hq-border-strong',
+                                score
+                                    ? matchPointsBadgeClass(score.points)
+                                    : 'border-dashed border-hq-border-strong text-hq-moss-dim',
+                            )}
+                        >
+                            <span className="text-[10px] font-bold opacity-80">
+                                J{week}
+                            </span>
+                            <span className="font-display text-lg leading-none">
+                                {score ? score.points : '—'}
+                            </span>
+                        </button>
+                    );
+                })}
+            </HqScrollRow>
 
             {selectedScore ? (
                 <div className="hq-card-cut p-4">
@@ -136,7 +142,9 @@ export function HqPlayerMatchTimeline({
                                 </span>
                             )}
                             <Link
-                                href={fixturesShow(selectedScore.fixture.id).url}
+                                href={
+                                    fixturesShow(selectedScore.fixture.id).url
+                                }
                                 className="flex items-center gap-1 border border-hq-lime px-2 py-1 font-mono text-[11px] font-bold text-hq-lime hover:bg-hq-lime/10"
                             >
                                 VER PARTIDO
@@ -146,7 +154,9 @@ export function HqPlayerMatchTimeline({
                     </div>
                     <div className="grid grid-cols-2">
                         {BODY_STAT_ORDER.map((key, index) => {
-                            const [value, delta] = selectedScore.stats[key] ?? [0, 0];
+                            const [value, delta] = selectedScore.stats[key] ?? [
+                                0, 0,
+                            ];
                             const isZero = value === 0 && delta === 0;
 
                             return (
@@ -154,7 +164,8 @@ export function HqPlayerMatchTimeline({
                                     key={key}
                                     className={cn(
                                         'flex flex-col gap-0.5 border-t border-hq-border px-4 py-1.5',
-                                        index % 2 === 1 && 'border-l border-hq-border',
+                                        index % 2 === 1 &&
+                                            'border-l border-hq-border',
                                     )}
                                 >
                                     <span
@@ -201,8 +212,8 @@ export function HqPlayerMatchTimeline({
                     {selectedFixture ? (
                         <>
                             <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
-                                {selectedFixture.local_team.short_name}{' '}
-                                vs {selectedFixture.guest_team.short_name} ·{' '}
+                                {selectedFixture.local_team.short_name} vs{' '}
+                                {selectedFixture.guest_team.short_name} ·{' '}
                                 {formatMatchDateTime(selectedFixture.date)}
                             </p>
                             <Link
@@ -215,7 +226,8 @@ export function HqPlayerMatchTimeline({
                         </>
                     ) : (
                         <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
-                            Todavía no hay datos de este jugador para esta jornada
+                            Todavía no hay datos de este jugador para esta
+                            jornada
                         </p>
                     )}
                 </div>
