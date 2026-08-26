@@ -48,6 +48,7 @@ function RefreshMarketButton({ market }: { market: MarketPlayer[] }) {
             const delay = Math.max(0, MIN_LOADING_MS - (Date.now() - startedAt));
             pendingTimeout.current = setTimeout(() => {
                 setStatus(next);
+
                 if (next !== 'idle') {
                     pendingTimeout.current = setTimeout(
                         () => setStatus('idle'),
@@ -108,7 +109,6 @@ function RefreshMarketButton({ market }: { market: MarketPlayer[] }) {
 }
 
 function MarketCard({ listing }: { listing: MarketPlayer }) {
-    const countdown = useCountdown(listing.expires_at);
     const player = listing.player;
 
     return (
@@ -165,17 +165,33 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                 )}
             </p>
 
-            <div className="mt-1 flex items-center justify-between">
-                <span className="font-mono text-[11px] font-bold text-hq-gold">
-                    {countdown}
-                </span>
-                {listing.bids > 0 && (
+            {listing.bids > 0 && (
+                <div className="mt-1 flex items-center justify-end">
                     <span className="border border-hq-ember bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
                         {listing.bids} {listing.bids === 1 ? 'PUJA' : 'PUJAS'}
                     </span>
-                )}
-            </div>
+                </div>
+            )}
         </Link>
+    );
+}
+
+function MarketCountdown({ market }: { market: MarketPlayer[] }) {
+    // Every listing normally expires at the same time, so one shared
+    // countdown replaces a per-card timer instead of repeating it on
+    // every card.
+    const countdown = useCountdown(
+        market[0]?.expires_at ?? new Date().toISOString(),
+    );
+
+    if (market.length === 0) {
+        return null;
+    }
+
+    return (
+        <span className="font-display text-xl text-hq-gold">
+            {countdown}
+        </span>
     );
 }
 
@@ -183,7 +199,12 @@ export function MarketPanel({ market }: MarketPanelProps) {
     return (
         <HqSection
             title="Mercado"
-            action={<RefreshMarketButton market={market} />}
+            action={
+                <div className="flex items-center gap-3">
+                    <MarketCountdown market={market} />
+                    <RefreshMarketButton market={market} />
+                </div>
+            }
         >
             {market.length === 0 ? (
                 <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
