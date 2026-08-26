@@ -16,6 +16,7 @@ const DEFAULT_WIDTH = 900;
 const HEIGHT = 160;
 const BAND_Y = 176;
 const BAND_HEIGHT = 14;
+const BAR_LABEL_SPACE = 20;
 
 type Mode = 'valor' | 'puntos';
 type Range = 10 | 30 | 'all';
@@ -212,10 +213,12 @@ export function HqPlayerValueChart({
 
         const slot = width / n;
         const barWidth = Math.min(64, slot * 0.5);
+        const maxPoints = Math.max(...scores.map((score) => score.points), 12);
 
         const bars = scores.map((score, index) => {
             const cx = index * slot + slot / 2;
-            const barHeight = (score.points / 12) * HEIGHT;
+            const barHeight =
+                (score.points / maxPoints) * (HEIGHT - BAR_LABEL_SPACE);
 
             return {
                 cx,
