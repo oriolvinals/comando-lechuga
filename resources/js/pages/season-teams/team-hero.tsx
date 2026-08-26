@@ -42,9 +42,10 @@ function RankTrend({
 interface TeamHeroProps {
     seasonTeam: SeasonTeam;
     season: Season;
+    wonWeeks: number[];
 }
 
-export function TeamHero({ seasonTeam, season }: TeamHeroProps) {
+export function TeamHero({ seasonTeam, season, wonWeeks }: TeamHeroProps) {
     const medal = MEDAL_COLOR_VARS[seasonTeam.position];
     const borderColor = medal ?? 'var(--color-hq-border-strong)';
     const chipTextColor = medal ?? 'var(--color-hq-paper)';
@@ -87,9 +88,23 @@ export function TeamHero({ seasonTeam, season }: TeamHeroProps) {
                     </div>
                 </div>
 
-                <h1 className="font-display text-3xl text-hq-paper uppercase">
-                    {seasonTeam.name}
-                </h1>
+                <div>
+                    <h1 className="font-display text-3xl text-hq-paper uppercase">
+                        {seasonTeam.name}
+                    </h1>
+                    {wonWeeks.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {wonWeeks.map((week) => (
+                                <span
+                                    key={week}
+                                    className="hq-tag-cut inline-flex items-center bg-hq-gold px-2 py-1 font-mono text-[10px] font-bold text-hq-ink"
+                                >
+                                    J{week}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 <div className="ml-auto flex flex-wrap gap-2.5">
                     <div className="border border-hq-border bg-hq-panel-alt/80 px-4 py-2 text-center">

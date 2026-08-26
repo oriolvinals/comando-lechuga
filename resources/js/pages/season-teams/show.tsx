@@ -26,6 +26,7 @@ interface SeasonTeamShowProps {
     lineupHistory: SeasonTeamLineup[];
     startedWeeks: number[];
     weekProgress: WeekProgressMap;
+    wonWeeks: number[];
     activity: SeasonActivity[];
     [key: string]: unknown;
 }
@@ -37,6 +38,7 @@ export default function SeasonTeamShow({
     lineupHistory,
     startedWeeks,
     weekProgress,
+    wonWeeks,
     activity,
 }: SeasonTeamShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(season.current_week);
@@ -72,7 +74,11 @@ export default function SeasonTeamShow({
             />
 
             <div className="relative mx-auto max-w-7xl px-6 pb-9">
-                <TeamHero seasonTeam={seasonTeam} season={season} />
+                <TeamHero
+                    seasonTeam={seasonTeam}
+                    season={season}
+                    wonWeeks={wonWeeks}
+                />
 
                 <div className="mt-6">
                     <h2 className="mb-3 font-display text-lg text-hq-paper uppercase">

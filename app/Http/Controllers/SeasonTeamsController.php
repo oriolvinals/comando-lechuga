@@ -85,7 +85,40 @@ class SeasonTeamsController extends Controller
             // int, so a plain array here could serialize as a sparse JSON
             // array instead of the {"1": "all", ...} object the frontend expects.
             'weekProgress' => (object) $this->weekProgress($season),
+            'wonWeeks' => $this->wonWeekNumbers($seasonTeam, $season),
             'activity' => $activity,
         ]);
+    }
+
+    /**
+     * Finished week numbers where this team topped every team's lineup
+     * points that week (ties all count as winners).
+     *
+     * @return array<int, int>
+     */
+    private function wonWeekNumbers(SeasonTeam $seasonTeam, Season $season): array
+    {
+        $finishedWeeks = $this->finishedWeekNumbers($season);
+
+        if ($finishedWeeks === []) {
+            return [];
+        }
+
+        $lineups = SeasonTeamLineup::query()
+            ->whereIn('week_number', $finishedWeeks)
+            ->whereHas('seasonTeam', fn ($query) => $query->where('season_id', $season->id))
+            ->get(['season_team_id', 'week_number', 'points']);
+
+        $maxPointsByWeek = $lineups
+            ->groupBy('week_number')
+            ->map(fn ($weekLineups) => $weekLineups->max('points'));
+
+        return $lineups
+            ->where('season_team_id', $seasonTeam->id)
+            ->filter(fn (SeasonTeamLineup $lineup): bool => $lineup->points === $maxPointsByWeek[$lineup->week_number])
+            ->pluck('week_number')
+            ->sort()
+            ->values()
+            ->all();
     }
 }

@@ -328,3 +328,42 @@ test('marks recent scores as used only for jornadas this team actually lined the
         ->where('roster.0.player.recent_scores_used', [false, true, null])
     );
 });
+
+test('only includes finished weeks where the team topped every lineup', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 3,
+    ]);
+    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $otherTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+
+    SeasonTeamLineup::factory()->create(['season_team_id' => $seasonTeam->id, 'week_number' => 1, 'points' => 70]);
+    SeasonTeamLineup::factory()->create(['season_team_id' => $otherTeam->id, 'week_number' => 1, 'points' => 40]);
+
+    SeasonTeamLineup::factory()->create(['season_team_id' => $seasonTeam->id, 'week_number' => 2, 'points' => 20]);
+    SeasonTeamLineup::factory()->create(['season_team_id' => $otherTeam->id, 'week_number' => 2, 'points' => 50]);
+
+    $response = $this->get(route('season-teams.show', $seasonTeam));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('wonWeeks', [1]));
+});
+
+test('counts a tied top score as a win for both teams', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 2,
+    ]);
+    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $otherTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+
+    SeasonTeamLineup::factory()->create(['season_team_id' => $seasonTeam->id, 'week_number' => 1, 'points' => 55]);
+    SeasonTeamLineup::factory()->create(['season_team_id' => $otherTeam->id, 'week_number' => 1, 'points' => 55]);
+
+    $response = $this->get(route('season-teams.show', $seasonTeam));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('wonWeeks', [1]));
+});
