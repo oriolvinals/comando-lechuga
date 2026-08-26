@@ -86,7 +86,7 @@ export default function PlayerShow({
                                 <img
                                     src={player.team.logo}
                                     alt={player.team.name}
-                                    className="h-[18px] w-[18px] object-contain"
+                                    className="h-7 w-7 object-contain"
                                 />
                             </div>
                             {player.status !== 'ok' && (
