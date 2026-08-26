@@ -10,16 +10,17 @@ interface ActivityPanelProps {
 
 export function ActivityPanel({ activity }: ActivityPanelProps) {
     return (
-        <HqSection title="Actividad">
-            <div className="mb-4 flex justify-end">
+        <HqSection
+            title="Actividad"
+            action={
                 <Link
                     href={activityIndex().url}
-                    className="font-mono text-[11px] font-bold text-hq-lime hover:underline"
+                    className="shrink-0 font-mono text-[11px] font-bold text-hq-lime hover:underline"
                 >
                     VER TODO →
                 </Link>
-            </div>
-
+            }
+        >
             {activity.length === 0 ? (
                 <p className="text-sm text-hq-moss">
                     Todavía no hay actividad esta temporada.
