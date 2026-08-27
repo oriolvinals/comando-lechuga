@@ -32,6 +32,8 @@ export interface Player {
     owner_manager: OwnerManager | null;
     /** Points for the last 3 played matches, oldest first, ordered by fixture date — null-padded at the end when fewer than 3 exist. */
     recent_scores: (number | null)[];
+    /** Per recent_scores slot, whether a real finished fixture exists there — false means the team hasn't played that many matches yet, never "not called up" (a finished fixture with no score is still true). */
+    recent_scores_finished: boolean[];
     /** Per recent_scores slot, whether the player was in a given manager's lineup that week. Only present on the manager ficha. */
     recent_scores_used?: (boolean | null)[];
 }
@@ -114,6 +116,8 @@ export interface SeasonManagerLineupPlayerEntry {
     stats: JornadaStats | null;
     position: PlayerPosition;
     player: Player;
+    /** Whether this player's team fixture for that week has finished — distinguishes "not called up" from "not played yet" when points is null. */
+    match_finished: boolean;
 }
 
 export interface SeasonManagerLineup {

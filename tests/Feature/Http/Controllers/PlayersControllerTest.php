@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
@@ -304,9 +305,9 @@ test('includes points for the last 3 played matches, ordered by fixture date old
     $player = Player::factory()->create();
     // Week numbers deliberately out of date order, so the test actually exercises
     // sorting by fixture date rather than by week_number or insertion order.
-    $earliest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 4, 'date' => now()->subDays(30)]);
-    $middle = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'date' => now()->subDays(20)]);
-    $latest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 5, 'date' => now()->subDays(10)]);
+    $earliest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 4, 'date' => now()->subDays(30), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $middle = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $latest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 5, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $earliest->id, 'points' => 7]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $middle->id, 'points' => 2]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $latest->id, 'points' => 11]);
@@ -325,10 +326,10 @@ test('only takes the 3 most recent matches, dropping older ones', function (): v
         'end_date' => now()->addDay(),
     ]);
     $player = Player::factory()->create();
-    $oldest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(40)]);
-    $second = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(30)]);
-    $third = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20)]);
-    $fourth = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(10)]);
+    $oldest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(40), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $second = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(30), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $third = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $fourth = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $oldest->id, 'points' => 99]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $second->id, 'points' => 3]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $third->id, 'points' => 5]);
@@ -348,7 +349,7 @@ test('pads with null at the end when a player has fewer than 3 matches of histor
         'end_date' => now()->addDay(),
     ]);
     $player = Player::factory()->create();
-    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay(), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'points' => 9]);
 
     $response = $this->get(route('players.index'));
@@ -356,6 +357,35 @@ test('pads with null at the end when a player has fewer than 3 matches of histor
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.recent_scores', [9, null, null])
+    );
+});
+
+test('marks a recent score slot as not called up when the match finished without a score', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+    $scored = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->subDays(20),
+        'team_local_id' => $player->team_id,
+        'state' => FixtureState::Finished,
+    ]);
+    $notCalledUp = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->subDays(10),
+        'team_local_id' => $player->team_id,
+        'state' => FixtureState::Finished,
+    ]);
+    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $scored->id, 'points' => 5]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('players.data.0.recent_scores', [5, null, null])
+        ->where('players.data.0.recent_scores_finished', [true, true, false])
     );
 });
 

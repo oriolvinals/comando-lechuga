@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\FixtureState;
 use App\Enums\SeasonActivityType;
 use App\Models\Fixture;
 use App\Models\Player;
@@ -118,6 +119,38 @@ test('shows the lineup players for each manager', function (): void {
         ->has('lineups.0.players', 1)
         ->where('lineups.0.players.0.player.nickname', 'Lamine Yamal')
         ->where('lineups.0.players.0.points', 12)
+    );
+});
+
+test('marks an index lineup player without points as not called up once their fixture finished', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = SeasonManagerLineup::factory()->create([
+        'season_manager_id' => $seasonManager->id,
+        'week_number' => 1,
+    ]);
+
+    $notCalledUpPlayer = Player::factory()->create();
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $notCalledUpPlayer->team_id,
+        'state' => FixtureState::Finished,
+    ]);
+    SeasonManagerLineupPlayer::factory()->create([
+        'season_manager_lineup_id' => $lineup->id,
+        'player_id' => $notCalledUpPlayer->id,
+        'points' => null,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.match_finished', true)
     );
 });
 
@@ -284,8 +317,8 @@ test('attaches recent scores to each roster player', function (): void {
         'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,
     ]);
-    $earliest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20)]);
-    $latest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(10)]);
+    $earliest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $latest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $earliest->id, 'points' => 4]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $latest->id, 'points' => 9]);
 
@@ -309,8 +342,8 @@ test('marks recent scores as used only for jornadas this manager actually lined 
         'player_id' => $player->id,
     ]);
 
-    $week1 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => now()->subDays(20)]);
-    $week2 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => now()->subDays(10)]);
+    $week1 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $week2 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $week1->id, 'points' => 4]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $week2->id, 'points' => 9]);
 
@@ -348,6 +381,54 @@ test('only includes finished weeks where the manager topped every lineup', funct
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('wonWeeks', [1]));
+});
+
+test('marks a lineup player without points as not called up once their fixture finished', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = SeasonManagerLineup::factory()->create([
+        'season_manager_id' => $seasonManager->id,
+        'week_number' => 1,
+    ]);
+
+    $notCalledUpPlayer = Player::factory()->create();
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $notCalledUpPlayer->team_id,
+        'state' => FixtureState::Finished,
+    ]);
+    SeasonManagerLineupPlayer::factory()->create([
+        'season_manager_lineup_id' => $lineup->id,
+        'player_id' => $notCalledUpPlayer->id,
+        'points' => null,
+    ]);
+
+    $notYetPlayedPlayer = Player::factory()->create();
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $notYetPlayedPlayer->team_id,
+        'state' => FixtureState::Scheduled,
+    ]);
+    SeasonManagerLineupPlayer::factory()->create([
+        'season_manager_lineup_id' => $lineup->id,
+        'player_id' => $notYetPlayedPlayer->id,
+        'points' => null,
+    ]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineupHistory.0.players.0.player.id', $notCalledUpPlayer->id)
+        ->where('lineupHistory.0.players.0.match_finished', true)
+        ->where('lineupHistory.0.players.1.player.id', $notYetPlayedPlayer->id)
+        ->where('lineupHistory.0.players.1.match_finished', false)
+    );
 });
 
 test('counts a tied top score as a win for both managers', function (): void {

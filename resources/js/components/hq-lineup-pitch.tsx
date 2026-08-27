@@ -24,11 +24,18 @@ const ROWS: { position: PlayerPosition; top: string }[] = [
  * Same tiers as `matchPointsBadgeClass`, but opaque — the badge sits on
  * grass, not a dark panel, so the translucent tints used elsewhere lose
  * contrast here. Every tier (including "no data") gets a real color, never
- * black, so the badge is always legible against the pitch.
+ * black, so the badge is always legible against the pitch. A player whose
+ * team's match already finished but who has no score wasn't called up —
+ * that's a distinct tier from simply "not played yet".
  */
-function pointsBadgeTierClass(points: number | null): string {
+function pointsBadgeTierClass(
+    points: number | null,
+    notCalledUp: boolean,
+): string {
     if (points === null) {
-        return 'border-hq-border-strong bg-hq-border-strong text-hq-moss';
+        return notCalledUp
+            ? 'border-dashed border-hq-live bg-hq-border-strong text-hq-live'
+            : 'border-hq-border-strong bg-hq-border-strong text-hq-moss';
     }
 
     if (points < 0) {
@@ -140,10 +147,15 @@ export function HqLineupPitch({
                                             'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
                                             pointsBadgeTierClass(
                                                 entry.points,
+                                                entry.points === null &&
+                                                    entry.match_finished,
                                             ),
                                         )}
                                     >
-                                        {entry.points ?? '–'}
+                                        {entry.points ??
+                                            (entry.match_finished
+                                                ? 'NC'
+                                                : '–')}
                                     </span>
                                     <span
                                         className={cn(

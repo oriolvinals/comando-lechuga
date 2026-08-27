@@ -167,7 +167,11 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
             </p>
 
             <div className="mt-1.5 flex items-center justify-between gap-2">
-                <HqRecentScores scores={player.recent_scores} size="sm" />
+                <HqRecentScores
+                    scores={player.recent_scores}
+                    finished={player.recent_scores_finished}
+                    size="sm"
+                />
                 {listing.bids > 0 && (
                     <span className="shrink-0 border border-hq-ember bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
                         {listing.bids} {listing.bids === 1 ? 'PUJA' : 'PUJAS'}

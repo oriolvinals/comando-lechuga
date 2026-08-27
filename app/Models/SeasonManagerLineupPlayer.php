@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int|null $points
  * @property-read array<string, list<int>>|null $stats
  * @property-read PlayerPosition $position
+ * @property bool $match_finished Computed at query time by SeasonManagersController; not a database column.
  */
 #[UseFactory(SeasonManagerLineupPlayerFactory::class)]
 #[Table(name: 'season_manager_lineup_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]

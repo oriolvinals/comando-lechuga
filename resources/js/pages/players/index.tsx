@@ -148,6 +148,7 @@ function PlayerRow({ player }: { player: Player }) {
                 <div className="flex shrink-0 items-center gap-6">
                     <HqRecentScores
                         scores={player.recent_scores}
+                        finished={player.recent_scores_finished}
                         className="w-[130px]"
                     />
                     <div className="w-[130px] shrink-0 text-right">
@@ -266,7 +267,10 @@ function PlayerRow({ player }: { player: Player }) {
                     </div>
                 </div>
                 <div className="mt-2 border-t border-hq-ink pt-2">
-                    <HqRecentScores scores={player.recent_scores} />
+                    <HqRecentScores
+                        scores={player.recent_scores}
+                        finished={player.recent_scores_finished}
+                    />
                 </div>
             </div>
         </Link>

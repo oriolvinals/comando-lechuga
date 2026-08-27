@@ -158,6 +158,7 @@ function RosterRow({ entry, now }: { entry: SeasonManagerPlayer; now: number }) 
                 <div className="flex shrink-0 items-center gap-4">
                     <HqRecentScores
                         scores={entry.player.recent_scores}
+                        finished={entry.player.recent_scores_finished}
                         used={entry.player.recent_scores_used}
                     />
                     <div className="h-8 w-px bg-hq-border" />
@@ -224,6 +225,7 @@ function RosterRow({ entry, now }: { entry: SeasonManagerPlayer; now: number }) 
                 <div className="mt-2 flex items-center justify-between border-t border-hq-ink pt-2">
                     <HqRecentScores
                         scores={entry.player.recent_scores}
+                        finished={entry.player.recent_scores_finished}
                         used={entry.player.recent_scores_used}
                         size="sm"
                     />

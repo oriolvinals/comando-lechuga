@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\FixtureState;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
+use App\Models\Fixture;
 use App\Models\Season;
 use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
 use App\Models\SeasonManagerLineup;
 use App\Models\SeasonManagerPlayer;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,6 +38,8 @@ class SeasonManagersController extends Controller
             ->with(['seasonManager', 'players.player.team'])
             ->orderByDesc('points')
             ->get();
+
+        $this->attachMatchFinished($lineups, $season);
 
         return Inertia::render('season-managers/index', [
             'season' => $season,
@@ -64,6 +69,8 @@ class SeasonManagersController extends Controller
             ->orderByDesc('week_number')
             ->get();
 
+        $this->attachMatchFinished($lineupHistory, $season);
+
         $activity = SeasonActivity::query()
             ->where(fn ($query) => $query
                 ->where('source_season_manager_id', $seasonManager->id)
@@ -88,6 +95,36 @@ class SeasonManagersController extends Controller
             'wonWeeks' => $this->wonWeekNumbers($seasonManager, $season),
             'activity' => $activity,
         ]);
+    }
+
+    /**
+     * A lineup player's `points` is null both when their team hasn't played
+     * yet and when they weren't called up for a match that already finished
+     * — the frontend needs to tell those apart. Sets `match_finished` on
+     * each lineup player entry based on whether their team's fixture for
+     * that lineup's week has finished.
+     *
+     * @param  Collection<int, SeasonManagerLineup>  $lineupHistory
+     */
+    private function attachMatchFinished(Collection $lineupHistory, Season $season): void
+    {
+        /** @var array<int, array<int, true>> $finishedTeamWeeks */
+        $finishedTeamWeeks = Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('state', FixtureState::Finished)
+            ->get(['week_number', 'team_local_id', 'team_guest_id'])
+            ->reduce(function (array $carry, Fixture $fixture): array {
+                $carry[$fixture->week_number][$fixture->team_local_id] = true;
+                $carry[$fixture->week_number][$fixture->team_guest_id] = true;
+
+                return $carry;
+            }, []);
+
+        $lineupHistory->each(function (SeasonManagerLineup $lineup) use ($finishedTeamWeeks): void {
+            foreach ($lineup->players as $entry) {
+                $entry->match_finished = $finishedTeamWeeks[$lineup->week_number][$entry->player->team_id] ?? false;
+            }
+        });
     }
 
     /**

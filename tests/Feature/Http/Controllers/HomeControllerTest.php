@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Models\Fixture;
 use App\Models\MarketPlayer;
@@ -168,7 +169,7 @@ test('includes recent scores for each market listing player', function (): void 
         'end_date' => now()->addDay(),
     ]);
     $player = Player::factory()->create(['position' => PlayerPosition::Striker]);
-    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay(), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'points' => 9]);
     MarketPlayer::factory()->create(['player_id' => $player->id]);
 
