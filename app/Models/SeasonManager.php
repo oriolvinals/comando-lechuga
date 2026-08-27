@@ -39,10 +39,10 @@ class SeasonManager extends Model
         return $this->belongsTo(Season::class);
     }
 
-    /** @return HasMany<SeasonManagerLineup, $this> */
+    /** @return HasMany<ManagerLineup, $this> */
     public function lineups(): HasMany
     {
-        return $this->hasMany(SeasonManagerLineup::class);
+        return $this->hasMany(ManagerLineup::class);
     }
 
     /**

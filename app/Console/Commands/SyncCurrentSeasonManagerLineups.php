@@ -7,11 +7,11 @@ namespace App\Console\Commands;
 use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
+use App\Models\ManagerLineup;
+use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerLineup;
-use App\Models\SeasonManagerLineupPlayer;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -51,7 +51,7 @@ class SyncCurrentSeasonManagerLineups extends Command
                 }
 
                 DB::transaction(function () use ($seasonManager, $weekNumber, $lineupData, $formation): void {
-                    $lineup = SeasonManagerLineup::query()->updateOrCreate(
+                    $lineup = ManagerLineup::query()->updateOrCreate(
                         [
                             'season_manager_id' => $seasonManager->id,
                             'week_number' => $weekNumber,
@@ -94,9 +94,9 @@ class SyncCurrentSeasonManagerLineups extends Command
                                 )
                                 : null;
 
-                            SeasonManagerLineupPlayer::query()->updateOrCreate(
+                            ManagerLineupPlayer::query()->updateOrCreate(
                                 [
-                                    'season_manager_lineup_id' => $lineup->id,
+                                    'manager_lineup_id' => $lineup->id,
                                     'player_id' => $player->id,
                                 ],
                                 [
@@ -110,8 +110,8 @@ class SyncCurrentSeasonManagerLineups extends Command
                         }
                     }
 
-                    SeasonManagerLineupPlayer::query()
-                        ->where('season_manager_lineup_id', $lineup->id)
+                    ManagerLineupPlayer::query()
+                        ->where('manager_lineup_id', $lineup->id)
                         ->whereNotIn('player_id', $syncedPlayerIds)
                         ->delete();
                 });

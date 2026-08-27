@@ -7,10 +7,10 @@ import {
 } from '@/components/activity-helpers';
 import { formatCurrency, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { SeasonActivity } from '@/types/models';
+import type { Activity } from '@/types/models';
 
 interface HqActivityTimelineEntryProps {
-    activity: SeasonActivity;
+    activity: Activity;
 }
 
 /**

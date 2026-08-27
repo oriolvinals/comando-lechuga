@@ -8,11 +8,11 @@ Tracker web para una liga privada de LaLiga Fantasy: sincroniza datos desde la p
 Página de detalle de una única entidad (un equipo fantasy, un jugador, un partido). "Ficha de equipo", "ficha de jugador", "ficha de partido".
 
 **Plantilla actual**:
-El conjunto de jugadores que un equipo fantasy posee ahora mismo, sin importar la jornada. Corresponde a `SeasonManagerPlayer`: propiedad, cláusula de rescisión y blindaje, sin `week_number` asociado.
+El conjunto de jugadores que un equipo fantasy posee ahora mismo, sin importar la jornada. Corresponde a `ManagerPlayer`: propiedad, cláusula de rescisión y blindaje, sin `week_number` asociado.
 _Avoid_: Plantilla, roster (a secas, sin calificar) — ambiguo con "plantilla de jornada".
 
 **Plantilla de jornada**:
-El once inicial, la formación y los puntos que un equipo fantasy alineó en una jornada concreta ya jugada. Corresponde a `SeasonManagerLineup` + `SeasonManagerLineupPlayer` (con `week_number`).
+El once inicial, la formación y los puntos que un equipo fantasy alineó en una jornada concreta ya jugada. Corresponde a `ManagerLineup` + `ManagerLineupPlayer` (con `week_number`).
 _Avoid_: Alineación (a secas) — usar "de jornada" para no confundir con la plantilla actual.
 
 **Actividad**:
@@ -30,7 +30,7 @@ El orden de los equipos fantasy de la liga por puntos totales acumulados en la t
 _Avoid_: "Clasificación" a secas cuando se pueda confundir con la de jornada.
 
 **Clasificación de la jornada**:
-El orden de los equipos fantasy solo por los puntos que sacaron en una jornada concreta (`SeasonManagerLineup.points` de esa `week_number`), independiente de su posición en la clasificación general. Vive en Equipos, con selector de jornada.
+El orden de los equipos fantasy solo por los puntos que sacaron en una jornada concreta (`ManagerLineup.points` de esa `week_number`), independiente de su posición en la clasificación general. Vive en Equipos, con selector de jornada.
 
 **Cláusula de rescisión**:
-La cantidad que otro equipo fantasy debe pagar para llevarse directamente un jugador que ya pertenece a otro equipo. Corresponde a `SeasonManagerPlayer.buyout_clause`; se muestra en la plantilla actual de la ficha de equipo. Un jugador puede estar "blindado" (`shielded`), lo que bloquea esta operación.
+La cantidad que otro equipo fantasy debe pagar para llevarse directamente un jugador que ya pertenece a otro equipo. Corresponde a `ManagerPlayer.buyout_clause`; se muestra en la plantilla actual de la ficha de equipo. Un jugador puede estar "blindado" (`shielded`), lo que bloquea esta operación.

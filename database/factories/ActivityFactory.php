@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Enums\SeasonActivityType;
+use App\Models\Activity;
 use App\Models\Player;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<SeasonActivity>
+ * @extends Factory<Activity>
  */
-class SeasonActivityFactory extends Factory
+class ActivityFactory extends Factory
 {
     public function definition(): array
     {

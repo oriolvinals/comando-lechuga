@@ -7,9 +7,9 @@ namespace App\Console\Commands;
 use App\Enums\SeasonActivityType;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
+use App\Models\Activity;
 use App\Models\Player;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
@@ -83,7 +83,7 @@ class SyncCurrentSeasonActivity extends Command
                         ? Player::query()->where('fantasy_id', (int) $activityData['playerMasterId'])->first()
                         : null;
 
-                    SeasonActivity::query()->updateOrCreate(
+                    Activity::query()->updateOrCreate(
                         [
                             'season_id' => $season->id,
                             'fantasy_id' => (int) $activityData['id'],

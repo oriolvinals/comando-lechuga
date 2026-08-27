@@ -6,8 +6,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\PlayerPosition;
 use App\Models\Fixture;
+use App\Models\ManagerLineupPlayer;
 use App\Models\PlayerScore;
-use App\Models\SeasonManagerLineupPlayer;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -42,7 +42,7 @@ class FixturesController extends Controller
 
         // Which manager fielded each player in their lineup this jornada — distinct
         // from ownership, since an owner can bench a player they still own.
-        $lineupManagersByPlayer = SeasonManagerLineupPlayer::query()
+        $lineupManagersByPlayer = ManagerLineupPlayer::query()
             ->whereIn('player_id', $scores->pluck('player_id'))
             ->whereHas('lineup', fn ($query) => $query
                 ->where('week_number', $fixture->week_number)

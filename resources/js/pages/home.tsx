@@ -5,7 +5,7 @@ import type {
     Fixture,
     MarketPlayer,
     Season,
-    SeasonActivity,
+    Activity,
     SeasonManager,
     WeekProgressMap,
 } from '@/types/models';
@@ -22,7 +22,7 @@ interface HomeProps {
     standings: SeasonManager[];
     weekProgress: WeekProgressMap;
     market: MarketPlayer[];
-    activity: SeasonActivity[];
+    activity: Activity[];
     [key: string]: unknown;
 }
 

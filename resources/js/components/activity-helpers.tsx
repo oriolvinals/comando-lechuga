@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { show as playersShow } from '@/routes/players';
 import { show as seasonManagersShow } from '@/routes/season-managers';
-import type { SeasonActivity, SeasonActivityType } from '@/types/models';
+import type { Activity, SeasonActivityType } from '@/types/models';
 
 export const TYPE_LABELS: Record<SeasonActivityType, string> = {
     signing: 'Fichaje',
@@ -33,7 +33,7 @@ export const TYPE_COLORS: Record<SeasonActivityType, string> = {
     joined_league: 'text-hq-moss',
 };
 
-export function describeActivityBody(activity: SeasonActivity): ReactNode {
+export function describeActivityBody(activity: Activity): ReactNode {
     const team = (
         <Link
             href={seasonManagersShow(activity.source_season_manager.id).url}
@@ -99,7 +99,7 @@ export function describeActivityBody(activity: SeasonActivity): ReactNode {
     }
 }
 
-export function isFavorableDifference(activity: SeasonActivity): boolean {
+export function isFavorableDifference(activity: Activity): boolean {
     if (activity.value_difference === null) {
         return false;
     }

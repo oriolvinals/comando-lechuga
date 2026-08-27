@@ -1,15 +1,15 @@
 <?php
 
+use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerPlayer;
 
 test('belongs to a season manager and a player and stores the clause state', function (): void {
     $seasonManager = SeasonManager::factory()->create();
     $player = Player::factory()->create();
     $lockedUntil = now()->addWeek();
 
-    $seasonManagerPlayer = SeasonManagerPlayer::factory()->create([
+    $seasonManagerPlayer = ManagerPlayer::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,
         'buyout_clause' => 35273936,

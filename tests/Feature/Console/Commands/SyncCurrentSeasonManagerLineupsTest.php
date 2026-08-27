@@ -5,11 +5,11 @@ use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamLineupRequest;
+use App\Models\ManagerLineup;
+use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerLineup;
-use App\Models\SeasonManagerLineupPlayer;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
 use Saloon\Http\Faking\MockClient;
@@ -79,8 +79,8 @@ test('syncs lineups for each season manager through the current week', function 
         ->expectsOutput('1 manager lineups synchronized.')
         ->assertSuccessful();
 
-    $lineup = SeasonManagerLineup::query()->sole();
-    $lineupPlayer = SeasonManagerLineupPlayer::query()->sole();
+    $lineup = ManagerLineup::query()->sole();
+    $lineupPlayer = ManagerLineupPlayer::query()->sole();
 
     expect($lineup->season_manager_id)->toBe($seasonManager->id)
         ->and($lineup->week_number)->toBe(1)
@@ -141,7 +141,7 @@ test('stores null player lineup points when that week is not in lastStats', func
         ->expectsOutput('1 manager lineups synchronized.')
         ->assertSuccessful();
 
-    $lineupPlayer = SeasonManagerLineupPlayer::query()->sole();
+    $lineupPlayer = ManagerLineupPlayer::query()->sole();
 
     expect($lineupPlayer->points)->toBeNull()
         ->and($lineupPlayer->stats)->toBeNull();
@@ -160,12 +160,12 @@ test('removes lineup players that are no longer in the fetched formation', funct
         'fantasy_id' => 37394771,
     ]);
     Player::factory()->create(['fantasy_id' => 2759]);
-    $lineup = SeasonManagerLineup::factory()->create([
+    $lineup = ManagerLineup::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'week_number' => 1,
     ]);
-    $droppedLineupPlayer = SeasonManagerLineupPlayer::factory()->create([
-        'season_manager_lineup_id' => $lineup->id,
+    $droppedLineupPlayer = ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
     ]);
     $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
     $loginConnector->shouldReceive('accessToken')
@@ -199,6 +199,6 @@ test('removes lineup players that are no longer in the fetched formation', funct
         ->expectsOutput('1 manager lineups synchronized.')
         ->assertSuccessful();
 
-    expect(SeasonManagerLineupPlayer::query()->find($droppedLineupPlayer->id))->toBeNull()
-        ->and(SeasonManagerLineupPlayer::query()->count())->toBe(1);
+    expect(ManagerLineupPlayer::query()->find($droppedLineupPlayer->id))->toBeNull()
+        ->and(ManagerLineupPlayer::query()->count())->toBe(1);
 });

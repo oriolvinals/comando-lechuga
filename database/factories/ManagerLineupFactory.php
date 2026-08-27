@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\ManagerLineup;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerLineup;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<SeasonManagerLineup>
+ * @extends Factory<ManagerLineup>
  */
-class SeasonManagerLineupFactory extends Factory
+class ManagerLineupFactory extends Factory
 {
     /**
      * @return array<string, mixed>

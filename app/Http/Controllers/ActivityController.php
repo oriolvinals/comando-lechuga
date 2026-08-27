@@ -7,8 +7,8 @@ namespace App\Http\Controllers;
 use App\Enums\SeasonActivityType;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Filters\ActivityFilter;
+use App\Models\Activity;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,7 +24,7 @@ class ActivityController extends Controller
         $managerIds = $filter->getManagers();
         $types = $filter->getTypes();
 
-        $activities = SeasonActivity::query()
+        $activities = Activity::query()
             ->where('season_id', $season->id)
             ->when($managerIds !== [], fn ($query) => $query->where(
                 fn ($query) => $query

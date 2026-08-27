@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 use App\Enums\PlayerPosition;
 use App\Models\Fixture;
+use App\Models\ManagerLineup;
+use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
 use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerLineup;
-use App\Models\SeasonManagerLineupPlayer;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -124,8 +124,8 @@ test('includes the fantasy manager that fielded a player in their lineup that jo
     PlayerScore::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id]);
 
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    $lineup = SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 3]);
-    SeasonManagerLineupPlayer::factory()->create(['season_manager_lineup_id' => $lineup->id, 'player_id' => $player->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 3]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id]);
 
     $response = $this->get(route('fixtures.show', $fixture));
 
@@ -162,8 +162,8 @@ test('excludes a lineup from a different week for the same player', function ():
     PlayerScore::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id]);
 
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    $otherWeekLineup = SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 4]);
-    SeasonManagerLineupPlayer::factory()->create(['season_manager_lineup_id' => $otherWeekLineup->id, 'player_id' => $player->id]);
+    $otherWeekLineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 4]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $otherWeekLineup->id, 'player_id' => $player->id]);
 
     $response = $this->get(route('fixtures.show', $fixture));
 

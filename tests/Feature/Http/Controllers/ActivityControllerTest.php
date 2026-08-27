@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\SeasonActivityType;
+use App\Models\Activity;
 use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -29,13 +29,13 @@ test('paginates the current season activity, newest first', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    $mostRecent = SeasonActivity::factory()->create([
+    $mostRecent = Activity::factory()->create([
         'season_id' => $season->id,
         'occurred_at' => now(),
     ]);
 
     for ($i = 1; $i <= 34; $i++) {
-        SeasonActivity::factory()->create([
+        Activity::factory()->create([
             'season_id' => $season->id,
             'occurred_at' => now()->subHours($i),
         ]);
@@ -61,18 +61,18 @@ test('filters activity by manager, matching either source or target', function (
     $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
 
-    $asSource = SeasonActivity::factory()->create([
+    $asSource = Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $manager->id,
         'occurred_at' => now()->subMinute(),
     ]);
-    $asTarget = SeasonActivity::factory()->create([
+    $asTarget = Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $otherManager->id,
         'target_season_manager_id' => $manager->id,
         'occurred_at' => now(),
     ]);
-    SeasonActivity::factory()->create([
+    Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $otherManager->id,
         'occurred_at' => now(),
@@ -98,17 +98,17 @@ test('filters activity by several managers at once', function (): void {
     $second = SeasonManager::factory()->create(['season_id' => $season->id]);
     $third = SeasonManager::factory()->create(['season_id' => $season->id]);
 
-    $fromFirst = SeasonActivity::factory()->create([
+    $fromFirst = Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $first->id,
         'occurred_at' => now(),
     ]);
-    $fromSecond = SeasonActivity::factory()->create([
+    $fromSecond = Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $second->id,
         'occurred_at' => now()->subMinute(),
     ]);
-    SeasonActivity::factory()->create([
+    Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $third->id,
         'occurred_at' => now()->subMinutes(2),
@@ -130,11 +130,11 @@ test('filters activity by type', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    $signing = SeasonActivity::factory()->create([
+    $signing = Activity::factory()->create([
         'season_id' => $season->id,
         'type' => SeasonActivityType::Signing,
     ]);
-    SeasonActivity::factory()->create([
+    Activity::factory()->create([
         'season_id' => $season->id,
         'type' => SeasonActivityType::Sale,
     ]);
@@ -154,9 +154,9 @@ test('filters activity by several types at once', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    SeasonActivity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Signing]);
-    SeasonActivity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Sale]);
-    SeasonActivity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Shield]);
+    Activity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Signing]);
+    Activity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Sale]);
+    Activity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Shield]);
 
     $response = $this->get(route('activity.index', ['type' => 'signing,sale']));
 
@@ -202,7 +202,7 @@ test('shows the difference between the amount paid and the market value on that 
         'value' => 450_000,
     ]);
 
-    $activity = SeasonActivity::factory()->create([
+    $activity = Activity::factory()->create([
         'season_id' => $season->id,
         'player_id' => $player->id,
         'amount' => 500_000,
@@ -225,7 +225,7 @@ test('has no value difference when there is no market snapshot for that date', f
     ]);
     $player = Player::factory()->create();
 
-    SeasonActivity::factory()->create([
+    Activity::factory()->create([
         'season_id' => $season->id,
         'player_id' => $player->id,
         'amount' => 500_000,
@@ -244,7 +244,7 @@ test('has no value difference when the activity has no player or no amount', fun
         'end_date' => now()->addDay(),
     ]);
 
-    SeasonActivity::factory()->create([
+    Activity::factory()->create([
         'season_id' => $season->id,
         'type' => SeasonActivityType::JoinedLeague,
         'player_id' => null,

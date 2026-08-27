@@ -6,10 +6,10 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Enums\FixtureState;
 use App\Models\Fixture;
+use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
 use App\Models\PlayerScore;
 use App\Models\Season;
-use App\Models\SeasonManagerLineupPlayer;
 use Illuminate\Support\Collection;
 
 trait AttachesRecentScores
@@ -62,7 +62,7 @@ trait AttachesRecentScores
 
         $usedWeeksByPlayer = $seasonManagerId === null
             ? collect()
-            : SeasonManagerLineupPlayer::query()
+            : ManagerLineupPlayer::query()
                 ->whereIn('player_id', $playerIds)
                 ->whereHas('lineup', fn ($query) => $query->where('season_manager_id', $seasonManagerId))
                 ->with('lineup:id,week_number')
@@ -86,6 +86,7 @@ trait AttachesRecentScores
 
             /** @var array<int, int|null> $paddedPoints */
             $paddedPoints = array_pad($points, 3, null);
+
             /** @var array<int, bool> $paddedFinished */
             $paddedFinished = array_pad($finished, 3, false);
 

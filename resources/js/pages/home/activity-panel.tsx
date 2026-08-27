@@ -2,10 +2,10 @@ import { Link } from '@inertiajs/react';
 import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
 import { HqSection } from '@/components/hq-section';
 import { index as activityIndex } from '@/routes/activity';
-import type { SeasonActivity } from '@/types/models';
+import type { Activity } from '@/types/models';
 
 interface ActivityPanelProps {
-    activity: SeasonActivity[];
+    activity: Activity[];
 }
 
 export function ActivityPanel({ activity }: ActivityPanelProps) {

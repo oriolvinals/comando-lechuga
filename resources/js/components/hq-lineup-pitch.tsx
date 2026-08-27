@@ -3,7 +3,7 @@ import { EntityImage } from '@/components/entity-image';
 import { cn } from '@/lib/utils';
 import type {
     PlayerPosition,
-    SeasonManagerLineupPlayerEntry,
+    ManagerLineupPlayerEntry,
 } from '@/types/models';
 
 /**
@@ -80,8 +80,8 @@ function nameMaxWidthForRowCount(count: number): string {
 }
 
 interface HqLineupPitchProps {
-    players: SeasonManagerLineupPlayerEntry[];
-    onSelectPlayer: (entry: SeasonManagerLineupPlayerEntry) => void;
+    players: ManagerLineupPlayerEntry[];
+    onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
 }
 
 export function HqLineupPitch({

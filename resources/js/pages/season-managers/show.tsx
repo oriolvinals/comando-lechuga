@@ -11,23 +11,23 @@ import { ManagerHero } from '@/pages/season-managers/manager-hero';
 import { RosterList } from '@/pages/season-managers/roster-list';
 import type {
     Season,
-    SeasonActivity,
+    Activity,
     SeasonManager,
-    SeasonManagerLineup,
-    SeasonManagerLineupPlayerEntry,
-    SeasonManagerPlayer,
+    ManagerLineup,
+    ManagerLineupPlayerEntry,
+    ManagerPlayer,
     WeekProgressMap,
 } from '@/types/models';
 
 interface SeasonManagerShowProps {
     season: Season;
     seasonManager: SeasonManager;
-    roster: SeasonManagerPlayer[];
-    lineupHistory: SeasonManagerLineup[];
+    roster: ManagerPlayer[];
+    lineupHistory: ManagerLineup[];
     startedWeeks: number[];
     weekProgress: WeekProgressMap;
     wonWeeks: number[];
-    activity: SeasonActivity[];
+    activity: Activity[];
     [key: string]: unknown;
 }
 
@@ -43,7 +43,7 @@ export default function SeasonManagerShow({
 }: SeasonManagerShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(season.current_week);
     const [selectedPlayer, setSelectedPlayer] =
-        useState<SeasonManagerLineupPlayerEntry | null>(null);
+        useState<ManagerLineupPlayerEntry | null>(null);
 
     const lineupForWeek = lineupHistory.find(
         (lineup) => lineup.week_number === selectedWeek,

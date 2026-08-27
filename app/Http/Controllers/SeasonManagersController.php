@@ -9,12 +9,12 @@ use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
+use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\ManagerLineup;
+use App\Models\ManagerPlayer;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerLineup;
-use App\Models\SeasonManagerPlayer;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -32,7 +32,7 @@ class SeasonManagersController extends Controller
         $season = Season::current();
         $week = $this->resolveWeek($request, $season);
 
-        $lineups = SeasonManagerLineup::query()
+        $lineups = ManagerLineup::query()
             ->where('week_number', $week)
             ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
             ->with(['seasonManager', 'players.player.team'])
@@ -56,14 +56,14 @@ class SeasonManagersController extends Controller
     {
         $season = Season::current();
 
-        $roster = SeasonManagerPlayer::query()
+        $roster = ManagerPlayer::query()
             ->where('season_manager_id', $seasonManager->id)
             ->with('player.team')
             ->get();
 
         $this->attachRecentScores($roster->pluck('player'), $season, $seasonManager->id);
 
-        $lineupHistory = SeasonManagerLineup::query()
+        $lineupHistory = ManagerLineup::query()
             ->where('season_manager_id', $seasonManager->id)
             ->with('players.player.team')
             ->orderByDesc('week_number')
@@ -71,7 +71,7 @@ class SeasonManagersController extends Controller
 
         $this->attachMatchFinished($lineupHistory, $season);
 
-        $activity = SeasonActivity::query()
+        $activity = Activity::query()
             ->where(fn ($query) => $query
                 ->where('source_season_manager_id', $seasonManager->id)
                 ->orWhere('target_season_manager_id', $seasonManager->id))
@@ -104,7 +104,7 @@ class SeasonManagersController extends Controller
      * each lineup player entry based on whether their team's fixture for
      * that lineup's week has finished.
      *
-     * @param  Collection<int, SeasonManagerLineup>  $lineupHistory
+     * @param  Collection<int, ManagerLineup>  $lineupHistory
      */
     private function attachMatchFinished(Collection $lineupHistory, Season $season): void
     {
@@ -120,7 +120,7 @@ class SeasonManagersController extends Controller
                 return $carry;
             }, []);
 
-        $lineupHistory->each(function (SeasonManagerLineup $lineup) use ($finishedTeamWeeks): void {
+        $lineupHistory->each(function (ManagerLineup $lineup) use ($finishedTeamWeeks): void {
             foreach ($lineup->players as $entry) {
                 $entry->match_finished = $finishedTeamWeeks[$lineup->week_number][$entry->player->team_id] ?? false;
             }
@@ -141,7 +141,7 @@ class SeasonManagersController extends Controller
             return [];
         }
 
-        $lineups = SeasonManagerLineup::query()
+        $lineups = ManagerLineup::query()
             ->whereIn('week_number', $finishedWeeks)
             ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
             ->get(['season_manager_id', 'week_number', 'points']);
@@ -152,7 +152,7 @@ class SeasonManagersController extends Controller
 
         return $lineups
             ->where('season_manager_id', $seasonManager->id)
-            ->filter(fn (SeasonManagerLineup $lineup): bool => $lineup->points === $maxPointsByWeek[$lineup->week_number])
+            ->filter(fn (ManagerLineup $lineup): bool => $lineup->points === $maxPointsByWeek[$lineup->week_number])
             ->pluck('week_number')
             ->sort()
             ->values()

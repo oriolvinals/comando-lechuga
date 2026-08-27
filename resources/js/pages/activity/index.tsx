@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { index as activityIndex } from '@/routes/activity';
 import type {
     Paginated,
-    SeasonActivity,
+    Activity,
     SeasonActivityType,
 } from '@/types/models';
 
@@ -18,16 +18,16 @@ interface ManagerOption {
 }
 
 interface ActivityIndexProps {
-    activities: Paginated<SeasonActivity>;
+    activities: Paginated<Activity>;
     managers: ManagerOption[];
     filters: { manager: number[]; type: SeasonActivityType[] };
     [key: string]: unknown;
 }
 
 function groupByDay(
-    activities: SeasonActivity[],
-): [string, SeasonActivity[]][] {
-    const groups = new Map<string, SeasonActivity[]>();
+    activities: Activity[],
+): [string, Activity[]][] {
+    const groups = new Map<string, Activity[]>();
 
     for (const activity of activities) {
         const day = new Intl.DateTimeFormat('es-ES', {

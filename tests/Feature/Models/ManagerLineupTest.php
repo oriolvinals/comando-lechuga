@@ -1,18 +1,18 @@
 <?php
 
+use App\Models\ManagerLineup;
+use App\Models\ManagerLineupPlayer;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerLineup;
-use App\Models\SeasonManagerLineupPlayer;
 
 test('belongs to a season manager and has lineup players', function (): void {
     $seasonManager = SeasonManager::factory()->create();
-    $lineup = SeasonManagerLineup::factory()->create([
+    $lineup = ManagerLineup::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'tactical_formation' => [3, 5, 2],
         'week_number' => 2,
     ]);
-    SeasonManagerLineupPlayer::factory()->create([
-        'season_manager_lineup_id' => $lineup->id,
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
     ]);
 
     expect($lineup->seasonManager)->toBeInstanceOf(SeasonManager::class)

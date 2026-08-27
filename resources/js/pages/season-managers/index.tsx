@@ -15,8 +15,8 @@ import {
 } from '@/routes/season-managers';
 import type {
     Season,
-    SeasonManagerLineup,
-    SeasonManagerLineupPlayerEntry,
+    ManagerLineup,
+    ManagerLineupPlayerEntry,
     WeekProgressMap,
 } from '@/types/models';
 
@@ -29,7 +29,7 @@ const MEDAL_BORDERS = [
 interface SeasonManagersIndexProps {
     season: Season;
     filters: { week: number };
-    lineups: SeasonManagerLineup[];
+    lineups: ManagerLineup[];
     weekProgress: WeekProgressMap;
     [key: string]: unknown;
 }
@@ -41,7 +41,7 @@ export default function SeasonManagersIndex({
     weekProgress,
 }: SeasonManagersIndexProps) {
     const [selectedPlayer, setSelectedPlayer] =
-        useState<SeasonManagerLineupPlayerEntry | null>(null);
+        useState<ManagerLineupPlayerEntry | null>(null);
 
     const goToWeek = (nextWeek: number) => {
         router.get(

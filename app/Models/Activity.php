@@ -6,7 +6,7 @@ namespace App\Models;
 
 use App\Enums\SeasonActivityType;
 use Carbon\CarbonImmutable;
-use Database\Factories\SeasonActivityFactory;
+use Database\Factories\ActivityFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -27,12 +27,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read CarbonImmutable $occurred_at
  * @property int|null $value_difference Computed at query time by ActivityController; not a database column.
  */
-#[UseFactory(SeasonActivityFactory::class)]
-#[Table(name: 'season_activities', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
+#[UseFactory(ActivityFactory::class)]
+#[Table(name: 'activities', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['fantasy_id', 'type', 'season_id', 'source_season_manager_id', 'target_season_manager_id', 'player_id', 'amount', 'week_number', 'occurred_at'])]
-class SeasonActivity extends Model
+class Activity extends Model
 {
-    /** @use HasFactory<SeasonActivityFactory> */
+    /** @use HasFactory<ActivityFactory> */
     use HasFactory;
 
     /** @return BelongsTo<Season, $this> */

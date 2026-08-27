@@ -9,12 +9,12 @@ use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
+use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\ManagerLineup;
 use App\Models\MarketPlayer;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerLineup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -55,7 +55,7 @@ class HomeController extends Controller
 
         $this->attachRecentScores($market->pluck('player'), $season);
 
-        $activity = SeasonActivity::query()
+        $activity = Activity::query()
             ->where('season_id', $season->id)
             ->with(['sourceSeasonManager', 'targetSeasonManager', 'player'])
             ->orderByDesc('occurred_at')
@@ -90,7 +90,7 @@ class HomeController extends Controller
      */
     private function attachRecentForm(Collection $standings, Season $season): void
     {
-        $lineupsByManager = SeasonManagerLineup::query()
+        $lineupsByManager = ManagerLineup::query()
             ->whereIn('season_manager_id', $standings->pluck('id'))
             ->whereIn('week_number', $this->finishedWeekNumbers($season))
             ->get()
@@ -102,7 +102,7 @@ class HomeController extends Controller
                 ->take(3)
                 ->sortBy('week_number')
                 ->values()
-                ->map(fn (SeasonManagerLineup $lineup): int => $lineup->points)
+                ->map(fn (ManagerLineup $lineup): int => $lineup->points)
                 ->all();
 
             /** @var array<int, int|null> $paddedRecent */

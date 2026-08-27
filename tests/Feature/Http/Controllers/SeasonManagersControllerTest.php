@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 use App\Enums\FixtureState;
 use App\Enums\SeasonActivityType;
+use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\ManagerLineup;
+use App\Models\ManagerLineupPlayer;
+use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\PlayerScore;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerLineup;
-use App\Models\SeasonManagerLineupPlayer;
-use App\Models\SeasonManagerPlayer;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -68,17 +68,17 @@ test('shows the lineups for the requested week ordered by points descending', fu
     $low = SeasonManager::factory()->create(['season_id' => $season->id, 'name' => 'Cruza FC']);
     $high = SeasonManager::factory()->create(['season_id' => $season->id, 'name' => 'Ariobretxa']);
 
-    $lowLineup = SeasonManagerLineup::factory()->create([
+    $lowLineup = ManagerLineup::factory()->create([
         'season_manager_id' => $low->id,
         'week_number' => 5,
         'points' => 40,
     ]);
-    $highLineup = SeasonManagerLineup::factory()->create([
+    $highLineup = ManagerLineup::factory()->create([
         'season_manager_id' => $high->id,
         'week_number' => 5,
         'points' => 70,
     ]);
-    SeasonManagerLineup::factory()->create([
+    ManagerLineup::factory()->create([
         'season_manager_id' => $high->id,
         'week_number' => 6,
         'points' => 99,
@@ -101,13 +101,13 @@ test('shows the lineup players for each manager', function (): void {
         'end_date' => now()->addDay(),
     ]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    $lineup = SeasonManagerLineup::factory()->create([
+    $lineup = ManagerLineup::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'week_number' => 1,
     ]);
     $player = Player::factory()->create(['nickname' => 'Lamine Yamal']);
-    SeasonManagerLineupPlayer::factory()->create([
-        'season_manager_lineup_id' => $lineup->id,
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
         'player_id' => $player->id,
         'points' => 12,
     ]);
@@ -128,7 +128,7 @@ test('marks an index lineup player without points as not called up once their fi
         'end_date' => now()->addDay(),
     ]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    $lineup = SeasonManagerLineup::factory()->create([
+    $lineup = ManagerLineup::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'week_number' => 1,
     ]);
@@ -140,8 +140,8 @@ test('marks an index lineup player without points as not called up once their fi
         'team_local_id' => $notCalledUpPlayer->team_id,
         'state' => FixtureState::Finished,
     ]);
-    SeasonManagerLineupPlayer::factory()->create([
-        'season_manager_lineup_id' => $lineup->id,
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
         'player_id' => $notCalledUpPlayer->id,
         'points' => null,
     ]);
@@ -160,7 +160,7 @@ test('excludes managers without a lineup for the requested week', function (): v
         'end_date' => now()->addDay(),
     ]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    SeasonManagerLineup::factory()->create([
+    ManagerLineup::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'week_number' => 2,
     ]);
@@ -183,8 +183,8 @@ test('only shows lineups for the current season', function (): void {
     $currentManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $otherManager = SeasonManager::factory()->create(['season_id' => $otherSeason->id]);
 
-    SeasonManagerLineup::factory()->create(['season_manager_id' => $currentManager->id, 'week_number' => 1]);
-    SeasonManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1]);
+    ManagerLineup::factory()->create(['season_manager_id' => $currentManager->id, 'week_number' => 1]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1]);
 
     $response = $this->get(route('season-managers.index', ['week' => 1]));
 
@@ -215,7 +215,7 @@ test('shows the current roster for the manager', function (): void {
     ]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $player = Player::factory()->create(['nickname' => 'Pedri']);
-    SeasonManagerPlayer::factory()->create([
+    ManagerPlayer::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,
         'buyout_clause' => 25_000_000,
@@ -239,8 +239,8 @@ test('shows the lineup history for the manager, most recent week first', functio
         'end_date' => now()->addDay(),
     ]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    $week1 = SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
-    $week3 = SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 3]);
+    $week1 = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    $week3 = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 3]);
 
     $response = $this->get(route('season-managers.show', $seasonManager));
 
@@ -260,19 +260,19 @@ test('shows the manager activity as source or target', function (): void {
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
 
-    $asSource = SeasonActivity::factory()->create([
+    $asSource = Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $seasonManager->id,
         'occurred_at' => now(),
     ]);
-    $asTarget = SeasonActivity::factory()->create([
+    $asTarget = Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $otherManager->id,
         'target_season_manager_id' => $seasonManager->id,
         'type' => SeasonActivityType::Buyout,
         'occurred_at' => now()->subMinute(),
     ]);
-    SeasonActivity::factory()->create([
+    Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $otherManager->id,
         'occurred_at' => now(),
@@ -313,7 +313,7 @@ test('attaches recent scores to each roster player', function (): void {
     ]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $player = Player::factory()->create();
-    SeasonManagerPlayer::factory()->create([
+    ManagerPlayer::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,
     ]);
@@ -337,7 +337,7 @@ test('marks recent scores as used only for jornadas this manager actually lined 
     ]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $player = Player::factory()->create();
-    SeasonManagerPlayer::factory()->create([
+    ManagerPlayer::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,
     ]);
@@ -347,9 +347,9 @@ test('marks recent scores as used only for jornadas this manager actually lined 
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $week1->id, 'points' => 4]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $week2->id, 'points' => 9]);
 
-    $lineup = SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2]);
-    SeasonManagerLineupPlayer::factory()->create([
-        'season_manager_lineup_id' => $lineup->id,
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
         'player_id' => $player->id,
     ]);
 
@@ -371,11 +371,11 @@ test('only includes finished weeks where the manager topped every lineup', funct
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
 
-    SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1, 'points' => 70]);
-    SeasonManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1, 'points' => 40]);
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1, 'points' => 70]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1, 'points' => 40]);
 
-    SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2, 'points' => 20]);
-    SeasonManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 2, 'points' => 50]);
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2, 'points' => 20]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 2, 'points' => 50]);
 
     $response = $this->get(route('season-managers.show', $seasonManager));
 
@@ -389,7 +389,7 @@ test('marks a lineup player without points as not called up once their fixture f
         'end_date' => now()->addDay(),
     ]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    $lineup = SeasonManagerLineup::factory()->create([
+    $lineup = ManagerLineup::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'week_number' => 1,
     ]);
@@ -401,8 +401,8 @@ test('marks a lineup player without points as not called up once their fixture f
         'team_local_id' => $notCalledUpPlayer->team_id,
         'state' => FixtureState::Finished,
     ]);
-    SeasonManagerLineupPlayer::factory()->create([
-        'season_manager_lineup_id' => $lineup->id,
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
         'player_id' => $notCalledUpPlayer->id,
         'points' => null,
     ]);
@@ -414,8 +414,8 @@ test('marks a lineup player without points as not called up once their fixture f
         'team_local_id' => $notYetPlayedPlayer->team_id,
         'state' => FixtureState::Scheduled,
     ]);
-    SeasonManagerLineupPlayer::factory()->create([
-        'season_manager_lineup_id' => $lineup->id,
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
         'player_id' => $notYetPlayedPlayer->id,
         'points' => null,
     ]);
@@ -440,8 +440,8 @@ test('counts a tied top score as a win for both managers', function (): void {
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
 
-    SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1, 'points' => 55]);
-    SeasonManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1, 'points' => 55]);
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1, 'points' => 55]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1, 'points' => 55]);
 
     $response = $this->get(route('season-managers.show', $seasonManager));
 

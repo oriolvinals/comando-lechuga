@@ -4,10 +4,10 @@ use App\Console\Commands\SyncCurrentSeasonManagerPlayers;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest;
+use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerPlayer;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
 use Saloon\Http\Faking\MockClient;
@@ -58,7 +58,7 @@ test('creates the current squad for each season manager and skips unresolved pla
         ->expectsOutput('1 season manager squads synchronized.')
         ->assertSuccessful();
 
-    $seasonManagerPlayer = SeasonManagerPlayer::query()->sole();
+    $seasonManagerPlayer = ManagerPlayer::query()->sole();
 
     expect($seasonManagerPlayer->season_manager_id)->toBe($seasonManager->id)
         ->and($seasonManagerPlayer->player_id)->toBe($player->id)
@@ -107,7 +107,7 @@ test('stores the shield expiry date for a shielded player', function (): void {
 
     $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
 
-    $seasonManagerPlayer = SeasonManagerPlayer::query()->sole();
+    $seasonManagerPlayer = ManagerPlayer::query()->sole();
 
     expect($seasonManagerPlayer->shielded)->toBeTrue()
         ->and($seasonManagerPlayer->shielded_until?->toIso8601String())
@@ -130,7 +130,7 @@ test('removes players that are no longer part of the current squad', function ()
     ]);
     $remainingPlayer = Player::factory()->create(['fantasy_id' => 988]);
     $soldPlayer = Player::factory()->create(['fantasy_id' => 3040]);
-    SeasonManagerPlayer::factory()->create([
+    ManagerPlayer::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'player_id' => $soldPlayer->id,
     ]);
@@ -158,7 +158,7 @@ test('removes players that are no longer part of the current squad', function ()
 
     $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
 
-    expect(SeasonManagerPlayer::query()->count())->toBe(1)
-        ->and(SeasonManagerPlayer::query()->where('player_id', $remainingPlayer->id)->exists())->toBeTrue()
-        ->and(SeasonManagerPlayer::query()->where('player_id', $soldPlayer->id)->exists())->toBeFalse();
+    expect(ManagerPlayer::query()->count())->toBe(1)
+        ->and(ManagerPlayer::query()->where('player_id', $remainingPlayer->id)->exists())->toBeTrue()
+        ->and(ManagerPlayer::query()->where('player_id', $soldPlayer->id)->exists())->toBeFalse();
 });

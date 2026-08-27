@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PlayerPosition;
-use Database\Factories\SeasonManagerLineupPlayerFactory;
+use Database\Factories\ManagerLineupPlayerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -15,25 +15,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property-read int $id
- * @property-read int $season_manager_lineup_id
+ * @property-read int $manager_lineup_id
  * @property-read int $player_id
  * @property-read int|null $points
  * @property-read array<string, list<int>>|null $stats
  * @property-read PlayerPosition $position
  * @property bool $match_finished Computed at query time by SeasonManagersController; not a database column.
  */
-#[UseFactory(SeasonManagerLineupPlayerFactory::class)]
-#[Table(name: 'season_manager_lineup_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['season_manager_lineup_id', 'player_id', 'points', 'stats', 'position'])]
-class SeasonManagerLineupPlayer extends Model
+#[UseFactory(ManagerLineupPlayerFactory::class)]
+#[Table(name: 'manager_lineup_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
+#[Fillable(['manager_lineup_id', 'player_id', 'points', 'stats', 'position'])]
+class ManagerLineupPlayer extends Model
 {
-    /** @use HasFactory<SeasonManagerLineupPlayerFactory> */
+    /** @use HasFactory<ManagerLineupPlayerFactory> */
     use HasFactory;
 
-    /** @return BelongsTo<SeasonManagerLineup, $this> */
+    /** @return BelongsTo<ManagerLineup, $this> */
     public function lineup(): BelongsTo
     {
-        return $this->belongsTo(SeasonManagerLineup::class, 'season_manager_lineup_id');
+        return $this->belongsTo(ManagerLineup::class, 'manager_lineup_id');
     }
 
     /** @return BelongsTo<Player, $this> */
@@ -49,7 +49,7 @@ class SeasonManagerLineupPlayer extends Model
     {
         return [
             'id' => 'int',
-            'season_manager_lineup_id' => 'int',
+            'manager_lineup_id' => 'int',
             'player_id' => 'int',
             'points' => 'int',
             'stats' => 'array',

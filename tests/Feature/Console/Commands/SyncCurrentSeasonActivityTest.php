@@ -4,9 +4,9 @@ use App\Console\Commands\SyncCurrentSeasonActivity;
 use App\Enums\SeasonActivityType;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
+use App\Models\Activity;
 use App\Models\Player;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
 use Illuminate\Support\Facades\Cache;
 use Saloon\Http\Faking\MockClient;
@@ -79,9 +79,9 @@ test('creates season activities from the paginated activity feed', function (): 
         ->expectsOutput('2 season activities synchronized.')
         ->assertSuccessful();
 
-    expect(SeasonActivity::query()->count())->toBe(2);
+    expect(Activity::query()->count())->toBe(2);
 
-    $buyout = SeasonActivity::query()->where('fantasy_id', 20544177)->sole();
+    $buyout = Activity::query()->where('fantasy_id', 20544177)->sole();
 
     expect($buyout->type)->toBe(SeasonActivityType::Buyout)
         ->and($buyout->source_season_manager_id)->toBe($buyer->id)
@@ -90,7 +90,7 @@ test('creates season activities from the paginated activity feed', function (): 
         ->and($buyout->amount)->toBe(11268629)
         ->and($buyout->week_number)->toBeNull();
 
-    $weeklyPrize = SeasonActivity::query()->where('fantasy_id', 18324270)->sole();
+    $weeklyPrize = Activity::query()->where('fantasy_id', 18324270)->sole();
 
     expect($weeklyPrize->type)->toBe(SeasonActivityType::WeeklyPrize)
         ->and($weeklyPrize->source_season_manager_id)->toBe($buyer->id)
@@ -139,5 +139,5 @@ test('does not duplicate season activities when synchronized twice', function ()
         $this->artisan(SyncCurrentSeasonActivity::class)->assertSuccessful();
     }
 
-    expect(SeasonActivity::query()->count())->toBe(1);
+    expect(Activity::query()->count())->toBe(1);
 });

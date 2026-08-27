@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerPlayer;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<SeasonManagerPlayer>
+ * @extends Factory<ManagerPlayer>
  */
-class SeasonManagerPlayerFactory extends Factory
+class ManagerPlayerFactory extends Factory
 {
     public function definition(): array
     {

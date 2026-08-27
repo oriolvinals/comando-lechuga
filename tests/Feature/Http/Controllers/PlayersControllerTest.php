@@ -6,17 +6,17 @@ use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
+use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\ManagerLineup;
+use App\Models\ManagerLineupPlayer;
+use App\Models\ManagerPlayer;
 use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\PlayerScore;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerLineup;
-use App\Models\SeasonManagerLineupPlayer;
-use App\Models\SeasonManagerPlayer;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -133,7 +133,7 @@ test('filters players by fantasy season manager', function (): void {
     $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
 
     $owned = Player::factory()->create(['status' => PlayerStatus::Ok]);
-    SeasonManagerPlayer::factory()->create(['season_manager_id' => $ownerManager->id, 'player_id' => $owned->id]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $ownerManager->id, 'player_id' => $owned->id]);
 
     Player::factory()->create(['status' => PlayerStatus::Ok]);
 
@@ -300,7 +300,7 @@ test('shows the owning fantasy manager when a player is owned', function (): voi
     ]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
 
-    SeasonManagerPlayer::factory()->create([
+    ManagerPlayer::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,
     ]);
@@ -511,7 +511,7 @@ test('shows the owning manager and clause details when the player is owned', fun
     ]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id, 'name' => 'Gauchitos F.C']);
     $player = Player::factory()->create();
-    SeasonManagerPlayer::factory()->create([
+    ManagerPlayer::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,
         'buyout_clause' => 4_272_558,
@@ -653,8 +653,8 @@ test('includes the fantasy manager that fielded the player in their lineup that 
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
 
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    $lineup = SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
-    SeasonManagerLineupPlayer::factory()->create(['season_manager_lineup_id' => $lineup->id, 'player_id' => $player->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id]);
 
     $response = $this->get(route('players.show', $player));
 
@@ -691,8 +691,8 @@ test('excludes lineup managers from a different season', function (): void {
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
 
     $otherSeasonManager = SeasonManager::factory()->create();
-    $otherLineup = SeasonManagerLineup::factory()->create(['season_manager_id' => $otherSeasonManager->id, 'week_number' => 1]);
-    SeasonManagerLineupPlayer::factory()->create(['season_manager_lineup_id' => $otherLineup->id, 'player_id' => $player->id]);
+    $otherLineup = ManagerLineup::factory()->create(['season_manager_id' => $otherSeasonManager->id, 'week_number' => 1]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $otherLineup->id, 'player_id' => $player->id]);
 
     $response = $this->get(route('players.show', $player));
 
@@ -708,13 +708,13 @@ test('includes ownership-affecting activity for this player, ordered chronologic
         'end_date' => now()->addDay(),
     ]);
     $player = Player::factory()->create();
-    $signing = SeasonActivity::factory()->create([
+    $signing = Activity::factory()->create([
         'season_id' => $season->id,
         'player_id' => $player->id,
         'type' => SeasonActivityType::Signing,
         'occurred_at' => now()->subDays(2),
     ]);
-    $buyout = SeasonActivity::factory()->create([
+    $buyout = Activity::factory()->create([
         'season_id' => $season->id,
         'player_id' => $player->id,
         'type' => SeasonActivityType::Buyout,
@@ -802,18 +802,18 @@ test('includes every manager join date, keyed by season manager id', function ()
     $ownerManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $player = Player::factory()->create();
-    SeasonManagerPlayer::factory()->create([
+    ManagerPlayer::factory()->create([
         'season_manager_id' => $ownerManager->id,
         'player_id' => $player->id,
     ]);
-    $ownerJoined = SeasonActivity::factory()->create([
+    $ownerJoined = Activity::factory()->create([
         'season_id' => $season->id,
         'type' => SeasonActivityType::JoinedLeague,
         'source_season_manager_id' => $ownerManager->id,
         'player_id' => null,
         'occurred_at' => now()->subDays(20),
     ]);
-    $otherJoined = SeasonActivity::factory()->create([
+    $otherJoined = Activity::factory()->create([
         'season_id' => $season->id,
         'type' => SeasonActivityType::JoinedLeague,
         'source_season_manager_id' => $otherManager->id,
@@ -849,7 +849,7 @@ test('excludes non-ownership activity types like shields and weekly prizes', fun
         'end_date' => now()->addDay(),
     ]);
     $player = Player::factory()->create();
-    SeasonActivity::factory()->create([
+    Activity::factory()->create([
         'season_id' => $season->id,
         'player_id' => $player->id,
         'type' => SeasonActivityType::Shield,

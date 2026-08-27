@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Database\Factories\SeasonManagerLineupFactory;
+use Database\Factories\ManagerLineupFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -20,12 +20,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read int $points
  * @property-read int $week_number
  */
-#[UseFactory(SeasonManagerLineupFactory::class)]
-#[Table(name: 'season_manager_lineups', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
+#[UseFactory(ManagerLineupFactory::class)]
+#[Table(name: 'manager_lineups', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['season_manager_id', 'tactical_formation', 'points', 'week_number'])]
-class SeasonManagerLineup extends Model
+class ManagerLineup extends Model
 {
-    /** @use HasFactory<SeasonManagerLineupFactory> */
+    /** @use HasFactory<ManagerLineupFactory> */
     use HasFactory;
 
     /** @return BelongsTo<SeasonManager, $this> */
@@ -34,10 +34,10 @@ class SeasonManagerLineup extends Model
         return $this->belongsTo(SeasonManager::class);
     }
 
-    /** @return HasMany<SeasonManagerLineupPlayer, $this> */
+    /** @return HasMany<ManagerLineupPlayer, $this> */
     public function players(): HasMany
     {
-        return $this->hasMany(SeasonManagerLineupPlayer::class);
+        return $this->hasMany(ManagerLineupPlayer::class);
     }
 
     /** @var array<string, mixed> */

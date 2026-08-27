@@ -89,7 +89,7 @@ export interface MarketPlayer {
 export type SeasonActivityType =
     'buyout' | 'shield' | 'weekly_prize' | 'joined_league' | 'signing' | 'sale';
 
-export interface SeasonActivity {
+export interface Activity {
     id: number;
     type: SeasonActivityType;
     amount: number | null;
@@ -110,7 +110,7 @@ export interface Season {
 
 export type JornadaStats = Record<string, [number, number]>;
 
-export interface SeasonManagerLineupPlayerEntry {
+export interface ManagerLineupPlayerEntry {
     id: number;
     points: number | null;
     stats: JornadaStats | null;
@@ -120,16 +120,16 @@ export interface SeasonManagerLineupPlayerEntry {
     match_finished: boolean;
 }
 
-export interface SeasonManagerLineup {
+export interface ManagerLineup {
     id: number;
     points: number;
     week_number: number;
     tactical_formation: number[];
     season_manager: SeasonManager;
-    players: SeasonManagerLineupPlayerEntry[];
+    players: ManagerLineupPlayerEntry[];
 }
 
-export interface SeasonManagerPlayer {
+export interface ManagerPlayer {
     id: number;
     buyout_clause: number;
     buyout_clause_locked_until: string;

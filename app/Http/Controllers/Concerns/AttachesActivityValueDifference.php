@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Models\Activity;
 use App\Models\PlayerMarket;
-use App\Models\SeasonActivity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 trait AttachesActivityValueDifference
 {
     /**
-     * @param  Collection<int, SeasonActivity>  $activities
+     * @param  Collection<int, Activity>  $activities
      */
     private function attachValueDifferences(Collection $activities): void
     {
         $eligible = $activities->filter(
-            fn (SeasonActivity $activity): bool => $activity->player_id !== null && $activity->amount !== null,
+            fn (Activity $activity): bool => $activity->player_id !== null && $activity->amount !== null,
         );
 
         $marketValues = $this->marketValuesByPlayerAndDate($eligible);
 
-        $activities->each(function (SeasonActivity $activity) use ($marketValues): void {
+        $activities->each(function (Activity $activity) use ($marketValues): void {
             $playerId = $activity->player_id;
             $amount = $activity->amount;
 
@@ -38,7 +38,7 @@ trait AttachesActivityValueDifference
     }
 
     /**
-     * @param  Collection<int, SeasonActivity>  $eligible
+     * @param  Collection<int, Activity>  $eligible
      * @return Collection<string, PlayerMarket>
      */
     private function marketValuesByPlayerAndDate(Collection $eligible): Collection

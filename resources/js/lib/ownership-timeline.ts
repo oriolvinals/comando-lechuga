@@ -19,7 +19,7 @@ export interface OwnershipSegment {
  * to the activity's source manager (see ActivityCard's phrasing: "{source}
  * fichó/pagó la cláusula ... a {target}"); `sale` returns the player to the
  * free market. The final segment is forced to `currentOwner` (the real
- * SeasonManagerPlayer row) rather than the reconstructed state, since a
+ * ManagerPlayer row) rather than the reconstructed state, since a
  * player's ownership can predate the activity log.
  *
  * A player can also have ownership *before* the earliest recorded activity —

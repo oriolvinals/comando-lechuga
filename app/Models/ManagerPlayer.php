@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
-use Database\Factories\SeasonManagerPlayerFactory;
+use Database\Factories\ManagerPlayerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -22,12 +22,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read bool $shielded
  * @property-read CarbonImmutable|null $shielded_until
  */
-#[UseFactory(SeasonManagerPlayerFactory::class)]
-#[Table(name: 'season_manager_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
+#[UseFactory(ManagerPlayerFactory::class)]
+#[Table(name: 'manager_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['season_manager_id', 'player_id', 'buyout_clause', 'buyout_clause_locked_until', 'shielded', 'shielded_until'])]
-class SeasonManagerPlayer extends Model
+class ManagerPlayer extends Model
 {
-    /** @use HasFactory<SeasonManagerPlayerFactory> */
+    /** @use HasFactory<ManagerPlayerFactory> */
     use HasFactory;
 
     /** @return BelongsTo<SeasonManager, $this> */

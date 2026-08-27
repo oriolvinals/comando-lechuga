@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
+use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\PlayerScore;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia;
@@ -217,19 +217,19 @@ test('shows the 10 most recent activity entries in the current season, newest fi
         'end_date' => now()->subYear(),
     ]);
 
-    $mostRecent = SeasonActivity::factory()->create([
+    $mostRecent = Activity::factory()->create([
         'season_id' => $season->id,
         'occurred_at' => now(),
     ]);
 
     for ($i = 1; $i <= 10; $i++) {
-        SeasonActivity::factory()->create([
+        Activity::factory()->create([
             'season_id' => $season->id,
             'occurred_at' => now()->subHours($i),
         ]);
     }
 
-    SeasonActivity::factory()->create([
+    Activity::factory()->create([
         'season_id' => $otherSeason->id,
         'occurred_at' => now(),
     ]);
@@ -282,7 +282,7 @@ test('shows the difference between the amount paid and the market value on that 
         'value' => 450_000,
     ]);
 
-    $activity = SeasonActivity::factory()->create([
+    $activity = Activity::factory()->create([
         'season_id' => $season->id,
         'player_id' => $player->id,
         'amount' => 500_000,

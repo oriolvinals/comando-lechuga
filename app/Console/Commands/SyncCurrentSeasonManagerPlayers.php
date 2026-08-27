@@ -6,10 +6,10 @@ namespace App\Console\Commands;
 
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
+use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
-use App\Models\SeasonManagerPlayer;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -66,7 +66,7 @@ class SyncCurrentSeasonManagerPlayers extends Command
                         continue;
                     }
 
-                    SeasonManagerPlayer::query()->updateOrCreate(
+                    ManagerPlayer::query()->updateOrCreate(
                         [
                             'season_manager_id' => $seasonManager->id,
                             'player_id' => $player->id,
@@ -86,7 +86,7 @@ class SyncCurrentSeasonManagerPlayers extends Command
                     $currentPlayerIds[] = $player->id;
                 }
 
-                SeasonManagerPlayer::query()
+                ManagerPlayer::query()
                     ->where('season_manager_id', $seasonManager->id)
                     ->whereNotIn('player_id', $currentPlayerIds)
                     ->delete();

@@ -1,9 +1,9 @@
 <?php
 
 use App\Enums\SeasonActivityType;
+use App\Models\Activity;
 use App\Models\Player;
 use App\Models\Season;
-use App\Models\SeasonActivity;
 use App\Models\SeasonManager;
 
 test('casts its type and belongs to a season, managers and a player', function (): void {
@@ -12,7 +12,7 @@ test('casts its type and belongs to a season, managers and a player', function (
     $targetSeasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $player = Player::factory()->create();
 
-    $activity = SeasonActivity::factory()->create([
+    $activity = Activity::factory()->create([
         'season_id' => $season->id,
         'source_season_manager_id' => $sourceSeasonManager->id,
         'target_season_manager_id' => $targetSeasonManager->id,
@@ -32,7 +32,7 @@ test('casts its type and belongs to a season, managers and a player', function (
 });
 
 test('allows a null target manager, player and week number', function (): void {
-    $activity = SeasonActivity::factory()->create([
+    $activity = Activity::factory()->create([
         'target_season_manager_id' => null,
         'player_id' => null,
         'week_number' => 1,
