@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import type { ReactElement } from 'react';
-import { ActivityCard, TYPE_LABELS } from '@/components/activity-card';
+import { TYPE_LABELS } from '@/components/activity-helpers';
+import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
 import { HqMultiSelect } from '@/components/hq-multi-select';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
@@ -115,13 +116,16 @@ export default function ActivityIndex({
                                 <h2 className="mb-2.5 border-b border-hq-border pb-1.5 font-mono text-[10px] tracking-widest text-hq-moss-dim uppercase">
                                     {day}
                                 </h2>
-                                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
                                     {entries.map((entry) => (
-                                        <ActivityCard
+                                        <div
                                             key={entry.id}
-                                            activity={entry}
-                                            showTimeOnly
-                                        />
+                                            className="hq-card-cut px-4 py-1"
+                                        >
+                                            <HqActivityTimelineEntry
+                                                activity={entry}
+                                            />
+                                        </div>
                                     ))}
                                 </div>
                             </section>

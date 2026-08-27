@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ActivityCard } from '@/components/activity-card';
+import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
 import { HqSection } from '@/components/hq-section';
 import { index as activityIndex } from '@/routes/activity';
 import type { SeasonActivity } from '@/types/models';
@@ -26,9 +26,11 @@ export function ActivityPanel({ activity }: ActivityPanelProps) {
                     Todavía no hay actividad esta temporada.
                 </p>
             ) : (
-                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
                     {activity.map((entry) => (
-                        <ActivityCard key={entry.id} activity={entry} />
+                        <div key={entry.id} className="hq-card-cut px-4 py-1">
+                            <HqActivityTimelineEntry activity={entry} />
+                        </div>
                     ))}
                 </div>
             )}

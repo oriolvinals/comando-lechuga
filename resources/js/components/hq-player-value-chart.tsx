@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { TYPE_LABELS } from '@/components/activity-card';
+import { TYPE_LABELS } from '@/components/activity-helpers';
 import { formatCurrency } from '@/lib/format';
 import type { OwnershipSegment } from '@/lib/ownership-timeline';
 import {
