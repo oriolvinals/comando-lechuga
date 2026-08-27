@@ -322,7 +322,9 @@ export default function PlayersIndex({
     ).map(([value, label]) => ({ value, label }));
     const statusOptions = (
         Object.entries(STATUS_LABELS) as [PlayerStatus, string][]
-    ).map(([value, label]) => ({ value, label }));
+    )
+        .filter(([status]) => status !== 'out_of_league')
+        .map(([value, label]) => ({ value, label }));
 
     return (
         <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">

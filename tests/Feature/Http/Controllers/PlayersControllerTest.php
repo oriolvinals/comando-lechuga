@@ -39,7 +39,7 @@ test('paginates players, 15 per page', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    Player::factory()->count(20)->create();
+    Player::factory()->count(20)->create(['status' => PlayerStatus::Ok]);
 
     $response = $this->get(route('players.index'));
 
@@ -57,8 +57,8 @@ test('searches players by nickname', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    $match = Player::factory()->create(['nickname' => 'Lamine Yamal']);
-    Player::factory()->create(['nickname' => 'Pedri']);
+    $match = Player::factory()->create(['status' => PlayerStatus::Ok, 'nickname' => 'Lamine Yamal']);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'nickname' => 'Pedri']);
 
     $response = $this->get(route('players.index', ['search' => 'yamal']));
 
@@ -75,8 +75,8 @@ test('searches players by nickname ignoring accents', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    $match = Player::factory()->create(['nickname' => 'Óscar Valentín']);
-    Player::factory()->create(['nickname' => 'Pedri']);
+    $match = Player::factory()->create(['status' => PlayerStatus::Ok, 'nickname' => 'Óscar Valentín']);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'nickname' => 'Pedri']);
 
     $response = $this->get(route('players.index', ['search' => 'valentin']));
 
@@ -93,9 +93,9 @@ test('filters players by several positions at once', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    Player::factory()->create(['position' => PlayerPosition::Goalkeeper]);
-    Player::factory()->create(['position' => PlayerPosition::Striker]);
-    Player::factory()->create(['position' => PlayerPosition::Midfield]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'position' => PlayerPosition::Goalkeeper]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'position' => PlayerPosition::Striker]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'position' => PlayerPosition::Midfield]);
 
     $response = $this->get(route('players.index', ['position' => 'goalkeeper,striker']));
 
@@ -113,9 +113,9 @@ test('filters players by several teams at once', function (): void {
     $second = Team::factory()->create();
     $third = Team::factory()->create();
 
-    Player::factory()->create(['team_id' => $first->id]);
-    Player::factory()->create(['team_id' => $second->id]);
-    Player::factory()->create(['team_id' => $third->id]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $first->id]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $second->id]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $third->id]);
 
     $response = $this->get(route('players.index', ['team' => "{$first->id},{$second->id}"]));
 
@@ -132,10 +132,10 @@ test('filters players by fantasy season manager', function (): void {
     $ownerManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
 
-    $owned = Player::factory()->create();
+    $owned = Player::factory()->create(['status' => PlayerStatus::Ok]);
     SeasonManagerPlayer::factory()->create(['season_manager_id' => $ownerManager->id, 'player_id' => $owned->id]);
 
-    Player::factory()->create();
+    Player::factory()->create(['status' => PlayerStatus::Ok]);
 
     $response = $this->get(route('players.index', ['season_manager' => (string) $ownerManager->id]));
 
@@ -184,14 +184,46 @@ test('filters players by several statuses at once', function (): void {
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('players.data', 2));
 });
 
+test('excludes out of league players from the list even without a status filter', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    Player::factory()->create(['status' => PlayerStatus::Ok]);
+    Player::factory()->create(['status' => PlayerStatus::OutOfLeague]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('players.data', 1)
+        ->where('players.data.0.status', 'ok')
+    );
+});
+
+test('excludes out of league players even when explicitly requested via the status filter', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    Player::factory()->create(['status' => PlayerStatus::OutOfLeague]);
+
+    $response = $this->get(route('players.index', ['status' => 'out_of_league']));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('players.data', 0));
+});
+
 test('sorts players by points descending by default', function (): void {
     Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
 
-    $low = Player::factory()->create(['points' => 10]);
-    $high = Player::factory()->create(['points' => 90]);
+    $low = Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 10]);
+    $high = Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 90]);
 
     $response = $this->get(route('players.index'));
 
@@ -208,8 +240,8 @@ test('sorts players by market value when requested', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    $cheap = Player::factory()->create(['market_value' => 500_000, 'points' => 90]);
-    $expensive = Player::factory()->create(['market_value' => 5_000_000, 'points' => 10]);
+    $cheap = Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value' => 500_000, 'points' => 90]);
+    $expensive = Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value' => 5_000_000, 'points' => 10]);
 
     $response = $this->get(route('players.index', ['sort' => 'value']));
 
@@ -226,8 +258,8 @@ test('sorts players by market value difference when requested', function (): voi
         'end_date' => now()->addDay(),
     ]);
 
-    $dropped = Player::factory()->create(['market_value_difference' => -50_000]);
-    $risen = Player::factory()->create(['market_value_difference' => 200_000]);
+    $dropped = Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value_difference' => -50_000]);
+    $risen = Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value_difference' => 200_000]);
 
     $response = $this->get(route('players.index', ['sort' => 'difference']));
 
@@ -244,8 +276,8 @@ test('reverses the sort direction when requested', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    $low = Player::factory()->create(['points' => 10]);
-    $high = Player::factory()->create(['points' => 90]);
+    $low = Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 10]);
+    $high = Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 90]);
 
     $response = $this->get(route('players.index', ['direction' => 'asc']));
 
@@ -266,7 +298,7 @@ test('shows the owning fantasy manager when a player is owned', function (): voi
         'name' => 'Ariobretxa',
         'primary_color' => '#c4ff3d',
     ]);
-    $player = Player::factory()->create();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
 
     SeasonManagerPlayer::factory()->create([
         'season_manager_id' => $seasonManager->id,
@@ -289,7 +321,7 @@ test('shows no owner for a free player', function (): void {
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    Player::factory()->create();
+    Player::factory()->create(['status' => PlayerStatus::Ok]);
 
     $response = $this->get(route('players.index'));
 
@@ -302,7 +334,7 @@ test('includes points for the last 3 played matches, ordered by fixture date old
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $player = Player::factory()->create();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     // Week numbers deliberately out of date order, so the test actually exercises
     // sorting by fixture date rather than by week_number or insertion order.
     $earliest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 4, 'date' => now()->subDays(30), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
@@ -325,7 +357,7 @@ test('only takes the 3 most recent matches, dropping older ones', function (): v
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $player = Player::factory()->create();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     $oldest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(40), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     $second = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(30), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     $third = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
@@ -348,7 +380,7 @@ test('pads with null at the end when a player has fewer than 3 matches of histor
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $player = Player::factory()->create();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay(), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'points' => 9]);
 
@@ -365,7 +397,7 @@ test('marks a recent score slot as not called up when the match finished without
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $player = Player::factory()->create();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     $scored = Fixture::factory()->create([
         'season_id' => $season->id,
         'date' => now()->subDays(20),
@@ -398,7 +430,7 @@ test('excludes scores from a fixture in a different season for the recent scores
         'start_date' => now()->subYears(2),
         'end_date' => now()->subYear(),
     ]);
-    $player = Player::factory()->create();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     $otherSeasonFixture = Fixture::factory()->create(['season_id' => $otherSeason->id]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $otherSeasonFixture->id, 'points' => 9]);
 

@@ -72,6 +72,7 @@ class PlayersController extends Controller
 
         $players = Player::query()
             ->with('team')
+            ->where('status', '!=', PlayerStatus::OutOfLeague)
             ->when($positions !== [], fn ($query) => $query->whereIn('position', $positions))
             ->when($teams !== [], fn ($query) => $query->whereIn('team_id', $teams))
             ->when($seasonManagers !== [], fn ($query) => $query->whereHas(
