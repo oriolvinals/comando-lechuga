@@ -39,7 +39,7 @@ function StandingsHeader() {
             <span className="w-6 shrink-0" />
             <span className="w-4 shrink-0" />
             <span className="w-14 shrink-0" />
-            <span className="min-w-0 flex-1">Equipo</span>
+            <span className="min-w-0 flex-1">Manager</span>
             <span className="w-28 shrink-0 text-center">Forma</span>
             <span className="w-14 shrink-0 text-right">Premio</span>
             <span className="w-12 shrink-0 text-center">Pts</span>

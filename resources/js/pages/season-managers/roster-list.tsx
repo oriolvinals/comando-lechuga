@@ -244,7 +244,7 @@ export function RosterList({ roster }: RosterListProps) {
     if (roster.length === 0) {
         return (
             <p className="font-mono text-[11px] text-hq-moss-dim">
-                Este equipo no tiene jugadores en plantilla.
+                Este manager no tiene jugadores en plantilla.
             </p>
         );
     }

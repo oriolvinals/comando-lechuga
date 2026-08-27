@@ -11,15 +11,15 @@ import type {
     SeasonActivityType,
 } from '@/types/models';
 
-interface TeamOption {
+interface ManagerOption {
     id: number;
     name: string;
 }
 
 interface ActivityIndexProps {
     activities: Paginated<SeasonActivity>;
-    teams: TeamOption[];
-    filters: { team: number[]; type: SeasonActivityType[] };
+    managers: ManagerOption[];
+    filters: { manager: number[]; type: SeasonActivityType[] };
     [key: string]: unknown;
 }
 
@@ -42,14 +42,14 @@ function groupByDay(
 
 export default function ActivityIndex({
     activities,
-    teams,
+    managers,
     filters,
 }: ActivityIndexProps) {
-    const applyFilters = (team: number[], type: SeasonActivityType[]) => {
+    const applyFilters = (manager: number[], type: SeasonActivityType[]) => {
         router.get(
             activityIndex().url,
             {
-                team: team.join(',') || undefined,
+                manager: manager.join(',') || undefined,
                 type: type.join(',') || undefined,
             },
             { preserveState: true, preserveScroll: true },
@@ -58,9 +58,9 @@ export default function ActivityIndex({
 
     const groups = groupByDay(activities.data);
 
-    const teamOptions = teams.map((team) => ({
-        value: String(team.id),
-        label: team.name,
+    const managerOptions = managers.map((manager) => ({
+        value: String(manager.id),
+        label: manager.name,
     }));
     const typeOptions = (
         Object.entries(TYPE_LABELS) as [SeasonActivityType, string][]
@@ -77,9 +77,9 @@ export default function ActivityIndex({
 
                 <div className="mb-7 flex flex-wrap gap-2.5">
                     <HqMultiSelect
-                        label="Equipo"
-                        options={teamOptions}
-                        selected={filters.team.map(String)}
+                        label="Manager"
+                        options={managerOptions}
+                        selected={filters.manager.map(String)}
                         onChange={(next) =>
                             applyFilters(next.map(Number), filters.type)
                         }
@@ -91,7 +91,7 @@ export default function ActivityIndex({
                         selected={filters.type}
                         onChange={(next) =>
                             applyFilters(
-                                filters.team,
+                                filters.manager,
                                 next as SeasonActivityType[],
                             )
                         }

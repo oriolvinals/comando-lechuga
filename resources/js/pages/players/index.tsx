@@ -353,7 +353,7 @@ export default function PlayersIndex({
                     />
 
                     <HqMultiSelect
-                        label="Club"
+                        label="Equipo"
                         options={teamOptions}
                         selected={filters.team.map(String)}
                         onChange={(next) =>
@@ -362,7 +362,7 @@ export default function PlayersIndex({
                     />
 
                     <HqMultiSelect
-                        label="Equipo"
+                        label="Manager"
                         options={seasonManagerOptions}
                         selected={filters.seasonManager.map(String)}
                         onChange={(next) =>

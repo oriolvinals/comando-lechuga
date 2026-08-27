@@ -7,7 +7,7 @@ import { index as playersIndex } from '@/routes/players';
 import { index as seasonManagersIndex } from '@/routes/season-managers';
 
 const navItems = [
-    { label: 'Equipos', href: seasonManagersIndex().url },
+    { label: 'Managers', href: seasonManagersIndex().url },
     { label: 'Jugadores', href: playersIndex().url },
     { label: 'Actividad', href: activityIndex().url },
 ];

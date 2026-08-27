@@ -115,7 +115,7 @@ export default function SeasonManagerShow({
                             </h2>
                             {activity.length === 0 ? (
                                 <p className="font-mono text-[11px] text-hq-moss-dim">
-                                    Todavía no hay actividad de este equipo.
+                                    Todavía no hay actividad de este manager.
                                 </p>
                             ) : (
                                 <div className="hq-card-cut px-4 py-1">

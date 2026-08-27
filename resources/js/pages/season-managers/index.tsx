@@ -55,10 +55,10 @@ export default function SeasonManagersIndex({
         <>
             <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
                 <div className="mx-auto max-w-7xl px-6 py-9">
-                    <Head title="Equipos" />
+                    <Head title="Managers" />
 
                     <h1 className="mb-6 font-display text-3xl text-hq-paper uppercase">
-                        Equipos
+                        Managers
                     </h1>
 
                     <div className="mb-6">

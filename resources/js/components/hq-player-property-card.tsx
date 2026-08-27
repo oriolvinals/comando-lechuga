@@ -73,7 +73,7 @@ export function HqPlayerPropertyCard({
                 Libre
             </p>
             <p className="mt-1 font-mono text-[10px] text-hq-moss-dim">
-                sin equipo fantasy
+                sin manager fantasy
             </p>
         </div>
     );
