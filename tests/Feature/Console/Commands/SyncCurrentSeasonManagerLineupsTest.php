@@ -146,3 +146,59 @@ test('stores null player lineup points when that week is not in lastStats', func
     expect($lineupPlayer->points)->toBeNull()
         ->and($lineupPlayer->stats)->toBeNull();
 });
+
+test('removes lineup players that are no longer in the fetched formation', function (): void {
+    Cache::forget('la_liga_fantasy.access_token');
+
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+    $seasonManager = SeasonManager::factory()->create([
+        'season_id' => $season->id,
+        'fantasy_id' => 37394771,
+    ]);
+    Player::factory()->create(['fantasy_id' => 2759]);
+    $lineup = SeasonManagerLineup::factory()->create([
+        'season_manager_id' => $seasonManager->id,
+        'week_number' => 1,
+    ]);
+    $droppedLineupPlayer = SeasonManagerLineupPlayer::factory()->create([
+        'season_manager_lineup_id' => $lineup->id,
+    ]);
+    $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
+    $loginConnector->shouldReceive('accessToken')
+        ->once()
+        ->andReturn('header.eyJleHAiOjE3ODc0MTc3NTB9.signature');
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamLineupRequest::class => MockResponse::make([
+            'formation' => [
+                'goalkeeper' => [
+                    [
+                        'playerMaster' => [
+                            'id' => '2759',
+                            'points' => 154,
+                            'lastStats' => [],
+                        ],
+                    ],
+                ],
+                'defender' => [],
+                'midfield' => [],
+                'striker' => [],
+                'tacticalFormation' => [3, 5, 2],
+            ],
+            'points' => 0,
+        ]),
+    ]));
+
+    app()->instance(LaLigaLoginConnector::class, $loginConnector);
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonManagerLineups::class)
+        ->expectsOutput('1 manager lineups synchronized.')
+        ->assertSuccessful();
+
+    expect(SeasonManagerLineupPlayer::query()->find($droppedLineupPlayer->id))->toBeNull()
+        ->and(SeasonManagerLineupPlayer::query()->count())->toBe(1);
+});

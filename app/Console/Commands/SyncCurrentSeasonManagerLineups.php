@@ -62,6 +62,8 @@ class SyncCurrentSeasonManagerLineups extends Command
                         ],
                     );
 
+                    $syncedPlayerIds = [];
+
                     foreach (PlayerPosition::cases() as $position) {
                         $players = $formation[$position->value] ?? [];
 
@@ -103,8 +105,15 @@ class SyncCurrentSeasonManagerLineups extends Command
                                     'position' => $position,
                                 ],
                             );
+
+                            $syncedPlayerIds[] = $player->id;
                         }
                     }
+
+                    SeasonManagerLineupPlayer::query()
+                        ->where('season_manager_lineup_id', $lineup->id)
+                        ->whereNotIn('player_id', $syncedPlayerIds)
+                        ->delete();
                 });
 
                 $lineupsSynchronized++;
