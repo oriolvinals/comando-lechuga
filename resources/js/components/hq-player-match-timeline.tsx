@@ -204,6 +204,25 @@ export function HqPlayerMatchTimeline({
                         })}
                     </div>
                 </div>
+            ) : selectedFixture?.state === 'finished' ? (
+                <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
+                    <p className="font-display text-lg text-hq-paper uppercase">
+                        Jornada {selectedWeek} — no convocado
+                    </p>
+                    <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
+                        {selectedFixture.local_team.short_name}{' '}
+                        {selectedFixture.local_score}–
+                        {selectedFixture.guest_score}{' '}
+                        {selectedFixture.guest_team.short_name}
+                    </p>
+                    <Link
+                        href={fixturesShow(selectedFixture.id).url}
+                        className="mt-3 inline-flex items-center gap-1 border border-hq-lime px-2 py-1 font-mono text-[11px] font-bold text-hq-lime hover:bg-hq-lime/10"
+                    >
+                        VER PARTIDO
+                        <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+                </div>
             ) : (
                 <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
                     <p className="font-display text-lg text-hq-paper uppercase">
