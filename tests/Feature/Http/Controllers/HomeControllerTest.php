@@ -167,7 +167,7 @@ test('includes recent scores for each market listing player', function (): void 
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $player = Player::factory()->create();
+    $player = Player::factory()->create(['position' => PlayerPosition::Striker]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay()]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'points' => 9]);
     MarketPlayer::factory()->create(['player_id' => $player->id]);
