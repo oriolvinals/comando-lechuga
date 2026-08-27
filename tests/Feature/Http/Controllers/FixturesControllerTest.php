@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Models\Fixture;
 use App\Models\ManagerLineup;
@@ -13,6 +14,68 @@ use App\Models\SeasonManager;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
+
+test('renders the fixtures index page with every fixture for the current season', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $otherSeason = Season::factory()->create([
+        'start_date' => now()->subYears(2),
+        'end_date' => now()->subYear(),
+    ]);
+    $week1 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    $week2 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2]);
+    Fixture::factory()->create(['season_id' => $otherSeason->id, 'week_number' => 1]);
+
+    $response = $this->get(route('fixtures.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->component('fixtures/index')
+        ->has('fixtures', 2)
+        ->where('fixtures.0.id', $week1->id)
+        ->where('fixtures.1.id', $week2->id)
+    );
+});
+
+test('orders index fixtures by week number then by date', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $laterInWeek = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => now()->addDays(2)]);
+    $earlierInWeek = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => now()->addDay()]);
+    $nextWeek = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => now()]);
+
+    $response = $this->get(route('fixtures.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('fixtures.0.id', $earlierInWeek->id)
+        ->where('fixtures.1.id', $laterInWeek->id)
+        ->where('fixtures.2.id', $nextWeek->id)
+    );
+});
+
+test('includes week progress and season on the fixtures index page', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 2,
+        'total_weeks' => 38,
+    ]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'state' => FixtureState::Finished]);
+
+    $response = $this->get(route('fixtures.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('season.current_week', 2)
+        ->where('season.total_weeks', 38)
+        ->where('weekProgress.1', 'all')
+    );
+});
 
 test('renders the fixture show page', function (): void {
     $season = Season::factory()->create([

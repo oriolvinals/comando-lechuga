@@ -13,4 +13,5 @@ Route::get('/managers/{seasonManager}', [SeasonManagersController::class, 'show'
 Route::get('/jugadores', [PlayersController::class, 'index'])->name('players.index');
 Route::get('/jugadores/{player}', [PlayersController::class, 'show'])->name('players.show');
 Route::get('/actividad', [ActivityController::class, 'index'])->name('activity.index');
+Route::get('/partidos', [FixturesController::class, 'index'])->name('fixtures.index');
 Route::get('/partidos/{fixture}', [FixturesController::class, 'show'])->name('fixtures.show');

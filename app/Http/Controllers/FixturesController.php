@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\PlayerPosition;
+use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Models\Fixture;
 use App\Models\ManagerLineupPlayer;
 use App\Models\PlayerScore;
+use App\Models\Season;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class FixturesController extends Controller
 {
+    use FiltersSeasonWeeks;
+
     private const array POSITION_ORDER = [
         'goalkeeper' => 0,
         'defender' => 1,
@@ -20,6 +24,27 @@ class FixturesController extends Controller
         'striker' => 3,
         'coach' => 4,
     ];
+
+    public function index(): Response
+    {
+        $season = Season::current();
+
+        $fixtures = Fixture::query()
+            ->where('season_id', $season->id)
+            ->with(['localTeam', 'guestTeam'])
+            ->orderBy('week_number')
+            ->orderBy('date')
+            ->get();
+
+        return Inertia::render('fixtures/index', [
+            'season' => $season,
+            'fixtures' => $fixtures,
+            // Cast to object: PHP normalizes numeric string keys back to
+            // int, so a plain array here could serialize as a sparse JSON
+            // array instead of the {"1": "all", ...} object the frontend expects.
+            'weekProgress' => (object) $this->weekProgress($season),
+        ]);
+    }
 
     public function show(Fixture $fixture): Response
     {

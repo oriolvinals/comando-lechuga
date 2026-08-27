@@ -3,12 +3,14 @@ import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { index as activityIndex } from '@/routes/activity';
+import { index as fixturesIndex } from '@/routes/fixtures';
 import { index as playersIndex } from '@/routes/players';
 import { index as seasonManagersIndex } from '@/routes/season-managers';
 
 const navItems = [
     { label: 'Managers', href: seasonManagersIndex().url },
     { label: 'Jugadores', href: playersIndex().url },
+    { label: 'Partidos', href: fixturesIndex().url },
     { label: 'Actividad', href: activityIndex().url },
 ];
 
