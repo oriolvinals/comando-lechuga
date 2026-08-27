@@ -55,6 +55,9 @@ export function HqPlayerMatchTimeline({
                     (_, index) => index + 1,
                 ).map((week) => {
                     const score = scoresByWeek.get(week);
+                    const notCalledUp =
+                        !score &&
+                        fixturesByWeek.get(week)?.state === 'finished';
 
                     return (
                         <button
@@ -68,14 +71,16 @@ export function HqPlayerMatchTimeline({
                                     : 'border-transparent hover:border-hq-border-strong',
                                 score
                                     ? matchPointsBadgeClass(score.points)
-                                    : 'border-dashed border-hq-border-strong text-hq-moss-dim',
+                                    : notCalledUp
+                                      ? 'border-dashed border-hq-live text-hq-live'
+                                      : 'border-dashed border-hq-border-strong text-hq-moss-dim',
                             )}
                         >
                             <span className="text-[10px] font-bold opacity-80">
                                 J{week}
                             </span>
                             <span className="font-display text-lg leading-none">
-                                {score ? score.points : '—'}
+                                {score ? score.points : notCalledUp ? 'NC' : '—'}
                             </span>
                         </button>
                     );
