@@ -1,21 +1,21 @@
 <?php
 
-use App\Console\Commands\SyncCurrentSeasonTeamLineups;
+use App\Console\Commands\SyncCurrentSeasonManagerLineups;
 use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamLineupRequest;
 use App\Models\Player;
 use App\Models\Season;
-use App\Models\SeasonTeam;
-use App\Models\SeasonTeamLineup;
-use App\Models\SeasonTeamLineupPlayer;
+use App\Models\SeasonManager;
+use App\Models\SeasonManagerLineup;
+use App\Models\SeasonManagerLineupPlayer;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('syncs lineups for each season team through the current week', function (): void {
+test('syncs lineups for each season manager through the current week', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([
@@ -23,7 +23,7 @@ test('syncs lineups for each season team through the current week', function ():
         'end_date' => now()->addDay(),
         'current_week' => 1,
     ]);
-    $seasonTeam = SeasonTeam::factory()->create([
+    $seasonManager = SeasonManager::factory()->create([
         'season_id' => $season->id,
         'fantasy_id' => 37394771,
     ]);
@@ -75,14 +75,14 @@ test('syncs lineups for each season team through the current week', function ():
     app()->instance(LaLigaLoginConnector::class, $loginConnector);
     app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
 
-    $this->artisan(SyncCurrentSeasonTeamLineups::class)
-        ->expectsOutput('1 team lineups synchronized.')
+    $this->artisan(SyncCurrentSeasonManagerLineups::class)
+        ->expectsOutput('1 manager lineups synchronized.')
         ->assertSuccessful();
 
-    $lineup = SeasonTeamLineup::query()->sole();
-    $lineupPlayer = SeasonTeamLineupPlayer::query()->sole();
+    $lineup = SeasonManagerLineup::query()->sole();
+    $lineupPlayer = SeasonManagerLineupPlayer::query()->sole();
 
-    expect($lineup->season_team_id)->toBe($seasonTeam->id)
+    expect($lineup->season_manager_id)->toBe($seasonManager->id)
         ->and($lineup->week_number)->toBe(1)
         ->and($lineup->tactical_formation)->toBe([3, 5, 2])
         ->and($lineup->points)->toBe(6)
@@ -104,7 +104,7 @@ test('stores null player lineup points when that week is not in lastStats', func
         'end_date' => now()->addDay(),
         'current_week' => 1,
     ]);
-    $seasonTeam = SeasonTeam::factory()->create([
+    $seasonManager = SeasonManager::factory()->create([
         'season_id' => $season->id,
         'fantasy_id' => 37394771,
     ]);
@@ -137,11 +137,11 @@ test('stores null player lineup points when that week is not in lastStats', func
     app()->instance(LaLigaLoginConnector::class, $loginConnector);
     app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
 
-    $this->artisan(SyncCurrentSeasonTeamLineups::class)
-        ->expectsOutput('1 team lineups synchronized.')
+    $this->artisan(SyncCurrentSeasonManagerLineups::class)
+        ->expectsOutput('1 manager lineups synchronized.')
         ->assertSuccessful();
 
-    $lineupPlayer = SeasonTeamLineupPlayer::query()->sole();
+    $lineupPlayer = SeasonManagerLineupPlayer::query()->sole();
 
     expect($lineupPlayer->points)->toBeNull()
         ->and($lineupPlayer->stats)->toBeNull();

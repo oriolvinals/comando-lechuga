@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { index as activityIndex } from '@/routes/activity';
 import { index as playersIndex } from '@/routes/players';
-import { index as seasonTeamsIndex } from '@/routes/season-teams';
+import { index as seasonManagersIndex } from '@/routes/season-managers';
 
 const navItems = [
-    { label: 'Equipos', href: seasonTeamsIndex().url },
+    { label: 'Equipos', href: seasonManagersIndex().url },
     { label: 'Jugadores', href: playersIndex().url },
     { label: 'Actividad', href: activityIndex().url },
 ];

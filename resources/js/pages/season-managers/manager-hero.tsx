@@ -1,8 +1,8 @@
 import { ArrowDown, ArrowUp, Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
-import { crestTintStyle } from '@/lib/season-team-colors';
-import type { Season, SeasonTeam } from '@/types/models';
+import { crestTintStyle } from '@/lib/season-manager-colors';
+import type { Season, SeasonManager } from '@/types/models';
 
 /** Medal color per podium spot — same palette as the home hero's PODIUM_SIZES. Outside the podium the crest keeps a neutral border. */
 const MEDAL_COLOR_VARS: Record<number, string> = {
@@ -39,21 +39,25 @@ function RankTrend({
     return null;
 }
 
-interface TeamHeroProps {
-    seasonTeam: SeasonTeam;
+interface ManagerHeroProps {
+    seasonManager: SeasonManager;
     season: Season;
     wonWeeks: number[];
 }
 
-export function TeamHero({ seasonTeam, season, wonWeeks }: TeamHeroProps) {
-    const medal = MEDAL_COLOR_VARS[seasonTeam.position];
+export function ManagerHero({
+    seasonManager,
+    season,
+    wonWeeks,
+}: ManagerHeroProps) {
+    const medal = MEDAL_COLOR_VARS[seasonManager.position];
     const borderColor = medal ?? 'var(--color-hq-border-strong)';
     const chipTextColor = medal ?? 'var(--color-hq-paper)';
     const crestFillStyle = medal
         ? {
               backgroundColor: `color-mix(in srgb, ${medal} 22%, var(--color-hq-border))`,
           }
-        : crestTintStyle(seasonTeam.primary_color);
+        : crestTintStyle(seasonManager.primary_color);
 
     return (
         <div className="relative p-6">
@@ -68,8 +72,8 @@ export function TeamHero({ seasonTeam, season, wonWeeks }: TeamHeroProps) {
                         }}
                     >
                         <EntityImage
-                            src={seasonTeam.logo}
-                            alt={seasonTeam.name}
+                            src={seasonManager.logo}
+                            alt={seasonManager.name}
                             fallback={Shield}
                             shape="square"
                             style={crestFillStyle}
@@ -80,17 +84,17 @@ export function TeamHero({ seasonTeam, season, wonWeeks }: TeamHeroProps) {
                         className="absolute -right-2 -bottom-2 flex items-center gap-1 border-2 bg-hq-ink px-1.5 py-0.5 font-display text-sm"
                         style={{ borderColor, color: chipTextColor }}
                     >
-                        {seasonTeam.position}.º
+                        {seasonManager.position}.º
                         <RankTrend
-                            position={seasonTeam.position}
-                            lastPosition={seasonTeam.last_position}
+                            position={seasonManager.position}
+                            lastPosition={seasonManager.last_position}
                         />
                     </div>
                 </div>
 
                 <div>
                     <h1 className="font-display text-3xl text-hq-paper uppercase">
-                        {seasonTeam.name}
+                        {seasonManager.name}
                     </h1>
                     {wonWeeks.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -112,16 +116,16 @@ export function TeamHero({ seasonTeam, season, wonWeeks }: TeamHeroProps) {
                             Puntos
                         </div>
                         <div className="mt-0.5 font-display text-xl text-hq-paper">
-                            {seasonTeam.total_points}
+                            {seasonManager.total_points}
                         </div>
                     </div>
-                    {seasonTeam.live_points !== null && (
+                    {seasonManager.live_points !== null && (
                         <div className="border border-hq-border bg-hq-panel-alt/80 px-4 py-2 text-center">
                             <div className="font-mono text-[9px] text-hq-moss uppercase">
                                 J{season.current_week} en directo
                             </div>
                             <div className="mt-0.5 font-display text-xl text-hq-lime">
-                                +{seasonTeam.live_points}
+                                +{seasonManager.live_points}
                             </div>
                         </div>
                     )}
@@ -130,7 +134,7 @@ export function TeamHero({ seasonTeam, season, wonWeeks }: TeamHeroProps) {
                             Valor
                         </div>
                         <div className="mt-0.5 font-display text-xl text-hq-paper">
-                            {formatCurrency(seasonTeam.value)}
+                            {formatCurrency(seasonManager.value)}
                         </div>
                     </div>
                 </div>

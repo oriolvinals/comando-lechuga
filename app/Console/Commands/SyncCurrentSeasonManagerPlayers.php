@@ -8,8 +8,8 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\Player;
 use App\Models\Season;
-use App\Models\SeasonTeam;
-use App\Models\SeasonTeamPlayer;
+use App\Models\SeasonManager;
+use App\Models\SeasonManagerPlayer;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -20,9 +20,9 @@ use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Throwable;
 
-#[Signature('season:sync-team-players')]
-#[Description('Synchronize the current squad of each season team from La Liga Fantasy')]
-class SyncCurrentSeasonTeamPlayers extends Command
+#[Signature('season:sync-manager-players')]
+#[Description('Synchronize the current squad of each season manager from La Liga Fantasy')]
+class SyncCurrentSeasonManagerPlayers extends Command
 {
     /**
      * @throws FatalRequestException
@@ -35,20 +35,20 @@ class SyncCurrentSeasonTeamPlayers extends Command
         LaLigaFantasyConnector $fantasyConnector,
     ): int {
         $season = Season::current();
-        $teamsSynchronized = 0;
+        $managersSynchronized = 0;
 
-        foreach (SeasonTeam::query()->where('season_id', $season->id)->get() as $seasonTeam) {
-            $teamData = $fantasyConnector
-                ->getLeagueTeamWithLogin($loginConnector, $season->fantasy_id, $seasonTeam->fantasy_id)
+        foreach (SeasonManager::query()->where('season_id', $season->id)->get() as $seasonManager) {
+            $managerData = $fantasyConnector
+                ->getLeagueTeamWithLogin($loginConnector, $season->fantasy_id, $seasonManager->fantasy_id)
                 ->json();
 
-            $players = $teamData['players'] ?? [];
+            $players = $managerData['players'] ?? [];
 
             if (!is_array($players)) {
                 continue;
             }
 
-            DB::transaction(function () use ($seasonTeam, $players): void {
+            DB::transaction(function () use ($seasonManager, $players): void {
                 $currentPlayerIds = [];
 
                 foreach ($players as $playerEntry) {
@@ -66,9 +66,9 @@ class SyncCurrentSeasonTeamPlayers extends Command
                         continue;
                     }
 
-                    SeasonTeamPlayer::query()->updateOrCreate(
+                    SeasonManagerPlayer::query()->updateOrCreate(
                         [
-                            'season_team_id' => $seasonTeam->id,
+                            'season_manager_id' => $seasonManager->id,
                             'player_id' => $player->id,
                         ],
                         [
@@ -86,16 +86,16 @@ class SyncCurrentSeasonTeamPlayers extends Command
                     $currentPlayerIds[] = $player->id;
                 }
 
-                SeasonTeamPlayer::query()
-                    ->where('season_team_id', $seasonTeam->id)
+                SeasonManagerPlayer::query()
+                    ->where('season_manager_id', $seasonManager->id)
                     ->whereNotIn('player_id', $currentPlayerIds)
                     ->delete();
             });
 
-            $teamsSynchronized++;
+            $managersSynchronized++;
         }
 
-        $this->info($teamsSynchronized.' season team squads synchronized.');
+        $this->info($managersSynchronized.' season manager squads synchronized.');
 
         return self::SUCCESS;
     }

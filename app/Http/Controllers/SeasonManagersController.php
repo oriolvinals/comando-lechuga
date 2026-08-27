@@ -10,14 +10,14 @@ use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
 use App\Models\Season;
 use App\Models\SeasonActivity;
-use App\Models\SeasonTeam;
-use App\Models\SeasonTeamLineup;
-use App\Models\SeasonTeamPlayer;
+use App\Models\SeasonManager;
+use App\Models\SeasonManagerLineup;
+use App\Models\SeasonManagerPlayer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class SeasonTeamsController extends Controller
+class SeasonManagersController extends Controller
 {
     use AttachesActivityValueDifference;
     use AttachesRecentScores;
@@ -29,14 +29,14 @@ class SeasonTeamsController extends Controller
         $season = Season::current();
         $week = $this->resolveWeek($request, $season);
 
-        $lineups = SeasonTeamLineup::query()
+        $lineups = SeasonManagerLineup::query()
             ->where('week_number', $week)
-            ->whereHas('seasonTeam', fn ($query) => $query->where('season_id', $season->id))
-            ->with(['seasonTeam', 'players.player.team'])
+            ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
+            ->with(['seasonManager', 'players.player.team'])
             ->orderByDesc('points')
             ->get();
 
-        return Inertia::render('season-teams/index', [
+        return Inertia::render('season-managers/index', [
             'season' => $season,
             'filters' => ['week' => $week],
             'lineups' => $lineups,
@@ -47,37 +47,37 @@ class SeasonTeamsController extends Controller
         ]);
     }
 
-    public function show(SeasonTeam $seasonTeam): Response
+    public function show(SeasonManager $seasonManager): Response
     {
         $season = Season::current();
 
-        $roster = SeasonTeamPlayer::query()
-            ->where('season_team_id', $seasonTeam->id)
+        $roster = SeasonManagerPlayer::query()
+            ->where('season_manager_id', $seasonManager->id)
             ->with('player.team')
             ->get();
 
-        $this->attachRecentScores($roster->pluck('player'), $season, $seasonTeam->id);
+        $this->attachRecentScores($roster->pluck('player'), $season, $seasonManager->id);
 
-        $lineupHistory = SeasonTeamLineup::query()
-            ->where('season_team_id', $seasonTeam->id)
+        $lineupHistory = SeasonManagerLineup::query()
+            ->where('season_manager_id', $seasonManager->id)
             ->with('players.player.team')
             ->orderByDesc('week_number')
             ->get();
 
         $activity = SeasonActivity::query()
             ->where(fn ($query) => $query
-                ->where('source_season_team_id', $seasonTeam->id)
-                ->orWhere('target_season_team_id', $seasonTeam->id))
-            ->with(['sourceSeasonTeam', 'targetSeasonTeam', 'player'])
+                ->where('source_season_manager_id', $seasonManager->id)
+                ->orWhere('target_season_manager_id', $seasonManager->id))
+            ->with(['sourceSeasonManager', 'targetSeasonManager', 'player'])
             ->orderByDesc('occurred_at')
             ->limit(10)
             ->get();
 
         $this->attachValueDifferences($activity);
 
-        return Inertia::render('season-teams/show', [
+        return Inertia::render('season-managers/show', [
             'season' => $season,
-            'seasonTeam' => $seasonTeam,
+            'seasonManager' => $seasonManager,
             'roster' => $roster,
             'lineupHistory' => $lineupHistory,
             'startedWeeks' => $this->startedWeekNumbers($season),
@@ -85,18 +85,18 @@ class SeasonTeamsController extends Controller
             // int, so a plain array here could serialize as a sparse JSON
             // array instead of the {"1": "all", ...} object the frontend expects.
             'weekProgress' => (object) $this->weekProgress($season),
-            'wonWeeks' => $this->wonWeekNumbers($seasonTeam, $season),
+            'wonWeeks' => $this->wonWeekNumbers($seasonManager, $season),
             'activity' => $activity,
         ]);
     }
 
     /**
-     * Finished week numbers where this team topped every team's lineup
+     * Finished week numbers where this manager topped every manager's lineup
      * points that week (ties all count as winners).
      *
      * @return array<int, int>
      */
-    private function wonWeekNumbers(SeasonTeam $seasonTeam, Season $season): array
+    private function wonWeekNumbers(SeasonManager $seasonManager, Season $season): array
     {
         $finishedWeeks = $this->finishedWeekNumbers($season);
 
@@ -104,18 +104,18 @@ class SeasonTeamsController extends Controller
             return [];
         }
 
-        $lineups = SeasonTeamLineup::query()
+        $lineups = SeasonManagerLineup::query()
             ->whereIn('week_number', $finishedWeeks)
-            ->whereHas('seasonTeam', fn ($query) => $query->where('season_id', $season->id))
-            ->get(['season_team_id', 'week_number', 'points']);
+            ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
+            ->get(['season_manager_id', 'week_number', 'points']);
 
         $maxPointsByWeek = $lineups
             ->groupBy('week_number')
             ->map(fn ($weekLineups) => $weekLineups->max('points'));
 
         return $lineups
-            ->where('season_team_id', $seasonTeam->id)
-            ->filter(fn (SeasonTeamLineup $lineup): bool => $lineup->points === $maxPointsByWeek[$lineup->week_number])
+            ->where('season_manager_id', $seasonManager->id)
+            ->filter(fn (SeasonManagerLineup $lineup): bool => $lineup->points === $maxPointsByWeek[$lineup->week_number])
             ->pluck('week_number')
             ->sort()
             ->values()

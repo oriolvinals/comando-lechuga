@@ -74,7 +74,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
-        $schedule->command('season:sync-team-lineups')
+        $schedule->command('season:sync-manager-lineups')
             ->everyFiveMinutes()
             ->withoutOverlapping()
             ->onOneServer();
@@ -96,7 +96,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
-        $schedule->command('season:sync-team-players')
+        $schedule->command('season:sync-manager-players')
             ->everyMinute()
             ->runInBackground()
             ->withoutOverlapping()

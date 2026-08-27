@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Database\Factories\SeasonTeamLineupFactory;
+use Database\Factories\SeasonManagerLineupFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -15,29 +15,29 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property-read int $id
- * @property-read int $season_team_id
+ * @property-read int $season_manager_id
  * @property-read array<int, int> $tactical_formation
  * @property-read int $points
  * @property-read int $week_number
  */
-#[UseFactory(SeasonTeamLineupFactory::class)]
-#[Table(name: 'season_team_lineups', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['season_team_id', 'tactical_formation', 'points', 'week_number'])]
-class SeasonTeamLineup extends Model
+#[UseFactory(SeasonManagerLineupFactory::class)]
+#[Table(name: 'season_manager_lineups', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
+#[Fillable(['season_manager_id', 'tactical_formation', 'points', 'week_number'])]
+class SeasonManagerLineup extends Model
 {
-    /** @use HasFactory<SeasonTeamLineupFactory> */
+    /** @use HasFactory<SeasonManagerLineupFactory> */
     use HasFactory;
 
-    /** @return BelongsTo<SeasonTeam, $this> */
-    public function seasonTeam(): BelongsTo
+    /** @return BelongsTo<SeasonManager, $this> */
+    public function seasonManager(): BelongsTo
     {
-        return $this->belongsTo(SeasonTeam::class);
+        return $this->belongsTo(SeasonManager::class);
     }
 
-    /** @return HasMany<SeasonTeamLineupPlayer, $this> */
+    /** @return HasMany<SeasonManagerLineupPlayer, $this> */
     public function players(): HasMany
     {
-        return $this->hasMany(SeasonTeamLineupPlayer::class);
+        return $this->hasMany(SeasonManagerLineupPlayer::class);
     }
 
     /** @var array<string, mixed> */
@@ -53,7 +53,7 @@ class SeasonTeamLineup extends Model
     {
         return [
             'id' => 'int',
-            'season_team_id' => 'int',
+            'season_manager_id' => 'int',
             'tactical_formation' => 'array',
             'points' => 'int',
             'week_number' => 'int',

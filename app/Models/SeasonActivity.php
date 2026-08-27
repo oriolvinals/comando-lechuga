@@ -19,8 +19,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int $fantasy_id
  * @property-read SeasonActivityType $type
  * @property-read int $season_id
- * @property-read int $source_season_team_id
- * @property-read int|null $target_season_team_id
+ * @property-read int $source_season_manager_id
+ * @property-read int|null $target_season_manager_id
  * @property-read int|null $player_id
  * @property-read int|null $amount
  * @property-read int|null $week_number
@@ -29,7 +29,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[UseFactory(SeasonActivityFactory::class)]
 #[Table(name: 'season_activities', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fantasy_id', 'type', 'season_id', 'source_season_team_id', 'target_season_team_id', 'player_id', 'amount', 'week_number', 'occurred_at'])]
+#[Fillable(['fantasy_id', 'type', 'season_id', 'source_season_manager_id', 'target_season_manager_id', 'player_id', 'amount', 'week_number', 'occurred_at'])]
 class SeasonActivity extends Model
 {
     /** @use HasFactory<SeasonActivityFactory> */
@@ -41,16 +41,16 @@ class SeasonActivity extends Model
         return $this->belongsTo(Season::class);
     }
 
-    /** @return BelongsTo<SeasonTeam, $this> */
-    public function sourceSeasonTeam(): BelongsTo
+    /** @return BelongsTo<SeasonManager, $this> */
+    public function sourceSeasonManager(): BelongsTo
     {
-        return $this->belongsTo(SeasonTeam::class, 'source_season_team_id');
+        return $this->belongsTo(SeasonManager::class, 'source_season_manager_id');
     }
 
-    /** @return BelongsTo<SeasonTeam, $this> */
-    public function targetSeasonTeam(): BelongsTo
+    /** @return BelongsTo<SeasonManager, $this> */
+    public function targetSeasonManager(): BelongsTo
     {
-        return $this->belongsTo(SeasonTeam::class, 'target_season_team_id');
+        return $this->belongsTo(SeasonManager::class, 'target_season_manager_id');
     }
 
     /** @return BelongsTo<Player, $this> */
@@ -69,8 +69,8 @@ class SeasonActivity extends Model
             'fantasy_id' => 'int',
             'type' => SeasonActivityType::class,
             'season_id' => 'int',
-            'source_season_team_id' => 'int',
-            'target_season_team_id' => 'int',
+            'source_season_manager_id' => 'int',
+            'target_season_manager_id' => 'int',
             'player_id' => 'int',
             'amount' => 'int',
             'week_number' => 'int',

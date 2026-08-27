@@ -5,11 +5,11 @@ import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
 import { matchPointsBadgeClass } from '@/lib/points';
-import { teamColor } from '@/lib/season-team-colors';
+import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
-import { show as seasonTeamsShow } from '@/routes/season-teams';
-import type { JornadaStats, Player, SeasonTeam, Team } from '@/types/models';
+import { show as seasonManagersShow } from '@/routes/season-managers';
+import type { JornadaStats, Player, SeasonManager, Team } from '@/types/models';
 
 export interface HqPlayerStatsEntry {
     player: Player;
@@ -17,7 +17,7 @@ export interface HqPlayerStatsEntry {
     points: number;
     daznPoints?: number;
     stats: JornadaStats;
-    lineupTeam?: SeasonTeam | null;
+    lineupManager?: SeasonManager | null;
 }
 
 interface HqPlayerStatsModalProps {
@@ -53,7 +53,7 @@ export function HqPlayerStatsModal({
         return null;
     }
 
-    const { player, team, points, daznPoints, stats, lineupTeam } = entry;
+    const { player, team, points, daznPoints, stats, lineupManager } = entry;
 
     return (
         <div
@@ -94,20 +94,20 @@ export function HqPlayerStatsModal({
                         />
                         {team.name}
                     </div>
-                    {lineupTeam && (
+                    {lineupManager && (
                         <Link
-                            href={seasonTeamsShow(lineupTeam.id).url}
+                            href={seasonManagersShow(lineupManager.id).url}
                             className="flex items-center gap-1.5 font-mono text-[11px] text-hq-moss hover:text-hq-paper"
                         >
                             <span
                                 className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                                 style={{
-                                    backgroundColor: teamColor(
-                                        lineupTeam.primary_color,
+                                    backgroundColor: managerColor(
+                                        lineupManager.primary_color,
                                     ),
                                 }}
                             />
-                            {lineupTeam.name}
+                            {lineupManager.name}
                         </Link>
                     )}
                     <div className="mt-1 flex items-center gap-2">

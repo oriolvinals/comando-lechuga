@@ -6,14 +6,14 @@ namespace Database\Factories;
 
 use App\Enums\PlayerPosition;
 use App\Models\Player;
-use App\Models\SeasonTeamLineup;
-use App\Models\SeasonTeamLineupPlayer;
+use App\Models\SeasonManagerLineup;
+use App\Models\SeasonManagerLineupPlayer;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<SeasonTeamLineupPlayer>
+ * @extends Factory<SeasonManagerLineupPlayer>
  */
-class SeasonTeamLineupPlayerFactory extends Factory
+class SeasonManagerLineupPlayerFactory extends Factory
 {
     /**
      * @return array<string, mixed>
@@ -21,7 +21,7 @@ class SeasonTeamLineupPlayerFactory extends Factory
     public function definition(): array
     {
         return [
-            'season_team_lineup_id' => SeasonTeamLineup::factory(),
+            'season_manager_lineup_id' => SeasonManagerLineup::factory(),
             'player_id' => Player::factory(),
             'points' => 0,
             'position' => $this->faker->randomElement(PlayerPosition::cases()),

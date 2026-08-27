@@ -33,7 +33,7 @@ standings, each team's squad, the transfer market, all players, and matches.
 - `Season`: A Liga Fantasy season. It stores the external league identifier, its date range, and the total number of
   weeks. The active season is the one whose date range includes `now()`.
 - `Team`: A canonical real-world football club. A team can participate in multiple seasons and has many players.
-- `SeasonTeam`: A fantasy manager's team within one season. It stores its external identifier, manager-facing name and
+- `SeasonManager`: A fantasy manager's team within one season. It stores its external identifier, manager-facing name and
   logo, current ranking, total and live points, and team value.
 - `Player`: A real-world football player who belongs to one `Team`. It stores the current player data provided by Liga
   Fantasy.
@@ -45,10 +45,10 @@ standings, each team's squad, the transfer market, all players, and matches.
 - `Fixture`: A scheduled or completed match between two real-world teams in a season. It stores the week, scores, date,
   and match state.
 - `SeasonActivity`: A transfer-market event for one season (signing, sale, buyout, clause shield, weekly prize, or
-  joining the league). It stores the external activity identifier, its type, the source and target `SeasonTeam` when
+  joining the league). It stores the external activity identifier, its type, the source and target `SeasonManager` when
   applicable, the related `Player` when applicable, the amount, and the week number for weekly-prize entries.
-- `SeasonTeamPlayer`: A player currently owned by a `SeasonTeam`. It stores the player's buyout clause value, when that
-  clause lock expires, and whether it is shielded. Rows are replaced on every sync to reflect the current squad only.
+- `SeasonManagerPlayer`: A player currently owned by a `SeasonManager`. It stores the player's buyout clause value, when
+  that clause lock expires, and whether it is shielded. Rows are replaced on every sync to reflect the current squad only.
 - `User`: A standard application user account. It is not a Liga Fantasy domain entity.
 
 ## Skills Activation

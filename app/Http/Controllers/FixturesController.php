@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\PlayerPosition;
 use App\Models\Fixture;
 use App\Models\PlayerScore;
-use App\Models\SeasonTeamLineupPlayer;
+use App\Models\SeasonManagerLineupPlayer;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -40,19 +40,19 @@ class FixturesController extends Controller
             ->sortBy(fn ($score): int => self::POSITION_ORDER[$score->player->position->value])
             ->values();
 
-        // Which fantasy team fielded each player in their lineup this jornada — distinct
+        // Which manager fielded each player in their lineup this jornada — distinct
         // from ownership, since an owner can bench a player they still own.
-        $lineupTeamsByPlayer = SeasonTeamLineupPlayer::query()
+        $lineupManagersByPlayer = SeasonManagerLineupPlayer::query()
             ->whereIn('player_id', $scores->pluck('player_id'))
             ->whereHas('lineup', fn ($query) => $query
                 ->where('week_number', $fixture->week_number)
-                ->whereHas('seasonTeam', fn ($query) => $query->where('season_id', $fixture->season_id)))
-            ->with('lineup.seasonTeam')
+                ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $fixture->season_id)))
+            ->with('lineup.seasonManager')
             ->get()
             ->keyBy('player_id');
 
-        $scores->each(function (PlayerScore $score) use ($lineupTeamsByPlayer): void {
-            $score->lineup_team = $lineupTeamsByPlayer->get($score->player_id)?->lineup?->seasonTeam;
+        $scores->each(function (PlayerScore $score) use ($lineupManagersByPlayer): void {
+            $score->lineup_manager = $lineupManagersByPlayer->get($score->player_id)?->lineup?->seasonManager;
         });
 
         return Inertia::render('fixtures/show', [

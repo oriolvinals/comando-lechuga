@@ -9,7 +9,7 @@ use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Filters\ActivityFilter;
 use App\Models\Season;
 use App\Models\SeasonActivity;
-use App\Models\SeasonTeam;
+use App\Models\SeasonManager;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,34 +21,34 @@ class ActivityController extends Controller
     {
         $season = Season::current();
 
-        $teamIds = $filter->getTeams();
+        $managerIds = $filter->getManagers();
         $types = $filter->getTypes();
 
         $activities = SeasonActivity::query()
             ->where('season_id', $season->id)
-            ->when($teamIds !== [], fn ($query) => $query->where(
+            ->when($managerIds !== [], fn ($query) => $query->where(
                 fn ($query) => $query
-                    ->whereIn('source_season_team_id', $teamIds)
-                    ->orWhereIn('target_season_team_id', $teamIds),
+                    ->whereIn('source_season_manager_id', $managerIds)
+                    ->orWhereIn('target_season_manager_id', $managerIds),
             ))
             ->when($types !== [], fn ($query) => $query->whereIn('type', $types))
-            ->with(['sourceSeasonTeam', 'targetSeasonTeam', 'player'])
+            ->with(['sourceSeasonManager', 'targetSeasonManager', 'player'])
             ->orderByDesc('occurred_at')
             ->paginate(30)
             ->withQueryString();
 
         $this->attachValueDifferences($activities->getCollection());
 
-        $teams = SeasonTeam::query()
+        $managers = SeasonManager::query()
             ->where('season_id', $season->id)
             ->orderBy('name')
             ->get(['id', 'name']);
 
         return Inertia::render('activity/index', [
             'activities' => $activities,
-            'teams' => $teams,
+            'managers' => $managers,
             'filters' => [
-                'team' => $teamIds,
+                'manager' => $managerIds,
                 'type' => array_map(fn (SeasonActivityType $type): string => $type->value, $types),
             ],
         ]);

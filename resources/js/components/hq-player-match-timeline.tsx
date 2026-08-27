@@ -10,10 +10,10 @@ import {
     JORNADA_STAT_ORDER,
 } from '@/lib/player-labels';
 import { matchPointsBadgeClass } from '@/lib/points';
-import { teamColor } from '@/lib/season-team-colors';
+import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
-import { show as seasonTeamsShow } from '@/routes/season-teams';
+import { show as seasonManagersShow } from '@/routes/season-managers';
 import type { Fixture, PlayerFichaScore, PlayerPosition } from '@/types/models';
 
 const BODY_STAT_ORDER = JORNADA_STAT_ORDER.filter(
@@ -115,11 +115,11 @@ export function HqPlayerMatchTimeline({
                             position={playerPosition}
                         />
                         <div className="ml-auto flex items-center gap-2.5">
-                            {selectedScore.lineup_team && (
+                            {selectedScore.lineup_manager && (
                                 <Link
                                     href={
-                                        seasonTeamsShow(
-                                            selectedScore.lineup_team.id,
+                                        seasonManagersShow(
+                                            selectedScore.lineup_manager.id,
                                         ).url
                                     }
                                     className="flex items-center gap-1.5 border border-hq-border-strong bg-hq-panel-alt px-1.5 py-0.5 font-mono text-[11px] text-hq-paper hover:bg-hq-panel"
@@ -127,13 +127,13 @@ export function HqPlayerMatchTimeline({
                                     <span
                                         className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                                         style={{
-                                            backgroundColor: teamColor(
-                                                selectedScore.lineup_team
+                                            backgroundColor: managerColor(
+                                                selectedScore.lineup_manager
                                                     .primary_color,
                                             ),
                                         }}
                                     />
-                                    {selectedScore.lineup_team.name}
+                                    {selectedScore.lineup_manager.name}
                                 </Link>
                             )}
                             {selectedScore.stats.marca_points && (

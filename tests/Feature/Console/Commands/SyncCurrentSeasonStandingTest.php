@@ -5,12 +5,12 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueStandingRequest;
 use App\Models\Season;
-use App\Models\SeasonTeam;
+use App\Models\SeasonManager;
 use Illuminate\Support\Facades\Cache;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('updates an existing season team without touching its name', function (): void {
+test('updates an existing season manager without touching its name', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([
@@ -18,12 +18,12 @@ test('updates an existing season team without touching its name', function (): v
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $seasonTeam = SeasonTeam::factory()->create([
+    $seasonManager = SeasonManager::factory()->create([
         'season_id' => $season->id,
         'fantasy_id' => 37394521,
         'fantasy_user_id' => 6392099,
         'name' => 'Old name',
-        'logo' => 'images/season-team.png',
+        'logo' => 'images/season-manager.png',
     ]);
     $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
     $loginConnector->shouldReceive('accessToken')
@@ -53,19 +53,19 @@ test('updates an existing season team without touching its name', function (): v
     app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
 
     $this->artisan(SyncCurrentSeasonStanding::class)
-        ->expectsOutput('1 season teams synchronized.')
+        ->expectsOutput('1 season managers synchronized.')
         ->assertSuccessful();
 
-    $seasonTeam->refresh();
+    $seasonManager->refresh();
 
-    expect($seasonTeam->name)->toBe('Old name')
-        ->and($seasonTeam->fantasy_user_id)->toBe(6392099)
-        ->and($seasonTeam->total_points)->toBe(64)
-        ->and($seasonTeam->live_points)->toBe(30)
-        ->and($seasonTeam->position)->toBe(1)
-        ->and($seasonTeam->last_position)->toBe(3)
-        ->and($seasonTeam->value)->toBe(246474249)
-        ->and($seasonTeam->logo)->toBe('images/teams/37394521.png');
+    expect($seasonManager->name)->toBe('Old name')
+        ->and($seasonManager->fantasy_user_id)->toBe(6392099)
+        ->and($seasonManager->total_points)->toBe(64)
+        ->and($seasonManager->live_points)->toBe(30)
+        ->and($seasonManager->position)->toBe(1)
+        ->and($seasonManager->last_position)->toBe(3)
+        ->and($seasonManager->value)->toBe(246474249)
+        ->and($seasonManager->logo)->toBe('images/managers/37394521.png');
 });
 
 test('stores a null live points when the API omits it', function (): void {
@@ -105,9 +105,9 @@ test('stores a null live points when the API omits it', function (): void {
 
     $this->artisan(SyncCurrentSeasonStanding::class)->assertSuccessful();
 
-    $seasonTeam = SeasonTeam::query()->where('fantasy_id', 888888888)->sole();
+    $seasonManager = SeasonManager::query()->where('fantasy_id', 888888888)->sole();
 
-    expect($seasonTeam->live_points)->toBeNull();
+    expect($seasonManager->live_points)->toBeNull();
 });
 
 test('leaves the logo empty when no matching image exists on disk', function (): void {
@@ -148,8 +148,8 @@ test('leaves the logo empty when no matching image exists on disk', function ():
 
     $this->artisan(SyncCurrentSeasonStanding::class)->assertSuccessful();
 
-    $seasonTeam = SeasonTeam::query()->where('fantasy_id', 999999999)->sole();
+    $seasonManager = SeasonManager::query()->where('fantasy_id', 999999999)->sole();
 
-    expect($seasonTeam->logo)->toBe('')
-        ->and($seasonTeam->name)->toBe('No Logo FC');
+    expect($seasonManager->logo)->toBe('')
+        ->and($seasonManager->name)->toBe('No Logo FC');
 });

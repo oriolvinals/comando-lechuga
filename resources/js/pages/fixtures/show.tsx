@@ -12,10 +12,10 @@ import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
 import { didNotPlayMatch } from '@/lib/player-labels';
 import { matchPointsBadgeClass } from '@/lib/points';
-import { teamColor } from '@/lib/season-team-colors';
+import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
-import { show as seasonTeamsShow } from '@/routes/season-teams';
+import { show as seasonManagersShow } from '@/routes/season-managers';
 import type { Fixture, PlayerScore } from '@/types/models';
 
 interface FixtureShowProps {
@@ -201,21 +201,21 @@ function PlayerRow({
                     stats={score.stats}
                     position={score.player.position}
                 />
-                {score.lineup_team && (
+                {score.lineup_manager && (
                     <Link
-                        href={seasonTeamsShow(score.lineup_team.id).url}
+                        href={seasonManagersShow(score.lineup_manager.id).url}
                         onClick={(event) => event.stopPropagation()}
                         className="flex items-center gap-1.5 font-mono text-[12px] font-bold text-hq-moss hover:text-hq-paper"
                     >
                         <span
                             className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                             style={{
-                                backgroundColor: teamColor(
-                                    score.lineup_team.primary_color,
+                                backgroundColor: managerColor(
+                                    score.lineup_manager.primary_color,
                                 ),
                             }}
                         />
-                        {score.lineup_team.name}
+                        {score.lineup_manager.name}
                     </Link>
                 )}
             </div>
@@ -537,7 +537,7 @@ export default function FixtureShow({
                                       ? selectedScore.stats.marca_points?.[1]
                                       : undefined,
                               stats: selectedScore.stats,
-                              lineupTeam: selectedScore.lineup_team,
+                              lineupManager: selectedScore.lineup_manager,
                           }
                         : null
                 }

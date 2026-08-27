@@ -8,7 +8,7 @@ import {
     ownerAtDate,
     segmentAtDate,
 } from '@/lib/ownership-timeline';
-import { teamColor } from '@/lib/season-team-colors';
+import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import type { PlayerFichaScore, PlayerMarketPoint } from '@/types/models';
 
@@ -106,13 +106,13 @@ export function HqPlayerValueChart({
         const seen = new Map<string, { label: string; color: string }>();
 
         for (const segment of ownershipSegments) {
-            const key = segment.seasonTeam ? `team-${segment.seasonTeam.id}` : 'libre';
+            const key = segment.seasonManager ? `team-${segment.seasonManager.id}` : 'libre';
 
             if (!seen.has(key)) {
                 seen.set(key, {
-                    label: segment.seasonTeam?.name ?? 'Libre',
-                    color: segment.seasonTeam
-                        ? teamColor(segment.seasonTeam.primary_color)
+                    label: segment.seasonManager?.name ?? 'Libre',
+                    color: segment.seasonManager
+                        ? managerColor(segment.seasonManager.primary_color)
                         : 'var(--color-hq-moss-dim)',
                 });
             }
@@ -187,7 +187,7 @@ export function HqPlayerValueChart({
                 bandSegments.push({
                     x: segmentStartX,
                     width: xAt(index) - segmentStartX,
-                    color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : teamColor(segmentOwner.primary_color),
+                    color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : managerColor(segmentOwner.primary_color),
                 });
                 boundaries.push(xAt(index));
                 segmentStartX = xAt(index);
@@ -198,7 +198,7 @@ export function HqPlayerValueChart({
         bandSegments.push({
             x: segmentStartX,
             width: width - segmentStartX,
-            color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : teamColor(segmentOwner.primary_color),
+            color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : managerColor(segmentOwner.primary_color),
         });
 
         return { xAt, yAt, lineSegments, bandSegments, boundaries };
@@ -233,7 +233,7 @@ export function HqPlayerValueChart({
         const bandSegments = owners.map((owner, index) => ({
             x: index * slot,
             width: slot,
-            color: owner === null ? 'var(--color-hq-moss-dim)' : teamColor(owner.primary_color),
+            color: owner === null ? 'var(--color-hq-moss-dim)' : managerColor(owner.primary_color),
         }));
         const boundaries: number[] = [];
 
@@ -273,9 +273,9 @@ export function HqPlayerValueChart({
                 date: formatDateLabel(point.date),
                 value: formatCurrency(point.value),
                 diff: previous ? point.value - previous.value : null,
-                ownerName: segment?.seasonTeam?.name ?? 'Libre',
-                ownerColor: segment?.seasonTeam
-                    ? teamColor(segment.seasonTeam.primary_color)
+                ownerName: segment?.seasonManager?.name ?? 'Libre',
+                ownerColor: segment?.seasonManager
+                    ? managerColor(segment.seasonManager.primary_color)
                     : 'var(--color-hq-moss-dim)',
                 action: describeOrigin(segment, point.date),
             });
@@ -293,9 +293,9 @@ export function HqPlayerValueChart({
                 date: `Jornada ${score.fixture.week_number}`,
                 value: `${score.points} puntos`,
                 diff: null,
-                ownerName: segment?.seasonTeam?.name ?? 'Libre',
-                ownerColor: segment?.seasonTeam
-                    ? teamColor(segment.seasonTeam.primary_color)
+                ownerName: segment?.seasonManager?.name ?? 'Libre',
+                ownerColor: segment?.seasonManager
+                    ? managerColor(segment.seasonManager.primary_color)
                     : 'var(--color-hq-moss-dim)',
                 action: null,
             });

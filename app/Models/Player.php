@@ -31,9 +31,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read int $team_id
  * @property-read CarbonImmutable|null $created_at
  * @property-read CarbonImmutable|null $updated_at
- * @property array{id: int, name: string, logo: string}|null $owner_team Computed at query time by PlayersController; not a database column.
+ * @property array{id: int, name: string, logo: string}|null $owner_manager Computed at query time by PlayersController; not a database column.
  * @property array<int, int|null> $recent_scores Points for the last 3 played matches, oldest first, ordered by fixture date; null-padded at the end when fewer than 3 exist. Computed at query time by PlayersController; not a database column.
- * @property array<int, bool|null>|null $recent_scores_used Per recent_scores slot, whether the player was in that season team's lineup that week. Only set on the team ficha (SeasonTeamsController); null-padded like recent_scores, and entirely absent elsewhere.
+ * @property array<int, bool|null>|null $recent_scores_used Per recent_scores slot, whether the player was in that manager's lineup that week. Only set on the manager ficha (SeasonManagersController); null-padded like recent_scores, and entirely absent elsewhere.
  */
 #[UseFactory(PlayerFactory::class)]
 #[Table(name: 'players', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
@@ -61,16 +61,16 @@ class Player extends Model
         return $this->hasMany(PlayerScore::class);
     }
 
-    /** @return HasMany<SeasonTeamLineupPlayer, $this> */
+    /** @return HasMany<SeasonManagerLineupPlayer, $this> */
     public function lineupPlayers(): HasMany
     {
-        return $this->hasMany(SeasonTeamLineupPlayer::class);
+        return $this->hasMany(SeasonManagerLineupPlayer::class);
     }
 
-    /** @return HasMany<SeasonTeamPlayer, $this> */
-    public function seasonTeamPlayers(): HasMany
+    /** @return HasMany<SeasonManagerPlayer, $this> */
+    public function seasonManagerPlayers(): HasMany
     {
-        return $this->hasMany(SeasonTeamPlayer::class);
+        return $this->hasMany(SeasonManagerPlayer::class);
     }
 
     /** @return HasOne<MarketPlayer, $this> */

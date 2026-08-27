@@ -11,7 +11,7 @@ export type PlayerPosition =
 export type PlayerStatus =
     'ok' | 'injured' | 'out_of_league' | 'suspended' | 'doubtful';
 
-export interface OwnerTeam {
+export interface OwnerManager {
     id: number;
     name: string;
     logo: string;
@@ -29,10 +29,10 @@ export interface Player {
     market_value_difference: number;
     points: number;
     average_points: string;
-    owner_team: OwnerTeam | null;
+    owner_manager: OwnerManager | null;
     /** Points for the last 3 played matches, oldest first, ordered by fixture date — null-padded at the end when fewer than 3 exist. */
     recent_scores: (number | null)[];
-    /** Per recent_scores slot, whether the player was in a given team's lineup that week. Only present on the team ficha. */
+    /** Per recent_scores slot, whether the player was in a given manager's lineup that week. Only present on the manager ficha. */
     recent_scores_used?: (boolean | null)[];
 }
 
@@ -58,10 +58,10 @@ export interface PlayerScore {
     stats: JornadaStats;
     ideal_formation: boolean;
     player: Player;
-    lineup_team: SeasonTeam | null;
+    lineup_manager: SeasonManager | null;
 }
 
-export interface SeasonTeam {
+export interface SeasonManager {
     id: number;
     name: string;
     logo: string;
@@ -93,8 +93,8 @@ export interface SeasonActivity {
     amount: number | null;
     week_number: number | null;
     occurred_at: string;
-    source_season_team: SeasonTeam;
-    target_season_team: SeasonTeam | null;
+    source_season_manager: SeasonManager;
+    target_season_manager: SeasonManager | null;
     player: Player | null;
     value_difference: number | null;
 }
@@ -108,7 +108,7 @@ export interface Season {
 
 export type JornadaStats = Record<string, [number, number]>;
 
-export interface SeasonTeamLineupPlayerEntry {
+export interface SeasonManagerLineupPlayerEntry {
     id: number;
     points: number | null;
     stats: JornadaStats | null;
@@ -116,16 +116,16 @@ export interface SeasonTeamLineupPlayerEntry {
     player: Player;
 }
 
-export interface SeasonTeamLineup {
+export interface SeasonManagerLineup {
     id: number;
     points: number;
     week_number: number;
     tactical_formation: number[];
-    season_team: SeasonTeam;
-    players: SeasonTeamLineupPlayerEntry[];
+    season_manager: SeasonManager;
+    players: SeasonManagerLineupPlayerEntry[];
 }
 
-export interface SeasonTeamPlayer {
+export interface SeasonManagerPlayer {
     id: number;
     buyout_clause: number;
     buyout_clause_locked_until: string;
@@ -140,7 +140,7 @@ export interface PlayerOwnership {
     buyout_clause_locked_until: string;
     shielded: boolean;
     shielded_until: string | null;
-    season_team: SeasonTeam;
+    season_manager: SeasonManager;
 }
 
 export interface PlayerMarketPoint {
@@ -164,7 +164,7 @@ export interface PlayerFichaScore {
     stats: JornadaStats;
     ideal_formation: boolean;
     fixture: Fixture;
-    lineup_team: SeasonTeam | null;
+    lineup_manager: SeasonManager | null;
 }
 
 export interface OwnershipActivity {
@@ -172,8 +172,8 @@ export interface OwnershipActivity {
     type: SeasonActivityType;
     occurred_at: string;
     amount: number | null;
-    source_season_team: SeasonTeam;
-    target_season_team: SeasonTeam | null;
+    source_season_manager: SeasonManager;
+    target_season_manager: SeasonManager | null;
 }
 
 export interface PaginationLink {

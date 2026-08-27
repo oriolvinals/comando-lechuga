@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int $points
  * @property-read array<string, list<int>> $stats
  * @property-read bool $ideal_formation
- * @property SeasonTeam|null $lineup_team Computed at query time by FixturesController/PlayersController; not a database column.
+ * @property SeasonManager|null $lineup_manager Computed at query time by FixturesController/PlayersController; not a database column.
  */
 #[UseFactory(PlayerScoreFactory::class)]
 #[Table(name: 'player_scores', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]

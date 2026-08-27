@@ -9,9 +9,9 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\Player;
 use App\Models\Season;
-use App\Models\SeasonTeam;
-use App\Models\SeasonTeamLineup;
-use App\Models\SeasonTeamLineupPlayer;
+use App\Models\SeasonManager;
+use App\Models\SeasonManagerLineup;
+use App\Models\SeasonManagerLineupPlayer;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -22,9 +22,9 @@ use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Throwable;
 
-#[Signature('season:sync-team-lineups')]
-#[Description('Synchronize the current season team lineups from La Liga Fantasy')]
-class SyncCurrentSeasonTeamLineups extends Command
+#[Signature('season:sync-manager-lineups')]
+#[Description('Synchronize the current season manager lineups from La Liga Fantasy')]
+class SyncCurrentSeasonManagerLineups extends Command
 {
     /**
      * @throws FatalRequestException
@@ -39,10 +39,10 @@ class SyncCurrentSeasonTeamLineups extends Command
         $season = Season::current();
         $lineupsSynchronized = 0;
 
-        foreach (SeasonTeam::query()->where('season_id', $season->id)->get() as $seasonTeam) {
+        foreach (SeasonManager::query()->where('season_id', $season->id)->get() as $seasonManager) {
             for ($weekNumber = 1; $weekNumber <= $season->current_week; $weekNumber++) {
                 $lineupData = $fantasyConnector
-                    ->getTeamLineupWithLogin($loginConnector, $seasonTeam->fantasy_id, $weekNumber)
+                    ->getTeamLineupWithLogin($loginConnector, $seasonManager->fantasy_id, $weekNumber)
                     ->json();
                 $formation = $lineupData['formation'] ?? null;
 
@@ -50,10 +50,10 @@ class SyncCurrentSeasonTeamLineups extends Command
                     continue;
                 }
 
-                DB::transaction(function () use ($seasonTeam, $weekNumber, $lineupData, $formation): void {
-                    $lineup = SeasonTeamLineup::query()->updateOrCreate(
+                DB::transaction(function () use ($seasonManager, $weekNumber, $lineupData, $formation): void {
+                    $lineup = SeasonManagerLineup::query()->updateOrCreate(
                         [
-                            'season_team_id' => $seasonTeam->id,
+                            'season_manager_id' => $seasonManager->id,
                             'week_number' => $weekNumber,
                         ],
                         [
@@ -92,9 +92,9 @@ class SyncCurrentSeasonTeamLineups extends Command
                                 )
                                 : null;
 
-                            SeasonTeamLineupPlayer::query()->updateOrCreate(
+                            SeasonManagerLineupPlayer::query()->updateOrCreate(
                                 [
-                                    'season_team_lineup_id' => $lineup->id,
+                                    'season_manager_lineup_id' => $lineup->id,
                                     'player_id' => $player->id,
                                 ],
                                 [
@@ -111,7 +111,7 @@ class SyncCurrentSeasonTeamLineups extends Command
             }
         }
 
-        $this->info($lineupsSynchronized.' team lineups synchronized.');
+        $this->info($lineupsSynchronized.' manager lineups synchronized.');
 
         return self::SUCCESS;
     }

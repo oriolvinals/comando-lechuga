@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Concerns;
 use App\Models\Player;
 use App\Models\PlayerScore;
 use App\Models\Season;
-use App\Models\SeasonTeamLineupPlayer;
+use App\Models\SeasonManagerLineupPlayer;
 use Illuminate\Support\Collection;
 
 trait AttachesRecentScores
@@ -19,14 +19,14 @@ trait AttachesRecentScores
      * sparse because of a skipped jornada. It only comes back shorter than 3 — padded
      * with null at the end — for a player without 3 matches of history yet.
      *
-     * When $seasonTeamId is given (the team ficha, where "used by this team" is a
-     * meaningful question), also attaches `recent_scores_used`: for each of the same
-     * 3 jornadas, whether the player was actually in that season team's lineup that
-     * week, as opposed to scoring those points while benched or not yet owned.
+     * When $seasonManagerId is given (the manager ficha, where "used by this manager" is
+     * a meaningful question), also attaches `recent_scores_used`: for each of the same
+     * 3 jornadas, whether the player was actually in that manager's lineup that week, as
+     * opposed to scoring those points while benched or not yet owned.
      *
      * @param  Collection<int, Player>  $players
      */
-    private function attachRecentScores(Collection $players, Season $season, ?int $seasonTeamId = null): void
+    private function attachRecentScores(Collection $players, Season $season, ?int $seasonManagerId = null): void
     {
         $playerIds = $players->pluck('id')->all();
 
@@ -37,17 +37,17 @@ trait AttachesRecentScores
             ->get()
             ->groupBy('player_id');
 
-        $usedWeeksByPlayer = $seasonTeamId === null
+        $usedWeeksByPlayer = $seasonManagerId === null
             ? collect()
-            : SeasonTeamLineupPlayer::query()
+            : SeasonManagerLineupPlayer::query()
                 ->whereIn('player_id', $playerIds)
-                ->whereHas('lineup', fn ($query) => $query->where('season_team_id', $seasonTeamId))
+                ->whereHas('lineup', fn ($query) => $query->where('season_manager_id', $seasonManagerId))
                 ->with('lineup:id,week_number')
                 ->get()
                 ->groupBy('player_id')
                 ->map(fn (Collection $rows) => $rows->pluck('lineup.week_number')->all());
 
-        $players->each(function (Player $player) use ($scoresByPlayer, $usedWeeksByPlayer, $seasonTeamId): void {
+        $players->each(function (Player $player) use ($scoresByPlayer, $usedWeeksByPlayer, $seasonManagerId): void {
             $recentScores = ($scoresByPlayer->get($player->id) ?? collect())
                 ->sortByDesc(fn (PlayerScore $score) => $score->fixture->date)
                 ->take(3)
@@ -60,7 +60,7 @@ trait AttachesRecentScores
             $paddedPoints = array_pad($points, 3, null);
             $player->recent_scores = $paddedPoints;
 
-            if ($seasonTeamId === null) {
+            if ($seasonManagerId === null) {
                 return;
             }
 

@@ -16,9 +16,9 @@ use App\Models\PlayerMarket;
 use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonActivity;
-use App\Models\SeasonTeam;
-use App\Models\SeasonTeamLineupPlayer;
-use App\Models\SeasonTeamPlayer;
+use App\Models\SeasonManager;
+use App\Models\SeasonManagerLineupPlayer;
+use App\Models\SeasonManagerPlayer;
 use App\Models\Team;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -64,7 +64,7 @@ class PlayersController extends Controller
 
         $positions = $filter->getPositions();
         $teams = $filter->getTeams();
-        $seasonTeams = $filter->getSeasonTeams();
+        $seasonManagers = $filter->getSeasonManagers();
         $statuses = $filter->getStatuses();
         $search = $filter->getSearch();
         $sort = $filter->getSort();
@@ -74,9 +74,9 @@ class PlayersController extends Controller
             ->with('team')
             ->when($positions !== [], fn ($query) => $query->whereIn('position', $positions))
             ->when($teams !== [], fn ($query) => $query->whereIn('team_id', $teams))
-            ->when($seasonTeams !== [], fn ($query) => $query->whereHas(
-                'seasonTeamPlayers',
-                fn ($query) => $query->whereIn('season_team_id', $seasonTeams),
+            ->when($seasonManagers !== [], fn ($query) => $query->whereHas(
+                'seasonManagerPlayers',
+                fn ($query) => $query->whereIn('season_manager_id', $seasonManagers),
             ))
             ->when($statuses !== [], fn ($query) => $query->whereIn('status', $statuses))
             ->when($search !== null, fn ($query) => $query->whereRaw(
@@ -94,7 +94,7 @@ class PlayersController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $seasonTeamOptions = SeasonTeam::query()
+        $seasonManagerOptions = SeasonManager::query()
             ->where('season_id', $season->id)
             ->orderBy('name')
             ->get(['id', 'name']);
@@ -102,11 +102,11 @@ class PlayersController extends Controller
         return Inertia::render('players/index', [
             'players' => $players,
             'teams' => $realTeams,
-            'seasonTeams' => $seasonTeamOptions,
+            'seasonManagers' => $seasonManagerOptions,
             'filters' => [
                 'position' => array_map(fn (PlayerPosition $position): string => $position->value, $positions),
                 'team' => $teams,
-                'seasonTeam' => $seasonTeams,
+                'seasonManager' => $seasonManagers,
                 'status' => array_map(fn (PlayerStatus $status): string => $status->value, $statuses),
                 'search' => $search,
                 'sort' => $sort->value,
@@ -126,10 +126,10 @@ class PlayersController extends Controller
         $player->load('team');
         $season = Season::current();
 
-        $owner = SeasonTeamPlayer::query()
+        $owner = SeasonManagerPlayer::query()
             ->where('player_id', $player->id)
-            ->whereHas('seasonTeam', fn ($query) => $query->where('season_id', $season->id))
-            ->with('seasonTeam')
+            ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
+            ->with('seasonManager')
             ->first();
 
         $marketListing = MarketPlayer::query()
@@ -148,39 +148,39 @@ class PlayersController extends Controller
             ->sortBy(fn ($score) => $score->fixture->week_number)
             ->values();
 
-        // Which fantasy team fielded this player in their lineup each jornada — distinct
+        // Which manager fielded this player in their lineup each jornada — distinct
         // from ownership, since an owner can bench a player they still own.
-        $lineupTeamsByWeek = SeasonTeamLineupPlayer::query()
+        $lineupManagersByWeek = SeasonManagerLineupPlayer::query()
             ->where('player_id', $player->id)
-            ->whereHas('lineup.seasonTeam', fn ($query) => $query->where('season_id', $season->id))
-            ->with('lineup.seasonTeam')
+            ->whereHas('lineup.seasonManager', fn ($query) => $query->where('season_id', $season->id))
+            ->with('lineup.seasonManager')
             ->get()
-            ->keyBy(fn (SeasonTeamLineupPlayer $entry): int => $entry->lineup->week_number);
+            ->keyBy(fn (SeasonManagerLineupPlayer $entry): int => $entry->lineup->week_number);
 
-        $scores->each(function (PlayerScore $score) use ($lineupTeamsByWeek): void {
-            $score->lineup_team = $lineupTeamsByWeek->get($score->fixture->week_number)?->lineup?->seasonTeam;
+        $scores->each(function (PlayerScore $score) use ($lineupManagersByWeek): void {
+            $score->lineup_manager = $lineupManagersByWeek->get($score->fixture->week_number)?->lineup?->seasonManager;
         });
 
         $ownershipActivity = SeasonActivity::query()
             ->where('season_id', $season->id)
             ->where('player_id', $player->id)
             ->whereIn('type', self::OWNERSHIP_ACTIVITY_TYPES)
-            ->with(['sourceSeasonTeam', 'targetSeasonTeam'])
+            ->with(['sourceSeasonManager', 'targetSeasonManager'])
             ->orderBy('occurred_at')
             ->get();
 
         // A player already on a manager's squad when that manager joined the league
         // has no signing/buyout of their own to explain it — this is true not just for
-        // the current owner, but for whichever team a sale/buyout implies held the
-        // player *before* the earliest recorded activity. Every team's join date lets
-        // the frontend fall back to it instead of crediting a team further back than
+        // the current owner, but for whichever manager a sale/buyout implies held the
+        // player *before* the earliest recorded activity. Every manager's join date lets
+        // the frontend fall back to it instead of crediting a manager further back than
         // they've actually existed in the league.
         $teamJoinedAt = SeasonActivity::query()
             ->where('season_id', $season->id)
             ->where('type', SeasonActivityType::JoinedLeague)
-            ->get(['source_season_team_id', 'occurred_at'])
+            ->get(['source_season_manager_id', 'occurred_at'])
             ->mapWithKeys(fn (SeasonActivity $activity): array => [
-                (string) $activity->source_season_team_id => $activity->occurred_at,
+                (string) $activity->source_season_manager_id => $activity->occurred_at,
             ]);
 
         // Fixtures for the player's current club up to the current week, including weeks
@@ -217,21 +217,21 @@ class PlayersController extends Controller
         $entries = $players->getCollection();
         $playerIds = $entries->pluck('id')->all();
 
-        $owners = SeasonTeamPlayer::query()
+        $owners = SeasonManagerPlayer::query()
             ->whereIn('player_id', $playerIds)
-            ->whereHas('seasonTeam', fn ($query) => $query->where('season_id', $seasonId))
-            ->with('seasonTeam')
+            ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $seasonId))
+            ->with('seasonManager')
             ->get()
             ->keyBy('player_id');
 
         $entries->each(function (Player $player) use ($owners): void {
-            $seasonTeam = $owners->get($player->id)?->seasonTeam;
+            $seasonManager = $owners->get($player->id)?->seasonManager;
 
-            $player->owner_team = $seasonTeam === null ? null : [
-                'id' => $seasonTeam->id,
-                'name' => $seasonTeam->name,
-                'logo' => $seasonTeam->logo,
-                'primary_color' => $seasonTeam->primary_color,
+            $player->owner_manager = $seasonManager === null ? null : [
+                'id' => $seasonManager->id,
+                'name' => $seasonManager->name,
+                'logo' => $seasonManager->logo,
+                'primary_color' => $seasonManager->primary_color,
             ];
         });
     }

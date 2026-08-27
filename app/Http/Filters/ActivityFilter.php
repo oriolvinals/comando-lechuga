@@ -10,23 +10,23 @@ use Illuminate\Http\Request;
 final class ActivityFilter extends BaseRequestFilter
 {
     /** @var int[] */
-    private readonly array $teams;
+    private readonly array $managers;
 
     /** @var SeasonActivityType[] */
     private readonly array $types;
 
     public function __construct(Request $request)
     {
-        $this->teams = $this->parseIntList($request->string('team')->toString());
+        $this->managers = $this->parseIntList($request->string('manager')->toString());
         $this->types = $this->parseEnumList(SeasonActivityType::class, $request->string('type')->toString());
     }
 
     /**
      * @return int[]
      */
-    public function getTeams(): array
+    public function getManagers(): array
     {
-        return $this->teams;
+        return $this->managers;
     }
 
     /**

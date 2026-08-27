@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\SeasonTeam;
-use App\Models\SeasonTeamLineup;
+use App\Models\SeasonManager;
+use App\Models\SeasonManagerLineup;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<SeasonTeamLineup>
+ * @extends Factory<SeasonManagerLineup>
  */
-class SeasonTeamLineupFactory extends Factory
+class SeasonManagerLineupFactory extends Factory
 {
     /**
      * @return array<string, mixed>
@@ -19,7 +19,7 @@ class SeasonTeamLineupFactory extends Factory
     public function definition(): array
     {
         return [
-            'season_team_id' => SeasonTeam::factory(),
+            'season_manager_id' => SeasonManager::factory(),
             'tactical_formation' => [4, 4, 2],
             'points' => 0,
             'week_number' => 1,

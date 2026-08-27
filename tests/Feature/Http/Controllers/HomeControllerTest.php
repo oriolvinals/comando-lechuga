@@ -10,7 +10,7 @@ use App\Models\PlayerMarket;
 use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonActivity;
-use App\Models\SeasonTeam;
+use App\Models\SeasonManager;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -90,9 +90,9 @@ test('shows the standings ordered by position', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    $third = SeasonTeam::factory()->create(['season_id' => $season->id, 'position' => 3]);
-    $first = SeasonTeam::factory()->create(['season_id' => $season->id, 'position' => 1]);
-    $second = SeasonTeam::factory()->create(['season_id' => $season->id, 'position' => 2]);
+    $third = SeasonManager::factory()->create(['season_id' => $season->id, 'position' => 3]);
+    $first = SeasonManager::factory()->create(['season_id' => $season->id, 'position' => 1]);
+    $second = SeasonManager::factory()->create(['season_id' => $season->id, 'position' => 2]);
 
     $response = $this->get(route('home'));
 

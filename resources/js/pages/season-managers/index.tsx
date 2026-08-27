@@ -7,16 +7,16 @@ import { HqLineupPitch } from '@/components/hq-lineup-pitch';
 import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqWeekScrollPicker } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
-import { crestTintStyle } from '@/lib/season-team-colors';
+import { crestTintStyle } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import {
-    index as seasonTeamsIndex,
-    show as seasonTeamsShow,
-} from '@/routes/season-teams';
+    index as seasonManagersIndex,
+    show as seasonManagersShow,
+} from '@/routes/season-managers';
 import type {
     Season,
-    SeasonTeamLineup,
-    SeasonTeamLineupPlayerEntry,
+    SeasonManagerLineup,
+    SeasonManagerLineupPlayerEntry,
     WeekProgressMap,
 } from '@/types/models';
 
@@ -26,26 +26,26 @@ const MEDAL_BORDERS = [
     'border-l-hq-bronze',
 ];
 
-interface SeasonTeamsIndexProps {
+interface SeasonManagersIndexProps {
     season: Season;
     filters: { week: number };
-    lineups: SeasonTeamLineup[];
+    lineups: SeasonManagerLineup[];
     weekProgress: WeekProgressMap;
     [key: string]: unknown;
 }
 
-export default function SeasonTeamsIndex({
+export default function SeasonManagersIndex({
     season,
     filters,
     lineups,
     weekProgress,
-}: SeasonTeamsIndexProps) {
+}: SeasonManagersIndexProps) {
     const [selectedPlayer, setSelectedPlayer] =
-        useState<SeasonTeamLineupPlayerEntry | null>(null);
+        useState<SeasonManagerLineupPlayerEntry | null>(null);
 
     const goToWeek = (nextWeek: number) => {
         router.get(
-            seasonTeamsIndex().url,
+            seasonManagersIndex().url,
             { week: nextWeek },
             { preserveScroll: true, preserveState: true },
         );
@@ -96,25 +96,29 @@ export default function SeasonTeamsIndex({
                                     <div className="mb-3 flex items-center gap-2.5">
                                         <Link
                                             href={
-                                                seasonTeamsShow(
-                                                    lineup.season_team.id,
+                                                seasonManagersShow(
+                                                    lineup.season_manager.id,
                                                 ).url
                                             }
                                             className="flex min-w-0 flex-1 items-center gap-2.5 hover:opacity-80"
                                         >
                                             <EntityImage
-                                                src={lineup.season_team.logo}
-                                                alt={lineup.season_team.name}
+                                                src={
+                                                    lineup.season_manager.logo
+                                                }
+                                                alt={
+                                                    lineup.season_manager.name
+                                                }
                                                 fallback={Shield}
                                                 shape="square"
                                                 style={crestTintStyle(
-                                                    lineup.season_team
+                                                    lineup.season_manager
                                                         .primary_color,
                                                 )}
                                                 className="hq-crest-cut h-16 w-16 shrink-0 bg-hq-border p-2 text-hq-khaki"
                                             />
                                             <span className="flex-1 truncate text-sm font-extrabold text-hq-paper">
-                                                {lineup.season_team.name}
+                                                {lineup.season_manager.name}
                                             </span>
                                         </Link>
                                         <span className="shrink-0 font-display text-2xl text-hq-lime">
@@ -155,4 +159,6 @@ export default function SeasonTeamsIndex({
     );
 }
 
-SeasonTeamsIndex.layout = (page: ReactElement) => <AppLayout>{page}</AppLayout>;
+SeasonManagersIndex.layout = (page: ReactElement) => (
+    <AppLayout>{page}</AppLayout>
+);

@@ -15,7 +15,7 @@ import { useLockCountdown } from '@/lib/use-lock-countdown';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
-import type { PlayerPosition, SeasonTeamPlayer } from '@/types/models';
+import type { PlayerPosition, SeasonManagerPlayer } from '@/types/models';
 
 const GROUP_ORDER: PlayerPosition[] = [
     'goalkeeper',
@@ -29,7 +29,7 @@ function RosterClauseStatus({
     entry,
     now,
 }: {
-    entry: SeasonTeamPlayer;
+    entry: SeasonManagerPlayer;
     now: number;
 }) {
     const status = resolveClauseStatus(
@@ -94,7 +94,7 @@ function RosterClauseStatus({
     );
 }
 
-function MarketValueDiff({ entry }: { entry: SeasonTeamPlayer }) {
+function MarketValueDiff({ entry }: { entry: SeasonManagerPlayer }) {
     if (entry.player.market_value_difference === 0) {
         return null;
     }
@@ -114,7 +114,7 @@ function MarketValueDiff({ entry }: { entry: SeasonTeamPlayer }) {
     );
 }
 
-function RosterRow({ entry, now }: { entry: SeasonTeamPlayer; now: number }) {
+function RosterRow({ entry, now }: { entry: SeasonManagerPlayer; now: number }) {
     return (
         <Link href={playersShow(entry.player.id).url} className="block">
             {/* Desktop / tablet row */}
@@ -235,7 +235,7 @@ function RosterRow({ entry, now }: { entry: SeasonTeamPlayer; now: number }) {
 }
 
 interface RosterListProps {
-    roster: SeasonTeamPlayer[];
+    roster: SeasonManagerPlayer[];
 }
 
 export function RosterList({ roster }: RosterListProps) {

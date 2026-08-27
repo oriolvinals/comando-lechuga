@@ -47,7 +47,7 @@ export default function PlayerShow({
 }: PlayerShowProps) {
     const ownershipSegments = buildOwnershipTimeline(
         ownershipActivity,
-        owner?.season_team ?? null,
+        owner?.season_manager ?? null,
         teamJoinedAt,
     );
 

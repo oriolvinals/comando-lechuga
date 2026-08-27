@@ -7,7 +7,7 @@ namespace App\Console\Commands;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\Season;
-use App\Models\SeasonTeam;
+use App\Models\SeasonManager;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -36,8 +36,8 @@ class SyncCurrentSeasonStanding extends Command
         $standing = $fantasyConnector
             ->getLeagueStandingWithLogin($loginConnector, $season->fantasy_id)
             ->json();
-        $seasonTeamsSynchronized = DB::transaction(function () use ($season, $standing): int {
-            $seasonTeamsSynchronized = 0;
+        $seasonManagersSynchronized = DB::transaction(function () use ($season, $standing): int {
+            $seasonManagersSynchronized = 0;
 
             foreach ($standing as $standingData) {
                 $teamData = $standingData['team'] ?? null;
@@ -49,16 +49,16 @@ class SyncCurrentSeasonStanding extends Command
 
                 $fantasyId = (int) $teamData['id'];
 
-                $seasonTeam = SeasonTeam::query()->firstOrNew([
+                $seasonManager = SeasonManager::query()->firstOrNew([
                     'season_id' => $season->id,
                     'fantasy_id' => $fantasyId,
                 ]);
 
-                if (!$seasonTeam->exists) {
-                    $seasonTeam->name = (string) $managerData['managerName'];
+                if (!$seasonManager->exists) {
+                    $seasonManager->name = (string) $managerData['managerName'];
                 }
 
-                $seasonTeam->fill([
+                $seasonManager->fill([
                     'fantasy_user_id' => (int) $managerData['id'],
                     'total_points' => (int) $standingData['points'],
                     'live_points' => isset($standingData['livePoints']) ? (int) $standingData['livePoints'] : null,
@@ -68,20 +68,20 @@ class SyncCurrentSeasonStanding extends Command
                     'logo' => $this->resolveLogo($fantasyId),
                 ])->save();
 
-                $seasonTeamsSynchronized++;
+                $seasonManagersSynchronized++;
             }
 
-            return $seasonTeamsSynchronized;
+            return $seasonManagersSynchronized;
         });
 
-        $this->info($seasonTeamsSynchronized.' season teams synchronized.');
+        $this->info($seasonManagersSynchronized.' season managers synchronized.');
 
         return self::SUCCESS;
     }
 
     private function resolveLogo(int $fantasyId): string
     {
-        $path = "images/teams/{$fantasyId}.png";
+        $path = "images/managers/{$fantasyId}.png";
 
         return File::exists(public_path($path)) ? $path : '';
     }

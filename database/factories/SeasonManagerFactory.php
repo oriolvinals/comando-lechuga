@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Models\Season;
-use App\Models\SeasonTeam;
+use App\Models\SeasonManager;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<SeasonTeam>
+ * @extends Factory<SeasonManager>
  */
-class SeasonTeamFactory extends Factory
+class SeasonManagerFactory extends Factory
 {
     public function definition(): array
     {

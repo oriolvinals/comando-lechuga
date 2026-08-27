@@ -12,10 +12,10 @@ use App\Models\PlayerMarket;
 use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonActivity;
-use App\Models\SeasonTeam;
-use App\Models\SeasonTeamLineup;
-use App\Models\SeasonTeamLineupPlayer;
-use App\Models\SeasonTeamPlayer;
+use App\Models\SeasonManager;
+use App\Models\SeasonManagerLineup;
+use App\Models\SeasonManagerLineupPlayer;
+use App\Models\SeasonManagerPlayer;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -122,21 +122,21 @@ test('filters players by several teams at once', function (): void {
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('players.data', 2));
 });
 
-test('filters players by fantasy season team', function (): void {
+test('filters players by fantasy season manager', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
 
-    $ownerTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
-    $otherTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $ownerManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
 
     $owned = Player::factory()->create();
-    SeasonTeamPlayer::factory()->create(['season_team_id' => $ownerTeam->id, 'player_id' => $owned->id]);
+    SeasonManagerPlayer::factory()->create(['season_manager_id' => $ownerManager->id, 'player_id' => $owned->id]);
 
     Player::factory()->create();
 
-    $response = $this->get(route('players.index', ['season_team' => (string) $ownerTeam->id]));
+    $response = $this->get(route('players.index', ['season_manager' => (string) $ownerManager->id]));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
@@ -145,7 +145,7 @@ test('filters players by fantasy season team', function (): void {
     );
 });
 
-test('lists fantasy season teams for the current season only, for the team filter', function (): void {
+test('lists fantasy season managers for the current season only, for the manager filter', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -155,15 +155,15 @@ test('lists fantasy season teams for the current season only, for the team filte
         'end_date' => now()->subYear(),
     ]);
 
-    $currentTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
-    SeasonTeam::factory()->create(['season_id' => $otherSeason->id]);
+    $currentManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    SeasonManager::factory()->create(['season_id' => $otherSeason->id]);
 
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->has('seasonTeams', 1)
-        ->where('seasonTeams.0.id', $currentTeam->id)
+        ->has('seasonManagers', 1)
+        ->where('seasonManagers.0.id', $currentManager->id)
     );
 });
 
@@ -255,20 +255,20 @@ test('reverses the sort direction when requested', function (): void {
     );
 });
 
-test('shows the owning fantasy team when a player is owned', function (): void {
+test('shows the owning fantasy manager when a player is owned', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $seasonTeam = SeasonTeam::factory()->create([
+    $seasonManager = SeasonManager::factory()->create([
         'season_id' => $season->id,
         'name' => 'Ariobretxa',
         'primary_color' => '#c4ff3d',
     ]);
     $player = Player::factory()->create();
 
-    SeasonTeamPlayer::factory()->create([
-        'season_team_id' => $seasonTeam->id,
+    SeasonManagerPlayer::factory()->create([
+        'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,
     ]);
 
@@ -276,10 +276,10 @@ test('shows the owning fantasy team when a player is owned', function (): void {
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('players.data.0.owner_team.id', $seasonTeam->id)
-        ->where('players.data.0.owner_team.name', 'Ariobretxa')
-        ->where('players.data.0.owner_team.logo', $seasonTeam->logo)
-        ->where('players.data.0.owner_team.primary_color', '#c4ff3d')
+        ->where('players.data.0.owner_manager.id', $seasonManager->id)
+        ->where('players.data.0.owner_manager.name', 'Ariobretxa')
+        ->where('players.data.0.owner_manager.logo', $seasonManager->logo)
+        ->where('players.data.0.owner_manager.primary_color', '#c4ff3d')
     );
 });
 
@@ -293,7 +293,7 @@ test('shows no owner for a free player', function (): void {
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('players.data.0.owner_team', null));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('players.data.0.owner_manager', null));
 });
 
 test('includes points for the last 3 played matches, ordered by fixture date oldest first', function (): void {
@@ -442,15 +442,15 @@ test('renders the player show page', function (): void {
     );
 });
 
-test('shows the owning team and clause details when the player is owned', function (): void {
+test('shows the owning manager and clause details when the player is owned', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id, 'name' => 'Gauchitos F.C']);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id, 'name' => 'Gauchitos F.C']);
     $player = Player::factory()->create();
-    SeasonTeamPlayer::factory()->create([
-        'season_team_id' => $seasonTeam->id,
+    SeasonManagerPlayer::factory()->create([
+        'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,
         'buyout_clause' => 4_272_558,
         'shielded' => false,
@@ -460,7 +460,7 @@ test('shows the owning team and clause details when the player is owned', functi
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('owner.season_team.name', 'Gauchitos F.C')
+        ->where('owner.season_manager.name', 'Gauchitos F.C')
         ->where('owner.buyout_clause', 4_272_558)
         ->where('owner.shielded', false)
     );
@@ -581,7 +581,7 @@ test('only includes scores for this player', function (): void {
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('scores', 0));
 });
 
-test('includes the fantasy team that fielded the player in their lineup that week', function (): void {
+test('includes the fantasy manager that fielded the player in their lineup that week', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -590,19 +590,19 @@ test('includes the fantasy team that fielded the player in their lineup that wee
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
 
-    $seasonTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
-    $lineup = SeasonTeamLineup::factory()->create(['season_team_id' => $seasonTeam->id, 'week_number' => 1]);
-    SeasonTeamLineupPlayer::factory()->create(['season_team_lineup_id' => $lineup->id, 'player_id' => $player->id]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = SeasonManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    SeasonManagerLineupPlayer::factory()->create(['season_manager_lineup_id' => $lineup->id, 'player_id' => $player->id]);
 
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('scores.0.lineup_team.id', $seasonTeam->id)
+        ->where('scores.0.lineup_manager.id', $seasonManager->id)
     );
 });
 
-test('has no lineup team for a week the player was not fielded in any lineup', function (): void {
+test('has no lineup manager for a week the player was not fielded in any lineup', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -615,11 +615,11 @@ test('has no lineup team for a week the player was not fielded in any lineup', f
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('scores.0.lineup_team', null)
+        ->where('scores.0.lineup_manager', null)
     );
 });
 
-test('excludes lineup teams from a different season', function (): void {
+test('excludes lineup managers from a different season', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -628,15 +628,15 @@ test('excludes lineup teams from a different season', function (): void {
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
     PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
 
-    $otherSeasonTeam = SeasonTeam::factory()->create();
-    $otherLineup = SeasonTeamLineup::factory()->create(['season_team_id' => $otherSeasonTeam->id, 'week_number' => 1]);
-    SeasonTeamLineupPlayer::factory()->create(['season_team_lineup_id' => $otherLineup->id, 'player_id' => $player->id]);
+    $otherSeasonManager = SeasonManager::factory()->create();
+    $otherLineup = SeasonManagerLineup::factory()->create(['season_manager_id' => $otherSeasonManager->id, 'week_number' => 1]);
+    SeasonManagerLineupPlayer::factory()->create(['season_manager_lineup_id' => $otherLineup->id, 'player_id' => $player->id]);
 
     $response = $this->get(route('players.show', $player));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('scores.0.lineup_team', null)
+        ->where('scores.0.lineup_manager', null)
     );
 });
 
@@ -732,29 +732,29 @@ test('excludes fixtures for teams other than the player current team', function 
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('teamFixtures', 0));
 });
 
-test('includes every team join date, keyed by season team id', function (): void {
+test('includes every manager join date, keyed by season manager id', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $ownerTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
-    $otherTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $ownerManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $player = Player::factory()->create();
-    SeasonTeamPlayer::factory()->create([
-        'season_team_id' => $ownerTeam->id,
+    SeasonManagerPlayer::factory()->create([
+        'season_manager_id' => $ownerManager->id,
         'player_id' => $player->id,
     ]);
     $ownerJoined = SeasonActivity::factory()->create([
         'season_id' => $season->id,
         'type' => SeasonActivityType::JoinedLeague,
-        'source_season_team_id' => $ownerTeam->id,
+        'source_season_manager_id' => $ownerManager->id,
         'player_id' => null,
         'occurred_at' => now()->subDays(20),
     ]);
     $otherJoined = SeasonActivity::factory()->create([
         'season_id' => $season->id,
         'type' => SeasonActivityType::JoinedLeague,
-        'source_season_team_id' => $otherTeam->id,
+        'source_season_manager_id' => $otherManager->id,
         'player_id' => null,
         'occurred_at' => now()->subDays(25),
     ]);
@@ -763,8 +763,8 @@ test('includes every team join date, keyed by season team id', function (): void
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where("teamJoinedAt.{$ownerTeam->id}", $ownerJoined->occurred_at->toJSON())
-        ->where("teamJoinedAt.{$otherTeam->id}", $otherJoined->occurred_at->toJSON())
+        ->where("teamJoinedAt.{$ownerManager->id}", $ownerJoined->occurred_at->toJSON())
+        ->where("teamJoinedAt.{$otherManager->id}", $otherJoined->occurred_at->toJSON())
     );
 });
 

@@ -14,10 +14,10 @@ import {
     STATUS_LABELS,
     STATUS_SHORT_LABELS,
 } from '@/lib/player-labels';
-import { teamColor } from '@/lib/season-team-colors';
+import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import { index as playersIndex, show as playersShow } from '@/routes/players';
-import { show as seasonTeamsShow } from '@/routes/season-teams';
+import { show as seasonManagersShow } from '@/routes/season-managers';
 import type {
     Paginated,
     Player,
@@ -36,11 +36,11 @@ type SortDirection = 'asc' | 'desc';
 interface PlayersIndexProps {
     players: Paginated<Player>;
     teams: TeamOption[];
-    seasonTeams: TeamOption[];
+    seasonManagers: TeamOption[];
     filters: {
         position: PlayerPosition[];
         team: number[];
-        seasonTeam: number[];
+        seasonManager: number[];
         status: PlayerStatus[];
         search: string | null;
         sort: PlayerSort;
@@ -52,7 +52,7 @@ interface PlayersIndexProps {
 interface FilterOverrides {
     position: PlayerPosition[];
     team: number[];
-    seasonTeam: number[];
+    seasonManager: number[];
     status: PlayerStatus[];
     search: string;
     sort: PlayerSort;
@@ -66,15 +66,15 @@ const SORT_LABELS: Record<PlayerSort, string> = {
 };
 
 function PlayerRow({ player }: { player: Player }) {
-    const ownerTeam = player.owner_team;
-    const goToOwnerTeam = (event: ReactMouseEvent) => {
-        if (!ownerTeam) {
+    const ownerManager = player.owner_manager;
+    const goToOwnerManager = (event: ReactMouseEvent) => {
+        if (!ownerManager) {
             return;
         }
 
         event.preventDefault();
         event.stopPropagation();
-        router.visit(seasonTeamsShow(ownerTeam.id).url);
+        router.visit(seasonManagersShow(ownerManager.id).url);
     };
 
     return (
@@ -121,23 +121,23 @@ function PlayerRow({ player }: { player: Player }) {
                         )}
                     </div>
                     <div className="flex w-[150px] shrink-0 items-center gap-1.5 font-mono text-[11px] text-hq-moss">
-                        {ownerTeam ? (
+                        {ownerManager ? (
                             <span
                                 role="link"
                                 tabIndex={0}
-                                onClick={goToOwnerTeam}
+                                onClick={goToOwnerManager}
                                 className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
                             >
                                 <span
                                     className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                                     style={{
-                                        backgroundColor: teamColor(
-                                            ownerTeam.primary_color,
+                                        backgroundColor: managerColor(
+                                            ownerManager.primary_color,
                                         ),
                                     }}
                                 />
                                 <span className="truncate">
-                                    {ownerTeam.name}
+                                    {ownerManager.name}
                                 </span>
                             </span>
                         ) : (
@@ -241,23 +241,23 @@ function PlayerRow({ player }: { player: Player }) {
                         )}
                     </p>
                     <div className="flex items-center gap-1.5 font-mono text-[10px] text-hq-moss">
-                        {ownerTeam ? (
+                        {ownerManager ? (
                             <span
                                 role="link"
                                 tabIndex={0}
-                                onClick={goToOwnerTeam}
+                                onClick={goToOwnerManager}
                                 className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
                             >
                                 <span
                                     className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
                                     style={{
-                                        backgroundColor: teamColor(
-                                            ownerTeam.primary_color,
+                                        backgroundColor: managerColor(
+                                            ownerManager.primary_color,
                                         ),
                                     }}
                                 />
                                 <span className="max-w-[110px] truncate">
-                                    {ownerTeam.name}
+                                    {ownerManager.name}
                                 </span>
                             </span>
                         ) : (
@@ -276,7 +276,7 @@ function PlayerRow({ player }: { player: Player }) {
 export default function PlayersIndex({
     players,
     teams,
-    seasonTeams,
+    seasonManagers,
     filters,
 }: PlayersIndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
@@ -284,7 +284,7 @@ export default function PlayersIndex({
     const applyFilters = (overrides: Partial<FilterOverrides>) => {
         const position = overrides.position ?? filters.position;
         const team = overrides.team ?? filters.team;
-        const seasonTeam = overrides.seasonTeam ?? filters.seasonTeam;
+        const seasonManager = overrides.seasonManager ?? filters.seasonManager;
         const status = overrides.status ?? filters.status;
         const nextSearch = overrides.search ?? filters.search ?? '';
         const sort = overrides.sort ?? filters.sort;
@@ -295,7 +295,7 @@ export default function PlayersIndex({
             {
                 position: position.join(',') || undefined,
                 team: team.join(',') || undefined,
-                season_team: seasonTeam.join(',') || undefined,
+                season_manager: seasonManager.join(',') || undefined,
                 status: status.join(',') || undefined,
                 search: nextSearch || undefined,
                 sort,
@@ -309,9 +309,9 @@ export default function PlayersIndex({
         value: String(team.id),
         label: team.name,
     }));
-    const seasonTeamOptions = seasonTeams.map((seasonTeam) => ({
-        value: String(seasonTeam.id),
-        label: seasonTeam.name,
+    const seasonManagerOptions = seasonManagers.map((seasonManager) => ({
+        value: String(seasonManager.id),
+        label: seasonManager.name,
     }));
     const positionOptions = (
         Object.entries(POSITION_LABELS) as [PlayerPosition, string][]
@@ -363,10 +363,10 @@ export default function PlayersIndex({
 
                     <HqMultiSelect
                         label="Equipo"
-                        options={seasonTeamOptions}
-                        selected={filters.seasonTeam.map(String)}
+                        options={seasonManagerOptions}
+                        selected={filters.seasonManager.map(String)}
                         onChange={(next) =>
-                            applyFilters({ seasonTeam: next.map(Number) })
+                            applyFilters({ seasonManager: next.map(Number) })
                         }
                     />
 

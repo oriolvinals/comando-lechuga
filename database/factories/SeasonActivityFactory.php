@@ -8,7 +8,7 @@ use App\Enums\SeasonActivityType;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonActivity;
-use App\Models\SeasonTeam;
+use App\Models\SeasonManager;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -22,8 +22,8 @@ class SeasonActivityFactory extends Factory
             'fantasy_id' => $this->faker->unique()->numberBetween(1, 99999999),
             'type' => SeasonActivityType::Signing,
             'season_id' => Season::factory(),
-            'source_season_team_id' => SeasonTeam::factory(),
-            'target_season_team_id' => null,
+            'source_season_manager_id' => SeasonManager::factory(),
+            'target_season_manager_id' => null,
             'player_id' => Player::factory(),
             'amount' => $this->faker->numberBetween(0, 50000000),
             'week_number' => null,

@@ -5,18 +5,18 @@ import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqSection } from '@/components/hq-section';
 import { formatCurrency } from '@/lib/format';
 import { teamFormBadgeClass } from '@/lib/points';
-import { crestTintStyle } from '@/lib/season-team-colors';
+import { crestTintStyle } from '@/lib/season-manager-colors';
 import {
     standingsPrize,
     standingsPrizeClass,
     standingsPrizeText,
 } from '@/lib/standings-prizes';
 import { cn } from '@/lib/utils';
-import { show as seasonTeamsShow } from '@/routes/season-teams';
-import type { SeasonTeam } from '@/types/models';
+import { show as seasonManagersShow } from '@/routes/season-managers';
+import type { SeasonManager } from '@/types/models';
 
 interface StandingsTableProps {
-    standings: SeasonTeam[];
+    standings: SeasonManager[];
 }
 
 const MEDAL_BORDERS = [
@@ -47,7 +47,13 @@ function StandingsHeader() {
     );
 }
 
-function PositionBadge({ team, index }: { team: SeasonTeam; index: number }) {
+function PositionBadge({
+    team,
+    index,
+}: {
+    team: SeasonManager;
+    index: number;
+}) {
     return (
         <span
             className={cn(
@@ -97,7 +103,7 @@ export function StandingsTable({ standings }: StandingsTableProps) {
                     return (
                         <Link
                             key={team.id}
-                            href={seasonTeamsShow(team.id).url}
+                            href={seasonManagersShow(team.id).url}
                             style={
                                 index < 3
                                     ? { backgroundColor: MEDAL_BACKGROUNDS[index] }

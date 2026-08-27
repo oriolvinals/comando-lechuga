@@ -1,9 +1,9 @@
 import { teamFormBarClass, teamFormTextClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
-import type { SeasonTeamLineup } from '@/types/models';
+import type { SeasonManagerLineup } from '@/types/models';
 
 interface HqTeamPointsChartProps {
-    lineupHistory: SeasonTeamLineup[];
+    lineupHistory: SeasonManagerLineup[];
     startedWeeks: number[];
 }
 

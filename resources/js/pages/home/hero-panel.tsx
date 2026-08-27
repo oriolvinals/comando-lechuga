@@ -3,14 +3,14 @@ import { Shield } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { teamFormBadgeClass } from '@/lib/points';
-import { crestTintStyle } from '@/lib/season-team-colors';
+import { crestTintStyle } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
-import { show as seasonTeamsShow } from '@/routes/season-teams';
-import type { SeasonTeam } from '@/types/models';
+import { show as seasonManagersShow } from '@/routes/season-managers';
+import type { SeasonManager } from '@/types/models';
 
 interface HeroPanelProps {
     week: number;
-    standings: SeasonTeam[];
+    standings: SeasonManager[];
 }
 
 const PODIUM_SIZES = {
@@ -49,14 +49,14 @@ function PodiumRow({
     week,
 }: {
     rank: 1 | 2 | 3;
-    team: SeasonTeam;
+    team: SeasonManager;
     week: number;
 }) {
     const size = PODIUM_SIZES[rank];
 
     return (
         <Link
-            href={seasonTeamsShow(team.id).url}
+            href={seasonManagersShow(team.id).url}
             style={{ '--hq-panel-tint': size.tint } as CSSProperties}
             className={cn(
                 'hq-panel-cut flex items-center border-l-4 text-left transition-[filter] hover:brightness-125',

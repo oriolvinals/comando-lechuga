@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
-use Database\Factories\SeasonTeamPlayerFactory;
+use Database\Factories\SeasonManagerPlayerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -15,25 +15,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property-read int $id
- * @property-read int $season_team_id
+ * @property-read int $season_manager_id
  * @property-read int $player_id
  * @property-read int $buyout_clause
  * @property-read CarbonImmutable $buyout_clause_locked_until
  * @property-read bool $shielded
  * @property-read CarbonImmutable|null $shielded_until
  */
-#[UseFactory(SeasonTeamPlayerFactory::class)]
-#[Table(name: 'season_team_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['season_team_id', 'player_id', 'buyout_clause', 'buyout_clause_locked_until', 'shielded', 'shielded_until'])]
-class SeasonTeamPlayer extends Model
+#[UseFactory(SeasonManagerPlayerFactory::class)]
+#[Table(name: 'season_manager_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
+#[Fillable(['season_manager_id', 'player_id', 'buyout_clause', 'buyout_clause_locked_until', 'shielded', 'shielded_until'])]
+class SeasonManagerPlayer extends Model
 {
-    /** @use HasFactory<SeasonTeamPlayerFactory> */
+    /** @use HasFactory<SeasonManagerPlayerFactory> */
     use HasFactory;
 
-    /** @return BelongsTo<SeasonTeam, $this> */
-    public function seasonTeam(): BelongsTo
+    /** @return BelongsTo<SeasonManager, $this> */
+    public function seasonManager(): BelongsTo
     {
-        return $this->belongsTo(SeasonTeam::class);
+        return $this->belongsTo(SeasonManager::class);
     }
 
     /** @return BelongsTo<Player, $this> */
@@ -55,7 +55,7 @@ class SeasonTeamPlayer extends Model
     {
         return [
             'id' => 'int',
-            'season_team_id' => 'int',
+            'season_manager_id' => 'int',
             'player_id' => 'int',
             'buyout_clause' => 'int',
             'buyout_clause_locked_until' => 'immutable_datetime',

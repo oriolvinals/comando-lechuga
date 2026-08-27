@@ -23,8 +23,8 @@ class DatabaseSeeder extends Seeder
         Artisan::call('season:sync-player-score-stats');
         Artisan::call('season:sync-market');
         Artisan::call('season:sync-standing');
-        Artisan::call('season:sync-team-lineups');
+        Artisan::call('season:sync-manager-lineups');
         Artisan::call('season:sync-activity');
-        Artisan::call('season:sync-team-players');
+        Artisan::call('season:sync-manager-players');
     }
 }

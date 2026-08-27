@@ -18,10 +18,10 @@ import {
     formatRelativeTime,
     formatTime,
 } from '@/lib/format';
-import { crestTintStyle } from '@/lib/season-team-colors';
+import { crestTintStyle } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
-import { show as seasonTeamsShow } from '@/routes/season-teams';
+import { show as seasonManagersShow } from '@/routes/season-managers';
 import type { SeasonActivity, SeasonActivityType } from '@/types/models';
 
 export const TYPE_ICONS: Record<SeasonActivityType, LucideIcon> = {
@@ -64,10 +64,10 @@ export const TYPE_BAR_CLASSES: Record<SeasonActivityType, string> = {
 export function describeActivityBody(activity: SeasonActivity): ReactNode {
     const team = (
         <Link
-            href={seasonTeamsShow(activity.source_season_team.id).url}
+            href={seasonManagersShow(activity.source_season_manager.id).url}
             className="font-bold text-hq-khaki hover:underline"
         >
-            {activity.source_season_team.name}
+            {activity.source_season_manager.name}
         </Link>
     );
     const player = activity.player && (
@@ -96,16 +96,16 @@ export function describeActivityBody(activity: SeasonActivity): ReactNode {
             return (
                 <>
                     {team} pagó la cláusula de {player} a{' '}
-                    {activity.target_season_team && (
+                    {activity.target_season_manager && (
                         <Link
                             href={
-                                seasonTeamsShow(
-                                    activity.target_season_team.id,
+                                seasonManagersShow(
+                                    activity.target_season_manager.id,
                                 ).url
                             }
                             className="font-bold text-hq-khaki hover:underline"
                         >
-                            {activity.target_season_team.name}
+                            {activity.target_season_manager.name}
                         </Link>
                     )}
                 </>
@@ -170,16 +170,16 @@ export function ActivityCard({
             </div>
             <div className="flex items-center gap-2.5">
                 <Link
-                    href={seasonTeamsShow(activity.source_season_team.id).url}
+                    href={seasonManagersShow(activity.source_season_manager.id).url}
                     className="flex shrink-0 flex-col items-center gap-0.5"
                 >
                     <EntityImage
-                        src={activity.source_season_team.logo}
-                        alt={activity.source_season_team.name}
+                        src={activity.source_season_manager.logo}
+                        alt={activity.source_season_manager.name}
                         fallback={Shield}
                         shape="square"
                         style={crestTintStyle(
-                            activity.source_season_team.primary_color,
+                            activity.source_season_manager.primary_color,
                         )}
                         className="hq-crest-cut h-11 w-11 bg-hq-border p-1 text-hq-khaki"
                     />
@@ -202,21 +202,21 @@ export function ActivityCard({
                         />
                     </Link>
                 )}
-                {activity.type === 'buyout' && activity.target_season_team && (
+                {activity.type === 'buyout' && activity.target_season_manager && (
                     <Link
                         href={
-                            seasonTeamsShow(activity.target_season_team.id)
+                            seasonManagersShow(activity.target_season_manager.id)
                                 .url
                         }
                         className="flex shrink-0 flex-col items-center gap-0.5"
                     >
                         <EntityImage
-                            src={activity.target_season_team.logo}
-                            alt={activity.target_season_team.name}
+                            src={activity.target_season_manager.logo}
+                            alt={activity.target_season_manager.name}
                             fallback={Shield}
                             shape="square"
                             style={crestTintStyle(
-                                activity.target_season_team.primary_color,
+                                activity.target_season_manager.primary_color,
                             )}
                             className="hq-crest-cut h-11 w-11 bg-hq-border p-1 text-hq-khaki"
                         />

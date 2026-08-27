@@ -7,7 +7,7 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonActivity;
-use App\Models\SeasonTeam;
+use App\Models\SeasonManager;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -52,33 +52,33 @@ test('paginates the current season activity, newest first', function (): void {
     );
 });
 
-test('filters activity by team, matching either source or target', function (): void {
+test('filters activity by manager, matching either source or target', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
 
-    $team = SeasonTeam::factory()->create(['season_id' => $season->id]);
-    $otherTeam = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
 
     $asSource = SeasonActivity::factory()->create([
         'season_id' => $season->id,
-        'source_season_team_id' => $team->id,
+        'source_season_manager_id' => $manager->id,
         'occurred_at' => now()->subMinute(),
     ]);
     $asTarget = SeasonActivity::factory()->create([
         'season_id' => $season->id,
-        'source_season_team_id' => $otherTeam->id,
-        'target_season_team_id' => $team->id,
+        'source_season_manager_id' => $otherManager->id,
+        'target_season_manager_id' => $manager->id,
         'occurred_at' => now(),
     ]);
     SeasonActivity::factory()->create([
         'season_id' => $season->id,
-        'source_season_team_id' => $otherTeam->id,
+        'source_season_manager_id' => $otherManager->id,
         'occurred_at' => now(),
     ]);
 
-    $response = $this->get(route('activity.index', ['team' => (string) $team->id]));
+    $response = $this->get(route('activity.index', ['manager' => (string) $manager->id]));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
@@ -88,33 +88,33 @@ test('filters activity by team, matching either source or target', function (): 
     );
 });
 
-test('filters activity by several teams at once', function (): void {
+test('filters activity by several managers at once', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
 
-    $first = SeasonTeam::factory()->create(['season_id' => $season->id]);
-    $second = SeasonTeam::factory()->create(['season_id' => $season->id]);
-    $third = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $first = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $second = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $third = SeasonManager::factory()->create(['season_id' => $season->id]);
 
     $fromFirst = SeasonActivity::factory()->create([
         'season_id' => $season->id,
-        'source_season_team_id' => $first->id,
+        'source_season_manager_id' => $first->id,
         'occurred_at' => now(),
     ]);
     $fromSecond = SeasonActivity::factory()->create([
         'season_id' => $season->id,
-        'source_season_team_id' => $second->id,
+        'source_season_manager_id' => $second->id,
         'occurred_at' => now()->subMinute(),
     ]);
     SeasonActivity::factory()->create([
         'season_id' => $season->id,
-        'source_season_team_id' => $third->id,
+        'source_season_manager_id' => $third->id,
         'occurred_at' => now()->subMinutes(2),
     ]);
 
-    $response = $this->get(route('activity.index', ['team' => "{$first->id},{$second->id}"]));
+    $response = $this->get(route('activity.index', ['manager' => "{$first->id},{$second->id}"]));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
@@ -164,7 +164,7 @@ test('filters activity by several types at once', function (): void {
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('activities.data', 2));
 });
 
-test('lists the current season teams for the team filter', function (): void {
+test('lists the current season managers for the manager filter', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -174,17 +174,17 @@ test('lists the current season teams for the team filter', function (): void {
         'end_date' => now()->subYear(),
     ]);
 
-    SeasonTeam::factory()->create(['season_id' => $season->id, 'name' => 'Cruza FC']);
-    SeasonTeam::factory()->create(['season_id' => $season->id, 'name' => 'Ariobretxa']);
-    SeasonTeam::factory()->create(['season_id' => $otherSeason->id, 'name' => 'Old team']);
+    SeasonManager::factory()->create(['season_id' => $season->id, 'name' => 'Cruza FC']);
+    SeasonManager::factory()->create(['season_id' => $season->id, 'name' => 'Ariobretxa']);
+    SeasonManager::factory()->create(['season_id' => $otherSeason->id, 'name' => 'Old manager']);
 
     $response = $this->get(route('activity.index'));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->has('teams', 2)
-        ->where('teams.0.name', 'Ariobretxa')
-        ->where('teams.1.name', 'Cruza FC')
+        ->has('managers', 2)
+        ->where('managers.0.name', 'Ariobretxa')
+        ->where('managers.1.name', 'Cruza FC')
     );
 });
 
@@ -257,18 +257,18 @@ test('has no value difference when the activity has no player or no amount', fun
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('activities.data.0.value_difference', null));
 });
 
-test('echoes the current team and type filters back as lists', function (): void {
+test('echoes the current manager and type filters back as lists', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $team = SeasonTeam::factory()->create(['season_id' => $season->id]);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
 
-    $response = $this->get(route('activity.index', ['team' => "{$team->id}", 'type' => 'signing,sale']));
+    $response = $this->get(route('activity.index', ['manager' => "{$manager->id}", 'type' => 'signing,sale']));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('filters.team', [$team->id])
+        ->where('filters.manager', [$manager->id])
         ->where('filters.type', ['signing', 'sale'])
     );
 });

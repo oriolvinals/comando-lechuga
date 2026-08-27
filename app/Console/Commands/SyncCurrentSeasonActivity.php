@@ -10,7 +10,7 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonActivity;
-use App\Models\SeasonTeam;
+use App\Models\SeasonManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -63,17 +63,17 @@ class SyncCurrentSeasonActivity extends Command
                         continue;
                     }
 
-                    $sourceSeasonTeam = SeasonTeam::query()
+                    $sourceSeasonManager = SeasonManager::query()
                         ->where('season_id', $season->id)
                         ->where('fantasy_user_id', (int) ($activityData['user1Id'] ?? 0))
                         ->first();
 
-                    if ($sourceSeasonTeam === null) {
+                    if ($sourceSeasonManager === null) {
                         continue;
                     }
 
-                    $targetSeasonTeam = isset($activityData['user2Id'])
-                        ? SeasonTeam::query()
+                    $targetSeasonManager = isset($activityData['user2Id'])
+                        ? SeasonManager::query()
                             ->where('season_id', $season->id)
                             ->where('fantasy_user_id', (int) $activityData['user2Id'])
                             ->first()
@@ -90,8 +90,8 @@ class SyncCurrentSeasonActivity extends Command
                         ],
                         [
                             'type' => $type,
-                            'source_season_team_id' => $sourceSeasonTeam->id,
-                            'target_season_team_id' => $targetSeasonTeam?->id,
+                            'source_season_manager_id' => $sourceSeasonManager->id,
+                            'target_season_manager_id' => $targetSeasonManager?->id,
                             'player_id' => $player?->id,
                             'amount' => isset($activityData['amount']) ? (int) $activityData['amount'] : null,
                             'week_number' => isset($activityData['weekNumber']) ? (int) $activityData['weekNumber'] : null,

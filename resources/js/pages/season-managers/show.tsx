@@ -7,23 +7,23 @@ import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqTeamPointsChart } from '@/components/hq-team-points-chart';
 import { HqWeekScrollPicker } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
-import { RosterList } from '@/pages/season-teams/roster-list';
-import { TeamHero } from '@/pages/season-teams/team-hero';
+import { ManagerHero } from '@/pages/season-managers/manager-hero';
+import { RosterList } from '@/pages/season-managers/roster-list';
 import type {
     Season,
     SeasonActivity,
-    SeasonTeam,
-    SeasonTeamLineup,
-    SeasonTeamLineupPlayerEntry,
-    SeasonTeamPlayer,
+    SeasonManager,
+    SeasonManagerLineup,
+    SeasonManagerLineupPlayerEntry,
+    SeasonManagerPlayer,
     WeekProgressMap,
 } from '@/types/models';
 
-interface SeasonTeamShowProps {
+interface SeasonManagerShowProps {
     season: Season;
-    seasonTeam: SeasonTeam;
-    roster: SeasonTeamPlayer[];
-    lineupHistory: SeasonTeamLineup[];
+    seasonManager: SeasonManager;
+    roster: SeasonManagerPlayer[];
+    lineupHistory: SeasonManagerLineup[];
     startedWeeks: number[];
     weekProgress: WeekProgressMap;
     wonWeeks: number[];
@@ -31,19 +31,19 @@ interface SeasonTeamShowProps {
     [key: string]: unknown;
 }
 
-export default function SeasonTeamShow({
+export default function SeasonManagerShow({
     season,
-    seasonTeam,
+    seasonManager,
     roster,
     lineupHistory,
     startedWeeks,
     weekProgress,
     wonWeeks,
     activity,
-}: SeasonTeamShowProps) {
+}: SeasonManagerShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(season.current_week);
     const [selectedPlayer, setSelectedPlayer] =
-        useState<SeasonTeamLineupPlayerEntry | null>(null);
+        useState<SeasonManagerLineupPlayerEntry | null>(null);
 
     const lineupForWeek = lineupHistory.find(
         (lineup) => lineup.week_number === selectedWeek,
@@ -54,12 +54,12 @@ export default function SeasonTeamShow({
             className="hq-texture hq-bleed relative min-h-[calc(100vh-95px)] border-y border-hq-border"
             style={
                 {
-                    '--pc': seasonTeam.primary_color ?? 'transparent',
-                    '--sc': seasonTeam.secondary_color ?? 'transparent',
+                    '--pc': seasonManager.primary_color ?? 'transparent',
+                    '--sc': seasonManager.secondary_color ?? 'transparent',
                 } as CSSProperties
             }
         >
-            <Head title={seasonTeam.name} />
+            <Head title={seasonManager.name} />
 
             <div
                 className="pointer-events-none absolute inset-0 opacity-25"
@@ -74,8 +74,8 @@ export default function SeasonTeamShow({
             />
 
             <div className="relative mx-auto max-w-7xl px-6 pb-9">
-                <TeamHero
-                    seasonTeam={seasonTeam}
+                <ManagerHero
+                    seasonManager={seasonManager}
                     season={season}
                     wonWeeks={wonWeeks}
                 />
@@ -186,4 +186,6 @@ export default function SeasonTeamShow({
     );
 }
 
-SeasonTeamShow.layout = (page: ReactElement) => <AppLayout>{page}</AppLayout>;
+SeasonManagerShow.layout = (page: ReactElement) => (
+    <AppLayout>{page}</AppLayout>
+);

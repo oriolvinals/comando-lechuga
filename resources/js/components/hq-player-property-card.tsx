@@ -4,12 +4,12 @@ import type { CSSProperties, ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { resolveClauseStatus } from '@/lib/clause-status';
 import { formatCurrency } from '@/lib/format';
-import { cardTintStyle } from '@/lib/season-team-colors';
+import { cardTintStyle } from '@/lib/season-manager-colors';
 import { useCountdown } from '@/lib/use-countdown';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
-import { show as seasonTeamsShow } from '@/routes/season-teams';
+import { show as seasonManagersShow } from '@/routes/season-managers';
 import type { PlayerFichaMarketListing, PlayerOwnership } from '@/types/models';
 
 interface HqPlayerPropertyCardProps {
@@ -97,25 +97,27 @@ function OwnedStatus({
         <div
             className="hq-card-cut p-4"
             style={
-                cardTintStyle(owner.season_team.primary_color) as CSSProperties
+                cardTintStyle(
+                    owner.season_manager.primary_color,
+                ) as CSSProperties
             }
         >
             <p className="mb-2 font-mono text-[10px] tracking-wide text-hq-moss uppercase">
                 Propiedad
             </p>
             <Link
-                href={seasonTeamsShow(owner.season_team.id).url}
+                href={seasonManagersShow(owner.season_manager.id).url}
                 className="mb-2.5 inline-flex items-center gap-2 hover:opacity-80"
             >
                 <EntityImage
-                    src={owner.season_team.logo}
-                    alt={owner.season_team.name}
+                    src={owner.season_manager.logo}
+                    alt={owner.season_manager.name}
                     fallback={Shield}
                     shape="square"
                     className="h-7 w-7"
                 />
                 <span className="text-sm font-bold text-hq-paper">
-                    {owner.season_team.name}
+                    {owner.season_manager.name}
                 </span>
             </Link>
 

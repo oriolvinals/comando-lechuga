@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Database\Factories\SeasonTeamFactory;
+use Database\Factories\SeasonManagerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,13 +13,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * @property array<int, int|null> $recent_form Points for the team's last 3 played jornadas, oldest first, ordered by week number; null-padded at the end when fewer than 3 exist. Computed at query time by HomeController; not a database column.
+ * @property array<int, int|null> $recent_form Points for the manager's last 3 played jornadas, oldest first, ordered by week number; null-padded at the end when fewer than 3 exist. Computed at query time by HomeController; not a database column.
  */
-#[Table(name: 'season_teams', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
+#[Table(name: 'season_managers', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['fantasy_id', 'fantasy_user_id', 'name', 'logo', 'primary_color', 'secondary_color', 'total_points', 'live_points', 'position', 'last_position', 'value', 'season_id'])]
-class SeasonTeam extends Model
+class SeasonManager extends Model
 {
-    /** @use HasFactory<SeasonTeamFactory> */
+    /** @use HasFactory<SeasonManagerFactory> */
     use HasFactory;
 
     /** @var array<string, mixed> */
@@ -39,10 +39,10 @@ class SeasonTeam extends Model
         return $this->belongsTo(Season::class);
     }
 
-    /** @return HasMany<SeasonTeamLineup, $this> */
+    /** @return HasMany<SeasonManagerLineup, $this> */
     public function lineups(): HasMany
     {
-        return $this->hasMany(SeasonTeamLineup::class);
+        return $this->hasMany(SeasonManagerLineup::class);
     }
 
     /**

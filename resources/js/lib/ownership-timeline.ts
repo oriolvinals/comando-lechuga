@@ -1,4 +1,4 @@
-import type { OwnershipActivity, SeasonActivityType, SeasonTeam } from '@/types/models';
+import type { OwnershipActivity, SeasonActivityType, SeasonManager } from '@/types/models';
 
 export interface OwnershipSegmentOrigin {
     type: SeasonActivityType;
@@ -8,7 +8,7 @@ export interface OwnershipSegmentOrigin {
 export interface OwnershipSegment {
     from: string | null;
     to: string | null;
-    seasonTeam: SeasonTeam | null;
+    seasonManager: SeasonManager | null;
     /** The signing/sale/buyout that put the player in this state — `null` for the opening segment, which predates any captured activity. */
     startedBy: OwnershipSegmentOrigin | null;
 }
@@ -16,10 +16,10 @@ export interface OwnershipSegment {
 /**
  * Reconstructs who owned a player over time from their chronological
  * signing/sale/buyout activity. `signing` and `buyout` both hand ownership
- * to the activity's source team (see ActivityCard's phrasing: "{source}
+ * to the activity's source manager (see ActivityCard's phrasing: "{source}
  * fichó/pagó la cláusula ... a {target}"); `sale` returns the player to the
  * free market. The final segment is forced to `currentOwner` (the real
- * SeasonTeamPlayer row) rather than the reconstructed state, since a
+ * SeasonManagerPlayer row) rather than the reconstructed state, since a
  * player's ownership can predate the activity log.
  *
  * A player can also have ownership *before* the earliest recorded activity —
@@ -28,58 +28,58 @@ export interface OwnershipSegment {
  * itself a sale/buyout that implies an unrecorded prior owner (e.g. a buyout
  * only tells us who bought the player, not who held them before). We infer
  * that "leading owner" from the first activity's type/fields, then fall back
- * to `teamJoinedAt[leadingOwner.id]` (that team's own `joined_league` date)
+ * to `teamJoinedAt[leadingOwner.id]` (that manager's own `joined_league` date)
  * as the start of their ownership, with a free-market segment before it —
- * rather than crediting the team with owning the player back through the
+ * rather than crediting the manager with owning the player back through the
  * whole chart's date range. That inferred segment is tagged `startedBy: {
  * type: 'joined_league' }` so the UI can call out that the player came in
- * with the team's original squad rather than via a recorded signing.
+ * with the manager's original squad rather than via a recorded signing.
  */
 export function buildOwnershipTimeline(
     activities: OwnershipActivity[],
-    currentOwner: SeasonTeam | null,
+    currentOwner: SeasonManager | null,
     teamJoinedAt: Record<string, string>,
 ): OwnershipSegment[] {
     const segments: OwnershipSegment[] = [];
     const first = activities[0] ?? null;
 
-    const leadingOwner: SeasonTeam | null =
+    const leadingOwner: SeasonManager | null =
         first === null
             ? currentOwner
             : first.type === 'sale'
-              ? first.source_season_team
+              ? first.source_season_manager
               : first.type === 'buyout'
-                ? first.target_season_team
+                ? first.target_season_manager
                 : null;
     const leadingEnd = first?.occurred_at ?? null;
 
     if (leadingOwner === null) {
-        segments.push({ from: null, to: leadingEnd, seasonTeam: null, startedBy: null });
+        segments.push({ from: null, to: leadingEnd, seasonManager: null, startedBy: null });
     } else {
         const joinedAt = teamJoinedAt[leadingOwner.id] ?? null;
 
         if (joinedAt !== null) {
-            segments.push({ from: null, to: joinedAt, seasonTeam: null, startedBy: null });
+            segments.push({ from: null, to: joinedAt, seasonManager: null, startedBy: null });
             segments.push({
                 from: joinedAt,
                 to: leadingEnd,
-                seasonTeam: leadingOwner,
+                seasonManager: leadingOwner,
                 startedBy: { type: 'joined_league', amount: null },
             });
         } else {
-            segments.push({ from: null, to: leadingEnd, seasonTeam: leadingOwner, startedBy: null });
+            segments.push({ from: null, to: leadingEnd, seasonManager: leadingOwner, startedBy: null });
         }
     }
 
     for (let index = 0; index < activities.length; index++) {
         const activity = activities[index];
         const isLast = index === activities.length - 1;
-        const owner = isLast ? currentOwner : activity.type === 'sale' ? null : activity.source_season_team;
+        const owner = isLast ? currentOwner : activity.type === 'sale' ? null : activity.source_season_manager;
 
         segments.push({
             from: activity.occurred_at,
             to: activities[index + 1]?.occurred_at ?? null,
-            seasonTeam: owner,
+            seasonManager: owner,
             startedBy: { type: activity.type, amount: activity.amount },
         });
     }
@@ -127,6 +127,6 @@ export function segmentAtDate(
 export function ownerAtDate(
     segments: OwnershipSegment[],
     dateIso: string,
-): SeasonTeam | null {
-    return segmentAtDate(segments, dateIso)?.seasonTeam ?? null;
+): SeasonManager | null {
+    return segmentAtDate(segments, dateIso)?.seasonManager ?? null;
 }

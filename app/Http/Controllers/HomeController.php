@@ -13,8 +13,8 @@ use App\Models\Fixture;
 use App\Models\MarketPlayer;
 use App\Models\Season;
 use App\Models\SeasonActivity;
-use App\Models\SeasonTeam;
-use App\Models\SeasonTeamLineup;
+use App\Models\SeasonManager;
+use App\Models\SeasonManagerLineup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -39,7 +39,7 @@ class HomeController extends Controller
             ->orderBy('date')
             ->get();
 
-        $standings = SeasonTeam::query()
+        $standings = SeasonManager::query()
             ->where('season_id', $season->id)
             ->orderBy('position')
             ->get();
@@ -57,7 +57,7 @@ class HomeController extends Controller
 
         $activity = SeasonActivity::query()
             ->where('season_id', $season->id)
-            ->with(['sourceSeasonTeam', 'targetSeasonTeam', 'player'])
+            ->with(['sourceSeasonManager', 'targetSeasonManager', 'player'])
             ->orderByDesc('occurred_at')
             ->limit(10)
             ->get();
@@ -79,35 +79,35 @@ class HomeController extends Controller
     }
 
     /**
-     * Attaches each team's points for its last 3 finished jornadas (oldest
+     * Attaches each manager's points for its last 3 finished jornadas (oldest
      * first, left to right) — the "forma" column in the home standings. A
      * jornada still in progress is excluded, not just one that hasn't
      * started: its points are provisional, not a finished result. Shorter
-     * than 3 — padded with null at the end — only for a team without 3
+     * than 3 — padded with null at the end — only for a manager without 3
      * finished jornadas yet.
      *
-     * @param  Collection<int, SeasonTeam>  $standings
+     * @param  Collection<int, SeasonManager>  $standings
      */
     private function attachRecentForm(Collection $standings, Season $season): void
     {
-        $lineupsByTeam = SeasonTeamLineup::query()
-            ->whereIn('season_team_id', $standings->pluck('id'))
+        $lineupsByManager = SeasonManagerLineup::query()
+            ->whereIn('season_manager_id', $standings->pluck('id'))
             ->whereIn('week_number', $this->finishedWeekNumbers($season))
             ->get()
-            ->groupBy('season_team_id');
+            ->groupBy('season_manager_id');
 
-        $standings->each(function (SeasonTeam $team) use ($lineupsByTeam): void {
-            $recent = ($lineupsByTeam->get($team->id) ?? collect())
+        $standings->each(function (SeasonManager $manager) use ($lineupsByManager): void {
+            $recent = ($lineupsByManager->get($manager->id) ?? collect())
                 ->sortByDesc('week_number')
                 ->take(3)
                 ->sortBy('week_number')
                 ->values()
-                ->map(fn (SeasonTeamLineup $lineup): int => $lineup->points)
+                ->map(fn (SeasonManagerLineup $lineup): int => $lineup->points)
                 ->all();
 
             /** @var array<int, int|null> $paddedRecent */
             $paddedRecent = array_pad($recent, 3, null);
-            $team->recent_form = $paddedRecent;
+            $manager->recent_form = $paddedRecent;
         });
     }
 }

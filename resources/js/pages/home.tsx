@@ -6,7 +6,7 @@ import type {
     MarketPlayer,
     Season,
     SeasonActivity,
-    SeasonTeam,
+    SeasonManager,
     WeekProgressMap,
 } from '@/types/models';
 import { ActivityPanel } from './home/activity-panel';
@@ -19,7 +19,7 @@ interface HomeProps {
     season: Season;
     filters: { week: number };
     fixtures: Fixture[];
-    standings: SeasonTeam[];
+    standings: SeasonManager[];
     weekProgress: WeekProgressMap;
     market: MarketPlayer[];
     activity: SeasonActivity[];
