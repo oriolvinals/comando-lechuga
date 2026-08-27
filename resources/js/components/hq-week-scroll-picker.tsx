@@ -29,13 +29,28 @@ export function HqWeekScrollPicker({
     const isFirstRender = useRef(true);
 
     useLayoutEffect(() => {
-        // First mount jumps to the selected week instantly — otherwise it
-        // visibly animates from the start on every page load. A later change
-        // (the picker stays mounted across `preserveState` navigations) scrolls
-        // smoothly instead, since that's a deliberate interaction.
-        selectedRef.current?.scrollIntoView({
-            block: 'nearest',
-            inline: 'center',
+        const button = selectedRef.current;
+        const scroller = button?.parentElement;
+
+        if (!button || !scroller) {
+            return;
+        }
+
+        // Center the button within its horizontal scroll row only. We can't
+        // use `button.scrollIntoView()` here: it walks every scrollable
+        // ancestor, including the page itself, and on mobile this picker
+        // often sits below the fold on first paint — that scrolled the whole
+        // page down on load instead of just sliding the row.
+        //
+        // First mount jumps instantly — otherwise it visibly animates from
+        // the start on every page load. A later change (the picker stays
+        // mounted across `preserveState` navigations) scrolls smoothly
+        // instead, since that's a deliberate interaction.
+        scroller.scrollTo({
+            left:
+                button.offsetLeft -
+                scroller.clientWidth / 2 +
+                button.offsetWidth / 2,
             behavior: isFirstRender.current ? 'instant' : 'smooth',
         });
         isFirstRender.current = false;
