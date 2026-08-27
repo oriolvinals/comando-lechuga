@@ -48,6 +48,14 @@ export default function SeasonManagerShow({
     const lineupForWeek = lineupHistory.find(
         (lineup) => lineup.week_number === selectedWeek,
     );
+    const weekPoints = lineupHistory.reduce<Record<number, number>>(
+        (acc, lineup) => {
+            acc[lineup.week_number] = lineup.points;
+
+            return acc;
+        },
+        {},
+    );
 
     return (
         <div
@@ -141,6 +149,7 @@ export default function SeasonManagerShow({
                                     maxWeek={season.total_weeks}
                                     playedThroughWeek={season.current_week}
                                     weekProgress={weekProgress}
+                                    weekPoints={weekPoints}
                                     onChange={setSelectedWeek}
                                 />
                             </div>

@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/react';
 import { useLayoutEffect, useRef } from 'react';
 import { HqScrollRow } from '@/components/hq-scroll-row';
+import { teamFormBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import type { WeekProgressMap } from '@/types/models';
 
@@ -10,6 +11,12 @@ interface HqWeekScrollPickerProps {
     playedThroughWeek: number;
     weekProgress: WeekProgressMap;
     onChange: (week: number) => void;
+    /**
+     * When provided, each tile shows this manager's points for that week
+     * (colored by form, same scale as the home standings) instead of the
+     * week's fixture progress — e.g. the team ficha's lineup-by-week picker.
+     */
+    weekPoints?: Record<number, number>;
 }
 
 /**
@@ -23,6 +30,7 @@ export function HqWeekScrollPicker({
     playedThroughWeek,
     weekProgress,
     onChange,
+    weekPoints,
 }: HqWeekScrollPickerProps) {
     const { liveMatchday } = usePage().props;
     const selectedRef = useRef<HTMLButtonElement>(null);
@@ -63,6 +71,7 @@ export function HqWeekScrollPicker({
                     const isLive =
                         liveMatchday && weekNumber === playedThroughWeek;
                     const progress = weekProgress[String(weekNumber)] ?? 'none';
+                    const points = weekPoints?.[weekNumber];
 
                     return (
                         <button
@@ -77,18 +86,24 @@ export function HqWeekScrollPicker({
                                     : weekNumber === week
                                       ? 'border-hq-paper'
                                       : 'border-hq-border hover:border-hq-border-strong',
-                                progress === 'all'
-                                    ? 'bg-hq-lime/15 text-hq-lime'
-                                    : progress === 'partial'
-                                      ? 'bg-hq-gold/15 text-hq-gold'
-                                      : 'text-hq-paper/30',
+                                weekPoints
+                                    ? points !== undefined
+                                        ? teamFormBadgeClass(points)
+                                        : 'text-hq-paper/30'
+                                    : progress === 'all'
+                                      ? 'bg-hq-lime/15 text-hq-lime'
+                                      : progress === 'partial'
+                                        ? 'bg-hq-gold/15 text-hq-gold'
+                                        : 'text-hq-paper/30',
                             )}
                         >
                             <span className="text-[10px] font-bold opacity-80">
-                                J
+                                {weekPoints ? `J${weekNumber}` : 'J'}
                             </span>
                             <span className="font-display text-lg leading-none">
-                                {weekNumber}
+                                {weekPoints
+                                    ? (points ?? '—')
+                                    : weekNumber}
                             </span>
                             {isLive && (
                                 <span className="absolute -top-1 -right-1 h-2 w-2 animate-pulse rounded-full bg-hq-live" />
