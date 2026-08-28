@@ -96,7 +96,7 @@ class PlayersController extends Controller
             ->withQueryString();
 
         $this->attachOwnership($players, $season->id);
-        $this->attachCurrentSeason($players, $season->id);
+        $this->attachCurrentSeason($players->getCollection(), $season->id);
         $this->attachRecentScores($players->getCollection(), $season);
 
         $realTeams = Team::query()
