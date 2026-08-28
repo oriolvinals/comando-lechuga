@@ -4,7 +4,7 @@ import { EntityImage } from '@/components/entity-image';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqSection } from '@/components/hq-section';
 import { formatCurrency } from '@/lib/format';
-import { formatSignedPoints, teamFormBadgeClass } from '@/lib/points';
+import { teamFormBadgeClass } from '@/lib/points';
 import { crestTintStyle } from '@/lib/season-manager-colors';
 import {
     standingsPrize,
@@ -40,7 +40,7 @@ function StandingsHeader() {
             <span className="w-4 shrink-0" />
             <span className="w-14 shrink-0" />
             <span className="min-w-0 flex-1">Manager</span>
-            <span className="w-28 shrink-0 text-center">Forma</span>
+            <span className="w-40 shrink-0 text-center">Forma</span>
             <span className="w-14 shrink-0 text-right">Premio</span>
             <span className="w-12 shrink-0 text-center">Pts</span>
         </div>
@@ -137,28 +137,15 @@ export function StandingsTable({ standings }: StandingsTableProps) {
                                 <HqRecentScores
                                     scores={team.recent_form}
                                     badgeClass={teamFormBadgeClass}
-                                    className="w-28 justify-center"
+                                    live={team.live_points}
+                                    className="w-40 justify-center"
                                 />
                                 <div className="w-14 shrink-0 text-right">
                                     <PrizeTag prize={prize} />
                                 </div>
-                                <div className="flex w-12 shrink-0 flex-col items-center gap-1">
-                                    {team.live_points !== null && (
-                                        <span
-                                            className={cn(
-                                                'rounded px-1.5 py-0.5 font-mono text-[10px]',
-                                                teamFormBadgeClass(
-                                                    team.live_points,
-                                                ),
-                                            )}
-                                        >
-                                            {formatSignedPoints(team.live_points)}
-                                        </span>
-                                    )}
-                                    <span className="text-center font-display text-xl text-hq-lime">
-                                        {team.total_points}
-                                    </span>
-                                </div>
+                                <span className="w-12 shrink-0 text-center font-display text-xl text-hq-lime">
+                                    {team.total_points}
+                                </span>
                             </div>
 
                             {/* Mobile: two lines, nothing hidden */}
@@ -181,23 +168,9 @@ export function StandingsTable({ standings }: StandingsTableProps) {
                                             {formatCurrency(team.value)}
                                         </p>
                                     </div>
-                                    <div className="flex shrink-0 flex-col items-end gap-1">
-                                        {team.live_points !== null && (
-                                            <span
-                                                className={cn(
-                                                    'rounded px-1.5 py-0.5 font-mono text-[10px]',
-                                                    teamFormBadgeClass(
-                                                        team.live_points,
-                                                    ),
-                                                )}
-                                            >
-                                                {formatSignedPoints(team.live_points)}
-                                            </span>
-                                        )}
-                                        <span className="font-display text-xl text-hq-lime">
-                                            {team.total_points}
-                                        </span>
-                                    </div>
+                                    <span className="shrink-0 font-display text-xl text-hq-lime">
+                                        {team.total_points}
+                                    </span>
                                 </div>
                                 <div className="mt-2 flex items-center gap-2 border-t border-hq-ink pt-2">
                                     <span className="font-mono text-[8px] font-bold tracking-wide text-hq-moss-dim uppercase">
@@ -206,6 +179,7 @@ export function StandingsTable({ standings }: StandingsTableProps) {
                                     <HqRecentScores
                                         scores={team.recent_form}
                                         badgeClass={teamFormBadgeClass}
+                                        live={team.live_points}
                                         size="sm"
                                     />
                                     <div className="ml-auto">

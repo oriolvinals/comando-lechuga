@@ -1,4 +1,4 @@
-import { matchPointsBadgeClass } from '@/lib/points';
+import { formatSignedPoints, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 
 interface HqRecentScoresProps {
@@ -11,6 +11,8 @@ interface HqRecentScoresProps {
     size?: 'md' | 'sm';
     /** Color tier for a slot's value — defaults to the per-player scale; pass {@link teamFormBadgeClass} for team-level totals. */
     badgeClass?: (points: number) => string;
+    /** Appends one more slot for the jornada currently in progress — its points are still counting, unlike the rest. Omit (or null) when there's no live jornada. */
+    live?: number | null;
 }
 
 const SIZE_CLASSES: Record<'md' | 'sm', string> = {
@@ -21,7 +23,9 @@ const SIZE_CLASSES: Record<'md' | 'sm', string> = {
 /**
  * Points for the last 3 played matches. A null slot is either "no match
  * history yet" (a dash) or, when `finished` says a real fixture already
- * happened there, "not called up" (a dashed-red "NC").
+ * happened there, "not called up" (a dashed-red "NC"). An optional trailing
+ * `live` slot marks the jornada currently in progress with a pulsing dot,
+ * distinct from the finished ones.
  */
 export function HqRecentScores({
     scores,
@@ -30,6 +34,7 @@ export function HqRecentScores({
     className,
     size = 'md',
     badgeClass = matchPointsBadgeClass,
+    live,
 }: HqRecentScoresProps) {
     return (
         <div className={cn('flex shrink-0 gap-1', className)}>
@@ -64,6 +69,18 @@ export function HqRecentScores({
                     </span>
                 );
             })}
+            {live !== undefined && live !== null && (
+                <span
+                    className={cn(
+                        'relative flex shrink-0 items-center justify-center border font-mono font-bold',
+                        SIZE_CLASSES[size],
+                        badgeClass(live),
+                    )}
+                >
+                    {formatSignedPoints(live)}
+                    <span className="absolute -top-1.5 -right-1 h-1.5 w-1.5 animate-pulse rounded-full bg-hq-lime" />
+                </span>
+            )}
         </div>
     );
 }
