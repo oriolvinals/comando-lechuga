@@ -27,6 +27,7 @@ interface SeasonManagerShowProps {
     startedWeeks: number[];
     weekProgress: WeekProgressMap;
     wonWeeks: number[];
+    lostWeeks: number[];
     activity: Activity[];
     [key: string]: unknown;
 }
@@ -39,6 +40,7 @@ export default function SeasonManagerShow({
     startedWeeks,
     weekProgress,
     wonWeeks,
+    lostWeeks,
     activity,
 }: SeasonManagerShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(season.current_week);
@@ -86,6 +88,7 @@ export default function SeasonManagerShow({
                     seasonManager={seasonManager}
                     season={season}
                     wonWeeks={wonWeeks}
+                    lostWeeks={lostWeeks}
                 />
 
                 <div className="mt-6">

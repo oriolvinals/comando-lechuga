@@ -1,9 +1,27 @@
-import { ArrowDown, ArrowUp, Shield } from 'lucide-react';
+import { ArrowDown, ArrowUp, Drama, Shield, Trophy } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
 import { formatSignedPoints } from '@/lib/points';
 import { crestTintStyle } from '@/lib/season-manager-colors';
+import { cn } from '@/lib/utils';
 import type { Season, SeasonManager } from '@/types/models';
+
+interface WeekBadge {
+    week: number;
+    type: 'won' | 'lost';
+}
+
+/**
+ * Merges "won this jornada" and "lost this jornada" (farolillo rojo) week
+ * numbers into one list ordered by jornada, so both render interleaved in a
+ * single row instead of two separate stacks.
+ */
+function weekBadges(wonWeeks: number[], lostWeeks: number[]): WeekBadge[] {
+    return [
+        ...wonWeeks.map((week): WeekBadge => ({ week, type: 'won' })),
+        ...lostWeeks.map((week): WeekBadge => ({ week, type: 'lost' })),
+    ].sort((a, b) => a.week - b.week);
+}
 
 /** Medal color per podium spot — same palette as the home hero's PODIUM_SIZES. Outside the podium the crest keeps a neutral border. */
 const MEDAL_COLOR_VARS: Record<number, string> = {
@@ -44,13 +62,16 @@ interface ManagerHeroProps {
     seasonManager: SeasonManager;
     season: Season;
     wonWeeks: number[];
+    lostWeeks: number[];
 }
 
 export function ManagerHero({
     seasonManager,
     season,
     wonWeeks,
+    lostWeeks,
 }: ManagerHeroProps) {
+    const badges = weekBadges(wonWeeks, lostWeeks);
     const medal = MEDAL_COLOR_VARS[seasonManager.position];
     const borderColor = medal ?? 'var(--color-hq-border-strong)';
     const chipTextColor = medal ?? 'var(--color-hq-paper)';
@@ -97,14 +118,39 @@ export function ManagerHero({
                     <h1 className="font-display text-3xl text-hq-paper uppercase">
                         {seasonManager.name}
                     </h1>
-                    {wonWeeks.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {wonWeeks.map((week) => (
+                    {badges.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            {badges.map(({ week, type }) => (
                                 <span
-                                    key={week}
-                                    className="hq-tag-cut inline-flex items-center bg-hq-gold px-2 py-1 font-mono text-[10px] font-bold text-hq-ink"
+                                    key={`${type}-${week}`}
+                                    className={cn(
+                                        'hq-tag-ring inline-flex',
+                                        type === 'won'
+                                            ? 'bg-hq-gold'
+                                            : 'bg-hq-live',
+                                    )}
                                 >
-                                    J{week}
+                                    <span
+                                        className={cn(
+                                            'hq-tag-ring-inner inline-flex items-center gap-1 bg-hq-panel-alt px-2 py-1 font-mono text-[10px] font-bold',
+                                            type === 'won'
+                                                ? 'text-hq-gold'
+                                                : 'text-hq-live',
+                                        )}
+                                    >
+                                        {type === 'won' ? (
+                                            <Trophy
+                                                className="h-2.5 w-2.5"
+                                                strokeWidth={2.5}
+                                            />
+                                        ) : (
+                                            <Drama
+                                                className="h-2.5 w-2.5"
+                                                strokeWidth={2.5}
+                                            />
+                                        )}
+                                        J{week}
+                                    </span>
                                 </span>
                             ))}
                         </div>

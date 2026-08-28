@@ -105,6 +105,22 @@ html {
     clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
 }
 
+/*
+ * Outline variant of .hq-tag-cut. A plain CSS `border` doesn't trace the
+ * notch — clip-path masks the rectangular border too, leaving the diagonal
+ * edge with no stroke at all. Two nested clipped shapes instead: the outer
+ * element's background is the ring color, `padding` reveals it as a border
+ * around the inner shape's (smaller, proportionally inset notch) background.
+ */
+.hq-tag-ring {
+    clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
+    padding: 1.4px;
+}
+
+.hq-tag-ring-inner {
+    clip-path: polygon(4.6px 0, 100% 0, 100% 100%, 0 100%, 0 4.6px);
+}
+
 .hq-card-cut {
     position: relative;
     isolation: isolate;

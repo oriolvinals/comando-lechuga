@@ -511,3 +511,42 @@ test('counts a tied top score as a win for both managers', function (): void {
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('wonWeeks', [1]));
 });
+
+test('only includes finished weeks where the manager scored lowest', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 3,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1, 'points' => 20]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1, 'points' => 50]);
+
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2, 'points' => 70]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 2, 'points' => 40]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('lostWeeks', [1]));
+});
+
+test('counts a tied bottom score as a loss for both managers', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 2,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1, 'points' => 12]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1, 'points' => 12]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('lostWeeks', [1]));
+});

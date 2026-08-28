@@ -87,6 +87,8 @@ class SeasonManagersController extends Controller
 
         $this->attachValueDifferences($activity);
 
+        $weekExtremes = $this->weekNumberExtremes($seasonManager, $season);
+
         return Inertia::render('season-managers/show', [
             'season' => $season,
             'seasonManager' => $seasonManager,
@@ -97,7 +99,8 @@ class SeasonManagersController extends Controller
             // int, so a plain array here could serialize as a sparse JSON
             // array instead of the {"1": "all", ...} object the frontend expects.
             'weekProgress' => (object) $this->weekProgress($season),
-            'wonWeeks' => $this->wonWeekNumbers($seasonManager, $season),
+            'wonWeeks' => $weekExtremes['won'],
+            'lostWeeks' => $weekExtremes['lost'],
             'activity' => $activity,
         ]);
     }
@@ -133,17 +136,18 @@ class SeasonManagersController extends Controller
     }
 
     /**
-     * Finished week numbers where this manager topped every manager's lineup
-     * points that week (ties all count as winners).
+     * Finished week numbers where this manager topped ("won") or bottomed
+     * ("lost") every manager's lineup points that week — ties all count on
+     * both ends, matching the existing win logic.
      *
-     * @return array<int, int>
+     * @return array{won: array<int, int>, lost: array<int, int>}
      */
-    private function wonWeekNumbers(SeasonManager $seasonManager, Season $season): array
+    private function weekNumberExtremes(SeasonManager $seasonManager, Season $season): array
     {
         $finishedWeeks = $this->finishedWeekNumbers($season);
 
         if ($finishedWeeks === []) {
-            return [];
+            return ['won' => [], 'lost' => []];
         }
 
         $lineups = ManagerLineup::query()
@@ -151,16 +155,26 @@ class SeasonManagersController extends Controller
             ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
             ->get(['season_manager_id', 'week_number', 'points']);
 
-        $maxPointsByWeek = $lineups
-            ->groupBy('week_number')
-            ->map(fn ($weekLineups) => $weekLineups->max('points'));
+        $lineupsByWeek = $lineups->groupBy('week_number');
+        $maxPointsByWeek = $lineupsByWeek->map(fn ($weekLineups) => $weekLineups->max('points'))->all();
+        $minPointsByWeek = $lineupsByWeek->map(fn ($weekLineups) => $weekLineups->min('points'))->all();
 
-        return $lineups
-            ->where('season_manager_id', $seasonManager->id)
-            ->filter(fn (ManagerLineup $lineup): bool => $lineup->points === $maxPointsByWeek[$lineup->week_number])
+        $ownLineups = $lineups->where('season_manager_id', $seasonManager->id);
+
+        /**
+         * @param  array<int, int>  $extremePointsByWeek
+         * @return array<int, int>
+         */
+        $weekNumbersAt = fn (array $extremePointsByWeek): array => $ownLineups
+            ->filter(fn (ManagerLineup $lineup): bool => $lineup->points === $extremePointsByWeek[$lineup->week_number])
             ->pluck('week_number')
             ->sort()
             ->values()
             ->all();
+
+        return [
+            'won' => $weekNumbersAt($maxPointsByWeek),
+            'lost' => $weekNumbersAt($minPointsByWeek),
+        ];
     }
 }
