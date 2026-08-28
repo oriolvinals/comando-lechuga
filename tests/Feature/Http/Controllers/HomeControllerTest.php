@@ -181,6 +181,30 @@ test('includes recent scores for each market listing player', function (): void 
     );
 });
 
+test('includes the current season position, points and market value for each market listing player', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create([
+        'position' => PlayerPosition::Midfield,
+        'points' => 87,
+        'market_value' => 12_000_000,
+        'market_value_difference' => -350_000,
+    ]);
+    MarketPlayer::factory()->create(['player_id' => $player->id]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('market.0.player.position', 'midfield')
+        ->where('market.0.player.points', 87)
+        ->where('market.0.player.market_value', 12_000_000)
+        ->where('market.0.player.market_value_difference', -350_000)
+    );
+});
+
 test('excludes coaches from the market listing', function (): void {
     Season::factory()->create([
         'start_date' => now()->subDay(),
