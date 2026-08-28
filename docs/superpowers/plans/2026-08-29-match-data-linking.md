@@ -239,11 +239,18 @@ class GetFixturesRequest extends Request
     {
         return [
             'status' => 'all',
-            'pageIndex' => $this->pageIndex,
+            // The wire query key is "page" — the response body's own field
+            // is "pageIndex" but that name is silently ignored as a query
+            // param (confirmed against a live request). The constructor
+            // parameter keeps the name "pageIndex" to match the response
+            // body's field and this plan's declared getFixtures() signature.
+            'page' => $this->pageIndex,
         ];
     }
 }
 ```
+
+**Post-Task-2 correction:** the query key above was originally written as `pageIndex` (a guess from documentation, matching the response body's own field name) — Task 2's implementer verified against a live request that the server silently ignores `pageIndex` as a query parameter and the real key is `page`. Fixed above to match what was actually shipped. Also verified live: `/events/{id}`'s `header.competitors[]` does NOT exist directly under `header` — it's nested under `header.competitions.0.competitors[]`, same pattern as the fixtures list. Neither Task 3 nor Task 5 as written below ends up depending on that path (Task 3 only calls `/fixtures`; Task 5 reads `rosters[].team.id` directly, never `header.competitors`), so this second finding turned out not to be load-bearing for this plan — noted here for anyone extending this connector later.
 
 ```php
 <?php
