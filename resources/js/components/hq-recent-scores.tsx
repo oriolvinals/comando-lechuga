@@ -25,7 +25,9 @@ const SIZE_CLASSES: Record<'md' | 'sm', string> = {
  * history yet" (a dash) or, when `finished` says a real fixture already
  * happened there, "not called up" (a dashed-red "NC"). An optional trailing
  * `live` slot marks the jornada currently in progress with a pulsing dot,
- * distinct from the finished ones.
+ * distinct from the finished ones — when present, it takes the place of the
+ * oldest finished slot so the row stays at the same 3 total, rather than
+ * growing to 4.
  */
 export function HqRecentScores({
     scores,
@@ -36,11 +38,16 @@ export function HqRecentScores({
     badgeClass = matchPointsBadgeClass,
     live,
 }: HqRecentScoresProps) {
+    const hasLive = live !== undefined && live !== null;
+    const visibleScores = hasLive ? scores.slice(1) : scores;
+    const visibleFinished = hasLive ? finished?.slice(1) : finished;
+    const visibleUsed = hasLive ? used?.slice(1) : used;
+
     return (
         <div className={cn('flex shrink-0 gap-1', className)}>
-            {scores.map((points, index) => {
-                const wasUsed = used?.[index];
-                const notCalledUp = points === null && finished?.[index];
+            {visibleScores.map((points, index) => {
+                const wasUsed = visibleUsed?.[index];
+                const notCalledUp = points === null && visibleFinished?.[index];
 
                 return (
                     <span
@@ -69,7 +76,7 @@ export function HqRecentScores({
                     </span>
                 );
             })}
-            {live !== undefined && live !== null && (
+            {hasLive && (
                 <span
                     className={cn(
                         'relative flex shrink-0 items-center justify-center border font-mono font-bold',
