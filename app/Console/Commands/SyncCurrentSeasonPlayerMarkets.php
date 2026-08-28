@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Player;
 use App\Models\PlayerMarket;
+use App\Models\PlayerSeason;
 use App\Models\Season;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
@@ -59,7 +60,7 @@ class SyncCurrentSeasonPlayerMarkets extends Command
                 ? $markets[$lastIndex]['value'] - $markets[$lastIndex - 1]['value']
                 : 0;
 
-            DB::transaction(function () use ($player, $markets, $difference): void {
+            DB::transaction(function () use ($player, $markets, $difference, $season): void {
                 foreach ($markets as $marketData) {
                     PlayerMarket::query()->updateOrCreate(
                         [
@@ -70,7 +71,10 @@ class SyncCurrentSeasonPlayerMarkets extends Command
                     );
                 }
 
-                $player->update(['market_value_difference' => $difference]);
+                PlayerSeason::query()->updateOrCreate(
+                    ['player_id' => $player->id, 'season_id' => $season->id],
+                    ['market_value_difference' => $difference],
+                );
             });
 
             $playersSynchronized++;

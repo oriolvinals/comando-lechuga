@@ -50,6 +50,6 @@ test('updates player market history and caches the latest difference', function 
         ->assertSuccessful();
 
     expect(PlayerMarket::query()->where('player_id', $player->id)->count())->toBe(2)
-        ->and($player->refresh()->market_value_difference)->toBe(30)
+        ->and($player->seasons()->where('season_id', $season->id)->sole()->market_value_difference)->toBe(30)
         ->and(PlayerMarket::query()->where('date', '2026-08-20')->sole()->value)->toBe(120);
 });
