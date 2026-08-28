@@ -28,7 +28,16 @@ return new class extends Migration
             ->whereDate('end_date', '>=', now())
             ->value('id');
 
-        if ($currentSeasonId !== null) {
+        // The five columns are dropped below whatever happens, so a backfill that
+        // silently does nothing is permanent, unflagged data loss. Refuse instead —
+        // but only when there is actually data at stake: a players table that is
+        // still empty (any fresh database, the test suite's included) has nothing
+        // to lose and migrates straight through.
+        if ($currentSeasonId === null) {
+            if (DB::table('players')->exists()) {
+                throw new RuntimeException('No current season found — refusing to drop player season columns without a season to backfill into.');
+            }
+        } else {
             DB::table('players')
                 ->select('id', 'position', 'market_value', 'market_value_difference', 'points', 'average_points')
                 ->orderBy('id')
