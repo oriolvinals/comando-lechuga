@@ -39,9 +39,26 @@ export function HqRecentScores({
     live,
 }: HqRecentScoresProps) {
     const hasLive = live !== undefined && live !== null;
-    const visibleScores = hasLive ? scores.slice(1) : scores;
-    const visibleFinished = hasLive ? finished?.slice(1) : finished;
-    const visibleUsed = hasLive ? used?.slice(1) : used;
+    // Nulls only ever pad the end (see docblock below), so when there's
+    // already a gap, drop that trailing null to make room for the live slot
+    // instead of an oldest real value — only trim the oldest real entry once
+    // the row is already full of real data.
+    const trimStart = hasLive && scores[scores.length - 1] !== null;
+    const visibleScores = hasLive
+        ? trimStart
+            ? scores.slice(1)
+            : scores.slice(0, -1)
+        : scores;
+    const visibleFinished = hasLive
+        ? trimStart
+            ? finished?.slice(1)
+            : finished?.slice(0, -1)
+        : finished;
+    const visibleUsed = hasLive
+        ? trimStart
+            ? used?.slice(1)
+            : used?.slice(0, -1)
+        : used;
 
     return (
         <div className={cn('flex shrink-0 gap-1', className)}>
