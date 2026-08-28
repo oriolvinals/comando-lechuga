@@ -61,7 +61,7 @@ test('updates the stats and ideal formation flag for an existing player score', 
     ])
         ->and($score->ideal_formation)->toBeTrue()
         ->and($score->points)->toBe(9)
-        ->and($player->refresh()->points)->toBe(47);
+        ->and($player->seasons()->where('season_id', $season->id)->sole()->points)->toBe(47);
 });
 
 test('leaves existing points untouched when totalPoints is missing', function (): void {
@@ -156,6 +156,6 @@ test('excludes players with out-of-league status', function (): void {
         ->expectsOutput('0 player scores updated with stats.')
         ->assertSuccessful();
 
-    expect($activePlayer->refresh()->points)->toBe(12)
-        ->and($outOfLeaguePlayer->refresh()->points)->toBe(0);
+    expect($activePlayer->seasons()->where('season_id', $season->id)->sole()->points)->toBe(12)
+        ->and($outOfLeaguePlayer->seasons()->where('season_id', $season->id)->sole()->points)->toBe(0);
 });

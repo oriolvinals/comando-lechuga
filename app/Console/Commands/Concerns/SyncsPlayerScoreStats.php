@@ -7,6 +7,8 @@ namespace App\Console\Commands\Concerns;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Player;
 use App\Models\PlayerScore;
+use App\Models\PlayerSeason;
+use App\Models\Season;
 use Illuminate\Support\Facades\DB;
 use JsonException;
 use Saloon\Exceptions\Request\FatalRequestException;
@@ -21,7 +23,7 @@ trait SyncsPlayerScoreStats
      * @throws RequestException
      * @throws Throwable
      */
-    private function syncPlayerScoreStats(Player $player, LaLigaFantasyConnector $connector): int
+    private function syncPlayerScoreStats(Player $player, Season $season, LaLigaFantasyConnector $connector): int
     {
         $playerData = $connector
             ->getPlayer($player->fantasy_id)
@@ -29,7 +31,10 @@ trait SyncsPlayerScoreStats
             ->json();
 
         if (isset($playerData['points'])) {
-            $player->update(['points' => (int) $playerData['points']]);
+            PlayerSeason::query()->updateOrCreate(
+                ['player_id' => $player->id, 'season_id' => $season->id],
+                ['points' => (int) $playerData['points']],
+            );
         }
 
         $playerStats = $playerData['playerStats'] ?? [];

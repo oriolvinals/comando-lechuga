@@ -73,10 +73,10 @@ test('only syncs players with a live fixture or one finished within the recent w
         ->expectsOutput('0 player scores updated with stats.')
         ->assertSuccessful();
 
-    expect($livePlayer->refresh()->points)->toBe(10)
-        ->and($recentPlayer->refresh()->points)->toBe(20)
-        ->and($oldPlayer->refresh()->points)->toBe(0)
-        ->and($scheduledPlayer->refresh()->points)->toBe(0);
+    expect($livePlayer->seasons()->where('season_id', $season->id)->sole()->points)->toBe(10)
+        ->and($recentPlayer->seasons()->where('season_id', $season->id)->sole()->points)->toBe(20)
+        ->and($oldPlayer->seasons()->where('season_id', $season->id)->sole()->points)->toBe(0)
+        ->and($scheduledPlayer->seasons()->where('season_id', $season->id)->sole()->points)->toBe(0);
 });
 
 test('excludes players with out-of-league status even when their fixture is live', function (): void {
@@ -109,6 +109,6 @@ test('excludes players with out-of-league status even when their fixture is live
         ->expectsOutput('0 player scores updated with stats.')
         ->assertSuccessful();
 
-    expect($activePlayer->refresh()->points)->toBe(10)
-        ->and($outOfLeaguePlayer->refresh()->points)->toBe(0);
+    expect($activePlayer->seasons()->where('season_id', $season->id)->sole()->points)->toBe(10)
+        ->and($outOfLeaguePlayer->seasons()->where('season_id', $season->id)->sole()->points)->toBe(0);
 });

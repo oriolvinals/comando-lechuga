@@ -39,7 +39,7 @@ class SyncCurrentSeasonPlayerScoreStats extends Command
         $scoresUpdated = 0;
 
         foreach ($players as $player) {
-            $scoresUpdated += $this->syncPlayerScoreStats($player, $connector);
+            $scoresUpdated += $this->syncPlayerScoreStats($player, $season, $connector);
         }
 
         $this->info($scoresUpdated.' player scores updated with stats.');
