@@ -116,3 +116,78 @@ test('does not match when nothing in the roster resembles the nickname', functio
 
     expect($result)->toBe([]);
 });
+
+// Both nicknames below only ever match "Antonio Sivera Llorente" via surnameMatch
+// (neither is a first-name prefix, and neither has the "initial. surname" shape),
+// so they collide on the SAME single rule pass, over the SAME single roster entry.
+// Fixing this required checking the roster-entry side of the ambiguity, not just
+// the player side: without that, a naive "first player considered wins" resolution
+// would silently link whichever nickname happens to be evaluated first — which is
+// exactly what made this order-dependent before the fix. Neither player has any
+// other candidate, so neither should ever be linked, in either input order.
+test('leaves both players unresolved when they are the only two candidates for the same roster entry (order A)', function (): void {
+    $sivera = Player::factory()->make(['id' => 1, 'nickname' => 'Sivera']);
+    $llorente = Player::factory()->make(['id' => 2, 'nickname' => 'Llorente']);
+
+    $result = (new MatchDataPlayerMatcher)->match(
+        new Collection([$sivera, $llorente]),
+        [['id' => 100, 'displayName' => 'Antonio Sivera Llorente']],
+    );
+
+    expect($result)->toBe([]);
+});
+
+test('leaves both players unresolved when they are the only two candidates for the same roster entry (order B)', function (): void {
+    $sivera = Player::factory()->make(['id' => 1, 'nickname' => 'Sivera']);
+    $llorente = Player::factory()->make(['id' => 2, 'nickname' => 'Llorente']);
+
+    $result = (new MatchDataPlayerMatcher)->match(
+        new Collection([$llorente, $sivera]),
+        [['id' => 100, 'displayName' => 'Antonio Sivera Llorente']],
+    );
+
+    expect($result)->toBe([]);
+});
+
+test('resolves an unrelated bystander alongside a cross-rule cascade in the same call', function (): void {
+    // Same cascade as the "tighter rule frees a looser match" test above (A. García
+    // resolves under initialAndSurnameMatch, which frees "Andrés García" so bare
+    // "García" can resolve under surnameMatch on a later rule), plus a third player
+    // whose nickname never contends for either García entry — proving the fixed-point
+    // loop and a genuinely unrelated player don't interfere with each other.
+    $exact = Player::factory()->make(['id' => 1, 'nickname' => 'A. García']);
+    $surnameOnly = Player::factory()->make(['id' => 2, 'nickname' => 'García']);
+    $bystander = Player::factory()->make(['id' => 3, 'nickname' => 'Bartra']);
+
+    $result = (new MatchDataPlayerMatcher)->match(
+        new Collection([$exact, $surnameOnly, $bystander]),
+        [
+            ['id' => 100, 'displayName' => 'Andrés García'],
+            ['id' => 101, 'displayName' => 'Kike García'],
+            ['id' => 102, 'displayName' => 'Marc Bartra'],
+        ],
+    );
+
+    expect($result)->toBe([1 => 100, 2 => 101, 3 => 102]);
+});
+
+test('commits every unambiguous pair found in a single rule round together', function (): void {
+    // Three players, three roster entries, no contention between any of them —
+    // each only ever matches its own entry under surnameMatch. All three should
+    // resolve out of the very first round of that rule, confirming a round commits
+    // every safe pair it finds at once rather than one at a time.
+    $andres = Player::factory()->make(['id' => 1, 'nickname' => 'Xx Andrés']);
+    $kike = Player::factory()->make(['id' => 2, 'nickname' => 'Yy Kike']);
+    $bartra = Player::factory()->make(['id' => 3, 'nickname' => 'Bartra']);
+
+    $result = (new MatchDataPlayerMatcher)->match(
+        new Collection([$andres, $kike, $bartra]),
+        [
+            ['id' => 100, 'displayName' => 'Andrés García'],
+            ['id' => 101, 'displayName' => 'Kike García'],
+            ['id' => 102, 'displayName' => 'Marc Bartra'],
+        ],
+    );
+
+    expect($result)->toBe([1 => 100, 2 => 101, 3 => 102]);
+});
