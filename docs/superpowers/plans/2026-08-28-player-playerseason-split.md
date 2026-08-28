@@ -61,7 +61,16 @@ return new class extends Migration
             ->whereDate('end_date', '>=', now())
             ->value('id');
 
-        if ($currentSeasonId !== null) {
+        // The five columns are dropped below whatever happens, so a backfill that
+        // silently does nothing is permanent, unflagged data loss. Refuse instead —
+        // but only when there is actually data at stake: a players table that is
+        // still empty (any fresh database, the test suite's included) has nothing
+        // to lose and migrates straight through.
+        if ($currentSeasonId === null) {
+            if (DB::table('players')->exists()) {
+                throw new RuntimeException('No current season found — refusing to drop player season columns without a season to backfill into.');
+            }
+        } else {
             DB::table('players')
                 ->select('id', 'position', 'market_value', 'market_value_difference', 'points', 'average_points')
                 ->orderBy('id')
@@ -1196,3 +1205,17 @@ Expected: no diffs, or trivial formatting fixes — commit those separately if a
 git add -A
 git commit -m "style: pint formatting after Player/PlayerSeason split"
 ```
+
+---
+
+## Post-implementation: final whole-branch review findings
+
+After all 8 tasks above were implemented and individually reviewed clean, a final whole-branch review found that the read side had only been wired up for `PlayersController` (Task 7) — the spec's broader instruction ("cualquier sitio que serialice `Player` con datos de temporada") had been narrowed to one controller during task decomposition. Three other controllers still read `players.position` directly (one 500ing, one silently returning wrong results on SQLite's legacy string-literal fallback) or serialized `Player` into Inertia props without attaching season data. Fixed in one follow-up round, not tracked as its own numbered task:
+
+- `AttachesCurrentPlayerSeason` narrowed from `Collection|LengthAwarePaginator` to plain `Illuminate\Support\Collection`, with `$player->syncOriginal()` added after the mirror (matching the identical guard in `PlayerFactory::create()`). `PlayersController::index()`'s call site updated to `attachCurrentSeason($players->getCollection(), $season->id)`.
+- `HomeController::index()` — market listing: `whereHas('player', ...)` → `whereHas('player.seasons', ...)`, plus `attachCurrentSeason($market->pluck('player'), $season->id)`.
+- `SeasonManagersController::index()`/`show()` — roster and lineup players (via `ManagerLineup::players()`) get `attachCurrentSeason` calls.
+- `FixturesController::show()` — same query fix as `HomeController`, but scoped by `$fixture->season_id` (not `Season::current()`, since a fixture can belong to a past season) — this was the one causing a 500.
+- Migration's data-loss guard (see the corrected `up()` above) — only throws when `players` is non-empty, so the test suite's empty-DB migration run still passes.
+- Regression tests added: `HomeControllerTest` (market player payload), `FixturesControllerTest` (score player payload).
+- Deliberately NOT fixed: `PlayersController::index()`'s join stays an INNER join (a `leftJoin` was considered and rejected — it wouldn't degrade gracefully given the frontend's non-optional `Player` TypeScript type, and nothing in the current data needs it); `show()`'s behavior when a player has no current-season row is unchanged (a real product decision — partial data vs. 404 vs. sentinel — left for a human to decide, not something to guess at).
