@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use Carbon\CarbonImmutable;
 use Database\Factories\PlayerFactory;

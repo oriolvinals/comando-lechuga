@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Models\Player;
 use App\Models\Team;
