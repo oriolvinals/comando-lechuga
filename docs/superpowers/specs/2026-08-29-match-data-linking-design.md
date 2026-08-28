@@ -63,14 +63,16 @@ Cadena de heurísticas, en orden, parando en la primera que produzca una única 
 
 **Desempates**: si una regla encuentra más de un candidato dentro del mismo equipo (p. ej. dos apellidos iguales), no se adivina — se trata como "sin match" y se lista para revisión manual, igual que el caso 5.
 
-## Cambio en `SyncCurrentSeasonFixtures`
+## `SyncCurrentSeasonFixtures` no cambia
 
-Deja de escribir `state`, `local_score` y `guest_score` — sigue siendo la única fuente de `fantasy_id` (necesario para que `SyncsPlayerScores` siga encontrando el fixture correcto al sincronizar puntos), `week_number`, `date` y el par de equipos, pero esos tres campos pasan a ser responsabilidad exclusiva de una comanda futura de worldcup26.ir (fase 3, fuera de esta fase) — así no hay dos fuentes escribiendo el mismo campo según el orden del cron. Hasta que esa comanda de fase 3 exista, esos tres campos simplemente dejan de actualizarse tras el despliegue de esta fase (quedan con el último valor que tenían) — aceptable, ya que esta fase es solo el enlace de identificadores, no el sync de datos en vivo.
+**Corrección post-revisión final (2026-08-29):** esta fase originalmente planeaba que `SyncCurrentSeasonFixtures` dejara de escribir `state`, `local_score` y `guest_score`, cediendo esos campos a una futura comanda de worldcup26.ir (fase 3). Implementado y revisado tarea por tarea, pero la revisión final de toda la rama detectó que la premisa era errónea: `state` no es solo un campo de visualización, es la señal de scheduling que usan las comandas de sync en vivo cada minuto (`FiltersLiveFixtures`), el prop `liveMatchday` de Inertia, los cálculos de progreso de jornada (`FiltersSeasonWeeks`) y la acumulación de forma reciente — y, más visible, es lo único que hace aparecer el resultado de un partido en `hq-fixture-card.tsx`. Como la fase 3 (la comanda de reemplazo) no existe todavía en esta rama, dejar de escribir esos campos habría congelado todos los partidos en "Scheduled" para siempre desde el despliegue, sin nada que los sustituyera.
+
+Se revirtió por completo ese cambio: `SyncCurrentSeasonFixtures` sigue escribiendo `state`, `local_score` y `guest_score` exactamente como antes de esta fase. Separar esa responsabilidad hacia worldcup26.ir queda pendiente para cuando la fase 3 exista de verdad y pueda sustituir al escritor actual de forma atómica, no antes.
 
 ## Fuera de alcance de esta fase
 
 - El conector Saloon y las tablas `fixture_lineups`/`fixture_events` (fase 3).
-- La comanda que sincroniza `state`/`local_score`/`guest_score` desde worldcup26.ir (fase 3, la misma que deja huérfanos esos campos de `SyncCurrentSeasonFixtures` arriba).
+- La comanda que sincroniza `state`/`local_score`/`guest_score` desde worldcup26.ir (fase 3) — cuando exista, deberá sustituir a `SyncCurrentSeasonFixtures` como escritor de esos campos de forma atómica, no coexistir con él.
 - El rediseño de la fitxa de partit (fase 4).
 
 ## Testing
@@ -78,4 +80,4 @@ Deja de escribir `state`, `local_score` y `guest_score` — sigue siendo la úni
 - Migraciones: columnas `match_data_id` nullable/unique en `teams`, `fixtures`, `players`.
 - `season:link-match-data-fixtures`: test con mock del conector — enlaza correctamente por equipos+fecha, dentro del margen de ±1 día, no enlaza si no hay candidato único.
 - `season:link-match-data-players`: un test por regla de la cadena (1-5), con nombres reales de la muestra de arriba; test de desempate (dos candidatos, ninguno se enlaza); test de scope por equipo (un jugador de otro equipo con nombre parecido no interfiere).
-- `SyncCurrentSeasonFixturesTest`: actualizar las aserciones que comprobaban `state`/`local_score`/`guest_score` tras el sync — ya no deben cambiar.
+- `SyncCurrentSeasonFixturesTest`: sin cambios de comportamiento — sigue comprobando que `state`/`local_score`/`guest_score` se actualizan tras el sync, como siempre.

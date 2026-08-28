@@ -40,7 +40,7 @@
   | 93 | 2 |
 
 - Never guess: whenever a matching rule (fixtures or players) produces more than one candidate, leave it unlinked rather than picking one.
-- `SyncCurrentSeasonFixtures` stops writing `state`, `local_score`, `guest_score` — it remains the only source of `fantasy_id` (needed by `SyncsPlayerScores`), `week_number`, `date`, and the team pair.
+- `SyncCurrentSeasonFixtures` keeps writing `state`, `local_score`, `guest_score` as before — Task 6 originally planned to stop it, but that was reverted post-final-review (see Task 6's Post-review correction note); it remains the only source of `fantasy_id` (needed by `SyncsPlayerScores`), `week_number`, `date`, and the team pair.
 - API base URL: `https://worldcup26.ir/`, no API key, endpoints under `get/soccer/esp.1/...`.
 
 ---
@@ -1186,6 +1186,8 @@ Expected: PASS. If a *newly-created* fixture in some other test ends up with an 
 git add app/Console/Commands/SyncCurrentSeasonFixtures.php tests/Feature/Console/Commands/SyncCurrentSeasonFixturesTest.php
 git commit -m "refactor: SyncCurrentSeasonFixtures stops writing state/score"
 ```
+
+**Post-review correction:** this task was implemented as written, individually reviewed clean, and then **reverted in full** after the final whole-branch review. The premise above — that `state`/`local_score`/`guest_score` could safely stop being written because a future phase-3 command would take over — was wrong: `state` isn't just a display field, it's the scheduling signal the every-minute live-sync commands (`FiltersLiveFixtures`), the site-wide `liveMatchday` Inertia prop, `FiltersSeasonWeeks`'s week-progress calculations, and recent-form accrual all read directly. Since no phase-3 command exists yet in this branch to replace the writer, shipping this task as-is would have frozen every fixture at `Scheduled` forever from deploy onward and stopped match results from ever displaying again (`hq-fixture-card.tsx`). The fix wave (commit `cdd3124`) restored `SyncCurrentSeasonFixtures.php` and its test to their exact pre-Task-6 content — this command still writes `state`/`local_score`/`guest_score` exactly as it did before this plan. Separating that responsibility out to worldcup26.ir remains a real goal, but it has to happen atomically with phase 3 actually building the replacement writer, not by removing the old one first and hoping the replacement arrives later. See `docs/superpowers/specs/2026-08-29-match-data-linking-design.md` for the corrected spec section.
 
 ---
 
