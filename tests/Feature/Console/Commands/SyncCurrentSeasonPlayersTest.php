@@ -60,7 +60,7 @@ test('creates and updates players for the active season teams', function (): voi
     expect(Player::query()->count())->toBe(2)
         ->and($existingPlayer->refresh())
         ->nickname->toBe('Unai Simón')
-        ->and($existingPlayer->position)->toBe(PlayerPosition::Goalkeeper)
         ->and($existingPlayer->image)->toBe('images/player/68.png')
-        ->and($existingPlayer->team_id)->toBe($team->id);
+        ->and($existingPlayer->team_id)->toBe($team->id)
+        ->and($existingPlayer->seasons()->where('season_id', $season->id)->sole()->position)->toBe(PlayerPosition::Goalkeeper);
 });

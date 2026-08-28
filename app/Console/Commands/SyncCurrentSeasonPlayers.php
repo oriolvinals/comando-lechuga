@@ -8,6 +8,7 @@ use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Player;
+use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\Team;
 use Illuminate\Console\Attributes\Description;
@@ -45,23 +46,37 @@ class SyncCurrentSeasonPlayers extends Command
 
             $players[] = [
                 'fantasy_id' => (int)$playerData['id'],
-                'position' => PlayerPosition::fromFantasyId((int)$playerData['positionId']),
                 'nickname' => (string)$playerData['nickname'],
                 'status' => PlayerStatus::from((string)$playerData['playerStatus']),
+                'team_id' => $team->id,
+                'position' => PlayerPosition::fromFantasyId((int)$playerData['positionId']),
                 'market_value' => (int)$playerData['marketValue'],
                 'points' => (int)$playerData['points'],
                 'average_points' => (float) $playerData['averagePoints'],
-                'team_id' => $team->id,
             ];
         }
 
-        $playerIds = DB::transaction(function () use ($players): array {
+        $playerIds = DB::transaction(function () use ($players, $season): array {
             $playerIds = [];
 
             foreach ($players as $playerData) {
                 $player = Player::query()->updateOrCreate(
                     ['fantasy_id' => $playerData['fantasy_id']],
-                    $playerData,
+                    [
+                        'nickname' => $playerData['nickname'],
+                        'status' => $playerData['status'],
+                        'team_id' => $playerData['team_id'],
+                    ],
+                );
+
+                PlayerSeason::query()->updateOrCreate(
+                    ['player_id' => $player->id, 'season_id' => $season->id],
+                    [
+                        'position' => $playerData['position'],
+                        'market_value' => $playerData['market_value'],
+                        'points' => $playerData['points'],
+                        'average_points' => $playerData['average_points'],
+                    ],
                 );
 
                 $playerIds[] = $player->id;
