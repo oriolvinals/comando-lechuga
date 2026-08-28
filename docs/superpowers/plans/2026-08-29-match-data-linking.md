@@ -838,9 +838,9 @@ final class MatchDataPlayerMatcher
 
         $rules = [
             $this->exactMatch(...),
-            $this->surnameMatch(...),
-            $this->firstNamePrefixMatch(...),
             $this->initialAndSurnameMatch(...),
+            $this->firstNamePrefixMatch(...),
+            $this->surnameMatch(...),
         ];
 
         foreach ($rules as $rule) {
@@ -905,6 +905,8 @@ final class MatchDataPlayerMatcher
     }
 }
 ```
+
+**Post-review correction:** the `$rules` array's original order in this plan was `[exactMatch, surnameMatch, firstNamePrefixMatch, initialAndSurnameMatch]`. Task 4's implementer found this fails the "tighter rule frees a looser match" test: for `A. García` / `García` against `Andrés García` / `Kike García`, `surnameMatch` running before `initialAndSurnameMatch` sees both roster entries as candidates for BOTH players (ambiguous) and gives up on `García` alone at that stage — it never gets a second chance once `initialAndSurnameMatch` later (in the old order) resolves `A. García` and frees up a candidate, because each rule only gets one pass per player. `initialAndSurnameMatch` is strictly more discriminating than `surnameMatch` whenever it applies (same surname requirement, plus the initial), so it needs to run first. The code above reflects the corrected order, already verified working (8/8 tests, including this one) and independently re-derivable by hand-tracing both orders against the test's inputs.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
