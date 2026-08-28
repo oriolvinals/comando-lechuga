@@ -147,19 +147,42 @@ test('orders scores by position (goalkeeper, defender, midfield, striker) then b
     );
 });
 
-test('excludes coaches from the scores', function (): void {
-    Season::factory()->create([
+test('includes the position from the fixture season for each scoring player', function (): void {
+    $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $fixture = Fixture::factory()->create();
-    $coach = Player::factory()->create(['position' => PlayerPosition::Coach]);
-    PlayerScore::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $coach->id]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['position' => PlayerPosition::Goalkeeper]);
+    PlayerScore::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id, 'points' => 7]);
 
     $response = $this->get(route('fixtures.show', $fixture));
 
     $response->assertOk();
-    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('scores', 0));
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('scores', 1)
+        ->where('scores.0.player.position', 'goalkeeper')
+    );
+});
+
+test('excludes coaches from the scores', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $coach = Player::factory()->create(['position' => PlayerPosition::Coach]);
+    $striker = Player::factory()->create(['position' => PlayerPosition::Striker]);
+    PlayerScore::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $coach->id]);
+    $strikerScore = PlayerScore::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $striker->id]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('scores', 1)
+        ->where('scores.0.id', $strikerScore->id)
+    );
 });
 
 test('only includes scores for this fixture', function (): void {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\PlayerPosition;
+use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Models\Fixture;
 use App\Models\ManagerLineupPlayer;
@@ -15,6 +16,7 @@ use Inertia\Response;
 
 class FixturesController extends Controller
 {
+    use AttachesCurrentPlayerSeason;
     use FiltersSeasonWeeks;
 
     private const array POSITION_ORDER = [
@@ -58,9 +60,15 @@ class FixturesController extends Controller
             ->get();
 
         $scores = $fixture->playerScores()
-            ->whereHas('player', fn ($query) => $query->where('position', '!=', PlayerPosition::Coach))
+            ->whereHas('player.seasons', fn ($query) => $query
+                ->where('season_id', $fixture->season_id)
+                ->where('position', '!=', PlayerPosition::Coach))
             ->with(['player', 'team'])
-            ->get()
+            ->get();
+
+        $this->attachCurrentSeason($scores->pluck('player'), $fixture->season_id);
+
+        $scores = $scores
             ->sortByDesc('points')
             ->sortBy(fn ($score): int => self::POSITION_ORDER[$score->player->position->value])
             ->values();
