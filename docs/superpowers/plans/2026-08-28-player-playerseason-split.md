@@ -51,7 +51,7 @@ return new class extends Migration
             $table->string('position')->nullable(false);
             $table->unsignedInteger('market_value')->nullable(false)->default(0);
             $table->integer('market_value_difference')->nullable(false)->default(0);
-            $table->unsignedInteger('points')->nullable(false)->default(0);
+            $table->integer('points')->nullable(false)->default(0);
             $table->decimal('average_points')->nullable(false)->default(0);
             $table->unique(['player_id', 'season_id'], 'player_seasons_unique');
         });
@@ -89,7 +89,7 @@ return new class extends Migration
             $table->string('position')->nullable(false)->default('');
             $table->unsignedInteger('market_value')->nullable(false)->default(0);
             $table->integer('market_value_difference')->nullable(false)->default(0);
-            $table->unsignedInteger('points')->nullable(false)->default(0);
+            $table->integer('points')->nullable(false)->default(0);
             $table->decimal('average_points')->nullable(false)->default(0);
         });
 
