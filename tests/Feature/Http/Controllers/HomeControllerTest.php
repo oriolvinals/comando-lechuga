@@ -338,3 +338,45 @@ test('shows the season current week and total weeks for the week selector', func
         ->where('season.total_weeks', 38)
     );
 });
+
+test('hides live_points when the current week has not kicked off yet', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 5,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 5,
+        'state' => FixtureState::Scheduled,
+    ]);
+    SeasonManager::factory()->create(['season_id' => $season->id, 'live_points' => 17]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('standings.0.live_points', null)
+    );
+});
+
+test('shows live_points once the current week has kicked off', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 5,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 5,
+        'state' => FixtureState::FirstHalf,
+    ]);
+    SeasonManager::factory()->create(['season_id' => $season->id, 'live_points' => 17]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('standings.0.live_points', 17)
+    );
+});

@@ -46,6 +46,12 @@ class HomeController extends Controller
             ->orderBy('position')
             ->get();
 
+        if (!$this->currentWeekStarted($season)) {
+            $standings->each(function (SeasonManager $manager): void {
+                $manager->live_points = null;
+            });
+        }
+
         $this->attachRecentForm($standings, $season);
 
         $market = MarketPlayer::query()

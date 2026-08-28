@@ -550,3 +550,41 @@ test('counts a tied bottom score as a loss for both managers', function (): void
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('lostWeeks', [1]));
 });
+
+test('hides live_points when the current week has not kicked off yet', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 5,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 5,
+        'state' => FixtureState::Scheduled,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id, 'live_points' => 23]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('seasonManager.live_points', null));
+});
+
+test('shows live_points once the current week has kicked off', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 5,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 5,
+        'state' => FixtureState::SecondHalf,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id, 'live_points' => 23]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('seasonManager.live_points', 23));
+});

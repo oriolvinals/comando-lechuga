@@ -24,17 +24,27 @@ trait FiltersSeasonWeeks
     {
         $weeks = $this->pastWeekNumbers($season);
 
-        $currentWeekStarted = Fixture::query()
-            ->where('season_id', $season->id)
-            ->where('week_number', $season->current_week)
-            ->where('state', '!=', FixtureState::Scheduled)
-            ->exists();
-
-        if ($currentWeekStarted) {
+        if ($this->currentWeekStarted($season)) {
             $weeks[] = $season->current_week;
         }
 
         return $weeks;
+    }
+
+    /**
+     * Whether at least one fixture in the current week has kicked off. A
+     * week being "current" (by date) doesn't mean it's actually started —
+     * live-only data like `SeasonManager::live_points` needs this check
+     * too, not just the date-based `current_week`, or it'd show a stale or
+     * placeholder value before the jornada has really begun.
+     */
+    private function currentWeekStarted(Season $season): bool
+    {
+        return Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('week_number', $season->current_week)
+            ->where('state', '!=', FixtureState::Scheduled)
+            ->exists();
     }
 
     /**

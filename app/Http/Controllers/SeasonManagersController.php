@@ -59,6 +59,10 @@ class SeasonManagersController extends Controller
     {
         $season = Season::current();
 
+        if (!$this->currentWeekStarted($season)) {
+            $seasonManager->live_points = null;
+        }
+
         $roster = ManagerPlayer::query()
             ->where('season_manager_id', $seasonManager->id)
             ->with('player.team')

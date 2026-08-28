@@ -102,7 +102,7 @@ export function HqRecentScores({
                     )}
                 >
                     {formatSignedPoints(live)}
-                    <span className="absolute -top-1.5 -right-1 h-1.5 w-1.5 animate-pulse rounded-full bg-hq-lime" />
+                    <span className="absolute -top-1.5 -right-1 h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
                 </span>
             )}
         </div>
