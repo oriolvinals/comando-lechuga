@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property-read int $id
  * @property-read int $fantasy_id
+ * @property-read int|null $match_data_id
  * @property-read int $season_id
  * @property-read int $week_number
  * @property-read CarbonImmutable $date
@@ -29,7 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 #[UseFactory(FixtureFactory::class)]
 #[Table(name: 'fixtures', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fantasy_id', 'season_id', 'week_number', 'date', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state'])]
+#[Fillable(['fantasy_id', 'match_data_id', 'season_id', 'week_number', 'date', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state'])]
 class Fixture extends Model
 {
     /** @use HasFactory<FixtureFactory> */
@@ -72,6 +73,7 @@ class Fixture extends Model
         return [
             'id' => 'int',
             'fantasy_id' => 'int',
+            'match_data_id' => 'int',
             'season_id' => 'int',
             'week_number' => 'int',
             'date' => 'immutable_datetime',

@@ -21,12 +21,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property-read string $short_name
  * @property-read string $logo
  * @property-read int $fantasy_id
+ * @property-read int|null $match_data_id
  * @property-read CarbonImmutable|null $created_at
  * @property-read CarbonImmutable|null $updated_at
  */
 #[UseFactory(TeamFactory::class)]
 #[Table(name: 'teams', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
-#[Fillable(['main_name', 'name', 'slug', 'short_name', 'logo', 'fantasy_id'])]
+#[Fillable(['main_name', 'name', 'slug', 'short_name', 'logo', 'fantasy_id', 'match_data_id'])]
 class Team extends Model
 {
     /** @use HasFactory<TeamFactory> */
@@ -72,6 +73,7 @@ class Team extends Model
             'short_name' => 'string',
             'logo' => 'string',
             'fantasy_id' => 'int',
+            'match_data_id' => 'int',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
         ];
