@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
+use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Filters\PlayerFilter;
 use App\Models\Activity;
@@ -28,6 +29,7 @@ use Inertia\Response;
 
 class PlayersController extends Controller
 {
+    use AttachesCurrentPlayerSeason;
     use AttachesRecentScores;
 
     /**
@@ -71,9 +73,14 @@ class PlayersController extends Controller
         $direction = $filter->getDirection();
 
         $players = Player::query()
+            ->select('players.*')
+            ->join('player_seasons', function ($join) use ($season): void {
+                $join->on('player_seasons.player_id', '=', 'players.id')
+                    ->where('player_seasons.season_id', $season->id);
+            })
             ->with('team')
             ->where('status', '!=', PlayerStatus::OutOfLeague)
-            ->when($positions !== [], fn ($query) => $query->whereIn('position', $positions))
+            ->when($positions !== [], fn ($query) => $query->whereIn('player_seasons.position', $positions))
             ->when($teams !== [], fn ($query) => $query->whereIn('team_id', $teams))
             ->when($seasonManagers !== [], fn ($query) => $query->whereHas(
                 'seasonManagerPlayers',
@@ -84,11 +91,12 @@ class PlayersController extends Controller
                 $this->foldedNicknameSql().' LIKE ?',
                 ['%'.Str::lower(Str::ascii($search)).'%'],
             ))
-            ->orderBy($sort->column(), $direction->value)
+            ->orderBy('player_seasons.'.$sort->column(), $direction->value)
             ->paginate(15)
             ->withQueryString();
 
         $this->attachOwnership($players, $season->id);
+        $this->attachCurrentSeason($players, $season->id);
         $this->attachRecentScores($players->getCollection(), $season);
 
         $realTeams = Team::query()
@@ -126,6 +134,8 @@ class PlayersController extends Controller
     {
         $player->load('team');
         $season = Season::current();
+
+        $this->attachCurrentSeason(new Collection([$player]), $season->id);
 
         $owner = ManagerPlayer::query()
             ->where('player_id', $player->id)
