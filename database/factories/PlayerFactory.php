@@ -85,6 +85,12 @@ class PlayerFactory extends Factory
             $player->market_value_difference = $playerSeason->market_value_difference;
             $player->points = $playerSeason->points;
             $player->average_points = $playerSeason->average_points;
+
+            // Mark the mirrored PlayerSeason attributes as not dirty: they were set on
+            // an already-persisted Player instance and would otherwise show up in
+            // getDirty(), causing a later ->save()/->update() on this instance to try
+            // writing them back as real columns (which no longer exist on `players`).
+            $player->syncOriginal();
         }
 
         return $result;
