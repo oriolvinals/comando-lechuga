@@ -11,9 +11,7 @@ class GetEventRequest extends Request
 {
     protected Method $method = Method::GET;
 
-    public function __construct(private readonly int $matchDataId)
-    {
-    }
+    public function __construct(private readonly int $matchDataId) {}
 
     public function resolveEndpoint(): string
     {

@@ -11,9 +11,7 @@ class GetFixturesRequest extends Request
 {
     protected Method $method = Method::GET;
 
-    public function __construct(private readonly int $pageIndex = 1)
-    {
-    }
+    public function __construct(private readonly int $pageIndex = 1) {}
 
     public function resolveEndpoint(): string
     {
