@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\FixtureState;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
+use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
@@ -23,6 +24,7 @@ use Inertia\Response;
 class SeasonManagersController extends Controller
 {
     use AttachesActivityValueDifference;
+    use AttachesCurrentPlayerSeason;
     use AttachesRecentScores;
     use FiltersSeasonWeeks;
     use ResolvesRequestedWeek;
@@ -39,6 +41,7 @@ class SeasonManagersController extends Controller
             ->orderByDesc('points')
             ->get();
 
+        $this->attachCurrentSeason($lineups->flatMap(fn (ManagerLineup $lineup) => $lineup->players->pluck('player')), $season->id);
         $this->attachMatchFinished($lineups, $season);
 
         return Inertia::render('season-managers/index', [
@@ -61,6 +64,7 @@ class SeasonManagersController extends Controller
             ->with('player.team')
             ->get();
 
+        $this->attachCurrentSeason($roster->pluck('player'), $season->id);
         $this->attachRecentScores($roster->pluck('player'), $season, $seasonManager->id);
 
         $lineupHistory = ManagerLineup::query()
@@ -69,6 +73,7 @@ class SeasonManagersController extends Controller
             ->orderByDesc('week_number')
             ->get();
 
+        $this->attachCurrentSeason($lineupHistory->flatMap(fn (ManagerLineup $lineup) => $lineup->players->pluck('player')), $season->id);
         $this->attachMatchFinished($lineupHistory, $season);
 
         $activity = Activity::query()

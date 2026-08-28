@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\FixtureState;
+use App\Enums\PlayerPosition;
 use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Fixture;
@@ -119,6 +120,34 @@ test('shows the lineup players for each manager', function (): void {
         ->has('lineups.0.players', 1)
         ->where('lineups.0.players.0.player.nickname', 'Lamine Yamal')
         ->where('lineups.0.players.0.points', 12)
+    );
+});
+
+test('includes the current season position and market value for each index lineup player', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create([
+        'season_manager_id' => $seasonManager->id,
+        'week_number' => 1,
+    ]);
+    $player = Player::factory()->create([
+        'position' => PlayerPosition::Defender,
+        'market_value' => 4_500_000,
+    ]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.player.position', 'defender')
+        ->where('lineups.0.players.0.player.market_value', 4_500_000)
     );
 });
 
@@ -249,6 +278,40 @@ test('shows the lineup history for the manager, most recent week first', functio
         ->has('lineupHistory', 2)
         ->where('lineupHistory.0.id', $week3->id)
         ->where('lineupHistory.1.id', $week1->id)
+    );
+});
+
+test('includes the current season position and points for roster and lineup history players', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create([
+        'position' => PlayerPosition::Striker,
+        'points' => 63,
+    ]);
+    ManagerPlayer::factory()->create([
+        'season_manager_id' => $seasonManager->id,
+        'player_id' => $player->id,
+    ]);
+    $lineup = ManagerLineup::factory()->create([
+        'season_manager_id' => $seasonManager->id,
+        'week_number' => 1,
+    ]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+    ]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('roster.0.player.position', 'striker')
+        ->where('roster.0.player.points', 63)
+        ->where('lineupHistory.0.players.0.player.position', 'striker')
+        ->where('lineupHistory.0.players.0.player.points', 63)
     );
 });
 
