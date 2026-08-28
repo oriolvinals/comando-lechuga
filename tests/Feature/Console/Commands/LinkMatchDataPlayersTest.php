@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\LinkMatchDataPlayers;
+use App\Enums\PlayerStatus;
 use App\Http\Integrations\Worldcup26\Requests\GetEventRequest;
 use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Fixture;
@@ -17,6 +18,7 @@ test('links players by fetching the roster of each already-linked fixture', func
     ]);
     $home = Team::factory()->create(['match_data_id' => 83]);
     $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
@@ -62,13 +64,18 @@ test('reports unresolved players without linking them', function (): void {
     ]);
     $home = Team::factory()->create(['match_data_id' => 83]);
     $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
         'match_data_id' => 401882926,
     ]);
-    $unmatchable = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Zzyzx']);
+    $unmatchable = Player::factory()->create([
+        'team_id' => $home->id,
+        'nickname' => 'Zzyzx',
+        'status' => PlayerStatus::Ok,
+    ]);
     Player::factory()->create(['team_id' => $away->id, 'nickname' => 'Bellingham']);
 
     $connector = (new Worldcup26Connector)->withMockClient(new MockClient([

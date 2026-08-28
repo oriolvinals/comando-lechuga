@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\PlayerStatus;
 use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Fixture;
 use App\Models\Player;
@@ -39,7 +40,6 @@ class LinkMatchDataPlayers extends Command
             ->get();
 
         $linked = 0;
-        $unresolved = [];
 
         foreach ($fixtures as $fixture) {
             $event = $connector->getEvent($fixture->match_data_id)->throw()->json();
@@ -75,13 +75,11 @@ class LinkMatchDataPlayers extends Command
 
                 $matches = $matcher->match($players, $roster);
 
-                DB::transaction(function () use ($players, $matches, &$linked, &$unresolved): void {
+                DB::transaction(function () use ($players, $matches, &$linked): void {
                     foreach ($players as $player) {
                         if (isset($matches[$player->id])) {
                             $player->update(['match_data_id' => $matches[$player->id]]);
                             $linked++;
-                        } else {
-                            $unresolved[] = "{$player->nickname} (team #{$player->team_id})";
                         }
                     }
                 });
@@ -90,8 +88,16 @@ class LinkMatchDataPlayers extends Command
 
         $this->info($linked.' players linked.');
 
-        if ($unresolved !== []) {
-            $this->warn('Unresolved — needs manual review: '.implode(', ', $unresolved));
+        $unresolved = Player::query()
+            ->whereIn('team_id', $season->teams()->select('teams.id'))
+            ->where('status', '!=', PlayerStatus::OutOfLeague)
+            ->whereNull('match_data_id')
+            ->get(['nickname', 'team_id']);
+
+        if ($unresolved->isNotEmpty()) {
+            $this->warn('Unresolved — needs manual review: '.$unresolved
+                ->map(fn (Player $player): string => "{$player->nickname} (team #{$player->team_id})")
+                ->implode(', '));
         }
 
         return self::SUCCESS;
