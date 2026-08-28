@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { formatCurrency } from '@/lib/format';
+import { formatSignedPoints } from '@/lib/points';
 import { crestTintStyle } from '@/lib/season-manager-colors';
 import type { Season, SeasonManager } from '@/types/models';
 
@@ -125,7 +126,7 @@ export function ManagerHero({
                                 J{season.current_week} en directo
                             </div>
                             <div className="mt-0.5 font-display text-xl text-hq-lime">
-                                +{seasonManager.live_points}
+                                {formatSignedPoints(seasonManager.live_points)}
                             </div>
                         </div>
                     )}

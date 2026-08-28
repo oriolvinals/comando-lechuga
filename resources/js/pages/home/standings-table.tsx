@@ -4,7 +4,7 @@ import { EntityImage } from '@/components/entity-image';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqSection } from '@/components/hq-section';
 import { formatCurrency } from '@/lib/format';
-import { teamFormBadgeClass } from '@/lib/points';
+import { formatSignedPoints, teamFormBadgeClass } from '@/lib/points';
 import { crestTintStyle } from '@/lib/season-manager-colors';
 import {
     standingsPrize,
@@ -152,7 +152,7 @@ export function StandingsTable({ standings }: StandingsTableProps) {
                                                 ),
                                             )}
                                         >
-                                            +{team.live_points}
+                                            {formatSignedPoints(team.live_points)}
                                         </span>
                                     )}
                                     <span className="text-center font-display text-xl text-hq-lime">
@@ -191,7 +191,7 @@ export function StandingsTable({ standings }: StandingsTableProps) {
                                                     ),
                                                 )}
                                             >
-                                                +{team.live_points}
+                                                {formatSignedPoints(team.live_points)}
                                             </span>
                                         )}
                                         <span className="font-display text-xl text-hq-lime">

@@ -24,6 +24,14 @@ export function matchPointsBadgeClass(points: number): string {
 }
 
 /**
+ * Formats a points total with an explicit sign — `+12` for zero or positive,
+ * `-5` for negative (the number's own minus, not a doubled `+-5`).
+ */
+export function formatSignedPoints(points: number): string {
+    return points >= 0 ? `+${points}` : `${points}`;
+}
+
+/**
  * Color tier for a season team's weekly points total (the "forma" column in
  * the home standings) — same six-color palette as {@link matchPointsBadgeClass}
  * but scaled to a team's aggregate score across its whole lineup instead of

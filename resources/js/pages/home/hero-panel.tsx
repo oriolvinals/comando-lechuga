@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { EntityImage } from '@/components/entity-image';
-import { teamFormBadgeClass } from '@/lib/points';
+import { formatSignedPoints, teamFormBadgeClass } from '@/lib/points';
 import { crestTintStyle } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import { show as seasonManagersShow } from '@/routes/season-managers';
@@ -89,7 +89,7 @@ function PodiumRow({
                             size.live,
                         )}
                     >
-                        J{week} +{team.live_points}
+                        J{week} {formatSignedPoints(team.live_points)}
                     </span>
                 )}
                 <div className={cn('font-display text-hq-paper', size.points)}>
