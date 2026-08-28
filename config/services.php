@@ -48,4 +48,8 @@ return [
         'client_id' => env('LA_LIGA_LOGIN_CLIENT_ID', 'af88bcff-1157-40a0-b579-030728aacf0b'),
         'redirect_uri' => env('LA_LIGA_LOGIN_REDIRECT_URI', 'authredirect://com.lfp.laligafantasy/'),
     ],
+
+    'worldcup26' => [
+        'base_url' => env('WORLDCUP26_BASE_URL', 'https://worldcup26.ir/'),
+    ],
 ];
