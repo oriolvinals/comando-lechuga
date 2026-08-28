@@ -512,10 +512,24 @@ class PlayerFactory extends Factory
         $seasonAttributes = array_intersect_key($attributes, array_flip(self::SEASON_KEYS));
         $playerAttributes = array_diff_key($attributes, $seasonAttributes);
 
-        $result = parent::create($playerAttributes, $parent);
+        // Persist via make()+store()+callAfterCreating() — mirroring Factory::create()'s
+        // own terminal branch — rather than calling parent::create($playerAttributes, $parent)
+        // directly. Laravel's base create() re-enters create() (via state()->create()) whenever
+        // $attributes is non-empty, and since state()/newInstance() construct a new PlayerFactory
+        // instance, that re-entrant call still resolves to *this* override. Left uncorrected, the
+        // PlayerSeason-routing logic below would then run twice per factory call — once inside the
+        // re-entrant call and once here — inserting two PlayerSeason rows for the same player+season
+        // and failing the player_seasons unique constraint. make() is not overridden here, so calling
+        // it directly avoids the bounce back into this method.
+        $made = $this->make($playerAttributes, $parent);
 
         /** @var Collection<int, Player> $players */
-        $players = $result instanceof Model ? new Collection([$result]) : $result;
+        $players = $made instanceof Model ? new Collection([$made]) : $made;
+
+        $this->store($players);
+        $this->callAfterCreating($players, $parent);
+
+        $result = $made;
 
         $season = Season::query()
             ->whereDate('start_date', '<=', now())
@@ -539,6 +553,8 @@ class PlayerFactory extends Factory
     }
 }
 ```
+
+**Post-review correction:** the original draft of this step called `parent::create($playerAttributes, $parent)` instead of the `make()`+`store()`+`callAfterCreating()` sequence above. Task 3's implementer found and proved (with debug instrumentation) that this causes a `player_seasons` unique-constraint violation on every call that passes any non-season attribute — Laravel's base `Factory::create()` re-enters `create()` via `state($attributes)->create([], $parent)` whenever `$attributes` is non-empty, and since `state()` preserves the concrete `PlayerFactory` class, that re-entrant call dispatches back to this same override, running the `PlayerSeason`-creation loop twice. The code above is the corrected, verified version — already what's implemented and reviewed.
 
 - [ ] **Step 4: Run the model test again to see it pass**
 
