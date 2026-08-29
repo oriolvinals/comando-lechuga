@@ -34,3 +34,22 @@ test('belongs to a fixture, a player, a team, and optionally a counterpart playe
         ->and($lineup->team)->toBeInstanceOf(Team::class)
         ->and($lineup->counterpartPlayer->id)->toBe($counterpart->id);
 });
+
+test('stores fantasy points and stats alongside the worldcup26 raw stats', function (): void {
+    $lineup = FixtureLineup::factory()->create([
+        'stats' => [['name' => 'totalGoals', 'value' => 1]],
+        'fantasy_points' => 8,
+        'fantasy_stats' => ['marca_points' => [3, 1]],
+    ]);
+
+    expect($lineup->stats)->toBe([['name' => 'totalGoals', 'value' => 1]])
+        ->and($lineup->fantasy_points)->toBe(8)
+        ->and($lineup->fantasy_stats)->toBe(['marca_points' => [3, 1]]);
+});
+
+test('fantasy_points and fantasy_stats default to null', function (): void {
+    $lineup = FixtureLineup::factory()->create();
+
+    expect($lineup->fantasy_points)->toBeNull()
+        ->and($lineup->fantasy_stats)->toBeNull();
+});

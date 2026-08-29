@@ -25,10 +25,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int|null $counterpart_player_id
  * @property-read int|null $sub_minute
  * @property-read array<int, array<string, mixed>> $stats
+ * @property-read int|null $fantasy_points
+ * @property-read array<string, mixed>|null $fantasy_stats
  */
 #[UseFactory(FixtureLineupFactory::class)]
 #[Table(name: 'fixture_lineups', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fixture_id', 'player_id', 'team_id', 'starter', 'position', 'jersey', 'subbed_in', 'subbed_out', 'counterpart_player_id', 'sub_minute', 'stats'])]
+#[Fillable(['fixture_id', 'player_id', 'team_id', 'starter', 'position', 'jersey', 'subbed_in', 'subbed_out', 'counterpart_player_id', 'sub_minute', 'stats', 'fantasy_points', 'fantasy_stats'])]
 class FixtureLineup extends Model
 {
     /** @use HasFactory<FixtureLineupFactory> */
@@ -86,6 +88,8 @@ class FixtureLineup extends Model
             'counterpart_player_id' => 'int',
             'sub_minute' => 'int',
             'stats' => 'array',
+            'fantasy_points' => 'int',
+            'fantasy_stats' => 'array',
         ];
     }
 }

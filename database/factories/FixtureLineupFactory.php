@@ -32,6 +32,8 @@ class FixtureLineupFactory extends Factory
             'counterpart_player_id' => null,
             'sub_minute' => null,
             'stats' => [],
+            'fantasy_points' => null,
+            'fantasy_stats' => null,
         ];
     }
 }
