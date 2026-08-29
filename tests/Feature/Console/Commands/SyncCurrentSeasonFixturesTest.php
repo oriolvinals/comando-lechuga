@@ -11,7 +11,7 @@ use Carbon\CarbonImmutable;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('replaces the active season fixtures from every week', function (): void {
+test('replaces the active season fixtures from every week, without touching state or score', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -24,6 +24,9 @@ test('replaces the active season fixtures from every week', function (): void {
         'season_id' => $season->id,
         'team_local_id' => $localTeam->id,
         'team_guest_id' => $guestTeam->id,
+        'state' => FixtureState::FirstHalf,
+        'local_score' => 5,
+        'guest_score' => 5,
     ]);
 
     $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
@@ -55,8 +58,8 @@ test('replaces the active season fixtures from every week', function (): void {
     $fixture = Fixture::query()->sole();
 
     expect($fixture->fantasy_id)->toBe(11)
-        ->and($fixture->state)->toBe(FixtureState::Finished)
         ->and($fixture->date)->toEqual(CarbonImmutable::parse('2026-08-22T19:30:00+02:00')->setTimezone('Europe/Madrid'))
-        ->and($fixture->local_score)->toBe(2)
-        ->and($fixture->guest_score)->toBe(1);
+        ->and($fixture->state)->toBe(FixtureState::FirstHalf)
+        ->and($fixture->local_score)->toBe(5)
+        ->and($fixture->guest_score)->toBe(5);
 });

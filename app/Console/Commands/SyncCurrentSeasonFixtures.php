@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Enums\FixtureState;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Fixture;
 use App\Models\Season;
@@ -55,9 +54,6 @@ class SyncCurrentSeasonFixtures extends Command
                         ->setTimezone((string) config('app.timezone')),
                     'team_local_id' => $localTeam->id,
                     'team_guest_id' => $guestTeam->id,
-                    'local_score' => $fixtureData['localScore'] === null ? null : (int)$fixtureData['localScore'],
-                    'guest_score' => $fixtureData['visitorScore'] === null ? null : (int)$fixtureData['visitorScore'],
-                    'state' => FixtureState::fromFantasyId((int)$fixtureData['matchState']),
                 ];
             }
         }
