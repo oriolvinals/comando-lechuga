@@ -87,7 +87,10 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
             {entry.player && (
                 <HqPositionTag
                     position={entry.player.position}
-                    className="absolute -bottom-1 -left-2 z-10 bg-hq-ink"
+                    className={cn(
+                        'absolute -bottom-1 -left-2 z-10 bg-hq-ink',
+                        isPitch && 'flex h-[15px] min-w-[20px] items-center justify-center border-[1.5px] px-[3px] py-0 text-[7.5px]',
+                    )}
                 />
             )}
 
