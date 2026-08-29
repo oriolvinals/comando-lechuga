@@ -51,8 +51,26 @@ class ManagerLineupPlayer extends Model
     /** @return HasOne<FixtureLineup, $this> */
     public function fixtureLineup(): HasOne
     {
+        // Not ->whereColumn(): that compares two columns within the SAME
+        // query, but this relation's lazy-load query only ever selects FROM
+        // fixture_lineups — manager_lineup_players is never joined in, so a
+        // whereColumn() reference to it fails with "no such column". This is
+        // a genuine per-instance value comparison instead: $this->fixture_id
+        // is evaluated once, at call time, into a literal binding. When it's
+        // null, Laravel's query builder converts a null-valued ->where(...)
+        // into ->whereNull(...) automatically — which correctly matches zero
+        // rows here, since fixture_lineups.fixture_id is itself never
+        // nullable, giving the desired "no match" result for free.
+        //
+        // This also means the relation can only be used per-instance
+        // (lazy-loaded) — it CANNOT be eager-loaded via ->with(), since
+        // eager loading builds one shared query template from the first
+        // model in a collection and would incorrectly bake in only that
+        // model's fixture_id for every row in the batch. Any code that needs
+        // this for many ManagerLineupPlayers at once must do a manual bulk
+        // lookup instead.
         return $this->hasOne(FixtureLineup::class, 'player_id', 'player_id')
-            ->whereColumn('fixture_lineups.fixture_id', 'manager_lineup_players.fixture_id');
+            ->where('fixture_lineups.fixture_id', $this->fixture_id);
     }
 
     /**
