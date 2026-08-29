@@ -39,6 +39,8 @@ html {
     --color-hq-violet: #9333ea;
     --color-hq-good-corner: #1f2e0d;
     --color-hq-bad-corner: #2e0f14;
+    --color-hq-pitch: #141c0f;
+    --color-hq-pitch-line: rgba(196, 255, 61, 0.22);
 
     /* Canonical position colors — use HqPositionTag, don't redefine these ad hoc */
     --color-hq-por: #ff8c3d;
