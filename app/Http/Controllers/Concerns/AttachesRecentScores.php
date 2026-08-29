@@ -6,9 +6,9 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Enums\FixtureState;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
-use App\Models\PlayerScore;
 use App\Models\Season;
 use Illuminate\Support\Collection;
 
@@ -16,7 +16,7 @@ trait AttachesRecentScores
 {
     /**
      * Attaches each player's points for their team's last 3 finished matches (oldest
-     * first, ordered by fixture date). Unlike a plain "last 3 PlayerScore rows" lookup,
+     * first, ordered by fixture date). Unlike a plain "last 3 FixtureLineup rows" lookup,
      * this is based on the team's actual fixtures — a finished match the player wasn't
      * called up for still takes its slot in the sequence (with a null score), instead of
      * being silently skipped in favor of an older match. `recent_scores_finished` marks,
@@ -53,10 +53,10 @@ trait AttachesRecentScores
                 }
             });
 
-        $scoresByPlayer = PlayerScore::query()
+        $scoresByPlayer = FixtureLineup::query()
             ->whereIn('player_id', $playerIds)
             ->whereHas('fixture', fn ($query) => $query->where('season_id', $season->id))
-            ->get(['player_id', 'fixture_id', 'points'])
+            ->get(['player_id', 'fixture_id', 'fantasy_points'])
             ->groupBy('player_id')
             ->map(fn (Collection $rows) => $rows->keyBy('fixture_id'));
 
@@ -80,7 +80,7 @@ trait AttachesRecentScores
             $playerScores = $scoresByPlayer->get($player->id) ?? collect();
 
             $points = $recentFixtures
-                ->map(fn (Fixture $fixture): ?int => $playerScores->get($fixture->id)?->points)
+                ->map(fn (Fixture $fixture): ?int => $playerScores->get($fixture->id)?->fantasy_points)
                 ->all();
             $finished = array_fill(0, count($points), true);
 
