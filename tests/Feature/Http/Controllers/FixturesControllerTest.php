@@ -330,7 +330,7 @@ test('includes the position from the fixture season for each lineup player', fun
     );
 });
 
-test('populates dazn_points for a lineup entry while the fixture is live', function (): void {
+test('nulls dazn_points for a lineup entry while the fixture has not finished', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::FirstHalf]);
     $home = $fixture->localTeam;
@@ -356,7 +356,7 @@ test('populates dazn_points for a lineup entry while the fixture is live', funct
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('lineups.0.dazn_points', 0)
+        ->where('lineups.0.dazn_points', null)
     );
 });
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\FixtureState;
 use App\Enums\MatchPositionLine;
 use App\Enums\MatchPositionSide;
 use App\Enums\PlayerPosition;
@@ -165,7 +166,10 @@ class FixturesController extends Controller
         $score = $lineup->player_id !== null ? $scoresByPlayerId->get($lineup->player_id) : null;
         $isLocal = $lineup->team_id === $fixture->team_local_id;
 
-        $daznPoints = $score?->stats['marca_points'][1] ?? null;
+        // DAZN ratings are only meaningful once the match is over.
+        $daznPoints = $fixture->state === FixtureState::Finished
+            ? ($score?->stats['marca_points'][1] ?? null)
+            : null;
 
         return [
             'id' => $lineup->id,
