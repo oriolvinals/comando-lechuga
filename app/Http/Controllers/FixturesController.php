@@ -7,14 +7,12 @@ namespace App\Http\Controllers;
 use App\Enums\FixtureState;
 use App\Enums\MatchPositionLine;
 use App\Enums\MatchPositionSide;
-use App\Enums\PlayerPosition;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Models\Fixture;
 use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\ManagerLineupPlayer;
-use App\Models\PlayerScore;
 use App\Models\Season;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -24,14 +22,6 @@ class FixturesController extends Controller
 {
     use AttachesCurrentPlayerSeason;
     use FiltersSeasonWeeks;
-
-    private const array POSITION_ORDER = [
-        'goalkeeper' => 0,
-        'defender' => 1,
-        'midfield' => 2,
-        'striker' => 3,
-        'coach' => 4,
-    ];
 
     /** @var array<string, array{local: int, guest: int}> */
     private const array PITCH_LINE_DEPTH = [
@@ -85,20 +75,6 @@ class FixturesController extends Controller
             ->orderBy('date')
             ->get();
 
-        $scores = $fixture->playerScores()
-            ->whereHas('player.seasons', fn ($query) => $query
-                ->where('season_id', $fixture->season_id)
-                ->where('position', '!=', PlayerPosition::Coach))
-            ->with(['player', 'team'])
-            ->get();
-
-        $this->attachCurrentSeason($scores->pluck('player'), $fixture->season_id);
-
-        $scores = $scores
-            ->sortByDesc('points')
-            ->sortBy(fn ($score): int => self::POSITION_ORDER[$score->player->position->value])
-            ->values();
-
         $fixtureLineups = FixtureLineup::query()
             ->where('fixture_id', $fixture->id)
             ->with('player.team', 'counterpartPlayer')
@@ -109,33 +85,19 @@ class FixturesController extends Controller
             ])
             ->values();
 
-        // Players loaded through the lineup relation are separate model
-        // instances from $scores->pluck('player') above and never go through
-        // attachCurrentSeason() otherwise, leaving their `position` accessor
-        // blank on the pitch/bench. ->filter() drops null players from
-        // unresolved lineup rows.
         $this->attachCurrentSeason($fixtureLineups->pluck('player')->filter(), $fixture->season_id);
 
         // Which manager fielded each player in their lineup this jornada — distinct
-        // from ownership, since an owner can bench a player they still own. Covers
-        // both scored players and lineup players who don't have a score yet.
+        // from ownership, since an owner can bench a player they still own.
         $lineupManagersByPlayer = ManagerLineupPlayer::query()
-            ->whereIn('player_id', $scores->pluck('player_id')->merge($fixtureLineups->pluck('player_id'))->filter()->unique())
-            ->whereHas('lineup', fn ($query) => $query
-                ->where('week_number', $fixture->week_number)
-                ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $fixture->season_id)))
+            ->where('fixture_id', $fixture->id)
+            ->whereIn('player_id', $fixtureLineups->pluck('player_id')->filter())
             ->with('lineup.seasonManager')
             ->get()
             ->keyBy('player_id');
 
-        $scores->each(function (PlayerScore $score) use ($lineupManagersByPlayer): void {
-            $score->lineup_manager = $lineupManagersByPlayer->get($score->player_id)?->lineup?->seasonManager;
-        });
-
-        $scoresByPlayerId = $scores->keyBy('player_id');
-
         $lineups = $fixtureLineups
-            ->map(fn (FixtureLineup $lineup): array => $this->presentLineup($lineup, $fixture, $scoresByPlayerId, $lineupManagersByPlayer, $fixtureLineups));
+            ->map(fn (FixtureLineup $lineup): array => $this->presentLineup($lineup, $fixture, $lineupManagersByPlayer, $fixtureLineups));
 
         $events = FixtureEvent::query()
             ->where('fixture_id', $fixture->id)
@@ -155,7 +117,6 @@ class FixturesController extends Controller
         return Inertia::render('fixtures/show', [
             'fixture' => $fixture,
             'weekFixtures' => $weekFixtures,
-            'scores' => $scores,
             'lineups' => $lineups,
             'events' => $events,
             'team_stats' => $this->teamStats($fixtureLineups, $fixture),
@@ -163,19 +124,17 @@ class FixturesController extends Controller
     }
 
     /**
-     * @param  Collection<int, PlayerScore>  $scoresByPlayerId
      * @param  Collection<int, ManagerLineupPlayer>  $lineupManagersByPlayer
      * @param  Collection<int, FixtureLineup>  $fixtureLineups
      * @return array<string, mixed>
      */
-    private function presentLineup(FixtureLineup $lineup, Fixture $fixture, Collection $scoresByPlayerId, Collection $lineupManagersByPlayer, Collection $fixtureLineups): array
+    private function presentLineup(FixtureLineup $lineup, Fixture $fixture, Collection $lineupManagersByPlayer, Collection $fixtureLineups): array
     {
-        $score = $lineup->player_id !== null ? $scoresByPlayerId->get($lineup->player_id) : null;
         $isLocal = $lineup->team_id === $fixture->team_local_id;
 
         // DAZN ratings are only meaningful once the match is over.
         $daznPoints = $fixture->state === FixtureState::Finished
-            ? ($score?->stats['marca_points'][1] ?? null)
+            ? ($lineup->fantasy_stats['marca_points'][1] ?? null)
             : null;
 
         return [
@@ -193,7 +152,8 @@ class FixturesController extends Controller
             'assists' => $this->statValue($lineup->stats, 'goalAssists'),
             'yellow_cards' => $this->statValue($lineup->stats, 'yellowCards'),
             'red_cards' => $this->statValue($lineup->stats, 'redCards'),
-            'points' => $score?->points,
+            'points' => $lineup->fantasy_points,
+            'stats' => $lineup->fantasy_stats,
             'dazn_points' => $daznPoints,
             'x' => $lineup->starter ? $this->pitchX($lineup->position, $isLocal) : null,
             'y' => $lineup->starter ? $this->pitchY($lineup, $fixtureLineups) : null,

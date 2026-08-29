@@ -819,3 +819,67 @@ test('has a null lineup_manager for an unresolved lineup entry', function (): vo
         ->where('lineups.0.lineup_manager', null)
     );
 });
+
+test('lineup entries carry fantasy_points/fantasy_stats as points/stats, sourced from FixtureLineup directly', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $home = $fixture->localTeam;
+    $player = Player::factory()->create(['team_id' => $home->id, 'position' => PlayerPosition::Defender]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $home->id,
+        'starter' => true,
+        'position' => 'Left Back',
+        'jersey' => '3',
+        'fantasy_points' => 8,
+        'fantasy_stats' => ['marca_points' => [3, 1]],
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->missing('scores')
+        ->where('lineups.0.points', 8)
+        ->where('lineups.0.stats', ['marca_points' => [3, 1]])
+    );
+});
+
+test('resolves lineup_manager via ManagerLineupPlayer.fixture_id, not week_number', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
+    FixtureLineup::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id, 'team_id' => $fixture->localTeam->id]);
+
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => $fixture->week_number]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id, 'fixture_id' => $fixture->id]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.lineup_manager.id', $seasonManager->id)
+    );
+});
+
+test('does not resolve lineup_manager for a ManagerLineupPlayer whose fixture_id points elsewhere', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $otherFixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
+    FixtureLineup::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id, 'team_id' => $fixture->localTeam->id]);
+
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id, 'fixture_id' => $otherFixture->id]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.lineup_manager', null)
+    );
+});
