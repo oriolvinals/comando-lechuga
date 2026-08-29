@@ -52,6 +52,46 @@ export interface Fixture {
     guest_team: Team;
 }
 
+export interface FixtureLineupEntry {
+    id: number;
+    player: Player | null;
+    team_id: number;
+    starter: boolean;
+    position: string;
+    jersey: string;
+    subbed_in: boolean;
+    subbed_out: boolean;
+    sub_minute: number | null;
+    counterpart_player: Player | null;
+    goals: number;
+    assists: number;
+    yellow_cards: number;
+    red_cards: number;
+    points: number | null;
+    dazn_points: number | null;
+    x: number | null;
+    y: number | null;
+}
+
+export type FixtureEventType =
+    'goal' | 'yellow_card' | 'red_card' | 'penalty_missed';
+
+export interface FixtureEventEntry {
+    id: number;
+    minute: number;
+    type: FixtureEventType;
+    team_id: number;
+    is_own_goal: boolean;
+    is_penalty: boolean;
+    player: Player | null;
+}
+
+export interface FixtureTeamStat {
+    label: string;
+    local: number;
+    guest: number;
+}
+
 export interface PlayerScore {
     id: number;
     team_id: number;
