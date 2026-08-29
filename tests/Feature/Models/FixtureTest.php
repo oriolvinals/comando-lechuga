@@ -57,3 +57,14 @@ test('has many fixture lineups and fixture events', function (): void {
     expect($fixture->fixtureLineups)->toHaveCount(1)
         ->and($fixture->fixtureEvents)->toHaveCount(1);
 });
+
+test('maps worldcup26 status names to fixture states', function (string $name, FixtureState $state): void {
+    expect(FixtureState::fromWorldcup26Name($name))->toBe($state);
+})->with([
+    ['STATUS_SCHEDULED', FixtureState::Scheduled],
+    ['STATUS_FIRST_HALF', FixtureState::FirstHalf],
+    ['STATUS_HALFTIME', FixtureState::HalfTime],
+    ['STATUS_SECOND_HALF', FixtureState::SecondHalf],
+    ['STATUS_FULL_TIME', FixtureState::Finished],
+    ['STATUS_POSTPONED', FixtureState::Scheduled],
+]);

@@ -22,4 +22,15 @@ enum FixtureState: string
             default => self::Scheduled,
         };
     }
+
+    public static function fromWorldcup26Name(string $name): self
+    {
+        return match ($name) {
+            'STATUS_FIRST_HALF' => self::FirstHalf,
+            'STATUS_HALFTIME' => self::HalfTime,
+            'STATUS_SECOND_HALF' => self::SecondHalf,
+            'STATUS_FULL_TIME' => self::Finished,
+            default => self::Scheduled,
+        };
+    }
 }
