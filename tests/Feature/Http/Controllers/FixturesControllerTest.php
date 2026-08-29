@@ -303,7 +303,7 @@ test('includes lineups with pitch coordinates, event counts, points and dazn', f
         ->where('lineups.0.red_cards', 0)
         ->where('lineups.0.points', 4)
         ->where('lineups.0.dazn_points', 0)
-        ->where('lineups.0.x', 20)
+        ->where('lineups.0.x', 18)
     );
 });
 
@@ -539,6 +539,89 @@ test('spreads multiple starters in the same pitch line by side then jersey', fun
         ->where('lineups.2.y', 62.7)
         ->where('lineups.3.position', 'Right Back')
         ->where('lineups.3.y', 88)
+    );
+});
+
+test('uses a fixed, centered step for a 2-player pitch line instead of stretching to the edges', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $team = $fixture->localTeam;
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Left Forward',
+        'jersey' => '9',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Right Forward',
+        'jersey' => '11',
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    // step = min(76/3, 76/1) = 76/3 ≈ 25.333, span = 25.333, start = 37.333.
+    // Left (jersey 9) at 37.3, Right (jersey 11) at 62.7 — the same two
+    // "inner" slots a 4-player line's middle two players already occupy,
+    // not the far corners.
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('lineups', 2)
+        ->where('lineups.0.position', 'Left Forward')
+        ->where('lineups.0.y', 37.3)
+        ->where('lineups.1.position', 'Right Forward')
+        ->where('lineups.1.y', 62.7)
+    );
+});
+
+test('uses a fixed, centered step for a 3-player pitch line', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $team = $fixture->localTeam;
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Left Midfielder',
+        'jersey' => '6',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Center Midfielder',
+        'jersey' => '8',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Right Midfielder',
+        'jersey' => '10',
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    // step = 25.333, span = 50.667, start = 24.667.
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('lineups', 3)
+        ->where('lineups.0.position', 'Left Midfielder')
+        ->where('lineups.0.y', 24.7)
+        ->where('lineups.1.position', 'Center Midfielder')
+        ->where('lineups.1.y', 50)
+        ->where('lineups.2.position', 'Right Midfielder')
+        ->where('lineups.2.y', 75.3)
     );
 });
 

@@ -36,10 +36,12 @@ class FixturesController extends Controller
     /** @var array<string, array{local: int, guest: int}> */
     private const array PITCH_LINE_DEPTH = [
         'goalkeeper' => ['local' => 6, 'guest' => 94],
-        'defender' => ['local' => 20, 'guest' => 80],
-        'midfielder' => ['local' => 36, 'guest' => 64],
-        'forward' => ['local' => 46, 'guest' => 54],
+        'defender' => ['local' => 18, 'guest' => 82],
+        'midfielder' => ['local' => 30, 'guest' => 70],
+        'forward' => ['local' => 40, 'guest' => 60],
     ];
+
+    private const float PITCH_LINE_STEP = 76 / 3; // ≈ 25.333 — same per-player spacing a 4-player line already uses
 
     /** @var array<string, string> */
     private const array TEAM_STAT_LABELS = [
@@ -242,7 +244,11 @@ class FixturesController extends Controller
 
         $index = $index === false ? 0 : $index;
 
-        return round(12 + ($index * (76 / ($count - 1))), 1);
+        $step = min(self::PITCH_LINE_STEP, 76 / ($count - 1));
+        $span = $step * ($count - 1);
+        $start = 50 - ($span / 2);
+
+        return round($start + ($index * $step), 1);
     }
 
     /**
