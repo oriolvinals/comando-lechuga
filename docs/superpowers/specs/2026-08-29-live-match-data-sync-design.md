@@ -15,15 +15,17 @@ Comando nuevo `season:sync-live-match-data`, programado `everyMinute()` (mismo p
    La selección es **por ventana de fecha, no por `Fixture.state`**: en el primer despliegue, `state` nunca ha sido escrito por esta fuente todavía (huevo y gallina), así que basarse en él dejaría el comando sin nada que sincronizar hasta que algo más lo actualizara primero. Las 4 horas replican `FiltersLiveFixtures::RECENTLY_FINISHED_WINDOW_HOURS`, por consistencia con el resto del código de sync en vivo — pero esta comanda no reutiliza ese trait porque su condición de selección es distinta (fecha, no `state`).
 
 2. Para cada fixture en la ventana, llama a `Worldcup26Connector::getEvent($fixture->match_data_id)` — el mismo endpoint que `LinkMatchDataPlayers` ya usa, `GET /get/soccer/esp.1/events/{match_data_id}` — y con la respuesta:
-   - Actualiza `state` (derivado de `competitions[0].status.type.name`), `local_score`/`guest_score` (de `competitors[].score`) y `local_formation`/`guest_formation` (de `rosters[].formation`) en el propio `Fixture`.
+   - Actualiza `state` (derivado de `header.competitions[0].status.type.name`), `local_score`/`guest_score` (de `header.competitions[0].competitors[].score`, filtrando por `homeAway`) y `local_formation`/`guest_formation` (de `rosters[].formation`, filtrando por `rosters[].team.id`) en el propio `Fixture`.
    - Hace upsert de una fila en `fixture_lineups` por cada entrada de `rosters[].roster[]` cuyo `athlete.id` resuelva a un `Player.match_data_id` conocido.
-   - Borra y recrea las filas de `fixture_events` de ese fixture a partir de `competitions[0].details[]`.
+   - Borra y recrea las filas de `fixture_events` de ese fixture a partir de `keyEvents[]` (array en la raíz de la respuesta, no anidado bajo `competitions`).
+
+**Corrección post-verificación (2026-08-29):** la forma exacta de la respuesta de `getEvent` se verificó en vivo contra un partido real (`GET /get/soccer/esp.1/events/401882926`, Getafe–Alavés) antes de escribir el plan de implementación — las notas de la sesión de brainstorming anterior tenían la forma aproximada, y difería en dos puntos: el estado del partido vive en `header.competitions[0].status`, no en un `competitions[0]` de nivel raíz; y los eventos de gol/tarjeta viven en `keyEvents[]` de nivel raíz, no en `competitions[0].details[]`. Las secciones de abajo ya reflejan la forma verificada.
 
 3. Si la llamada a un fixture falla (red, 404) o si el estado devuelto por la API pasa a ser `post` (partido terminado) fuera de los 4h... no aplica, ya que el filtro de ventana ya lo cubre — un partido `post` sigue estando dentro de las 4h desde su inicio la mayoría de las veces; si se sale de la ventana antes de terminar (partido con muchas prórrogas/retrasos), simplemente deja de sincronizarse, igual que ya acepta `FiltersLiveFixtures` para el resto de comandas en vivo del proyecto — no es una situación nueva que esta fase deba resolver de otra forma.
 
 ### Mapeo de `state`
 
-`competitions[0].status.type.name` de la API (`STATUS_SCHEDULED`, `STATUS_FIRST_HALF`, `STATUS_HALFTIME`, `STATUS_SECOND_HALF`, `STATUS_FULL_TIME`, y variantes que no hemos visto en vivo como retrasos/aplazamientos) se traduce a `FixtureState` con un nuevo método `FixtureState::fromWorldcup26Name(string $name): self`, análogo al `fromFantasyId()` que ya existe para el mapeo del proveedor actual — con `default => self::Scheduled` para cualquier nombre no reconocido, mismo criterio conservador que el mapeo existente.
+`header.competitions[0].status.type.name` de la API se traduce a `FixtureState` con un nuevo método `FixtureState::fromWorldcup26Name(string $name): self`, análogo al `fromFantasyId()` que ya existe para el mapeo del proveedor actual — con `default => self::Scheduled` para cualquier nombre no reconocido, mismo criterio conservador que el mapeo existente. Verificado en vivo: `STATUS_SCHEDULED` (`state=pre`, partido de Getafe–Alavés antes de jugarse) y `STATUS_FULL_TIME` (`state=post`, el mismo partido ya finalizado, marcador 3-1). `STATUS_FIRST_HALF`/`STATUS_HALFTIME`/`STATUS_SECOND_HALF` no se han podido observar en vivo (no había ningún partido en curso durante la verificación) pero son los nombres estándar de la convención ESPN que ya sigue el resto del payload (confirmado por la consistencia de todo lo demás: `displayClock`, `period`, `detail`/`shortDetail` tipo "FT") — si alguno resultase distinto en producción, cae al `default => Scheduled` sin romper nada, y se amplía el mapeo cuando se observe.
 
 ## Modelo de datos
 
@@ -37,11 +39,11 @@ Comando nuevo `season:sync-live-match-data`, programado `everyMinute()` (mismo p
 | `starter` | bool | |
 | `position` | string | `position.displayName` de la API |
 | `jersey` | string | |
-| `subbed_in` | bool | |
-| `subbed_out` | bool | |
-| `counterpart_player_id` | FK `players`, nullable | jugador con el que se produjo el cambio (`subbedInFor`/`subbedOutFor`) |
-| `sub_minute` | int, nullable | |
-| `stats` | JSON | los ~13 contadores de `stats[]` tal cual vienen de la API, sin seleccionar campos a mano — mismo patrón que `PlayerScore.stats` |
+| `subbed_in` | bool | de `subbedIn` |
+| `subbed_out` | bool | de `subbedOut` |
+| `counterpart_player_id` | FK `players`, nullable | jugador con el que se produjo el cambio — `subbedInFor.athlete.id` si `subbedIn`, `subbedOutFor.athlete.id` si `subbedOut` (resuelto contra `Player.match_data_id`; null si ese jugador tampoco está enlazado) |
+| `sub_minute` | int, nullable | de la entrada de `plays[]` de esa misma fila del roster con `substitution: true`, parseando los dígitos iniciales de `clock.displayValue` (p. ej. `"57'"` → `57`, `"45'+3'"` → `45`) |
+| `stats` | JSON | los ~13 objetos de `stats[]` tal cual vienen de la API (cada uno con `name`/`displayName`/`value`/`displayValue`/...), sin seleccionar campos a mano — mismo patrón que `PlayerScore.stats` |
 
 Clave única `(fixture_id, player_id)` — upsert vía `updateOrCreate`, coherente con la idempotencia exigida por correr cada minuto.
 
@@ -50,26 +52,24 @@ Clave única `(fixture_id, player_id)` — upsert vía `updateOrCreate`, coheren
 | columna | tipo | notas |
 |---|---|---|
 | `fixture_id` | FK `fixtures` | |
-| `team_id` | FK `teams` | |
-| `player_id` | FK `players`, nullable | null si el evento no resuelve a un jugador enlazado |
+| `team_id` | FK `teams` | de `keyEvents[].team.id` |
+| `player_id` | FK `players`, nullable | de `keyEvents[].athletesInvolved[0].id` — null si el evento no trae `athletesInvolved` (se ha visto en la validación: una tarjeta amarilla sin jugador asociado) o si no resuelve a un jugador enlazado |
 | `type` | string | `goal`, `yellow_card`, `red_card`, `penalty_missed` — ver mapeo abajo |
-| `minute` | int | |
-| `is_own_goal` | bool | |
-| `is_penalty` | bool | |
+| `minute` | int | dígitos iniciales de `keyEvents[].clock.displayValue` (p. ej. `"73'"` → `73`, `"90'+4'"` → `90`) |
+| `is_own_goal` | bool | de `keyEvents[].ownGoal` |
+| `is_penalty` | bool | de `keyEvents[].penaltyKick` |
 
-Mapeo del `type` texto libre de la API a nuestro `type` + flags (única fuente de verdad, para no dejarlo ambiguo):
+Cada entrada de `keyEvents[]` ya trae flags booleanos propios (`scoringPlay`, `redCard`, `yellowCard`, `ownGoal`, `penaltyKick`) — más fiables que parsear el `type.text` libre (verificado: valores reales vistos incluyen `"Goal"`, `"Goal - Header"`, `"Yellow Card"`, `"Red Card"`, y probablemente varíen con más muestra). El mapeo usa los flags, no el texto:
 
-| texto de la API | nuestro `type` | `is_own_goal` | `is_penalty` |
+| flags de la API | nuestro `type` | `is_own_goal` | `is_penalty` |
 |---|---|---|---|
-| `"Goal"` | `goal` | false | false |
-| `"Own Goal"` | `goal` | true | false |
-| `"Penalty - Scored"` | `goal` | false | true |
-| `"Penalty - Missed"` | `penalty_missed` | false | true |
-| `"Yellow Card"` | `yellow_card` | false | false |
-| `"Red Card"` | `red_card` | false | false |
-| cualquier otro texto no visto en la validación | se salta ese evento (no se inserta), se loguea con el texto literal para poder ampliar el mapeo luego | — | — |
+| `scoringPlay: true` | `goal` | `ownGoal` | `penaltyKick` |
+| `yellowCard: true` | `yellow_card` | false | false |
+| `redCard: true` | `red_card` | false | false |
+| `penaltyKick: true` y `scoringPlay: false` | `penalty_missed` | false | true |
+| ninguno de los anteriores | se salta ese evento (no se inserta), se loguea `type.text` literal para poder ampliar el mapeo luego | — | — |
 
-Sin clave única — se borran y recrean todas las filas de un `fixture_id` en cada sync, ya que `details[]` es siempre la lista completa y autoritativa de eventos hasta ese momento (no hay endpoint de "solo lo nuevo desde X").
+Sin clave única — se borran y recrean todas las filas de un `fixture_id` en cada sync, ya que `keyEvents[]` es siempre la lista completa y autoritativa de eventos hasta ese momento (no hay endpoint de "solo lo nuevo desde X").
 
 ### `fixtures`: dos columnas nuevas
 
@@ -98,7 +98,8 @@ Esta vez el reemplazo (`season:sync-live-match-data`, programado `everyMinute()`
   - Selecciona correctamente la ventana de fecha (fixture dentro/fuera de las 4h, sin `match_data_id`).
   - Actualiza `state`/`local_score`/`guest_score`/`local_formation`/`guest_formation` del fixture.
   - Hace upsert de `fixture_lineups` (correr dos veces con el mismo payload no duplica filas; un cambio de `stats` entre ejecuciones actualiza la fila existente).
-  - Borra y recrea `fixture_events` en cada ejecución, con el mapeo de `type` (tabla de arriba) aplicado correctamente, incluyendo el caso de texto no reconocido (se salta y se loguea).
+  - Borra y recrea `fixture_events` en cada ejecución, con el mapeo de `type` (tabla de arriba, por flags) aplicado correctamente, incluyendo el caso sin `athletesInvolved` (evento sin jugador) y el caso sin ninguno de los flags reconocidos (se salta y se loguea).
+  - Calcula `counterpart_player_id` y `sub_minute` correctamente para un jugador `subbedIn` y otro `subbedOut` (extrayendo el minuto de la entrada de `plays[]` con `substitution: true`).
   - Jugador del roster sin `match_data_id` enlazado: se salta esa fila, no rompe el resto del fixture, aparece en el resumen de sin resolver.
   - Fallo de red en un fixture: se salta, el resto de fixtures de la ventana se procesan igualmente.
 - `SyncCurrentSeasonFixturesTest`: se actualiza para reflejar que ya NO escribe `state`/`local_score`/`guest_score` (solo `fantasy_id`/`date`/equipos).
