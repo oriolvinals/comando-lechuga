@@ -13,6 +13,7 @@ enum MatchPositionSide: string
     public static function fromWorldcup26Text(string $text): self
     {
         return match (true) {
+            str_contains($text, 'Center') => self::Center,
             str_contains($text, 'Left') => self::Left,
             str_contains($text, 'Right') => self::Right,
             default => self::Center,

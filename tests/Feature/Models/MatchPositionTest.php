@@ -20,9 +20,9 @@ test('classifies worldcup26 position text into a pitch line', function (string $
 test('classifies worldcup26 position text into a pitch side', function (string $text, MatchPositionSide $side): void {
     expect(MatchPositionSide::fromWorldcup26Text($text))->toBe($side);
 })->with([
-    ['Center Right Defender', MatchPositionSide::Right],
+    ['Center Right Defender', MatchPositionSide::Center],
     ['Left Back', MatchPositionSide::Left],
-    ['Center Left Forward', MatchPositionSide::Left],
+    ['Center Left Forward', MatchPositionSide::Center],
     ['Center Midfielder', MatchPositionSide::Center],
     ['Goalkeeper', MatchPositionSide::Center],
 ]);

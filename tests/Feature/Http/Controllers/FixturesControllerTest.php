@@ -522,11 +522,13 @@ test('spreads multiple starters in the same pitch line by side then jersey', fun
     $response = $this->get(route('fixtures.show', $fixture));
 
     // Pitch y is driven by side (left/center/right) then jersey, independent
-    // of array order: Left Back (Left, jersey 3) -> Center Left Defender
-    // (Left, jersey 5, tied on side, broken by jersey) -> Center Defender
-    // (Center) -> Right Back (Right). y = 12 + index * (76 / 3), rounded to 1
-    // decimal: 12.0, 37.3, 62.7, 88.0 (whole-number floats serialize as bare
-    // ints over the Inertia/JSON boundary, hence 12 and 88 below).
+    // of array order: Left Back (Left, alone) -> Center Defender (Center,
+    // jersey 4) and Center Left Defender (Center, jersey 5 — a directional
+    // qualifier on a center-back does not make it wide, so it ties on
+    // Center with Center Defender and is broken by jersey) -> Right Back
+    // (Right, alone). y = 12 + index * (76 / 3), rounded to 1 decimal: 12.0,
+    // 37.3, 62.7, 88.0 (whole-number floats serialize as bare ints over the
+    // Inertia/JSON boundary, hence 12 and 88 below).
     //
     // The `lineups` array order itself is a different axis: all four are the
     // same position line (Defender), so it's driven entirely by jersey
@@ -540,9 +542,74 @@ test('spreads multiple starters in the same pitch line by side then jersey', fun
         ->where('lineups.1.position', 'Left Back')
         ->where('lineups.1.y', 12)
         ->where('lineups.2.position', 'Center Defender')
-        ->where('lineups.2.y', 62.7)
+        ->where('lineups.2.y', 37.3)
         ->where('lineups.3.position', 'Center Left Defender')
-        ->where('lineups.3.y', 37.3)
+        ->where('lineups.3.y', 62.7)
+    );
+});
+
+test('a genuinely wide full-back keeps the touchline slot even against a lower-jerseyed center-back with a directional qualifier', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $team = $fixture->localTeam;
+
+    // Mirrors the real bug: Fran García (Left Back, #11) vs Natan (Center
+    // Left Defender, #4) in the Levante-Betis match — the center-back's
+    // lower jersey number must NOT win the wide-left slot.
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Center Left Defender',
+        'jersey' => '4',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Left Back',
+        'jersey' => '11',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Center Right Defender',
+        'jersey' => '5',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Right Back',
+        'jersey' => '2',
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    // side: Left Back=Left(alone) -> y=12. The two Center-* entries tie on
+    // Center, broken by jersey (4 before 5) -> y=37.3, 62.7. Right Back=Right
+    // (alone) -> y=88.
+    //
+    // The `lineups` array order is a different axis, unrelated to side: all
+    // four are the same position line (Defender), so it's driven entirely by
+    // jersey ascending (2, 4, 5, 11) — Right Back, Center Left Defender,
+    // Center Right Defender, Left Back.
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('lineups', 4)
+        ->where('lineups.0.position', 'Right Back')
+        ->where('lineups.0.y', 88)
+        ->where('lineups.1.position', 'Center Left Defender')
+        ->where('lineups.1.y', 37.3)
+        ->where('lineups.2.position', 'Center Right Defender')
+        ->where('lineups.2.y', 62.7)
+        ->where('lineups.3.position', 'Left Back')
+        ->where('lineups.3.y', 12)
     );
 });
 
