@@ -84,17 +84,14 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
                 </div>
             )}
 
-            {entry.player && (
+            {isPitch && entry.player && (
                 <HqPositionTag
                     position={entry.player.position}
-                    className={cn(
-                        'absolute -bottom-1 -left-2 z-10 bg-hq-ink',
-                        isPitch && 'flex h-[15px] min-w-[20px] items-center justify-center border-[1.5px] px-[3px] py-0 text-[7.5px]',
-                    )}
+                    className="absolute -bottom-1 -left-2 z-10 flex h-[15px] min-w-[20px] items-center justify-center border-[1.5px] bg-hq-ink px-[3px] py-0 text-[7.5px]"
                 />
             )}
 
-            {subMinute !== null && (
+            {isPitch && subMinute !== null && (
                 <span
                     className={cn(
                         'absolute -right-2 -bottom-1 z-10 whitespace-nowrap border bg-hq-ink px-1 py-px font-mono text-[8px] font-bold',
@@ -111,6 +108,22 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
         <div className={cn('truncate font-mono text-hq-paper', isPitch ? 'text-center text-[11px]' : 'text-[12.5px]')}>
             <b className="mr-1 text-hq-lime">{entry.jersey}</b>
             {entry.player?.nickname ?? 'No vinculado'}
+        </div>
+    );
+
+    const benchMetaLine = !isPitch && entry.player && (
+        <div className="mt-0.5 flex items-center gap-1.5">
+            <HqPositionTag position={entry.player.position} />
+            {subMinute !== null && (
+                <span
+                    className={cn(
+                        'whitespace-nowrap border bg-hq-ink px-1 py-px font-mono text-[8px] font-bold',
+                        entry.subbed_out ? 'border-hq-live text-hq-live' : 'border-hq-lime text-hq-lime',
+                    )}
+                >
+                    ↳{subMinute}
+                </span>
+            )}
         </div>
     );
 
@@ -145,11 +158,25 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
         </div>
     );
 
+    const benchStatBadges = entry.player && entry.points !== null && (
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+            <span className={cn('rounded-[2px] px-1.5 py-0.5 font-mono text-[11px] font-bold', matchPointsBadgeClass(entry.points))}>
+                {entry.points}
+            </span>
+            {hasPlayed && entry.dazn_points !== null && (
+                <span className={cn('flex items-center gap-1 rounded-[2px] bg-hq-border px-1 py-px font-mono text-[9px]', daznPointsBadgeClass(entry.dazn_points))}>
+                    <img src="/images/dazn-logo.png" alt="DAZN" className="h-2.5 w-2.5" />
+                    {entry.dazn_points}
+                </span>
+            )}
+        </div>
+    );
+
     // Bench only: good/bad events get their own strip below the name instead
     // of overlaying the photo — the bench row has the horizontal room the
     // tight pitch token doesn't, so there's no need to cram icons onto the avatar.
     const benchEventStrip = !isPitch && (hasGoodEvent || hasBadEvent) && (
-        <div className="mt-0.5 flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
             {hasGoodEvent && (
                 <span className="flex items-center gap-0.5 border border-hq-lime bg-hq-good-corner px-1.5 py-px font-mono text-[9px] font-bold text-hq-lime">
                     {goodIcons}
@@ -182,11 +209,12 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
             {avatar}
             <div className="min-w-0 flex-1">
                 {nameLine}
+                {benchMetaLine}
                 {managerLine}
                 {!entry.player && <div className="font-mono text-[9.5px] text-hq-moss-dim">no vinculado</div>}
-                {benchEventStrip}
-                {statBadges}
             </div>
+            {benchEventStrip}
+            {benchStatBadges}
         </div>
     );
 }
