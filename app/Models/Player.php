@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property-read int $id
- * @property-read int $fantasy_id
+ * @property-read int|null $fantasy_id
  * @property-read int|null $match_data_id
  * @property-read string $nickname
  * @property-read PlayerStatus $status

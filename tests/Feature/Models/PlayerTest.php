@@ -27,3 +27,9 @@ test('maps Liga Fantasy position IDs to player positions', function (int $positi
     [4, PlayerPosition::Striker],
     [5, PlayerPosition::Coach],
 ]);
+
+test('fantasy_id can be null for a worldcup26-only player', function (): void {
+    $player = Player::factory()->create(['fantasy_id' => null]);
+
+    expect($player->fantasy_id)->toBeNull();
+});
