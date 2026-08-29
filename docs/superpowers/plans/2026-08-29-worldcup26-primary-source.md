@@ -21,14 +21,19 @@
 
 ---
 
-### Task 1: Wipe migration — clear every table except `seasons` and `season_managers`
+### Task 1: Wipe migration — clear every table except `seasons` and `season_managers` — plus a repeatable, wipe-safe team↔worldcup26 relink
 
 **Files:**
 - Create: `database/migrations/2026_08_30_100000_wipe_data_for_worldcup26_primary_source.php`
 - Test: `tests/Feature/Migrations/WipeDataForWorldcup26PrimarySourceTest.php`
+- Create: `app/Console/Commands/LinkMatchDataTeams.php`
+- Test: `tests/Feature/Console/Commands/LinkMatchDataTeamsTest.php`
 
 **Interfaces:**
 - Produces: after this migration runs, every table except `seasons` and `season_managers` is empty. No schema changes in this task — only data.
+- Produces: `season:link-match-data-teams` — a repeatable Artisan command, safe to run any number of times, that sets `Team.match_data_id` from a hardcoded `fantasy_id => worldcup26 id` map.
+
+**Why the relink command is here:** the existing team↔worldcup26 link (`database/migrations/2026_08_29_120100_link_teams_to_match_data.php`) is a **one-time** migration that matched on our local, auto-incrementing `teams.id` — already run, and permanently stale the moment this task's wipe deletes every `teams` row (a future team resync will hand out fresh ids that don't line up with that old map at all). `Team.fantasy_id`, by contrast, comes from LaLiga Fantasy's own API and stays stable across a wipe — so the fix is a **repeatable** command keyed by `fantasy_id` instead of a one-shot migration keyed by local id, confirmed with the user directly. This is a hardcoded reference command, not new sync *design* — it does not get scheduled in `bootstrap/app.php` by this task (scheduling it, like all syncing, is the deferred phase's call); it only needs to exist so that phase (or a manual run) can call it any time after teams are resynced.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -127,11 +132,121 @@ Expected: PASS
 Run: `php artisan test`
 Expected: PASS, no regressions (this migration doesn't run automatically in the test suite unless `migrate:fresh` picks it up — verify no other test asserts data exists purely from a prior migration's seed).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Write the failing test for the team relink command**
+
+```php
+<?php
+
+use App\Console\Commands\LinkMatchDataTeams;
+use App\Models\Team;
+
+test('links teams to their worldcup26 id by fantasy_id, and is safe to run repeatedly', function (): void {
+    $team = Team::factory()->create(['fantasy_id' => 4, 'match_data_id' => null]);
+    $unrelatedTeam = Team::factory()->create(['fantasy_id' => 999999, 'match_data_id' => null]);
+
+    $this->artisan(LinkMatchDataTeams::class)
+        ->expectsOutputToContain('20 teams linked.')
+        ->assertSuccessful();
+
+    expect($team->fresh()->match_data_id)->toBe(83)
+        ->and($unrelatedTeam->fresh()->match_data_id)->toBeNull();
+
+    // Running it again must not fail or double-count — every fantasy_id in
+    // the map still resolves to the same one team, so the update count is
+    // identical the second time.
+    $this->artisan(LinkMatchDataTeams::class)
+        ->expectsOutputToContain('20 teams linked.')
+        ->assertSuccessful();
+
+    expect($team->fresh()->match_data_id)->toBe(83);
+});
+```
+
+- [ ] **Step 7: Run the test to verify it fails**
+
+Run: `php artisan test --filter=LinkMatchDataTeamsTest`
+Expected: FAIL — `App\Console\Commands\LinkMatchDataTeams` doesn't exist yet.
+
+- [ ] **Step 8: Write the command**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands;
+
+use App\Models\Team;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
+use Illuminate\Console\Command;
+
+#[Signature('season:link-match-data-teams')]
+#[Description('Link teams to their worldcup26.ir id via a hardcoded fantasy_id map — safe to run repeatedly, e.g. after every team resync')]
+class LinkMatchDataTeams extends Command
+{
+    /**
+     * fantasy_id => worldcup26.ir team id — validated 1:1 against real data
+     * (the same mapping as the old, now-stale `link_teams_to_match_data`
+     * migration, re-keyed by fantasy_id instead of our local auto-incrementing
+     * teams.id, which does not survive a data wipe — fantasy_id, sourced from
+     * LaLiga Fantasy's own API, does).
+     *
+     * @var array<int, int>
+     */
+    private const array TEAM_MAP = [
+        2 => 1068,
+        3 => 93,
+        4 => 83,
+        5 => 244,
+        6 => 85,
+        7 => 3751,
+        8 => 88,
+        9 => 2922,
+        11 => 1538,
+        12 => 99,
+        13 => 97,
+        14 => 101,
+        15 => 86,
+        16 => 89,
+        17 => 243,
+        18 => 94,
+        20 => 102,
+        21 => 96,
+        26 => 90,
+        49 => 87,
+    ];
+
+    public function handle(): int
+    {
+        $linked = 0;
+
+        foreach (self::TEAM_MAP as $fantasyId => $matchDataId) {
+            $linked += Team::query()->where('fantasy_id', $fantasyId)->update(['match_data_id' => $matchDataId]);
+        }
+
+        $this->info($linked.' teams linked.');
+
+        return self::SUCCESS;
+    }
+}
+```
+
+- [ ] **Step 9: Run the test to verify it passes**
+
+Run: `php artisan test --filter=LinkMatchDataTeamsTest`
+Expected: PASS
+
+- [ ] **Step 10: Run the full test suite**
+
+Run: `php artisan test`
+Expected: PASS
+
+- [ ] **Step 11: Commit**
 
 ```bash
-git add database/migrations/2026_08_30_100000_wipe_data_for_worldcup26_primary_source.php tests/Feature/Migrations/WipeDataForWorldcup26PrimarySourceTest.php
-git commit -m "feat: wipe all data except seasons/season_managers for the worldcup26-primary-source reset"
+git add database/migrations/2026_08_30_100000_wipe_data_for_worldcup26_primary_source.php tests/Feature/Migrations/WipeDataForWorldcup26PrimarySourceTest.php app/Console/Commands/LinkMatchDataTeams.php tests/Feature/Console/Commands/LinkMatchDataTeamsTest.php
+git commit -m "feat: wipe all data except seasons/season_managers, add a repeatable fantasy_id-keyed team↔worldcup26 relink"
 ```
 
 ---
