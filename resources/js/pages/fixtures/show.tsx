@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqFixtureBench } from '@/components/hq-fixture-bench';
+import { HqFixtureScoreList } from '@/components/hq-fixture-score-list';
 import { HqFixtureTeamStats } from '@/components/hq-fixture-team-stats';
 import { HqFixtureTimeline } from '@/components/hq-fixture-timeline';
 import { HqMatchPitch } from '@/components/hq-match-pitch';
@@ -224,6 +225,14 @@ export default function FixtureShow({
                                 Cuando empiece el partido aparecerán aquí los
                                 puntos de cada jugador
                             </p>
+                        </div>
+                    ) : lineups.length === 0 ? (
+                        <div className="mt-6">
+                            <HqFixtureScoreList
+                                fixture={fixture}
+                                scores={scores}
+                                onSelect={setSelectedScore}
+                            />
                         </div>
                     ) : (
                         <>
