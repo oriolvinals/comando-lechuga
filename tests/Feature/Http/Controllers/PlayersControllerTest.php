@@ -8,6 +8,7 @@ use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
@@ -859,4 +860,44 @@ test('excludes non-ownership activity types like shields and weekly prizes', fun
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('ownershipActivity', 0));
+});
+
+test('player ficha scores prop is built from FixtureLineup, not PlayerScore', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    FixtureLineup::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'team_id' => $player->team_id,
+        'fantasy_points' => 9,
+        'fantasy_stats' => ['marca_points' => [3, 2]],
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('scores', 1)
+        ->where('scores.0.points', 9)
+        ->where('scores.0.stats', ['marca_points' => [3, 2]])
+    );
+});
+
+test('player ficha lineup_manager is resolved via ManagerLineupPlayer.fixture_id', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'team_id' => $player->team_id]);
+
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id, 'fixture_id' => $fixture->id]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('scores.0.lineup_manager.id', $seasonManager->id)
+    );
 });

@@ -12,12 +12,12 @@ use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Filters\PlayerFilter;
 use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
 use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
-use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
@@ -152,24 +152,36 @@ class PlayersController extends Controller
             ->orderBy('date')
             ->get(['date', 'value']);
 
-        $scores = $player->scores()
+        $scores = $player->fixtureLineups()
             ->whereHas('fixture', fn ($query) => $query->where('season_id', $season->id))
             ->with(['fixture.localTeam', 'fixture.guestTeam', 'team'])
             ->get()
-            ->sortBy(fn ($score) => $score->fixture->week_number)
-            ->values();
+            ->sortBy(fn (FixtureLineup $lineup) => $lineup->fixture->week_number)
+            ->values()
+            ->map(fn (FixtureLineup $lineup): array => [
+                'id' => $lineup->id,
+                'team_id' => $lineup->team_id,
+                'team' => $lineup->team,
+                'points' => $lineup->fantasy_points,
+                'stats' => $lineup->fantasy_stats,
+                'fixture' => $lineup->fixture,
+                'lineup_manager' => null,
+            ]);
 
         // Which manager fielded this player in their lineup each jornada — distinct
         // from ownership, since an owner can bench a player they still own.
-        $lineupManagersByWeek = ManagerLineupPlayer::query()
+        $lineupManagersByFixture = ManagerLineupPlayer::query()
             ->where('player_id', $player->id)
+            ->whereIn('fixture_id', $scores->pluck('fixture.id')->filter())
             ->whereHas('lineup.seasonManager', fn ($query) => $query->where('season_id', $season->id))
             ->with('lineup.seasonManager')
             ->get()
-            ->keyBy(fn (ManagerLineupPlayer $entry): int => $entry->lineup->week_number);
+            ->keyBy('fixture_id');
 
-        $scores->each(function (PlayerScore $score) use ($lineupManagersByWeek): void {
-            $score->lineup_manager = $lineupManagersByWeek->get($score->fixture->week_number)?->lineup?->seasonManager;
+        $scores = $scores->map(function (array $score) use ($lineupManagersByFixture): array {
+            $score['lineup_manager'] = $lineupManagersByFixture->get($score['fixture']->id)?->lineup?->seasonManager;
+
+            return $score;
         });
 
         $ownershipActivity = Activity::query()
