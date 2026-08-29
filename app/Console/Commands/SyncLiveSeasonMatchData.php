@@ -1,0 +1,214 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands;
+
+use App\Enums\FixtureState;
+use App\Http\Integrations\Worldcup26\Worldcup26Connector;
+use App\Models\Fixture;
+use App\Models\FixtureLineup;
+use App\Models\Player;
+use App\Models\Season;
+use App\Models\Team;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use JsonException;
+use Saloon\Exceptions\Request\FatalRequestException;
+use Saloon\Exceptions\Request\RequestException;
+use Throwable;
+
+#[Signature('season:sync-live-match-data')]
+#[Description('Synchronize live/recently-finished fixtures\' state, lineups and events from worldcup26.ir')]
+class SyncLiveSeasonMatchData extends Command
+{
+    private const int LIVE_WINDOW_HOURS = 4;
+
+    /**
+     * @throws Throwable
+     */
+    public function handle(Worldcup26Connector $connector): int
+    {
+        $season = Season::current();
+
+        $fixtures = Fixture::query()
+            ->where('season_id', $season->id)
+            ->whereNotNull('match_data_id')
+            ->where('date', '<=', now())
+            ->where('date', '>=', now()->subHours(self::LIVE_WINDOW_HOURS))
+            ->get();
+
+        $synced = 0;
+        $unresolved = [];
+
+        foreach ($fixtures as $fixture) {
+            try {
+                $event = $connector->getEvent($fixture->match_data_id)->throw()->json();
+            } catch (FatalRequestException|RequestException|JsonException $exception) {
+                Log::warning("Failed to sync live match data for fixture {$fixture->id}: {$exception->getMessage()}");
+                $this->warn("Skipped fixture #{$fixture->id}: {$exception->getMessage()}");
+
+                continue;
+            }
+
+            DB::transaction(function () use ($fixture, $event, &$unresolved): void {
+                $this->syncFixture($fixture, $event);
+                $unresolved = [...$unresolved, ...$this->syncLineups($fixture, $event)];
+            });
+
+            $synced++;
+        }
+
+        $this->info("{$synced} fixtures synced.");
+
+        if ($unresolved !== []) {
+            $this->warn('Unresolved players — needs manual review: '.implode(', ', $unresolved));
+        }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function syncFixture(Fixture $fixture, array $event): void
+    {
+        $competition = $event['header']['competitions'][0] ?? [];
+        $statusName = (string) ($competition['status']['type']['name'] ?? '');
+        $competitors = is_array($competition['competitors'] ?? null) ? array_values($competition['competitors']) : [];
+        $rosters = is_array($event['rosters'] ?? null) ? array_values($event['rosters']) : [];
+
+        $fixture->update([
+            'state' => FixtureState::fromWorldcup26Name($statusName),
+            'local_score' => $this->scoreFor($competitors, 'home'),
+            'guest_score' => $this->scoreFor($competitors, 'away'),
+            'local_formation' => $this->formationFor($rosters, 'home'),
+            'guest_formation' => $this->formationFor($rosters, 'away'),
+        ]);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $competitors
+     */
+    private function scoreFor(array $competitors, string $homeAway): ?int
+    {
+        foreach ($competitors as $competitor) {
+            if (($competitor['homeAway'] ?? null) === $homeAway) {
+                return isset($competitor['score']) ? (int) $competitor['score'] : null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rosters
+     */
+    private function formationFor(array $rosters, string $homeAway): ?string
+    {
+        foreach ($rosters as $roster) {
+            if (($roster['homeAway'] ?? null) === $homeAway) {
+                return isset($roster['formation']) ? (string) $roster['formation'] : null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     * @return list<string>
+     */
+    private function syncLineups(Fixture $fixture, array $event): array
+    {
+        $rosters = is_array($event['rosters'] ?? null) ? $event['rosters'] : [];
+        $unresolved = [];
+
+        foreach ($rosters as $rosterEntry) {
+            $teamMatchDataId = (int) ($rosterEntry['team']['id'] ?? 0);
+            $team = Team::query()->where('match_data_id', $teamMatchDataId)->first();
+
+            if ($team === null) {
+                continue;
+            }
+
+            $rosterPlayers = is_array($rosterEntry['roster'] ?? null) ? $rosterEntry['roster'] : [];
+
+            foreach ($rosterPlayers as $rosterPlayer) {
+                $athleteMatchDataId = (int) ($rosterPlayer['athlete']['id'] ?? 0);
+                $player = Player::query()
+                    ->where('team_id', $team->id)
+                    ->where('match_data_id', $athleteMatchDataId)
+                    ->first();
+
+                if ($player === null) {
+                    $unresolved[] = (string) ($rosterPlayer['athlete']['displayName'] ?? $athleteMatchDataId);
+
+                    continue;
+                }
+
+                $this->upsertLineup($fixture, $team, $player, $rosterPlayer);
+            }
+        }
+
+        return $unresolved;
+    }
+
+    /**
+     * @param  array<string, mixed>  $rosterPlayer
+     */
+    private function upsertLineup(Fixture $fixture, Team $team, Player $player, array $rosterPlayer): void
+    {
+        $subbedIn = (bool) ($rosterPlayer['subbedIn'] ?? false);
+        $subbedOut = (bool) ($rosterPlayer['subbedOut'] ?? false);
+
+        $counterpartMatchDataId = match (true) {
+            $subbedIn => $rosterPlayer['subbedInFor']['athlete']['id'] ?? null,
+            $subbedOut => $rosterPlayer['subbedOutFor']['athlete']['id'] ?? null,
+            default => null,
+        };
+
+        $counterpartPlayer = $counterpartMatchDataId !== null
+            ? Player::query()->where('match_data_id', (int) $counterpartMatchDataId)->first()
+            : null;
+
+        FixtureLineup::query()->updateOrCreate(
+            ['fixture_id' => $fixture->id, 'player_id' => $player->id],
+            [
+                'team_id' => $team->id,
+                'starter' => (bool) ($rosterPlayer['starter'] ?? false),
+                'position' => (string) ($rosterPlayer['position']['displayName'] ?? ''),
+                'jersey' => (string) ($rosterPlayer['jersey'] ?? ''),
+                'subbed_in' => $subbedIn,
+                'subbed_out' => $subbedOut,
+                'counterpart_player_id' => $counterpartPlayer?->id,
+                'sub_minute' => $this->subMinute($rosterPlayer),
+                'stats' => is_array($rosterPlayer['stats'] ?? null) ? $rosterPlayer['stats'] : [],
+            ],
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $rosterPlayer
+     */
+    private function subMinute(array $rosterPlayer): ?int
+    {
+        $plays = is_array($rosterPlayer['plays'] ?? null) ? $rosterPlayer['plays'] : [];
+
+        foreach ($plays as $play) {
+            if (($play['substitution'] ?? false) === true) {
+                return $this->minuteFromClock((string) ($play['clock']['displayValue'] ?? ''));
+            }
+        }
+
+        return null;
+    }
+
+    private function minuteFromClock(string $displayValue): ?int
+    {
+        return preg_match('/^(\d+)/', $displayValue, $matches) === 1 ? (int) $matches[1] : null;
+    }
+}
