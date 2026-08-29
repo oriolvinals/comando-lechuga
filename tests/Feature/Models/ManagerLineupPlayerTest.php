@@ -24,14 +24,20 @@ test('belongs to a lineup and player, and has no points/stats columns of its own
 
 test('fixtureLineup resolves the matching FixtureLineup row by fixture_id and player_id', function (): void {
     $fixture = Fixture::factory()->create();
+    $otherFixture = Fixture::factory()->create();
     $player = Player::factory()->create();
     $matchingLineup = FixtureLineup::factory()->create([
         'fixture_id' => $fixture->id,
         'player_id' => $player->id,
         'fantasy_points' => 8,
     ]);
-    // A different player's row on the same fixture must not match.
-    FixtureLineup::factory()->create(['fixture_id' => $fixture->id]);
+    // Same player, a DIFFERENT fixture — proves the fixture_id half of the
+    // match actually matters, not just player_id.
+    FixtureLineup::factory()->create([
+        'fixture_id' => $otherFixture->id,
+        'player_id' => $player->id,
+        'fantasy_points' => 99,
+    ]);
 
     $lineupPlayer = ManagerLineupPlayer::factory()->create([
         'player_id' => $player->id,
