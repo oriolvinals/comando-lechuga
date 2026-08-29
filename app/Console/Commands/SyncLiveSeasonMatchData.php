@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Enums\FixtureState;
 use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Fixture;
+use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
@@ -57,6 +58,7 @@ class SyncLiveSeasonMatchData extends Command
             DB::transaction(function () use ($fixture, $event, &$unresolved): void {
                 $this->syncFixture($fixture, $event);
                 $unresolved = [...$unresolved, ...$this->syncLineups($fixture, $event)];
+                $this->syncEvents($fixture, $event);
             });
 
             $synced++;
@@ -210,5 +212,62 @@ class SyncLiveSeasonMatchData extends Command
     private function minuteFromClock(string $displayValue): ?int
     {
         return preg_match('/^(\d+)/', $displayValue, $matches) === 1 ? (int) $matches[1] : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function syncEvents(Fixture $fixture, array $event): void
+    {
+        FixtureEvent::query()->where('fixture_id', $fixture->id)->delete();
+
+        $keyEvents = is_array($event['keyEvents'] ?? null) ? $event['keyEvents'] : [];
+
+        foreach ($keyEvents as $keyEvent) {
+            $type = $this->eventType($keyEvent);
+
+            if ($type === null) {
+                Log::info('Unmapped worldcup26 event type: '.($keyEvent['type']['text'] ?? 'unknown'));
+
+                continue;
+            }
+
+            $teamMatchDataId = (int) ($keyEvent['team']['id'] ?? 0);
+            $team = Team::query()->where('match_data_id', $teamMatchDataId)->first();
+
+            if ($team === null) {
+                continue;
+            }
+
+            $athletes = is_array($keyEvent['athletesInvolved'] ?? null) ? $keyEvent['athletesInvolved'] : [];
+            $athleteMatchDataId = isset($athletes[0]['id']) ? (int) $athletes[0]['id'] : null;
+            $player = $athleteMatchDataId !== null
+                ? Player::query()->where('match_data_id', $athleteMatchDataId)->first()
+                : null;
+
+            FixtureEvent::query()->create([
+                'fixture_id' => $fixture->id,
+                'team_id' => $team->id,
+                'player_id' => $player?->id,
+                'type' => $type,
+                'minute' => $this->minuteFromClock((string) ($keyEvent['clock']['displayValue'] ?? '')) ?? 0,
+                'is_own_goal' => (bool) ($keyEvent['ownGoal'] ?? false),
+                'is_penalty' => (bool) ($keyEvent['penaltyKick'] ?? false),
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $keyEvent
+     */
+    private function eventType(array $keyEvent): ?string
+    {
+        return match (true) {
+            ($keyEvent['scoringPlay'] ?? false) === true => 'goal',
+            ($keyEvent['yellowCard'] ?? false) === true => 'yellow_card',
+            ($keyEvent['redCard'] ?? false) === true => 'red_card',
+            ($keyEvent['penaltyKick'] ?? false) === true => 'penalty_missed',
+            default => null,
+        };
     }
 }

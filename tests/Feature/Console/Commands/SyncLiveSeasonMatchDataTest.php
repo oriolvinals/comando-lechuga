@@ -5,6 +5,7 @@ use App\Enums\FixtureState;
 use App\Http\Integrations\Worldcup26\Requests\GetEventRequest;
 use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Fixture;
+use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
@@ -220,4 +221,111 @@ test('running twice with the same payload does not duplicate lineups, and report
     $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
 
     expect(FixtureLineup::query()->count())->toBe(1);
+});
+
+test('replaces fixture_events from keyEvents on every sync, mapped from the API flags', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'date' => now()->subMinutes(30),
+    ]);
+    $scorer = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
+
+    $payload = liveMatchEventPayload([
+        'keyEvents' => [
+            [
+                'type' => ['text' => 'Goal'],
+                'clock' => ['displayValue' => "73'"],
+                'team' => ['id' => 83],
+                'scoringPlay' => true,
+                'redCard' => false,
+                'yellowCard' => false,
+                'ownGoal' => false,
+                'penaltyKick' => false,
+                'athletesInvolved' => [['id' => 5001]],
+            ],
+            [
+                'type' => ['text' => 'Yellow Card'],
+                'clock' => ['displayValue' => "44'"],
+                'team' => ['id' => 86],
+                'scoringPlay' => false,
+                'redCard' => false,
+                'yellowCard' => true,
+                'ownGoal' => false,
+                'penaltyKick' => false,
+                // no athletesInvolved — must still create the event, with a null player
+            ],
+        ],
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $goal = FixtureEvent::query()->where('type', 'goal')->sole();
+    $card = FixtureEvent::query()->where('type', 'yellow_card')->sole();
+
+    expect($goal->minute)->toBe(73)
+        ->and($goal->player_id)->toBe($scorer->id)
+        ->and($goal->team_id)->toBe($home->id)
+        ->and($card->minute)->toBe(44)
+        ->and($card->player_id)->toBeNull()
+        ->and($card->team_id)->toBe($away->id);
+
+    // Second sync with a different payload replaces, not appends
+    $connector2 = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make(liveMatchEventPayload()),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector2);
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->count())->toBe(0);
+});
+
+test('skips a fixture whose getEvent call fails, without blocking the rest', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $failing = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 111,
+        'date' => now()->subMinutes(10),
+    ]);
+    $ok = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 222,
+        'date' => now()->subMinutes(20),
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => function ($pendingRequest) {
+            if (str_contains($pendingRequest->getRequest()->resolveEndpoint(), '111')) {
+                return MockResponse::make([], 500);
+            }
+
+            return MockResponse::make(liveMatchEventPayload());
+        },
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)
+        ->expectsOutput('1 fixtures synced.')
+        ->assertSuccessful();
+
+    expect($failing->refresh()->state)->toBe(FixtureState::Scheduled)
+        ->and($ok->refresh()->state)->toBe(FixtureState::Finished);
 });
