@@ -20,6 +20,10 @@ function EventIcon({ event }: { event: FixtureEventEntry }) {
         );
     }
 
+    if (event.type === 'goal' && event.is_own_goal) {
+        return <span className="text-xs whitespace-nowrap">⚽ PP</span>;
+    }
+
     return <span className="text-xs">{EVENT_ICON[event.type]}</span>;
 }
 
@@ -41,7 +45,14 @@ export function HqFixtureTimeline({ events, localTeamId }: HqFixtureTimelineProp
         <div className="border border-hq-border bg-hq-panel">
             {events.map((event) => {
                 const label = event.player?.nickname ?? 'Sin jugador vinculado';
-                const isLocal = event.team_id === localTeamId;
+                // An own goal's team_id is the scorer's own team (see
+                // SyncLiveSeasonMatchData), but the goal actually counts for
+                // the other side — render it on the side it benefits, not
+                // the scorer's own side.
+                const isLocal =
+                    event.type === 'goal' && event.is_own_goal
+                        ? event.team_id !== localTeamId
+                        : event.team_id === localTeamId;
 
                 return (
                     <div key={event.id} className="flex items-center border-b border-hq-border px-3 py-2 text-[12.5px] last:border-b-0">

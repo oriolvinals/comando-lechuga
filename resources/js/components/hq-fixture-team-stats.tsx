@@ -8,8 +8,8 @@ export function HqFixtureTeamStats({ stats }: HqFixtureTeamStatsProps) {
     return (
         <div className="border border-hq-border bg-hq-panel px-4 py-3.5">
             {stats.map((stat) => {
-                const total = stat.local + stat.guest || 1;
-                const localPct = (stat.local / total) * 100;
+                const total = stat.local + stat.guest;
+                const localPct = total === 0 ? 50 : (stat.local / total) * 100;
 
                 return (
                     <div key={stat.label} className="mb-3.5 last:mb-0">

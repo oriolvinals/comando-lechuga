@@ -3,7 +3,11 @@ import { ArrowUpRight, Shield, User, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
-import { JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
+import {
+    JORNADA_STAT_LABELS,
+    JORNADA_STAT_ORDER,
+    translateMatchPosition,
+} from '@/lib/player-labels';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
@@ -138,7 +142,7 @@ export function HqPlayerStatsModal({
                     <div className="mt-1 flex items-center gap-2">
                         {matchPosition && (
                             <span className="font-mono text-[11px] text-hq-paper">
-                                {matchPosition}
+                                {translateMatchPosition(matchPosition)}
                             </span>
                         )}
                         <HqPositionTag position={player.position} />

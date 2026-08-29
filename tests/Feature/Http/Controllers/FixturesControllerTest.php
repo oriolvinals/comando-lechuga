@@ -263,7 +263,7 @@ test('excludes a lineup from a different week for the same player', function ():
 
 test('includes lineups with pitch coordinates, event counts, points and dazn', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::Finished]);
     $home = $fixture->localTeam;
     $player = Player::factory()->create(['team_id' => $home->id, 'position' => PlayerPosition::Defender]);
 
@@ -304,6 +304,59 @@ test('includes lineups with pitch coordinates, event counts, points and dazn', f
         ->where('lineups.0.points', 4)
         ->where('lineups.0.dazn_points', 0)
         ->where('lineups.0.x', 20)
+    );
+});
+
+test('includes the position from the fixture season for each lineup player', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['team_id' => $fixture->localTeam->id, 'position' => PlayerPosition::Defender]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $fixture->localTeam->id,
+        'starter' => true,
+        'position' => 'Left Back',
+        'jersey' => '3',
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('lineups', 1)
+        ->where('lineups.0.player.position', 'defender')
+    );
+});
+
+test('nulls dazn_points for a lineup entry while the fixture is not finished', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::FirstHalf]);
+    $home = $fixture->localTeam;
+    $player = Player::factory()->create(['team_id' => $home->id]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $home->id,
+        'starter' => true,
+        'position' => 'Goalkeeper',
+        'jersey' => '1',
+    ]);
+    PlayerScore::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $home->id,
+        'points' => 4,
+        'stats' => ['marca_points' => [3, 0]],
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.dazn_points', null)
     );
 });
 

@@ -71,13 +71,13 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
                     src={entry.player.image}
                     alt={entry.player.nickname}
                     fallback={User}
-                    className={cn(AVATAR_SIZE[variant], 'border-1.5 border-hq-border-strong bg-hq-border')}
+                    className={cn(AVATAR_SIZE[variant], 'border-[1.5px] border-hq-border-strong bg-hq-border')}
                 />
             ) : (
                 <div
                     className={cn(
                         AVATAR_SIZE[variant],
-                        'flex items-center justify-center rounded-full border-1.5 border-dashed border-hq-border-strong font-mono text-hq-moss-dim',
+                        'flex items-center justify-center rounded-full border-[1.5px] border-dashed border-hq-border-strong font-mono text-hq-moss-dim',
                     )}
                 >
                     ?
