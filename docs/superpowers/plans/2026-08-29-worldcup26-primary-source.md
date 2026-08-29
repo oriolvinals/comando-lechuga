@@ -49,15 +49,23 @@ use Illuminate\Support\Facades\Artisan;
 
 test('wipes every table except seasons and season_managers', function (): void {
     $season = Season::factory()->create();
-    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    SeasonManager::factory()->create(['season_id' => $season->id]);
     Team::factory()->create();
     Player::factory()->create();
     Fixture::factory()->create(['season_id' => $season->id]);
 
+    // Compare counts before/after rather than asserting an absolute number:
+    // SeasonManagerFactory's own `'season_id' => Season::factory()` default
+    // creates an extra Season row even though it's overridden above (Laravel
+    // resolves nested factory relationships before applying overrides) — the
+    // exact count is incidental, what matters is that the wipe changes it.
+    $seasonCountBefore = Season::query()->count();
+    $seasonManagerCountBefore = SeasonManager::query()->count();
+
     Artisan::call('migrate', ['--path' => 'database/migrations/2026_08_30_100000_wipe_data_for_worldcup26_primary_source.php', '--force' => true]);
 
-    expect(Season::query()->count())->toBe(1)
-        ->and(SeasonManager::query()->count())->toBe(1)
+    expect(Season::query()->count())->toBe($seasonCountBefore)
+        ->and(SeasonManager::query()->count())->toBe($seasonManagerCountBefore)
         ->and(Team::query()->count())->toBe(0)
         ->and(Player::query()->count())->toBe(0)
         ->and(Fixture::query()->count())->toBe(0);
@@ -142,20 +150,22 @@ use App\Models\Team;
 
 test('links teams to their worldcup26 id by fantasy_id, and is safe to run repeatedly', function (): void {
     $team = Team::factory()->create(['fantasy_id' => 4, 'match_data_id' => null]);
+    $secondTeam = Team::factory()->create(['fantasy_id' => 5, 'match_data_id' => null]);
     $unrelatedTeam = Team::factory()->create(['fantasy_id' => 999999, 'match_data_id' => null]);
 
     $this->artisan(LinkMatchDataTeams::class)
-        ->expectsOutputToContain('20 teams linked.')
+        ->expectsOutputToContain('2 teams linked.')
         ->assertSuccessful();
 
     expect($team->fresh()->match_data_id)->toBe(83)
+        ->and($secondTeam->fresh()->match_data_id)->toBe(244)
         ->and($unrelatedTeam->fresh()->match_data_id)->toBeNull();
 
     // Running it again must not fail or double-count — every fantasy_id in
-    // the map still resolves to the same one team, so the update count is
+    // the map still resolves to the same teams, so the update count is
     // identical the second time.
     $this->artisan(LinkMatchDataTeams::class)
-        ->expectsOutputToContain('20 teams linked.')
+        ->expectsOutputToContain('2 teams linked.')
         ->assertSuccessful();
 
     expect($team->fresh()->match_data_id)->toBe(83);
