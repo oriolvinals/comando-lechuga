@@ -334,6 +334,29 @@ export default function FixtureShow({
                                       : undefined,
                               stats: selectedScore.stats,
                               lineupManager: selectedScore.lineup_manager,
+                              matchPosition: lineups.find(
+                                  (entry) =>
+                                      entry.player?.id ===
+                                      selectedScore.player.id,
+                              )?.position,
+                              subMinute: (() => {
+                                  const entry = lineups.find(
+                                      (e) =>
+                                          e.player?.id ===
+                                          selectedScore.player.id,
+                                  );
+
+                                  if (!entry || entry.sub_minute === null) {
+                                      return null;
+                                  }
+
+                                  return {
+                                      minute: entry.sub_minute,
+                                      direction: entry.subbed_out
+                                          ? ('out' as const)
+                                          : ('in' as const),
+                                  };
+                              })(),
                           }
                         : null
                 }

@@ -18,6 +18,8 @@ export interface HqPlayerStatsEntry {
     daznPoints?: number;
     stats: JornadaStats;
     lineupManager?: SeasonManager | null;
+    matchPosition?: string;
+    subMinute?: { minute: number; direction: 'in' | 'out' } | null;
 }
 
 interface HqPlayerStatsModalProps {
@@ -53,7 +55,16 @@ export function HqPlayerStatsModal({
         return null;
     }
 
-    const { player, team, points, daznPoints, stats, lineupManager } = entry;
+    const {
+        player,
+        team,
+        points,
+        daznPoints,
+        stats,
+        lineupManager,
+        matchPosition,
+        subMinute,
+    } = entry;
 
     return (
         <div
@@ -75,12 +86,26 @@ export function HqPlayerStatsModal({
                 </div>
 
                 <div className="flex flex-col items-center gap-1.5 px-5 pt-1 pb-4 text-center">
-                    <EntityImage
-                        src={player.image}
-                        alt={player.nickname}
-                        fallback={User}
-                        className="h-16 w-16 border-2 border-hq-border-strong bg-hq-border"
-                    />
+                    <div className="relative">
+                        <EntityImage
+                            src={player.image}
+                            alt={player.nickname}
+                            fallback={User}
+                            className="h-16 w-16 border-2 border-hq-border-strong bg-hq-border"
+                        />
+                        {subMinute && (
+                            <span
+                                className={cn(
+                                    'absolute -right-2 -bottom-1 whitespace-nowrap border bg-hq-ink px-1.5 py-0.5 font-mono text-[10px] font-bold',
+                                    subMinute.direction === 'out'
+                                        ? 'border-hq-live text-hq-live'
+                                        : 'border-hq-lime text-hq-lime',
+                                )}
+                            >
+                                ↳{subMinute.minute}'
+                            </span>
+                        )}
+                    </div>
                     <h2 className="font-display text-lg text-hq-paper uppercase">
                         {player.nickname}
                     </h2>
@@ -111,6 +136,11 @@ export function HqPlayerStatsModal({
                         </Link>
                     )}
                     <div className="mt-1 flex items-center gap-2">
+                        {matchPosition && (
+                            <span className="font-mono text-[11px] text-hq-paper">
+                                {matchPosition}
+                            </span>
+                        )}
                         <HqPositionTag position={player.position} />
                         <span
                             className={cn(
