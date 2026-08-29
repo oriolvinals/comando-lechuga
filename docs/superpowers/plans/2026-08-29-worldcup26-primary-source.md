@@ -1967,6 +1967,11 @@ test('syncs lineups for each season manager through the current week, resolving 
         'week_number' => 1,
         'team_local_id' => $player->team_id,
     ]);
+    // The command now resolves fixture_id via the player's actual FixtureLineup
+    // row for that week (see the "Why FixtureLineup, not Fixture" note below the
+    // command rewrite), not by matching the player's current team against the
+    // fixture — so this row has to exist for resolution to find anything.
+    FixtureLineup::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id]);
     $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
     $loginConnector->shouldReceive('accessToken')
         ->once()
@@ -2063,7 +2068,7 @@ Expected: FAIL — `fixture_id` isn't written yet, and the deleted test's assert
 
 - [ ] **Step 3: Rewrite the command**
 
-In `app/Console/Commands/SyncCurrentSeasonManagerLineups.php`, replace the `use` block's `App\Support\Arr` import — keep it if still needed elsewhere (it isn't, after this rewrite; remove `use Illuminate\Support\Arr;`). Add `use App\Models\Fixture;`.
+In `app/Console/Commands/SyncCurrentSeasonManagerLineups.php`, replace the `use` block's `App\Support\Arr` import — keep it if still needed elsewhere (it isn't, after this rewrite; remove `use Illuminate\Support\Arr;`). Add `use App\Models\FixtureLineup;` (not `Fixture` — see the note after the code block below for why).
 
 Replace the `handle()` method's inner `DB::transaction(...)` closure body:
 
@@ -2104,12 +2109,11 @@ Replace the `handle()` method's inner `DB::transaction(...)` closure body:
                                 continue;
                             }
 
-                            $fixture = Fixture::query()
-                                ->where('season_id', $season->id)
-                                ->where('week_number', $weekNumber)
-                                ->where(fn ($query) => $query
-                                    ->where('team_local_id', $player->team_id)
-                                    ->orWhere('team_guest_id', $player->team_id))
+                            $fixtureLineup = FixtureLineup::query()
+                                ->where('player_id', $player->id)
+                                ->whereHas('fixture', fn ($query) => $query
+                                    ->where('season_id', $season->id)
+                                    ->where('week_number', $weekNumber))
                                 ->first();
 
                             ManagerLineupPlayer::query()->updateOrCreate(
@@ -2118,7 +2122,7 @@ Replace the `handle()` method's inner `DB::transaction(...)` closure body:
                                     'player_id' => $player->id,
                                 ],
                                 [
-                                    'fixture_id' => $fixture?->id,
+                                    'fixture_id' => $fixtureLineup?->fixture_id,
                                     'position' => $position,
                                 ],
                             );
@@ -2135,6 +2139,8 @@ Replace the `handle()` method's inner `DB::transaction(...)` closure body:
 ```
 
 Note `$lineupData` (the outer `foreach`'s already-fetched response) is still captured by the closure the same way it was before — only the `use (...)` list changed (added `$season`, dropped nothing that was there — check the surrounding `foreach` still assigns `$lineupData`/`$formation` above this block, unchanged). `$this->subMinute`-style helpers aren't relevant here; the removed code is only the `$lastStats`/`$weekStats` lookup block and the `points`/`stats` keys in the `updateOrCreate` call.
+
+**Why `FixtureLineup`, not `Fixture`+`Player.team_id`:** looking up the fixture via `Fixture::where(team_local_id/team_guest_id = $player->team_id)` uses the player's *current* club — but `Player.team_id` can change mid-season (a transfer), while `FixtureLineup.team_id` is always the match-time club (an existing invariant from an earlier phase, unrelated to this task, but binding here too). For a player who transferred after the week being synced, matching on their current team would resolve to the wrong fixture or none at all. Matching directly against `FixtureLineup.player_id` sidesteps this entirely — it's the player's actual confirmed roster entry for that week, immune to later transfers — and is simpler than the team-matching query it replaces.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
