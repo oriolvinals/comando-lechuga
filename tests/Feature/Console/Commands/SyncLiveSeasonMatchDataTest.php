@@ -232,12 +232,12 @@ test('resolves a player by match_data_id even when Player.team_id no longer matc
         ->and($lineup->team_id)->not->toBe($transferred->team_id);
 });
 
-test('running twice with the same payload does not duplicate lineups, and reports unresolved players', function (): void {
+test('creates a fixture_lineups row with a null player_id for an unresolved athlete, and reports it', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $home = Team::factory()->create(['match_data_id' => 83]);
     $away = Team::factory()->create(['match_data_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
-    Fixture::factory()->create([
+    $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
@@ -254,7 +254,7 @@ test('running twice with the same payload does not duplicate lineups, and report
                 'formation' => '4-3-3',
                 'roster' => [
                     ['athlete' => ['id' => 5001, 'displayName' => 'Known'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => [['name' => 'saves', 'value' => 1]]],
-                    ['athlete' => ['id' => 9999, 'displayName' => 'Unknown Player'], 'starter' => true, 'position' => ['displayName' => 'CB'], 'jersey' => '5'],
+                    ['athlete' => ['id' => 9999, 'displayName' => 'Unknown Player'], 'starter' => true, 'position' => ['displayName' => 'CB'], 'jersey' => '5', 'stats' => [['name' => 'foulsCommitted', 'value' => 2]]],
                 ],
             ],
         ],
@@ -272,30 +272,18 @@ test('running twice with the same payload does not duplicate lineups, and report
     expect(FixtureLineup::query()->where('player_id', $known->id)->sole()->stats)
         ->toBe([['name' => 'saves', 'value' => 1]]);
 
-    // Second sync with the same fixture/player but changed stats — proves the update half
-    // of updateOrCreate, not just the create-once half.
-    $updatedPayload = liveMatchEventPayload([
-        'rosters' => [
-            [
-                'homeAway' => 'home',
-                'team' => ['id' => 83],
-                'formation' => '4-3-3',
-                'roster' => [
-                    ['athlete' => ['id' => 5001, 'displayName' => 'Known'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => [['name' => 'saves', 'value' => 4]]],
-                    ['athlete' => ['id' => 9999, 'displayName' => 'Unknown Player'], 'starter' => true, 'position' => ['displayName' => 'CB'], 'jersey' => '5'],
-                ],
-            ],
-        ],
-    ]);
-    $connector2 = (new Worldcup26Connector)->withMockClient(new MockClient([
-        GetEventRequest::class => MockResponse::make($updatedPayload),
-    ]));
-    app()->instance(Worldcup26Connector::class, $connector2);
+    $unresolvedRow = FixtureLineup::query()->whereNull('player_id')->where('fixture_id', $fixture->id)->sole();
+    expect($unresolvedRow->jersey)->toBe('5')
+        ->and($unresolvedRow->position)->toBe('CB')
+        ->and($unresolvedRow->team_id)->toBe($home->id)
+        ->and($unresolvedRow->stats)->toBe([['name' => 'foulsCommitted', 'value' => 2]]);
+
+    // Second sync with the same payload: the known player's row updates in place (still 1
+    // row), and the unresolved row is replaced, not duplicated (still 1 row with null).
     $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
 
-    expect(FixtureLineup::query()->count())->toBe(1)
-        ->and(FixtureLineup::query()->where('player_id', $known->id)->sole()->stats)
-        ->toBe([['name' => 'saves', 'value' => 4]]);
+    expect(FixtureLineup::query()->where('player_id', $known->id)->count())->toBe(1)
+        ->and(FixtureLineup::query()->whereNull('player_id')->where('fixture_id', $fixture->id)->count())->toBe(1);
 });
 
 test('replaces fixture_events from keyEvents on every sync, mapped from the API flags', function (): void {

@@ -19,6 +19,7 @@
         "saloonphp/saloon": "^4.0"
     },
     "require-dev": {
+        "doctrine/dbal": "^4.4",
         "driftingly/rector-laravel": "^2.5",
         "fakerphp/faker": "^1.24",
         "larastan/larastan": "^3.9",

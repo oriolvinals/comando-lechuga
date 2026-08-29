@@ -144,6 +144,8 @@ class SyncLiveSeasonMatchData extends Command
         $rosters = is_array($event['rosters'] ?? null) ? $event['rosters'] : [];
         $unresolved = [];
 
+        FixtureLineup::query()->where('fixture_id', $fixture->id)->whereNull('player_id')->delete();
+
         foreach ($rosters as $rosterEntry) {
             $teamMatchDataId = (int) ($rosterEntry['team']['id'] ?? 0);
             $team = Team::query()->where('match_data_id', $teamMatchDataId)->first();
@@ -162,6 +164,7 @@ class SyncLiveSeasonMatchData extends Command
 
                 if ($player === null) {
                     $unresolved[] = (string) ($rosterPlayer['athlete']['displayName'] ?? $athleteMatchDataId);
+                    $this->createUnresolvedLineup($fixture, $team, $rosterPlayer);
 
                     continue;
                 }
@@ -171,6 +174,26 @@ class SyncLiveSeasonMatchData extends Command
         }
 
         return $unresolved;
+    }
+
+    /**
+     * @param  array<string, mixed>  $rosterPlayer
+     */
+    private function createUnresolvedLineup(Fixture $fixture, Team $team, array $rosterPlayer): void
+    {
+        FixtureLineup::query()->create([
+            'fixture_id' => $fixture->id,
+            'player_id' => null,
+            'team_id' => $team->id,
+            'starter' => (bool) ($rosterPlayer['starter'] ?? false),
+            'position' => (string) ($rosterPlayer['position']['displayName'] ?? ''),
+            'jersey' => (string) ($rosterPlayer['jersey'] ?? ''),
+            'subbed_in' => (bool) ($rosterPlayer['subbedIn'] ?? false),
+            'subbed_out' => (bool) ($rosterPlayer['subbedOut'] ?? false),
+            'counterpart_player_id' => null,
+            'sub_minute' => $this->subMinute($rosterPlayer),
+            'stats' => is_array($rosterPlayer['stats'] ?? null) ? $rosterPlayer['stats'] : [],
+        ]);
     }
 
     /**

@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property-read int $id
  * @property-read int $fixture_id
- * @property-read int $player_id
+ * @property-read int|null $player_id
  * @property-read int $team_id
  * @property-read bool $starter
  * @property-read string $position
