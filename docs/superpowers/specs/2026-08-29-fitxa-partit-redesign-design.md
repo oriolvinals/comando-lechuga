@@ -32,15 +32,21 @@ Hoy (fase 3), un jugador del roster de worldcup26 que no resuelve a un `Player` 
 
 Componente nuevo, p.ej. `resources/js/components/hq-match-pitch.tsx`, horizontal, split por la mitad: equipo local en su mitad (ataca a la derecha), equipo visitante en la suya (ataca a la izquierda, espejado). Fondo esquemático oscuro con líneas lima tenues (no césped literal) — encaja con la estética "sala de guerra" ya establecida (`hq-texture`, paleta `--color-hq-*`).
 
-### Posicionamiento (algoritmo, no coordenadas guardadas)
+### Posicionamiento: dos enums derivados, cálculo en el backend
 
-worldcup26 da un `formationPlace` (slot numérico) que **no capturamos** — solo tenemos `position` (texto libre tipo "Center Right Defender", "Left Back"). El posicionamiento es una función determinista en el frontend, no datos guardados:
+worldcup26 da un `formationPlace` (slot numérico) que **no capturamos** — solo tenemos `position` (texto libre tipo "Center Right Defender", "Left Back"). La columna `fixture_lineups.position` se queda tal cual está (texto libre real, se sigue mostrando así en el modal) — la clasificación para poder colocar al jugador en el campo es **derivada, no guardada**, con el mismo patrón ya usado en `FixtureState::fromWorldcup26Name()`: dos enums pequeños con un factory `fromWorldcup26Text()` cada uno, en vez de coordenadas o un algoritmo de texto libre disperso por el código.
 
-1. Clasificar cada titular por **línea**, a partir de palabras clave en `position`: contiene "Goalkeeper" → portero; contiene "Back" o "Defender" → defensa; contiene "Midfielder" → centrocampo; contiene "Forward" → delantera. `player_id === null` (hueco sin vincular) usa la línea de su `position` igualmente si la tenemos (si el roster raw la traía) — si no hay ni posición, va a la línea con menos ocupantes respecto al recuento esperado de la formación.
-2. Dentro de cada línea, ordenar por pista L/C/R: contiene "Left" → izquierda; contiene "Right" → derecha; si no, centro. Repartir uniformemente en el eje vertical según cuántos haya en esa línea.
-3. Profundidad (eje horizontal) fija por línea y equipo: portero cerca de su propia portería, defensa/centrocampo/delantera escalonados hacia el centro; equipo visitante espejado.
+`App\Enums\MatchPositionLine` — `Goalkeeper | Defender | Midfielder | Forward | Substitute | Unknown`, con `fromWorldcup26Text(string $text): self`: contiene "Goalkeeper" → `Goalkeeper`; contiene "Back" o "Defender" → `Defender`; contiene "Midfielder" → `Midfielder`; contiene "Forward" → `Forward`; "Substitute" → `Substitute`; cualquier otra cosa → `Unknown` (mismo criterio conservador que `FixtureState`, nunca revienta con un texto no visto).
 
-Esto es exactamente lo validado en el mockup contra los 5-3-2 / 4-4-2 reales del partido de referencia.
+`App\Enums\MatchPositionSide` — `Left | Center | Right`, con `fromWorldcup26Text(string $text): self`: contiene "Left" → `Left`; contiene "Right" → `Right`; si no, `Center`.
+
+El cálculo de coordenadas x/y (0-100) se hace en `FixturesController::show()` al construir el prop `lineups`, no en el frontend — así es testable con Pest como todo lo demás del controller, sin necesitar un runner de tests JS que este proyecto no tiene. Algoritmo, por equipo:
+
+1. Agrupar los titulares por `MatchPositionLine` (los `Substitute`/`Unknown` de un titular no deberían darse en la práctica — un titular real siempre trae línea; si pasara, cae en centrocampo por ser la línea más numerosa, para no desaparecer del campo). Un hueco `player_id === null` usa la línea de su `position` igual que cualquier otro, con el mismo enum.
+2. Dentro de cada línea, ordenar por `MatchPositionSide` (Left → Center → Right) y repartir uniformemente en el eje vertical (`y`, 0-100) según cuántos haya en esa línea.
+3. Profundidad fija por línea (eje `x`, 0-100): portero cerca de su propia portería; defensa/centrocampo/delantera escalonados hacia el centro. Equipo visitante espejado (mismas profundidades por línea, invertidas).
+
+El prop `lineups` lleva `x`/`y` ya calculados — el componente React solo pinta, no decide dónde. Esto es exactamente lo validado en el mockup contra los 5-3-2 / 4-4-2 reales del partido de referencia.
 
 ### Token de jugador (campo)
 
@@ -92,5 +98,6 @@ Cuerpo: la rejilla completa `JORNADA_STAT_ORDER` (sin cambios respecto a hoy, ve
 - Migración: `fixture_lineups.player_id` nullable, columna sigue siendo FK.
 - `SyncLiveSeasonMatchData`: test de que un atleta no resuelto crea fila con `player_id: null` (no se salta); test de que un segundo sync no duplica esas filas sin `player_id`.
 - `FixturesController::show`: test de que la respuesta incluye lineups (con jugador null cuando aplica), events, y el bloque de stats de equipo agregado con los totales correctos a partir de fixtures de prueba.
-- Frontend: función pura de posicionamiento (texto de posición → línea + L/C/R) con casos de las variantes reales vistas ("Center Right Defender", "Left Back", "Right Midfielder", "Center Left Forward", sin coincidencia → fallback razonable).
+- `MatchPositionLine::fromWorldcup26Text()` / `MatchPositionSide::fromWorldcup26Text()`: un caso por variante real vista ("Center Right Defender", "Left Back", "Right Midfielder", "Center Left Forward", "Substitute", texto no reconocido → `Unknown`/`Center`), con el mismo patrón de test por dataset que ya tiene `FixtureState::fromWorldcup26Name()` en `FixtureTest.php`.
+- `FixturesController::show()`: test de que `lineups.*.x`/`lineups.*.y` caen dentro de 0-100, que un hueco sin vincular (`player_id: null`) aparece con coordenadas coherentes con su línea, y que el equipo visitante queda espejado respecto al local.
 - `HqPlayerStatsModal`: test de que la rejilla sigue siendo 100% `PlayerScore.stats` y que el badge de sustitución usa el minuto de `FixtureLineup`, no de `PlayerScore`.
