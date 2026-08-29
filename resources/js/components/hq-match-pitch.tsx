@@ -14,6 +14,8 @@ export function HqMatchPitch({ lineups, onSelect }: HqMatchPitchProps) {
             <div className="pointer-events-none absolute inset-3.5 border border-hq-lime/20" />
             <div className="pointer-events-none absolute top-3.5 bottom-3.5 left-1/2 w-px -translate-x-1/2 bg-hq-lime/20" />
             <div className="pointer-events-none absolute top-1/2 left-1/2 aspect-square w-[15%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-hq-lime/20" />
+            <div className="pointer-events-none absolute top-1/2 left-3.5 h-[60%] w-[16%] -translate-y-1/2 border border-r-0 border-hq-lime/20" />
+            <div className="pointer-events-none absolute top-1/2 right-3.5 h-[60%] w-[16%] -translate-y-1/2 border border-l-0 border-hq-lime/20" />
 
             {starters.map((entry) => (
                 <div
