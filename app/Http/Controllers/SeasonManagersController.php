@@ -12,7 +12,9 @@ use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
 use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\ManagerLineup;
+use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
 use App\Models\Season;
 use App\Models\SeasonManager;
@@ -43,6 +45,7 @@ class SeasonManagersController extends Controller
 
         $this->attachCurrentSeason($lineups->flatMap(fn (ManagerLineup $lineup) => $lineup->players->pluck('player')), $season->id);
         $this->attachMatchFinished($lineups, $season);
+        $this->attachLineupPlayerScores($lineups);
 
         return Inertia::render('season-managers/index', [
             'season' => $season,
@@ -79,6 +82,7 @@ class SeasonManagersController extends Controller
 
         $this->attachCurrentSeason($lineupHistory->flatMap(fn (ManagerLineup $lineup) => $lineup->players->pluck('player')), $season->id);
         $this->attachMatchFinished($lineupHistory, $season);
+        $this->attachLineupPlayerScores($lineupHistory);
 
         $activity = Activity::query()
             ->where(fn ($query) => $query
@@ -136,6 +140,41 @@ class SeasonManagersController extends Controller
             foreach ($lineup->players as $entry) {
                 $entry->match_finished = $finishedTeamWeeks[$lineup->week_number][$entry->player->team_id] ?? false;
             }
+        });
+    }
+
+    /**
+     * `ManagerLineupPlayer` no longer stores its own points/stats — both are
+     * looked up from the linked `FixtureLineup` row (via `fixture_id`, set once
+     * the lineup was saved) and attached as virtual properties, the same way
+     * `attachMatchFinished` already does for `match_finished`.
+     *
+     * This is a manual bulk lookup, not `ManagerLineupPlayer::fixtureLineup()`
+     * eager-loaded via `->with()` — that relation is deliberately lazy-only
+     * (see its docblock in `app/Models/ManagerLineupPlayer.php`, Task 5):
+     * eager-loading it would bake only the first row's `fixture_id` into the
+     * one shared query template Eloquent builds for the whole batch, silently
+     * returning the wrong (or no) `FixtureLineup` for every other row.
+     *
+     * @param  Collection<int, ManagerLineup>  $lineups
+     */
+    private function attachLineupPlayerScores(Collection $lineups): void
+    {
+        $entries = $lineups->flatMap(fn (ManagerLineup $lineup) => $lineup->players);
+
+        $fixtureLineupsByKey = FixtureLineup::query()
+            ->whereIn('fixture_id', $entries->pluck('fixture_id')->filter()->unique())
+            ->whereIn('player_id', $entries->pluck('player_id')->filter()->unique())
+            ->get()
+            ->keyBy(fn (FixtureLineup $lineup): string => "{$lineup->fixture_id}-{$lineup->player_id}");
+
+        $entries->each(function (ManagerLineupPlayer $entry) use ($fixtureLineupsByKey): void {
+            $fixtureLineup = $entry->fixture_id === null
+                ? null
+                : $fixtureLineupsByKey->get("{$entry->fixture_id}-{$entry->player_id}");
+
+            $entry->points = $fixtureLineup?->fantasy_points;
+            $entry->stats = $fixtureLineup?->fantasy_stats;
         });
     }
 

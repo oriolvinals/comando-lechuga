@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read int|null $fixture_id
  * @property-read PlayerPosition $position
  * @property bool $match_finished Computed at query time by SeasonManagersController; not a database column.
+ * @property int|null $points Computed at query time by SeasonManagersController from the linked FixtureLineup; not a database column.
+ * @property array<string, mixed>|null $stats Computed at query time by SeasonManagersController from the linked FixtureLineup; not a database column.
  */
 #[UseFactory(ManagerLineupPlayerFactory::class)]
 #[Table(name: 'manager_lineup_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]

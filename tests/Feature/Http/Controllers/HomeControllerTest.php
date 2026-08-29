@@ -6,10 +6,10 @@ use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
-use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
@@ -170,7 +170,7 @@ test('includes recent scores for each market listing player', function (): void 
     ]);
     $player = Player::factory()->create(['position' => PlayerPosition::Striker]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay(), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'points' => 9]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'fantasy_points' => 9]);
     MarketPlayer::factory()->create(['player_id' => $player->id]);
 
     $response = $this->get(route('home'));

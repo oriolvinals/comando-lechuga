@@ -7,11 +7,11 @@ use App\Enums\PlayerPosition;
 use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
 use App\Models\Player;
-use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use Inertia\Testing\AssertableInertia;
@@ -107,10 +107,16 @@ test('shows the lineup players for each manager', function (): void {
         'week_number' => 1,
     ]);
     $player = Player::factory()->create(['nickname' => 'Lamine Yamal']);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'fantasy_points' => 12,
+    ]);
     ManagerLineupPlayer::factory()->create([
         'manager_lineup_id' => $lineup->id,
         'player_id' => $player->id,
-        'points' => 12,
+        'fixture_id' => $fixture->id,
     ]);
 
     $response = $this->get(route('season-managers.index', ['week' => 1]));
@@ -172,7 +178,6 @@ test('marks an index lineup player without points as not called up once their fi
     ManagerLineupPlayer::factory()->create([
         'manager_lineup_id' => $lineup->id,
         'player_id' => $notCalledUpPlayer->id,
-        'points' => null,
     ]);
 
     $response = $this->get(route('season-managers.index', ['week' => 1]));
@@ -382,8 +387,8 @@ test('attaches recent scores to each roster player', function (): void {
     ]);
     $earliest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     $latest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $earliest->id, 'points' => 4]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $latest->id, 'points' => 9]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $earliest->id, 'fantasy_points' => 4]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $latest->id, 'fantasy_points' => 9]);
 
     $response = $this->get(route('season-managers.show', $seasonManager));
 
@@ -407,8 +412,8 @@ test('marks recent scores as used only for jornadas this manager actually lined 
 
     $week1 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     $week2 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $week1->id, 'points' => 4]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $week2->id, 'points' => 9]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $week1->id, 'fantasy_points' => 4]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $week2->id, 'fantasy_points' => 9]);
 
     $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2]);
     ManagerLineupPlayer::factory()->create([
@@ -467,7 +472,6 @@ test('marks a lineup player without points as not called up once their fixture f
     ManagerLineupPlayer::factory()->create([
         'manager_lineup_id' => $lineup->id,
         'player_id' => $notCalledUpPlayer->id,
-        'points' => null,
     ]);
 
     $notYetPlayedPlayer = Player::factory()->create();
@@ -480,7 +484,6 @@ test('marks a lineup player without points as not called up once their fixture f
     ManagerLineupPlayer::factory()->create([
         'manager_lineup_id' => $lineup->id,
         'player_id' => $notYetPlayedPlayer->id,
-        'points' => null,
     ]);
 
     $response = $this->get(route('season-managers.show', $seasonManager));
@@ -587,4 +590,46 @@ test('shows live_points once the current week has kicked off', function (): void
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('seasonManager.live_points', 23));
+});
+
+test('lineup player points/stats come from the linked FixtureLineup via fixture_id', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 1]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'fantasy_points' => 7,
+        'fantasy_stats' => ['mins_played' => [90, 2]],
+    ]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.points', 7)
+        ->where('lineups.0.players.0.stats', ['mins_played' => [90, 2]])
+    );
+});
+
+test('lineup player points/stats are null when fixture_id is not yet set', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 1]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'fixture_id' => null]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.points', null)
+        ->where('lineups.0.players.0.stats', null)
+    );
 });
