@@ -1,14 +1,16 @@
 import { Head, Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqFixtureBench } from '@/components/hq-fixture-bench';
-import { HqFixtureScoreList } from '@/components/hq-fixture-score-list';
 import { HqFixtureTeamStats } from '@/components/hq-fixture-team-stats';
 import { HqFixtureTimeline } from '@/components/hq-fixture-timeline';
 import { HqMatchPitch } from '@/components/hq-match-pitch';
-import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
+import {
+    HqPlayerStatsModal,
+    type HqPlayerStatsEntry,
+} from '@/components/hq-player-stats-modal';
 import { HqScrollRow } from '@/components/hq-scroll-row';
 import AppLayout from '@/layouts/app-layout';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
@@ -20,13 +22,12 @@ import type {
     FixtureEventEntry,
     FixtureLineupEntry,
     FixtureTeamStat,
-    PlayerScore,
+    JornadaStats,
 } from '@/types/models';
 
 interface FixtureShowProps {
     fixture: Fixture;
     weekFixtures: Fixture[];
-    scores: PlayerScore[];
     lineups: FixtureLineupEntry[];
     events: FixtureEventEntry[];
     team_stats: FixtureTeamStat[];
@@ -36,7 +37,6 @@ interface FixtureShowProps {
 export default function FixtureShow({
     fixture,
     weekFixtures,
-    scores,
     lineups,
     events,
     team_stats,
@@ -44,24 +44,15 @@ export default function FixtureShow({
     const [activeTab, setActiveTab] = useState<'bench' | 'stats' | 'timeline'>(
         'bench',
     );
-    const [selectedScore, setSelectedScore] = useState<PlayerScore | null>(
+    const [selectedEntry, setSelectedEntry] = useState<FixtureLineupEntry | null>(
         null,
     );
     const isLive = isLiveFixtureState(fixture.state);
     const hasScore = isLive || fixture.state === 'finished';
 
-    const scoresByPlayerId = useMemo(
-        () => new Map(scores.map((score) => [score.player.id, score])),
-        [scores],
-    );
-
     const handleSelectLineupEntry = (entry: FixtureLineupEntry) => {
-        const score = entry.player
-            ? scoresByPlayerId.get(entry.player.id)
-            : undefined;
-
-        if (score) {
-            setSelectedScore(score);
+        if (entry.player) {
+            setSelectedEntry(entry);
         }
     };
 
@@ -215,7 +206,7 @@ export default function FixtureShow({
                         </div>
                     </div>
 
-                    {fixture.state === 'scheduled' ? (
+                    {fixture.state === 'scheduled' || lineups.length === 0 ? (
                         <div className="mt-6 border border-dashed border-hq-border-strong px-6 py-9 text-center">
                             <p className="mb-2 text-3xl">⚽</p>
                             <p className="font-display text-lg text-hq-paper uppercase">
@@ -225,14 +216,6 @@ export default function FixtureShow({
                                 Cuando empiece el partido aparecerán aquí los
                                 puntos de cada jugador
                             </p>
-                        </div>
-                    ) : lineups.length === 0 ? (
-                        <div className="mt-6">
-                            <HqFixtureScoreList
-                                fixture={fixture}
-                                scores={scores}
-                                onSelect={setSelectedScore}
-                            />
                         </div>
                     ) : (
                         <>
@@ -332,44 +315,34 @@ export default function FixtureShow({
             </div>
             <HqPlayerStatsModal
                 entry={
-                    selectedScore
-                        ? {
-                              player: selectedScore.player,
-                              team: selectedScore.team,
-                              points: selectedScore.points,
+                    selectedEntry && selectedEntry.player
+                        ? ({
+                              player: selectedEntry.player,
+                              team:
+                                  selectedEntry.team_id === fixture.local_team.id
+                                      ? fixture.local_team
+                                      : fixture.guest_team,
+                              points: selectedEntry.points ?? 0,
                               daznPoints:
                                   fixture.state === 'finished'
-                                      ? selectedScore.stats.marca_points?.[1]
+                                      ? (selectedEntry.dazn_points ?? undefined)
                                       : undefined,
-                              stats: selectedScore.stats,
-                              lineupManager: selectedScore.lineup_manager,
-                              matchPosition: lineups.find(
-                                  (entry) =>
-                                      entry.player?.id ===
-                                      selectedScore.player.id,
-                              )?.position,
-                              subMinute: (() => {
-                                  const entry = lineups.find(
-                                      (e) =>
-                                          e.player?.id ===
-                                          selectedScore.player.id,
-                                  );
-
-                                  if (!entry || entry.sub_minute === null) {
-                                      return null;
-                                  }
-
-                                  return {
-                                      minute: entry.sub_minute,
-                                      direction: entry.subbed_out
-                                          ? ('out' as const)
-                                          : ('in' as const),
-                                  };
-                              })(),
-                          }
+                              stats: selectedEntry.stats ?? ({} as JornadaStats),
+                              lineupManager: selectedEntry.lineup_manager,
+                              matchPosition: selectedEntry.position,
+                              subMinute:
+                                  selectedEntry.sub_minute === null
+                                      ? null
+                                      : {
+                                            minute: selectedEntry.sub_minute,
+                                            direction: selectedEntry.subbed_out
+                                                ? ('out' as const)
+                                                : ('in' as const),
+                                        },
+                          } satisfies HqPlayerStatsEntry)
                         : null
                 }
-                onClose={() => setSelectedScore(null)}
+                onClose={() => setSelectedEntry(null)}
             />
         </>
     );

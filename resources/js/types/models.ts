@@ -68,6 +68,7 @@ export interface FixtureLineupEntry {
     yellow_cards: number;
     red_cards: number;
     points: number | null;
+    stats: JornadaStats | null;
     dazn_points: number | null;
     x: number | null;
     y: number | null;
@@ -99,7 +100,6 @@ export interface PlayerScore {
     team: Team;
     points: number;
     stats: JornadaStats;
-    ideal_formation: boolean;
     player: Player;
     lineup_manager: SeasonManager | null;
 }
@@ -207,7 +207,6 @@ export interface PlayerFichaScore {
     team: Team;
     points: number;
     stats: JornadaStats;
-    ideal_formation: boolean;
     fixture: Fixture;
     lineup_manager: SeasonManager | null;
 }
