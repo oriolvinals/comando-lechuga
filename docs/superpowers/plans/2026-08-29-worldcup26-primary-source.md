@@ -393,7 +393,7 @@ Expected: FAIL — `fantasy_id` is `NOT NULL` at the DB level, insert throws.
 
 - [ ] **Step 3: Write the migration**
 
-Check `composer.json` for `doctrine/dbal` first (`->change()` requires it) — if missing, run `composer require doctrine/dbal --dev` before writing this migration (same note as the existing `2026_08_30_090000_make_fixture_lineups_player_id_nullable.php` migration).
+Note: an earlier version of this brief said `->change()` requires `doctrine/dbal` — verified false for this Laravel version (confirmed empirically: the full test suite runs clean through every `->change()` migration in this project, including this one, with `doctrine/dbal` completely absent from `composer.json`). Do not install it.
 
 ```php
 <?php
