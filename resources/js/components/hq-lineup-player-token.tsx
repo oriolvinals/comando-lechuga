@@ -133,7 +133,7 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
 
     const statBadges = entry.player && entry.points !== null && (
         <div className={cn('flex items-center gap-1.5', isPitch && 'justify-center')}>
-            <span className={cn('rounded-[2px] px-2 py-0.5 font-mono text-[13px] font-bold', matchPointsBadgeClass(entry.points))}>
+            <span className={cn('rounded-[2px] px-1.5 py-0.5 font-mono text-[11px] font-bold', matchPointsBadgeClass(entry.points))}>
                 {entry.points}
             </span>
             {hasPlayed && entry.dazn_points !== null && (
