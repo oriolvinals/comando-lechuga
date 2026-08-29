@@ -10,7 +10,6 @@ use App\Models\ManagerPlayer;
 use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
-use App\Models\PlayerScore;
 use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\SeasonManager;
@@ -32,7 +31,6 @@ test('wipes every table except seasons and season_managers', function (): void {
     ManagerPlayer::factory()->create();
     MarketPlayer::factory()->create();
     PlayerMarket::factory()->create();
-    PlayerScore::factory()->create();
     PlayerSeason::factory()->create();
 
     // Compare counts before/after rather than asserting an absolute number:
@@ -64,7 +62,6 @@ test('wipes every table except seasons and season_managers', function (): void {
         ->and(MarketPlayer::query()->count())->toBe(0)
         ->and(Player::query()->count())->toBe(0)
         ->and(PlayerMarket::query()->count())->toBe(0)
-        ->and(PlayerScore::query()->count())->toBe(0)
         ->and(PlayerSeason::query()->count())->toBe(0)
         ->and(Team::query()->count())->toBe(0)
         ->and(DB::table('season_team')->count())->toBe(0);
