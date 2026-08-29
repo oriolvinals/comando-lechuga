@@ -873,7 +873,7 @@ test('does not resolve lineup_manager for a ManagerLineupPlayer whose fixture_id
     FixtureLineup::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id, 'team_id' => $fixture->localTeam->id]);
 
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => $fixture->week_number]);
     ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id, 'fixture_id' => $otherFixture->id]);
 
     $response = $this->get(route('fixtures.show', $fixture));
