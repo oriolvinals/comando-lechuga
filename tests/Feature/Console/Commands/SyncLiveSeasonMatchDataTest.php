@@ -278,12 +278,34 @@ test('creates a fixture_lineups row with a null player_id for an unresolved athl
         ->and($unresolvedRow->team_id)->toBe($home->id)
         ->and($unresolvedRow->stats)->toBe([['name' => 'foulsCommitted', 'value' => 2]]);
 
-    // Second sync with the same payload: the known player's row updates in place (still 1
-    // row), and the unresolved row is replaced, not duplicated (still 1 row with null).
+    // Second sync with changed stats for the known player: the known player's row updates
+    // in place (still 1 row, but with the new stats), and the unresolved row is replaced,
+    // not duplicated (still 1 row with null).
+    $secondPayload = liveMatchEventPayload([
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 5001, 'displayName' => 'Known'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => [['name' => 'saves', 'value' => 4]]],
+                    ['athlete' => ['id' => 9999, 'displayName' => 'Unknown Player'], 'starter' => true, 'position' => ['displayName' => 'CB'], 'jersey' => '5', 'stats' => [['name' => 'foulsCommitted', 'value' => 2]]],
+                ],
+            ],
+        ],
+    ]);
+
+    $secondConnector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($secondPayload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $secondConnector);
+
     $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
 
     expect(FixtureLineup::query()->where('player_id', $known->id)->count())->toBe(1)
-        ->and(FixtureLineup::query()->whereNull('player_id')->where('fixture_id', $fixture->id)->count())->toBe(1);
+        ->and(FixtureLineup::query()->whereNull('player_id')->where('fixture_id', $fixture->id)->count())->toBe(1)
+        ->and(FixtureLineup::query()->where('player_id', $known->id)->sole()->stats)
+        ->toBe([['name' => 'saves', 'value' => 4]]);
 });
 
 test('replaces fixture_events from keyEvents on every sync, mapped from the API flags', function (): void {
