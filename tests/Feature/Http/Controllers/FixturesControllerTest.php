@@ -521,24 +521,83 @@ test('spreads multiple starters in the same pitch line by side then jersey', fun
 
     $response = $this->get(route('fixtures.show', $fixture));
 
-    // Expected order: Left Back (Left, jersey 3) -> Center Left Defender (Left,
-    // jersey 5, tied on side, broken by jersey) -> Center Defender (Center) ->
-    // Right Back (Right). y = 12 + index * (76 / 3), rounded to 1 decimal:
-    // 12.0, 37.3, 62.7, 88.0 (whole-number floats serialize as bare ints over
-    // the Inertia/JSON boundary, hence 12 and 88 below). This matches creation
-    // order above, and the lineups list is returned in that same
-    // (unordered-query / primary key) order.
+    // Pitch y is driven by side (left/center/right) then jersey, independent
+    // of array order: Left Back (Left, jersey 3) -> Center Left Defender
+    // (Left, jersey 5, tied on side, broken by jersey) -> Center Defender
+    // (Center) -> Right Back (Right). y = 12 + index * (76 / 3), rounded to 1
+    // decimal: 12.0, 37.3, 62.7, 88.0 (whole-number floats serialize as bare
+    // ints over the Inertia/JSON boundary, hence 12 and 88 below).
+    //
+    // The `lineups` array order itself is a different axis: all four are the
+    // same position line (Defender), so it's driven entirely by jersey
+    // ascending (2, 3, 4, 5) — Right Back, Left Back, Center Defender, Center
+    // Left Defender — not by creation order or side.
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('lineups', 4)
-        ->where('lineups.0.position', 'Left Back')
-        ->where('lineups.0.y', 12)
-        ->where('lineups.1.position', 'Center Left Defender')
-        ->where('lineups.1.y', 37.3)
+        ->where('lineups.0.position', 'Right Back')
+        ->where('lineups.0.y', 88)
+        ->where('lineups.1.position', 'Left Back')
+        ->where('lineups.1.y', 12)
         ->where('lineups.2.position', 'Center Defender')
         ->where('lineups.2.y', 62.7)
-        ->where('lineups.3.position', 'Right Back')
-        ->where('lineups.3.y', 88)
+        ->where('lineups.3.position', 'Center Left Defender')
+        ->where('lineups.3.y', 37.3)
+    );
+});
+
+test('orders lineup entries by position line then jersey', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $team = $fixture->localTeam;
+
+    // Created out of the final expected order on purpose.
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => false,
+        'position' => 'Forward',
+        'jersey' => '9',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => false,
+        'position' => 'Goalkeeper',
+        'jersey' => '13',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => false,
+        'position' => 'Right Back',
+        'jersey' => '2',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => false,
+        'position' => 'Center Midfielder',
+        'jersey' => '6',
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('lineups', 4)
+        ->where('lineups.0.position', 'Goalkeeper')
+        ->where('lineups.0.jersey', '13')
+        ->where('lineups.1.position', 'Right Back')
+        ->where('lineups.1.jersey', '2')
+        ->where('lineups.2.position', 'Center Midfielder')
+        ->where('lineups.2.jersey', '6')
+        ->where('lineups.3.position', 'Forward')
+        ->where('lineups.3.jersey', '9')
     );
 });
 

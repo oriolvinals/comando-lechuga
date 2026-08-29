@@ -102,7 +102,12 @@ class FixturesController extends Controller
         $fixtureLineups = FixtureLineup::query()
             ->where('fixture_id', $fixture->id)
             ->with('player.team', 'counterpartPlayer')
-            ->get();
+            ->get()
+            ->sortBy([
+                fn (FixtureLineup $a, FixtureLineup $b): int => $this->lineOrder($a->position) <=> $this->lineOrder($b->position),
+                fn (FixtureLineup $a, FixtureLineup $b): int => $a->jersey <=> $b->jersey,
+            ])
+            ->values();
 
         // Players loaded through the lineup relation are separate model
         // instances from $scores->pluck('player') above and never go through
@@ -280,6 +285,18 @@ class FixturesController extends Controller
             MatchPositionSide::Left => 0,
             MatchPositionSide::Center => 1,
             MatchPositionSide::Right => 2,
+        };
+    }
+
+    private function lineOrder(string $position): int
+    {
+        return match (MatchPositionLine::fromWorldcup26Text($position)) {
+            MatchPositionLine::Goalkeeper => 0,
+            MatchPositionLine::Defender => 1,
+            MatchPositionLine::Midfielder => 2,
+            MatchPositionLine::Forward => 3,
+            MatchPositionLine::Substitute => 4,
+            MatchPositionLine::Unknown => 5,
         };
     }
 }
