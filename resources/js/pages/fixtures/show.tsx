@@ -337,10 +337,7 @@ export default function FixtureShow({
                               player: selectedScore.player,
                               team: selectedScore.team,
                               points: selectedScore.points,
-                              daznPoints:
-                                  fixture.state === 'finished'
-                                      ? selectedScore.stats.marca_points?.[1]
-                                      : undefined,
+                              daznPoints: selectedScore.stats.marca_points?.[1],
                               stats: selectedScore.stats,
                               lineupManager: selectedScore.lineup_manager,
                               matchPosition: lineups.find(

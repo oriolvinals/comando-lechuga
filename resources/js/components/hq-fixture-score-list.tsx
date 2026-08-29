@@ -301,7 +301,7 @@ export function HqFixtureScoreList({
                     <TeamColumn
                         scores={localScores}
                         minPlayedRows={minPlayedRows}
-                        showDazn={fixture.state === 'finished'}
+                        showDazn
                         fixtureState={fixture.state}
                         onSelect={onSelect}
                     />
@@ -312,7 +312,7 @@ export function HqFixtureScoreList({
                     <TeamColumn
                         scores={guestScores}
                         minPlayedRows={minPlayedRows}
-                        showDazn={fixture.state === 'finished'}
+                        showDazn
                         fixtureState={fixture.state}
                         onSelect={onSelect}
                     />

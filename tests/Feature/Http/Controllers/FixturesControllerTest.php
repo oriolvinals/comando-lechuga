@@ -330,7 +330,7 @@ test('includes the position from the fixture season for each lineup player', fun
     );
 });
 
-test('nulls dazn_points for a lineup entry while the fixture is not finished', function (): void {
+test('populates dazn_points for a lineup entry while the fixture is live', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::FirstHalf]);
     $home = $fixture->localTeam;
@@ -350,6 +350,29 @@ test('nulls dazn_points for a lineup entry while the fixture is not finished', f
         'team_id' => $home->id,
         'points' => 4,
         'stats' => ['marca_points' => [3, 0]],
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.dazn_points', 0)
+    );
+});
+
+test('nulls dazn_points for a lineup entry with no PlayerScore, regardless of fixture state', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::FirstHalf]);
+    $home = $fixture->localTeam;
+    $player = Player::factory()->create(['team_id' => $home->id]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $home->id,
+        'starter' => true,
+        'position' => 'Goalkeeper',
+        'jersey' => '1',
     ]);
 
     $response = $this->get(route('fixtures.show', $fixture));
