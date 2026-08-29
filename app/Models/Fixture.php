@@ -56,12 +56,6 @@ class Fixture extends Model
         return $this->belongsTo(Team::class, 'team_guest_id');
     }
 
-    /** @return HasMany<PlayerScore, $this> */
-    public function playerScores(): HasMany
-    {
-        return $this->hasMany(PlayerScore::class);
-    }
-
     /** @return HasMany<FixtureLineup, $this> */
     public function fixtureLineups(): HasMany
     {
