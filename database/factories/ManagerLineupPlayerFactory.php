@@ -23,7 +23,7 @@ class ManagerLineupPlayerFactory extends Factory
         return [
             'manager_lineup_id' => ManagerLineup::factory(),
             'player_id' => Player::factory(),
-            'points' => 0,
+            'fixture_id' => null,
             'position' => $this->faker->randomElement(PlayerPosition::cases()),
         ];
     }
