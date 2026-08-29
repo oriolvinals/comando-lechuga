@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 /**
  * @property-read int $id
  * @property-read string $fantasy_id
+ * @property-read string|null $match_data_season_slug
  * @property-read string $name
  * @property-read CarbonImmutable $start_date
  * @property-read CarbonImmutable $end_date
@@ -24,7 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 #[UseFactory(SeasonFactory::class)]
 #[Table(name: 'seasons', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fantasy_id', 'name', 'start_date', 'end_date', 'total_weeks', 'current_week'])]
+#[Fillable(['fantasy_id', 'match_data_season_slug', 'name', 'start_date', 'end_date', 'total_weeks', 'current_week'])]
 class Season extends Model
 {
     /** @use HasFactory<SeasonFactory> */
@@ -60,6 +61,7 @@ class Season extends Model
         return [
             'id' => 'int',
             'fantasy_id' => 'string',
+            'match_data_season_slug' => 'string',
             'name' => 'string',
             'start_date' => 'immutable_date',
             'end_date' => 'immutable_date',

@@ -16,6 +16,7 @@ class SeasonFactory extends Factory
     {
         return [
             'fantasy_id' => $this->faker->unique()->numerify('#########'),
+            'match_data_season_slug' => '2026-27-laliga',
             'name' => $this->faker->unique()->name(),
             'start_date' => now()->subYear()->toDateString(),
             'end_date' => now()->subDay()->toDateString(),
