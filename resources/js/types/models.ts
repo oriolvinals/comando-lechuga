@@ -71,6 +71,7 @@ export interface FixtureLineupEntry {
     dazn_points: number | null;
     x: number | null;
     y: number | null;
+    lineup_manager: SeasonManager | null;
 }
 
 export type FixtureEventType =

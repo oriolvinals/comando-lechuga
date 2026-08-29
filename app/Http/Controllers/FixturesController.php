@@ -96,10 +96,16 @@ class FixturesController extends Controller
             ->sortBy(fn ($score): int => self::POSITION_ORDER[$score->player->position->value])
             ->values();
 
+        $fixtureLineups = FixtureLineup::query()
+            ->where('fixture_id', $fixture->id)
+            ->with('player.team', 'counterpartPlayer')
+            ->get();
+
         // Which manager fielded each player in their lineup this jornada — distinct
-        // from ownership, since an owner can bench a player they still own.
+        // from ownership, since an owner can bench a player they still own. Covers
+        // both scored players and lineup players who don't have a score yet.
         $lineupManagersByPlayer = ManagerLineupPlayer::query()
-            ->whereIn('player_id', $scores->pluck('player_id'))
+            ->whereIn('player_id', $scores->pluck('player_id')->merge($fixtureLineups->pluck('player_id'))->filter()->unique())
             ->whereHas('lineup', fn ($query) => $query
                 ->where('week_number', $fixture->week_number)
                 ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $fixture->season_id)))
@@ -113,11 +119,8 @@ class FixturesController extends Controller
 
         $scoresByPlayerId = $scores->keyBy('player_id');
 
-        $lineups = FixtureLineup::query()
-            ->where('fixture_id', $fixture->id)
-            ->with('player.team', 'counterpartPlayer')
-            ->get()
-            ->map(fn (FixtureLineup $lineup): array => $this->presentLineup($lineup, $fixture, $scoresByPlayerId));
+        $lineups = $fixtureLineups
+            ->map(fn (FixtureLineup $lineup): array => $this->presentLineup($lineup, $fixture, $scoresByPlayerId, $lineupManagersByPlayer));
 
         $events = FixtureEvent::query()
             ->where('fixture_id', $fixture->id)
@@ -146,9 +149,10 @@ class FixturesController extends Controller
 
     /**
      * @param  Collection<int, PlayerScore>  $scoresByPlayerId
+     * @param  Collection<int, ManagerLineupPlayer>  $lineupManagersByPlayer
      * @return array<string, mixed>
      */
-    private function presentLineup(FixtureLineup $lineup, Fixture $fixture, Collection $scoresByPlayerId): array
+    private function presentLineup(FixtureLineup $lineup, Fixture $fixture, Collection $scoresByPlayerId, Collection $lineupManagersByPlayer): array
     {
         $score = $lineup->player_id !== null ? $scoresByPlayerId->get($lineup->player_id) : null;
         $isLocal = $lineup->team_id === $fixture->team_local_id;
@@ -172,6 +176,7 @@ class FixturesController extends Controller
             'dazn_points' => $score?->stats['marca_points'][1] ?? null,
             'x' => $lineup->starter ? $this->pitchX($lineup->position, $isLocal) : null,
             'y' => $lineup->starter ? $this->pitchY($lineup, $fixture) : null,
+            'lineup_manager' => $lineup->player_id !== null ? $lineupManagersByPlayer->get($lineup->player_id)?->lineup?->seasonManager : null,
         ];
     }
 

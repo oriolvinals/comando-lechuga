@@ -1,8 +1,11 @@
+import { Link } from '@inertiajs/react';
 import { User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
+import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
+import { show as seasonManagersShow } from '@/routes/season-managers';
 import type { FixtureLineupEntry } from '@/types/models';
 
 interface HqLineupPlayerTokenProps {
@@ -107,6 +110,23 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
         </div>
     );
 
+    const managerLine = entry.lineup_manager && (
+        <Link
+            href={seasonManagersShow(entry.lineup_manager.id).url}
+            onClick={(event) => event.stopPropagation()}
+            className={cn(
+                'flex items-center gap-1 truncate font-mono text-hq-moss hover:text-hq-paper',
+                isPitch ? 'justify-center text-[9px]' : 'text-[10.5px]',
+            )}
+        >
+            <span
+                className="h-2 w-2 shrink-0 rounded-[1px]"
+                style={{ backgroundColor: managerColor(entry.lineup_manager.primary_color) }}
+            />
+            <span className="truncate">{entry.lineup_manager.name}</span>
+        </Link>
+    );
+
     const statBadges = entry.player && entry.points !== null && (
         <div className={cn('flex items-center gap-1.5', isPitch && 'justify-center')}>
             <span className={cn('rounded-[2px] px-2 py-0.5 font-mono text-[13px] font-bold', matchPointsBadgeClass(entry.points))}>
@@ -147,6 +167,7 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
             >
                 {avatar}
                 {nameLine}
+                {managerLine}
                 {statBadges}
             </div>
         );
@@ -157,6 +178,7 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
             {avatar}
             <div className="min-w-0 flex-1">
                 {nameLine}
+                {managerLine}
                 {!entry.player && <div className="font-mono text-[9.5px] text-hq-moss-dim">no vinculado</div>}
                 {benchEventStrip}
                 {statBadges}
