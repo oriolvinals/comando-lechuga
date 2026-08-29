@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Models\Fixture;
+use App\Models\FixtureEvent;
+use App\Models\FixtureLineup;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
@@ -256,5 +258,147 @@ test('excludes a lineup from a different week for the same player', function ():
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('scores.0.lineup_manager', null)
+    );
+});
+
+test('includes lineups with pitch coordinates, event counts, points and dazn', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $home = $fixture->localTeam;
+    $player = Player::factory()->create(['team_id' => $home->id, 'position' => PlayerPosition::Defender]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $home->id,
+        'starter' => true,
+        'position' => 'Left Back',
+        'jersey' => '3',
+        'stats' => [
+            ['name' => 'totalGoals', 'value' => 1],
+            ['name' => 'goalAssists', 'value' => 0],
+            ['name' => 'yellowCards', 'value' => 1],
+            ['name' => 'redCards', 'value' => 0],
+        ],
+    ]);
+    PlayerScore::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $home->id,
+        'points' => 4,
+        'stats' => ['marca_points' => [3, 0]],
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('lineups', 1)
+        ->where('lineups.0.player.id', $player->id)
+        ->where('lineups.0.position', 'Left Back')
+        ->where('lineups.0.jersey', '3')
+        ->where('lineups.0.goals', 1)
+        ->where('lineups.0.assists', 0)
+        ->where('lineups.0.yellow_cards', 1)
+        ->where('lineups.0.red_cards', 0)
+        ->where('lineups.0.points', 4)
+        ->where('lineups.0.dazn_points', 0)
+        ->where('lineups.0.x', 20)
+    );
+});
+
+test('includes a null player for an unresolved lineup entry, with no points/dazn', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => null,
+        'team_id' => $fixture->localTeam->id,
+        'starter' => true,
+        'position' => 'Goalkeeper',
+        'jersey' => '1',
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('lineups', 1)
+        ->where('lineups.0.player', null)
+        ->where('lineups.0.points', null)
+        ->where('lineups.0.dazn_points', null)
+        ->where('lineups.0.x', 6)
+    );
+});
+
+test('mirrors x coordinates for the guest team', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $fixture->guestTeam->id]),
+        'team_id' => $fixture->guestTeam->id,
+        'starter' => true,
+        'position' => 'Goalkeeper',
+        'jersey' => '1',
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.x', 94)
+    );
+});
+
+test('includes events with the player relation, ordered by minute', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $scorer = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
+
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->localTeam->id, 'player_id' => $scorer->id, 'type' => 'goal', 'minute' => 73]);
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->guestTeam->id, 'player_id' => null, 'type' => 'yellow_card', 'minute' => 12]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('events', 2)
+        ->where('events.0.minute', 12)
+        ->where('events.0.player', null)
+        ->where('events.1.minute', 73)
+        ->where('events.1.player.id', $scorer->id)
+    );
+});
+
+test('sums fixture_lineups stats into team_stats by team', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $fixture->localTeam->id]),
+        'team_id' => $fixture->localTeam->id,
+        'stats' => [['name' => 'totalShots', 'value' => 4], ['name' => 'shotsOnTarget', 'value' => 2]],
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $fixture->guestTeam->id]),
+        'team_id' => $fixture->guestTeam->id,
+        'stats' => [['name' => 'totalShots', 'value' => 9]],
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('team_stats.1.label', 'Tiros totales')
+        ->where('team_stats.1.local', 4)
+        ->where('team_stats.1.guest', 9)
+        ->where('team_stats.0.label', 'Tiros a puerta')
+        ->where('team_stats.0.local', 2)
+        ->where('team_stats.0.guest', 0)
     );
 });
