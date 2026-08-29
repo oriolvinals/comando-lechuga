@@ -64,8 +64,8 @@ Cada entrada de `keyEvents[]` ya trae flags booleanos propios (`scoringPlay`, `r
 | flags de la API | nuestro `type` | `is_own_goal` | `is_penalty` |
 |---|---|---|---|
 | `scoringPlay: true` | `goal` | `ownGoal` | `penaltyKick` |
-| `yellowCard: true` | `yellow_card` | false | false |
 | `redCard: true` | `red_card` | false | false |
+| `yellowCard: true` | `yellow_card` | false | false |
 | `penaltyKick: true` y `scoringPlay: false` | `penalty_missed` | false | true |
 | ninguno de los anteriores | se salta ese evento (no se inserta), se loguea `type.text` literal para poder ampliar el mapeo luego | — | — |
 

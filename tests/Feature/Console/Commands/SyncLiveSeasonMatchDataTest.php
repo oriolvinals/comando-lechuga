@@ -182,6 +182,56 @@ test('upserts fixture_lineups from the rosters, including substitution minute an
         ->and($subInLineup->sub_minute)->toBe(57);
 });
 
+test('resolves a player by match_data_id even when Player.team_id no longer matches the roster team, and writes the roster team onto the lineup', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'date' => now()->subMinutes(30),
+    ]);
+    // Player's *current* club (team_id) differs from the fixture roster's team (home),
+    // simulating a transfer/loan since the match — the match-time team is $home.
+    $transferred = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5001]);
+
+    $payload = liveMatchEventPayload([
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    [
+                        'athlete' => ['id' => 5001, 'displayName' => 'Transferred Player'],
+                        'starter' => true,
+                        'position' => ['displayName' => 'Goalkeeper'],
+                        'jersey' => '1',
+                        'subbedIn' => false,
+                        'subbedOut' => false,
+                        'stats' => [],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $lineup = FixtureLineup::query()->where('player_id', $transferred->id)->sole();
+
+    expect($lineup->team_id)->toBe($home->id)
+        ->and($lineup->team_id)->not->toBe($transferred->team_id);
+});
+
 test('running twice with the same payload does not duplicate lineups, and reports unresolved players', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $home = Team::factory()->create(['match_data_id' => 83]);
@@ -194,7 +244,7 @@ test('running twice with the same payload does not duplicate lineups, and report
         'match_data_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
-    Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
+    $known = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
 
     $payload = liveMatchEventPayload([
         'rosters' => [
@@ -203,7 +253,7 @@ test('running twice with the same payload does not duplicate lineups, and report
                 'team' => ['id' => 83],
                 'formation' => '4-3-3',
                 'roster' => [
-                    ['athlete' => ['id' => 5001, 'displayName' => 'Known'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1'],
+                    ['athlete' => ['id' => 5001, 'displayName' => 'Known'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => [['name' => 'saves', 'value' => 1]]],
                     ['athlete' => ['id' => 9999, 'displayName' => 'Unknown Player'], 'starter' => true, 'position' => ['displayName' => 'CB'], 'jersey' => '5'],
                 ],
             ],
@@ -218,9 +268,34 @@ test('running twice with the same payload does not duplicate lineups, and report
     $this->artisan(SyncLiveSeasonMatchData::class)
         ->expectsOutputToContain('Unknown Player')
         ->assertSuccessful();
+
+    expect(FixtureLineup::query()->where('player_id', $known->id)->sole()->stats)
+        ->toBe([['name' => 'saves', 'value' => 1]]);
+
+    // Second sync with the same fixture/player but changed stats — proves the update half
+    // of updateOrCreate, not just the create-once half.
+    $updatedPayload = liveMatchEventPayload([
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 5001, 'displayName' => 'Known'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => [['name' => 'saves', 'value' => 4]]],
+                    ['athlete' => ['id' => 9999, 'displayName' => 'Unknown Player'], 'starter' => true, 'position' => ['displayName' => 'CB'], 'jersey' => '5'],
+                ],
+            ],
+        ],
+    ]);
+    $connector2 = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($updatedPayload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector2);
     $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
 
-    expect(FixtureLineup::query()->count())->toBe(1);
+    expect(FixtureLineup::query()->count())->toBe(1)
+        ->and(FixtureLineup::query()->where('player_id', $known->id)->sole()->stats)
+        ->toBe([['name' => 'saves', 'value' => 4]]);
 });
 
 test('replaces fixture_events from keyEvents on every sync, mapped from the API flags', function (): void {
@@ -289,6 +364,116 @@ test('replaces fixture_events from keyEvents on every sync, mapped from the API 
     $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
 
     expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->count())->toBe(0);
+});
+
+test('maps red_card and penalty_missed key events, and persists is_own_goal / is_penalty flags', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'date' => now()->subMinutes(30),
+    ]);
+    $ownGoalScorer = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
+    $penaltyScorer = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5002]);
+    $sentOff = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5003]);
+    $penaltyMisser = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5004]);
+
+    $payload = liveMatchEventPayload([
+        'keyEvents' => [
+            // Own goal (scored)
+            [
+                'type' => ['text' => 'Goal - Own Goal'],
+                'clock' => ['displayValue' => "12'"],
+                'team' => ['id' => 83],
+                'scoringPlay' => true,
+                'redCard' => false,
+                'yellowCard' => false,
+                'ownGoal' => true,
+                'penaltyKick' => false,
+                'athletesInvolved' => [['id' => 5001]],
+            ],
+            // Penalty scored
+            [
+                'type' => ['text' => 'Goal - Penalty'],
+                'clock' => ['displayValue' => "20'"],
+                'team' => ['id' => 83],
+                'scoringPlay' => true,
+                'redCard' => false,
+                'yellowCard' => false,
+                'ownGoal' => false,
+                'penaltyKick' => true,
+                'athletesInvolved' => [['id' => 5002]],
+            ],
+            // Straight red card, no goal involved
+            [
+                'type' => ['text' => 'Red Card'],
+                'clock' => ['displayValue' => "30'"],
+                'team' => ['id' => 86],
+                'scoringPlay' => false,
+                'redCard' => true,
+                'yellowCard' => false,
+                'ownGoal' => false,
+                'penaltyKick' => false,
+                'athletesInvolved' => [['id' => 5003]],
+            ],
+            // Second yellow (both flags set) — must resolve to red_card, not yellow_card
+            [
+                'type' => ['text' => 'Yellow Card - Second Yellow'],
+                'clock' => ['displayValue' => "35'"],
+                'team' => ['id' => 86],
+                'scoringPlay' => false,
+                'redCard' => true,
+                'yellowCard' => true,
+                'ownGoal' => false,
+                'penaltyKick' => false,
+                'athletesInvolved' => [['id' => 5003]],
+            ],
+            // Penalty missed
+            [
+                'type' => ['text' => 'Penalty Missed'],
+                'clock' => ['displayValue' => "40'"],
+                'team' => ['id' => 86],
+                'scoringPlay' => false,
+                'redCard' => false,
+                'yellowCard' => false,
+                'ownGoal' => false,
+                'penaltyKick' => true,
+                'athletesInvolved' => [['id' => 5004]],
+            ],
+        ],
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $ownGoal = FixtureEvent::query()->where('minute', 12)->sole();
+    $penaltyGoal = FixtureEvent::query()->where('minute', 20)->sole();
+    $redCards = FixtureEvent::query()->where('type', 'red_card')->orderBy('minute')->get();
+    $penaltyMissed = FixtureEvent::query()->where('type', 'penalty_missed')->sole();
+
+    expect($ownGoal->type)->toBe('goal')
+        ->and($ownGoal->is_own_goal)->toBeTrue()
+        ->and($ownGoal->is_penalty)->toBeFalse()
+        ->and($ownGoal->player_id)->toBe($ownGoalScorer->id)
+        ->and($penaltyGoal->type)->toBe('goal')
+        ->and($penaltyGoal->is_penalty)->toBeTrue()
+        ->and($penaltyGoal->is_own_goal)->toBeFalse()
+        ->and($penaltyGoal->player_id)->toBe($penaltyScorer->id)
+        ->and($redCards)->toHaveCount(2)
+        ->and($redCards->pluck('minute')->all())->toBe([30, 35])
+        ->and($redCards->pluck('player_id')->all())->toBe([$sentOff->id, $sentOff->id])
+        ->and($penaltyMissed->is_penalty)->toBeTrue()
+        ->and($penaltyMissed->is_own_goal)->toBeFalse()
+        ->and($penaltyMissed->player_id)->toBe($penaltyMisser->id);
 });
 
 test('skips a fixture whose getEvent call fails, without blocking the rest', function (): void {

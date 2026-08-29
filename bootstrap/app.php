@@ -32,6 +32,18 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
+        $schedule->command('season:link-match-data-fixtures')
+            ->everyFifteenMinutes()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        $schedule->command('season:link-match-data-players')
+            ->hourly()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->command('season:sync-live-match-data')
             ->everyMinute()
             ->runInBackground()

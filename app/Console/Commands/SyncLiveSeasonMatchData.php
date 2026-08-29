@@ -28,6 +28,15 @@ class SyncLiveSeasonMatchData extends Command
 {
     private const int LIVE_WINDOW_HOURS = 4;
 
+    /** @var list<string> */
+    private const array KNOWN_WORLDCUP26_STATUS_NAMES = [
+        'STATUS_SCHEDULED',
+        'STATUS_FIRST_HALF',
+        'STATUS_HALFTIME',
+        'STATUS_SECOND_HALF',
+        'STATUS_FULL_TIME',
+    ];
+
     /**
      * @throws Throwable
      */
@@ -67,7 +76,9 @@ class SyncLiveSeasonMatchData extends Command
         $this->info("{$synced} fixtures synced.");
 
         if ($unresolved !== []) {
-            $this->warn('Unresolved players — needs manual review: '.implode(', ', $unresolved));
+            $message = 'Unresolved players — needs manual review: '.implode(', ', $unresolved);
+            $this->warn($message);
+            Log::warning($message);
         }
 
         return self::SUCCESS;
@@ -82,6 +93,10 @@ class SyncLiveSeasonMatchData extends Command
         $statusName = (string) ($competition['status']['type']['name'] ?? '');
         $competitors = is_array($competition['competitors'] ?? null) ? array_values($competition['competitors']) : [];
         $rosters = is_array($event['rosters'] ?? null) ? array_values($event['rosters']) : [];
+
+        if (!in_array($statusName, self::KNOWN_WORLDCUP26_STATUS_NAMES, true)) {
+            Log::warning("Unmapped worldcup26 status name: {$statusName} (fixture {$fixture->id})");
+        }
 
         $fixture->update([
             'state' => FixtureState::fromWorldcup26Name($statusName),
@@ -142,7 +157,6 @@ class SyncLiveSeasonMatchData extends Command
             foreach ($rosterPlayers as $rosterPlayer) {
                 $athleteMatchDataId = (int) ($rosterPlayer['athlete']['id'] ?? 0);
                 $player = Player::query()
-                    ->where('team_id', $team->id)
                     ->where('match_data_id', $athleteMatchDataId)
                     ->first();
 
@@ -236,6 +250,8 @@ class SyncLiveSeasonMatchData extends Command
             $team = Team::query()->where('match_data_id', $teamMatchDataId)->first();
 
             if ($team === null) {
+                Log::warning("Unmapped worldcup26 team match_data_id {$teamMatchDataId} for fixture {$fixture->id}: dropping event");
+
                 continue;
             }
 
@@ -264,8 +280,8 @@ class SyncLiveSeasonMatchData extends Command
     {
         return match (true) {
             ($keyEvent['scoringPlay'] ?? false) === true => 'goal',
-            ($keyEvent['yellowCard'] ?? false) === true => 'yellow_card',
             ($keyEvent['redCard'] ?? false) === true => 'red_card',
+            ($keyEvent['yellowCard'] ?? false) === true => 'yellow_card',
             ($keyEvent['penaltyKick'] ?? false) === true => 'penalty_missed',
             default => null,
         };
