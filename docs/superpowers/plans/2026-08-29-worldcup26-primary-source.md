@@ -724,8 +724,26 @@ class ManagerLineupPlayer extends Model
     /** @return HasOne<FixtureLineup, $this> */
     public function fixtureLineup(): HasOne
     {
+        // Not ->whereColumn(): that compares two columns within the SAME
+        // query, but this relation's lazy-load query only ever selects FROM
+        // fixture_lineups — manager_lineup_players is never joined in, so a
+        // whereColumn() reference to it fails with "no such column". This is
+        // a genuine per-instance value comparison instead: $this->fixture_id
+        // is evaluated once, at call time, into a literal binding. When it's
+        // null, Laravel's query builder converts a null-valued ->where(...)
+        // into ->whereNull(...) automatically — which correctly matches zero
+        // rows here, since fixture_lineups.fixture_id is itself never
+        // nullable, giving the desired "no match" result for free.
+        //
+        // This also means the relation can only be used per-instance
+        // (lazy-loaded) — it CANNOT be eager-loaded via ->with(), since
+        // eager loading builds one shared query template from the first
+        // model in a collection and would incorrectly bake in only that
+        // model's fixture_id for every row in the batch. Any code that needs
+        // this for many ManagerLineupPlayers at once must do a manual bulk
+        // lookup instead (see Task 13, which does exactly that).
         return $this->hasOne(FixtureLineup::class, 'player_id', 'player_id')
-            ->whereColumn('fixture_lineups.fixture_id', 'manager_lineup_players.fixture_id');
+            ->where('fixture_lineups.fixture_id', $this->fixture_id);
     }
 
     /**
@@ -1737,24 +1755,41 @@ In `app/Http/Controllers/SeasonManagersController.php`, add this private method 
      * the lineup was saved) and attached as virtual properties, the same way
      * `attachMatchFinished` already does for `match_finished`.
      *
+     * This is a manual bulk lookup, not `ManagerLineupPlayer::fixtureLineup()`
+     * eager-loaded via `->with()` — that relation is deliberately lazy-only
+     * (see its docblock in `app/Models/ManagerLineupPlayer.php`, Task 5):
+     * eager-loading it would bake only the first row's `fixture_id` into the
+     * one shared query template Eloquent builds for the whole batch, silently
+     * returning the wrong (or no) `FixtureLineup` for every other row.
+     *
      * @param  Collection<int, ManagerLineup>  $lineups
      */
     private function attachLineupPlayerScores(Collection $lineups): void
     {
-        $lineups->each(function (ManagerLineup $lineup): void {
-            foreach ($lineup->players as $entry) {
-                $entry->points = $entry->fixtureLineup?->fantasy_points;
-                $entry->stats = $entry->fixtureLineup?->fantasy_stats;
-            }
+        $entries = $lineups->flatMap(fn (ManagerLineup $lineup) => $lineup->players);
+
+        $fixtureLineupsByKey = FixtureLineup::query()
+            ->whereIn('fixture_id', $entries->pluck('fixture_id')->filter()->unique())
+            ->whereIn('player_id', $entries->pluck('player_id')->filter()->unique())
+            ->get()
+            ->keyBy(fn (FixtureLineup $lineup): string => "{$lineup->fixture_id}-{$lineup->player_id}");
+
+        $entries->each(function (ManagerLineupPlayer $entry) use ($fixtureLineupsByKey): void {
+            $fixtureLineup = $entry->fixture_id === null
+                ? null
+                : $fixtureLineupsByKey->get("{$entry->fixture_id}-{$entry->player_id}");
+
+            $entry->points = $fixtureLineup?->fantasy_points;
+            $entry->stats = $fixtureLineup?->fantasy_stats;
         });
     }
 ```
 
-Add `use App\Models\ManagerLineupPlayer;` and `@property int|null $points` / `@property array<string, mixed>|null $stats` to `ManagerLineupPlayer`'s docblock in `app/Models/ManagerLineupPlayer.php` (these are now virtual/computed, same pattern as the existing `@property bool $match_finished` line — add them right after it).
+Add `use App\Models\FixtureLineup;` and `use App\Models\ManagerLineupPlayer;` (check they aren't already imported before adding — this controller may already import one of them) and `@property int|null $points` / `@property array<string, mixed>|null $stats` to `ManagerLineupPlayer`'s docblock in `app/Models/ManagerLineupPlayer.php` (these are now virtual/computed, same pattern as the existing `@property bool $match_finished` line — add them right after it).
 
-In `index()`, after the existing `$this->attachMatchFinished($lineups, $season);` line, add `$this->attachLineupPlayerScores($lineups);`. Eager-load the relation needed for this to avoid N+1: change `->with(['seasonManager', 'players.player.team'])` to `->with(['seasonManager', 'players.player.team', 'players.fixtureLineup'])`.
+In `index()`, after the existing `$this->attachMatchFinished($lineups, $season);` line, add `$this->attachLineupPlayerScores($lineups);`. No change to the eager-loading in this query — `players.fixtureLineup` must NOT be added to `->with([...])`, per the note above.
 
-In `show()`, after `$this->attachMatchFinished($lineupHistory, $season);`, add `$this->attachLineupPlayerScores($lineupHistory);`. Eager-load: change `->with('players.player.team')` to `->with('players.player.team', 'players.fixtureLineup')` (both occurrences in `show()` — the `$lineupHistory` query).
+In `show()`, after `$this->attachMatchFinished($lineupHistory, $season);`, add `$this->attachLineupPlayerScores($lineupHistory);`. No change to the eager-loading here either.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
