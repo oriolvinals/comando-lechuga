@@ -5,6 +5,7 @@ use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamLineupRequest;
+use App\Models\Fixture;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
@@ -15,7 +16,7 @@ use Mockery;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('syncs lineups for each season manager through the current week', function (): void {
+test('syncs lineups for each season manager through the current week, resolving fixture_id', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([
@@ -28,6 +29,11 @@ test('syncs lineups for each season manager through the current week', function 
         'fantasy_id' => 37394771,
     ]);
     $player = Player::factory()->create(['fantasy_id' => 2759]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $player->team_id,
+    ]);
     $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
     $loginConnector->shouldReceive('accessToken')
         ->once()
@@ -41,25 +47,6 @@ test('syncs lineups for each season manager through the current week', function 
                             'id' => '2759',
                             'points' => 154,
                             'weekPoints' => 154,
-                            'lastSeasonPoints' => 137,
-                            'lastStats' => [
-                                [
-                                    'weekNumber' => 1,
-                                    'totalPoints' => 6,
-                                    'stats' => [
-                                        'mins_played' => [90, 2],
-                                        'goals' => [0, 0],
-                                        'saves' => [2, 1],
-                                    ],
-                                ],
-                                [
-                                    'weekNumber' => 2,
-                                    'totalPoints' => 154,
-                                    'stats' => [
-                                        'mins_played' => [90, 2],
-                                    ],
-                                ],
-                            ],
                         ],
                     ],
                 ],
@@ -87,16 +74,11 @@ test('syncs lineups for each season manager through the current week', function 
         ->and($lineup->tactical_formation)->toBe([3, 5, 2])
         ->and($lineup->points)->toBe(6)
         ->and($lineupPlayer->player_id)->toBe($player->id)
-        ->and($lineupPlayer->points)->toBe(6)
-        ->and($lineupPlayer->stats)->toBe([
-            'mins_played' => [90, 2],
-            'goals' => [0, 0],
-            'saves' => [2, 1],
-        ])
+        ->and($lineupPlayer->fixture_id)->toBe($fixture->id)
         ->and($lineupPlayer->position)->toBe(PlayerPosition::Goalkeeper);
 });
 
-test('stores null player lineup points when that week is not in lastStats', function (): void {
+test('leaves fixture_id null when the player\'s team has no fixture that week', function (): void {
     Cache::forget('la_liga_fantasy.access_token');
 
     $season = Season::factory()->create([
@@ -117,13 +99,7 @@ test('stores null player lineup points when that week is not in lastStats', func
         GetTeamLineupRequest::class => MockResponse::make([
             'formation' => [
                 'goalkeeper' => [
-                    [
-                        'playerMaster' => [
-                            'id' => '2759',
-                            'points' => 154,
-                            'lastStats' => [],
-                        ],
-                    ],
+                    ['playerMaster' => ['id' => '2759', 'points' => 154]],
                 ],
                 'defender' => [],
                 'midfield' => [],
@@ -141,10 +117,7 @@ test('stores null player lineup points when that week is not in lastStats', func
         ->expectsOutput('1 manager lineups synchronized.')
         ->assertSuccessful();
 
-    $lineupPlayer = ManagerLineupPlayer::query()->sole();
-
-    expect($lineupPlayer->points)->toBeNull()
-        ->and($lineupPlayer->stats)->toBeNull();
+    expect(ManagerLineupPlayer::query()->sole()->fixture_id)->toBeNull();
 });
 
 test('removes lineup players that are no longer in the fetched formation', function (): void {

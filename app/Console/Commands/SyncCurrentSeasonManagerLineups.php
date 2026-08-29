@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
+use App\Models\Fixture;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
@@ -15,7 +16,6 @@ use App\Models\SeasonManager;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use JsonException;
 use Saloon\Exceptions\Request\FatalRequestException;
@@ -50,7 +50,7 @@ class SyncCurrentSeasonManagerLineups extends Command
                     continue;
                 }
 
-                DB::transaction(function () use ($seasonManager, $weekNumber, $lineupData, $formation): void {
+                DB::transaction(function () use ($season, $seasonManager, $weekNumber, $lineupData, $formation): void {
                     $lineup = ManagerLineup::query()->updateOrCreate(
                         [
                             'season_manager_id' => $seasonManager->id,
@@ -86,13 +86,13 @@ class SyncCurrentSeasonManagerLineups extends Command
                                 continue;
                             }
 
-                            $lastStats = $playerData['lastStats'] ?? [];
-                            $weekStats = is_array($lastStats)
-                                ? Arr::first(
-                                    $lastStats,
-                                    fn ($stat): bool => is_array($stat) && ($stat['weekNumber'] ?? null) === $weekNumber,
-                                )
-                                : null;
+                            $fixture = Fixture::query()
+                                ->where('season_id', $season->id)
+                                ->where('week_number', $weekNumber)
+                                ->where(fn ($query) => $query
+                                    ->where('team_local_id', $player->team_id)
+                                    ->orWhere('team_guest_id', $player->team_id))
+                                ->first();
 
                             ManagerLineupPlayer::query()->updateOrCreate(
                                 [
@@ -100,8 +100,7 @@ class SyncCurrentSeasonManagerLineups extends Command
                                     'player_id' => $player->id,
                                 ],
                                 [
-                                    'points' => is_array($weekStats) ? (int) ($weekStats['totalPoints'] ?? 0) : null,
-                                    'stats' => is_array($weekStats) ? ($weekStats['stats'] ?? []) : null,
+                                    'fixture_id' => $fixture?->id,
                                     'position' => $position,
                                 ],
                             );
