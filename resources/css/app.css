@@ -37,6 +37,8 @@ html {
     --color-hq-bronze: #c9793f;
     --color-hq-azure: #4d94ff;
     --color-hq-violet: #9333ea;
+    --color-hq-good-corner: #1f2e0d;
+    --color-hq-bad-corner: #2e0f14;
 
     /* Canonical position colors — use HqPositionTag, don't redefine these ad hoc */
     --color-hq-por: #ff8c3d;
