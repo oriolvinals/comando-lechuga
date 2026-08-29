@@ -402,3 +402,66 @@ test('sums fixture_lineups stats into team_stats by team', function (): void {
         ->where('team_stats.0.guest', 0)
     );
 });
+
+test('spreads multiple starters in the same pitch line by side then jersey', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $team = $fixture->localTeam;
+
+    // Created out of the final pitch order on purpose: sort order is driven by
+    // side (left/center/right) then jersey, not by insertion or position text.
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Left Back',
+        'jersey' => '3',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Center Left Defender',
+        'jersey' => '5',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Center Defender',
+        'jersey' => '4',
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $team->id]),
+        'team_id' => $team->id,
+        'starter' => true,
+        'position' => 'Right Back',
+        'jersey' => '2',
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    // Expected order: Left Back (Left, jersey 3) -> Center Left Defender (Left,
+    // jersey 5, tied on side, broken by jersey) -> Center Defender (Center) ->
+    // Right Back (Right). y = 12 + index * (76 / 3), rounded to 1 decimal:
+    // 12.0, 37.3, 62.7, 88.0 (whole-number floats serialize as bare ints over
+    // the Inertia/JSON boundary, hence 12 and 88 below). This matches creation
+    // order above, and the lineups list is returned in that same
+    // (unordered-query / primary key) order.
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('lineups', 4)
+        ->where('lineups.0.position', 'Left Back')
+        ->where('lineups.0.y', 12)
+        ->where('lineups.1.position', 'Center Left Defender')
+        ->where('lineups.1.y', 37.3)
+        ->where('lineups.2.position', 'Center Defender')
+        ->where('lineups.2.y', 62.7)
+        ->where('lineups.3.position', 'Right Back')
+        ->where('lineups.3.y', 88)
+    );
+});
