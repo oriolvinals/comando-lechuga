@@ -26,6 +26,7 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
     const handleClick = clickable ? () => onSelect(entry) : undefined;
     const hasGoodEvent = entry.goals > 0 || entry.assists > 0;
     const hasBadEvent = entry.yellow_cards > 0 || entry.red_cards > 0;
+    const hasPlayed = entry.starter || entry.subbed_in;
     const subMinute = entry.subbed_in || entry.subbed_out ? entry.sub_minute : null;
 
     // Icon content only — positioning/background differ between the pitch
@@ -132,7 +133,7 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
             <span className={cn('rounded-[2px] px-2 py-0.5 font-mono text-[13px] font-bold', matchPointsBadgeClass(entry.points))}>
                 {entry.points}
             </span>
-            {entry.dazn_points !== null && (
+            {hasPlayed && entry.dazn_points !== null && (
                 <span className={cn('flex items-center gap-1 rounded-[2px] bg-hq-border px-1.5 py-0.5 font-mono text-[11px]', daznPointsBadgeClass(entry.dazn_points))}>
                     <img src="/images/dazn-logo.png" alt="DAZN" className="h-3.5 w-3.5" />
                     {entry.dazn_points}
