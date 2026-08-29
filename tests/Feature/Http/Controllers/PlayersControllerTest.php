@@ -15,7 +15,6 @@ use App\Models\ManagerPlayer;
 use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
-use App\Models\PlayerScore;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
@@ -341,9 +340,9 @@ test('includes points for the last 3 played matches, ordered by fixture date old
     $earliest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 4, 'date' => now()->subDays(30), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     $middle = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     $latest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 5, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $earliest->id, 'points' => 7]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $middle->id, 'points' => 2]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $latest->id, 'points' => 11]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $earliest->id, 'fantasy_points' => 7]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $middle->id, 'fantasy_points' => 2]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $latest->id, 'fantasy_points' => 11]);
 
     $response = $this->get(route('players.index'));
 
@@ -363,10 +362,10 @@ test('only takes the 3 most recent matches, dropping older ones', function (): v
     $second = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(30), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     $third = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     $fourth = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $oldest->id, 'points' => 99]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $second->id, 'points' => 3]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $third->id, 'points' => 5]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fourth->id, 'points' => 8]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $oldest->id, 'fantasy_points' => 99]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $second->id, 'fantasy_points' => 3]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $third->id, 'fantasy_points' => 5]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fourth->id, 'fantasy_points' => 8]);
 
     $response = $this->get(route('players.index'));
 
@@ -383,7 +382,7 @@ test('pads with null at the end when a player has fewer than 3 matches of histor
     ]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDay(), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'points' => 9]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'fantasy_points' => 9]);
 
     $response = $this->get(route('players.index'));
 
@@ -411,7 +410,7 @@ test('marks a recent score slot as not called up when the match finished without
         'team_local_id' => $player->team_id,
         'state' => FixtureState::Finished,
     ]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $scored->id, 'points' => 5]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $scored->id, 'fantasy_points' => 5]);
 
     $response = $this->get(route('players.index'));
 
@@ -433,7 +432,7 @@ test('excludes scores from a fixture in a different season for the recent scores
     ]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     $otherSeasonFixture = Fixture::factory()->create(['season_id' => $otherSeason->id]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $otherSeasonFixture->id, 'points' => 9]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $otherSeasonFixture->id, 'fantasy_points' => 9]);
 
     $response = $this->get(route('players.index'));
 
@@ -616,8 +615,8 @@ test('orders the player scores by week number ascending', function (): void {
     $player = Player::factory()->create();
     $weekTwoFixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2]);
     $weekOneFixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
-    $weekTwoScore = PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $weekTwoFixture->id]);
-    $weekOneScore = PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $weekOneFixture->id]);
+    $weekTwoScore = FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $weekTwoFixture->id]);
+    $weekOneScore = FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $weekOneFixture->id]);
 
     $response = $this->get(route('players.show', $player));
 
@@ -636,7 +635,7 @@ test('only includes scores for this player', function (): void {
     ]);
     $player = Player::factory()->create();
     $otherPlayer = Player::factory()->create();
-    PlayerScore::factory()->create(['player_id' => $otherPlayer->id]);
+    FixtureLineup::factory()->create(['player_id' => $otherPlayer->id]);
 
     $response = $this->get(route('players.show', $player));
 
@@ -651,11 +650,11 @@ test('includes the fantasy manager that fielded the player in their lineup that 
     ]);
     $player = Player::factory()->create();
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
 
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
-    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id, 'fixture_id' => $fixture->id]);
 
     $response = $this->get(route('players.show', $player));
 
@@ -672,7 +671,7 @@ test('has no lineup manager for a week the player was not fielded in any lineup'
     ]);
     $player = Player::factory()->create();
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
 
     $response = $this->get(route('players.show', $player));
 
@@ -689,11 +688,11 @@ test('excludes lineup managers from a different season', function (): void {
     ]);
     $player = Player::factory()->create();
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
-    PlayerScore::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id]);
 
     $otherSeasonManager = SeasonManager::factory()->create();
     $otherLineup = ManagerLineup::factory()->create(['season_manager_id' => $otherSeasonManager->id, 'week_number' => 1]);
-    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $otherLineup->id, 'player_id' => $player->id]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $otherLineup->id, 'player_id' => $player->id, 'fixture_id' => $fixture->id]);
 
     $response = $this->get(route('players.show', $player));
 
