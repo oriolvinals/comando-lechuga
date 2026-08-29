@@ -6,6 +6,7 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamLineupRequest;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
@@ -34,6 +35,7 @@ test('syncs lineups for each season manager through the current week, resolving 
         'week_number' => 1,
         'team_local_id' => $player->team_id,
     ]);
+    FixtureLineup::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id]);
     $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
     $loginConnector->shouldReceive('accessToken')
         ->once()

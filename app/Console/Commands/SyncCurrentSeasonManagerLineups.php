@@ -7,7 +7,7 @@ namespace App\Console\Commands;
 use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
-use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
@@ -86,12 +86,11 @@ class SyncCurrentSeasonManagerLineups extends Command
                                 continue;
                             }
 
-                            $fixture = Fixture::query()
-                                ->where('season_id', $season->id)
-                                ->where('week_number', $weekNumber)
-                                ->where(fn ($query) => $query
-                                    ->where('team_local_id', $player->team_id)
-                                    ->orWhere('team_guest_id', $player->team_id))
+                            $fixtureLineup = FixtureLineup::query()
+                                ->where('player_id', $player->id)
+                                ->whereHas('fixture', fn ($query) => $query
+                                    ->where('season_id', $season->id)
+                                    ->where('week_number', $weekNumber))
                                 ->first();
 
                             ManagerLineupPlayer::query()->updateOrCreate(
@@ -100,7 +99,7 @@ class SyncCurrentSeasonManagerLineups extends Command
                                     'player_id' => $player->id,
                                 ],
                                 [
-                                    'fixture_id' => $fixture?->id,
+                                    'fixture_id' => $fixtureLineup?->fixture_id,
                                     'position' => $position,
                                 ],
                             );
