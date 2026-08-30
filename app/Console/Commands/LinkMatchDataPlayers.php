@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Models\FixtureLineup;
 use App\Models\Player;
@@ -514,6 +515,9 @@ class LinkMatchDataPlayers extends Command
             ->where('status', '!=', PlayerStatus::OutOfLeague)
             ->whereNull('match_data_id')
             ->whereNotNull('fantasy_id')
+            ->whereHas('seasons', fn ($query) => $query
+                ->where('season_id', $season->id)
+                ->where('position', '!=', PlayerPosition::Coach))
             ->get();
 
         ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled] = $this->linkFromMap($players, self::PLAYER_MAP);

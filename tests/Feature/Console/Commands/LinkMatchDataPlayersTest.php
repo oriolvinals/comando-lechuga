@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\LinkMatchDataPlayers;
+use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
@@ -15,11 +16,26 @@ test('links no one and reports every eligible player as unresolved when none are
     ]);
     $team = Team::factory()->create();
     $season->teams()->attach([$team->id]);
-    Player::factory()->create(['team_id' => $team->id, 'nickname' => 'Zzyzx', 'status' => PlayerStatus::Ok]);
+    Player::factory()->create(['team_id' => $team->id, 'nickname' => 'Zzyzx', 'status' => PlayerStatus::Ok, 'position' => PlayerPosition::Midfield]);
 
     $this->artisan(LinkMatchDataPlayers::class)
         ->expectsOutput('0 players linked, 0 fixture lineups backfilled.')
         ->expectsOutputToContain('1 players still unresolved')
+        ->assertSuccessful();
+});
+
+test('ignores coaches entirely — they never appear in a worldcup26 match roster', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+    Player::factory()->create(['team_id' => $team->id, 'nickname' => 'Mourinho', 'status' => PlayerStatus::Ok, 'position' => PlayerPosition::Coach]);
+
+    $this->artisan(LinkMatchDataPlayers::class)
+        ->expectsOutput('0 players linked, 0 fixture lineups backfilled.')
+        ->doesntExpectOutputToContain('unresolved')
         ->assertSuccessful();
 });
 
