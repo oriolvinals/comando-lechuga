@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
+use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
@@ -15,7 +16,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
 #[Signature('season:link-match-data-players')]
-#[Description('Link current season players to their worldcup26.ir athlete id via a hardcoded fantasy_id map, and backfill any fixture_lineups already waiting on that id — run manually, then use season:list-unlinked-match-data-players to find new entries for the map')]
+#[Description('Link current season players to their worldcup26.ir athlete id via a hardcoded fantasy_id map, and backfill any fixture_lineups/fixture_events already waiting on that id — run manually, then use season:list-unlinked-match-data-players to find new entries for the map')]
 class LinkMatchDataPlayers extends Command
 {
     /**
@@ -535,9 +536,9 @@ class LinkMatchDataPlayers extends Command
                 ->where('position', '!=', PlayerPosition::Coach))
             ->get();
 
-        ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled] = $this->linkFromMap($players, self::PLAYER_MAP);
+        ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled, 'eventsBackfilled' => $eventsBackfilled] = $this->linkFromMap($players, self::PLAYER_MAP);
 
-        $this->info("{$linked} players linked, {$lineupsBackfilled} fixture lineups backfilled.");
+        $this->info("{$linked} players linked, {$lineupsBackfilled} fixture lineups backfilled, {$eventsBackfilled} fixture events backfilled.");
 
         $remaining = $players->count() - $linked;
 
@@ -551,12 +552,13 @@ class LinkMatchDataPlayers extends Command
     /**
      * @param  Collection<int, Player>  $players
      * @param  array<int, int>  $map  fantasy_id => worldcup26.ir athlete id
-     * @return array{linked: int, lineupsBackfilled: int}
+     * @return array{linked: int, lineupsBackfilled: int, eventsBackfilled: int}
      */
     private function linkFromMap(Collection $players, array $map): array
     {
         $linked = 0;
         $lineupsBackfilled = 0;
+        $eventsBackfilled = 0;
 
         foreach ($players as $player) {
             $matchDataId = $map[$player->fantasy_id] ?? null;
@@ -572,8 +574,13 @@ class LinkMatchDataPlayers extends Command
                 ->where('match_data_id', $matchDataId)
                 ->whereNull('player_id')
                 ->update(['player_id' => $player->id, 'unresolved_name' => null]);
+
+            $eventsBackfilled += FixtureEvent::query()
+                ->where('match_data_id', $matchDataId)
+                ->whereNull('player_id')
+                ->update(['player_id' => $player->id, 'unresolved_name' => null]);
         }
 
-        return ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled];
+        return ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled, 'eventsBackfilled' => $eventsBackfilled];
     }
 }

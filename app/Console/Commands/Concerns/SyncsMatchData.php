@@ -136,7 +136,33 @@ trait SyncsMatchData
             'guest_score' => $this->scoreFor($competitors, 'away'),
             'local_formation' => $this->formationFor($rosters, 'home'),
             'guest_formation' => $this->formationFor($rosters, 'away'),
+            'local_color' => $this->colorFor($competitors, 'home', 'color'),
+            'local_alternate_color' => $this->colorFor($competitors, 'home', 'alternateColor'),
+            'guest_color' => $this->colorFor($competitors, 'away', 'color'),
+            'guest_alternate_color' => $this->colorFor($competitors, 'away', 'alternateColor'),
         ]);
+    }
+
+    /**
+     * The kit colors worldcup26 reports for this specific fixture — a team
+     * can play in a different kit from match to match (e.g. an away kit to
+     * avoid a color clash), so this is stored per fixture, not on Team.
+     *
+     * @param  list<array<string, mixed>>  $competitors
+     */
+    private function colorFor(array $competitors, string $homeAway, string $key): ?string
+    {
+        foreach ($competitors as $competitor) {
+            if (($competitor['homeAway'] ?? null) !== $homeAway) {
+                continue;
+            }
+
+            $teamData = is_array($competitor['team'] ?? null) ? $competitor['team'] : [];
+
+            return isset($teamData[$key]) ? (string) $teamData[$key] : null;
+        }
+
+        return null;
     }
 
     /**
@@ -325,6 +351,14 @@ trait SyncsMatchData
             }
 
             $athletes = is_array($keyEvent['athletesInvolved'] ?? null) ? $keyEvent['athletesInvolved'] : [];
+
+            if ($athletes === []) {
+                // No athlete data at all — typically a card against a coach/staff
+                // member rather than a player. We'd have no name to show for it
+                // either way, so drop it instead of creating a blank event.
+                continue;
+            }
+
             $athleteMatchDataId = isset($athletes[0]['id']) ? (int) $athletes[0]['id'] : null;
             $player = $athleteMatchDataId !== null
                 ? Player::query()->where('match_data_id', $athleteMatchDataId)->first()
@@ -334,6 +368,8 @@ trait SyncsMatchData
                 'fixture_id' => $fixture->id,
                 'team_id' => $team->id,
                 'player_id' => $player?->id,
+                'match_data_id' => $athleteMatchDataId,
+                'unresolved_name' => $player === null ? (isset($athletes[0]['displayName']) ? (string) $athletes[0]['displayName'] : null) : null,
                 'type' => $type,
                 'minute' => $this->minuteFromClock((string) ($keyEvent['clock']['displayValue'] ?? '')) ?? 0,
                 'is_own_goal' => (bool) ($keyEvent['ownGoal'] ?? false),

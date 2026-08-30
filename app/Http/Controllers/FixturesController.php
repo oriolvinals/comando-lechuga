@@ -23,12 +23,28 @@ class FixturesController extends Controller
     use AttachesCurrentPlayerSeason;
     use FiltersSeasonWeeks;
 
+    // Fixed depth for the three anchor lines, calibrated against the pitch
+    // markings drawn in HqMatchPitch: the defender line sits just past the
+    // penalty box edge (~12%), and the forward line stays clear of the
+    // center circle (42.5%–57.5%) instead of standing on it. Midfield lines
+    // aren't listed here — see pitchX(), they split the gap between
+    // defender and forward evenly, by however many a formation actually uses.
     /** @var array<string, array{local: int, guest: int}> */
-    private const array PITCH_LINE_DEPTH = [
+    private const array PITCH_ANCHOR_DEPTH = [
         'goalkeeper' => ['local' => 6, 'guest' => 94],
-        'defender' => ['local' => 18, 'guest' => 82],
-        'midfielder' => ['local' => 30, 'guest' => 70],
-        'forward' => ['local' => 40, 'guest' => 60],
+        'defender' => ['local' => 14, 'guest' => 86],
+        'forward' => ['local' => 41, 'guest' => 59],
+    ];
+
+    // Front-to-back order of the possible midfield lines, used to evenly
+    // split the defender-to-forward gap by however many of them a given
+    // team's own formation actually has (e.g. a 4-1-4-1's single pivot vs a
+    // 4-2-3-1's double pivot + advanced trio).
+    /** @var list<string> */
+    private const array MIDFIELD_LINE_ORDER = [
+        'defensive_midfielder',
+        'midfielder',
+        'attacking_midfielder',
     ];
 
     private const float PITCH_LINE_STEP = 76 / 3; // ≈ 25.333 — same per-player spacing a 4-player line already uses
@@ -112,6 +128,7 @@ class FixturesController extends Controller
                 'is_own_goal' => $event->is_own_goal,
                 'is_penalty' => $event->is_penalty,
                 'player' => $event->player,
+                'unresolved_name' => $event->unresolved_name,
             ]);
 
         return Inertia::render('fixtures/show', [
@@ -153,8 +170,8 @@ class FixturesController extends Controller
             'points' => $lineup->fantasy_points,
             'stats' => $lineup->fantasy_stats ?? $this->worldcup26StatsFallback($lineup->stats),
             'dazn_points' => $daznPoints,
-            'x' => $lineup->starter ? $this->pitchX($lineup->position, $isLocal) : null,
-            'y' => $lineup->starter ? $this->pitchY($lineup, $fixtureLineups) : null,
+            'x' => $lineup->starter ? $this->pitchX($lineup, $isLocal, $fixtureLineups) : null,
+            'y' => $lineup->starter ? $this->pitchY($lineup, $fixtureLineups, $isLocal) : null,
             'lineup_manager' => $lineup->player_id !== null ? $lineupManagersByPlayer->get($lineup->player_id)?->lineup?->seasonManager : null,
         ];
     }
@@ -207,18 +224,46 @@ class FixturesController extends Controller
         return $shaped;
     }
 
-    private function pitchX(string $position, bool $isLocal): float
+    /**
+     * @param  Collection<int, FixtureLineup>  $fixtureLineups  Already loaded, scoped to this fixture.
+     */
+    private function pitchX(FixtureLineup $lineup, bool $isLocal, Collection $fixtureLineups): float
     {
-        $line = MatchPositionLine::fromWorldcup26Text($position);
-        $depths = self::PITCH_LINE_DEPTH[$line->value] ?? self::PITCH_LINE_DEPTH['midfielder'];
+        $line = MatchPositionLine::fromWorldcup26Text($lineup->position);
 
-        return (float) ($isLocal ? $depths['local'] : $depths['guest']);
+        if (isset(self::PITCH_ANCHOR_DEPTH[$line->value])) {
+            $depth = self::PITCH_ANCHOR_DEPTH[$line->value]['local'];
+
+            return (float) ($isLocal ? $depth : 100 - $depth);
+        }
+
+        $midfieldLines = $fixtureLineups
+            ->filter(fn (FixtureLineup $mate): bool => $mate->team_id === $lineup->team_id && $mate->starter)
+            ->map(fn (FixtureLineup $mate): string => MatchPositionLine::fromWorldcup26Text($mate->position)->value)
+            ->filter(fn (string $value): bool => in_array($value, self::MIDFIELD_LINE_ORDER, true))
+            ->unique()
+            ->sort(fn (string $a, string $b): int => array_search($a, self::MIDFIELD_LINE_ORDER, true) <=> array_search($b, self::MIDFIELD_LINE_ORDER, true))
+            ->values();
+
+        $index = $midfieldLines->search(fn (string $value): bool => $value === $line->value);
+        $count = $midfieldLines->count();
+        $defenderDepth = self::PITCH_ANCHOR_DEPTH['defender']['local'];
+        $forwardDepth = self::PITCH_ANCHOR_DEPTH['forward']['local'];
+
+        if ($index === false || $count === 0) {
+            $depth = ($defenderDepth + $forwardDepth) / 2;
+        } else {
+            $step = ($forwardDepth - $defenderDepth) / ($count + 1);
+            $depth = $defenderDepth + ($step * ($index + 1));
+        }
+
+        return (float) ($isLocal ? $depth : 100 - $depth);
     }
 
     /**
      * @param  Collection<int, FixtureLineup>  $fixtureLineups  Already loaded, scoped to this fixture.
      */
-    private function pitchY(FixtureLineup $lineup, Collection $fixtureLineups): float
+    private function pitchY(FixtureLineup $lineup, Collection $fixtureLineups, bool $isLocal): float
     {
         $line = MatchPositionLine::fromWorldcup26Text($lineup->position);
 
@@ -227,7 +272,7 @@ class FixturesController extends Controller
                 && $mate->starter
                 && MatchPositionLine::fromWorldcup26Text($mate->position) === $line)
             ->sortBy([
-                fn (FixtureLineup $a, FixtureLineup $b): int => $this->sideOrder($a->position) <=> $this->sideOrder($b->position),
+                fn (FixtureLineup $a, FixtureLineup $b): int => $this->sideOrder($a->position, $isLocal) <=> $this->sideOrder($b->position, $isLocal),
                 fn (FixtureLineup $a, FixtureLineup $b): int => $a->jersey <=> $b->jersey,
             ])
             ->values();
@@ -267,28 +312,40 @@ class FixturesController extends Controller
     }
 
     /**
-     * Explicit left-to-right numeric order for sorting, since comparing
-     * `MatchPositionSide::value` directly would sort lexically
-     * ("center" < "left" < "right"), not the left-to-right order the pitch needs.
+     * Numeric order for sorting players top-to-bottom on the shared pitch view.
+     * A "left"/"right" position is relative to the player's own attacking
+     * direction, not the screen — the local team attacks rightward (their
+     * left flank runs along the top of the pitch), while the guest team
+     * attacks leftward, so the same label lands on the opposite physical
+     * side and needs mirroring to keep both teams' flanks aligned.
      */
-    private function sideOrder(string $position): int
+    private function sideOrder(string $position, bool $isLocal): int
     {
-        return match (MatchPositionSide::fromWorldcup26Text($position)) {
+        $side = match (MatchPositionSide::fromWorldcup26Text($position)) {
             MatchPositionSide::Left => 0,
             MatchPositionSide::Center => 1,
             MatchPositionSide::Right => 2,
         };
+
+        return $isLocal ? $side : 2 - $side;
     }
 
     private function lineOrder(string $position): int
     {
-        return match (MatchPositionLine::fromWorldcup26Text($position)) {
+        return $this->lineRank(MatchPositionLine::fromWorldcup26Text($position));
+    }
+
+    private function lineRank(MatchPositionLine $line): int
+    {
+        return match ($line) {
             MatchPositionLine::Goalkeeper => 0,
             MatchPositionLine::Defender => 1,
-            MatchPositionLine::Midfielder => 2,
-            MatchPositionLine::Forward => 3,
-            MatchPositionLine::Substitute => 4,
-            MatchPositionLine::Unknown => 5,
+            MatchPositionLine::DefensiveMidfielder => 2,
+            MatchPositionLine::Midfielder => 3,
+            MatchPositionLine::AttackingMidfielder => 4,
+            MatchPositionLine::Forward => 5,
+            MatchPositionLine::Substitute => 6,
+            MatchPositionLine::Unknown => 7,
         };
     }
 }

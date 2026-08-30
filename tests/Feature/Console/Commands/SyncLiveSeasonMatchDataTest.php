@@ -34,7 +34,7 @@ function liveMatchEventPayload(array $overrides = []): array
     ], $overrides);
 }
 
-test('updates the fixture state, score and formation from the live event', function (): void {
+test('updates the fixture state, score, formation and kit colors from the live event', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $home = Team::factory()->create(['match_data_id' => 83]);
     $away = Team::factory()->create(['match_data_id' => 86]);
@@ -48,6 +48,16 @@ test('updates the fixture state, score and formation from the live event', funct
     ]);
 
     $payload = liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'competitors' => [
+                        ['homeAway' => 'home', 'team' => ['color' => '0000ff', 'alternateColor' => 'ffc0cb']],
+                        ['homeAway' => 'away', 'team' => ['color' => 'ff0000', 'alternateColor' => 'ffffff']],
+                    ],
+                ],
+            ],
+        ],
         'rosters' => [
             ['homeAway' => 'home', 'team' => ['id' => 83], 'formation' => '4-3-3', 'roster' => []],
             ['homeAway' => 'away', 'team' => ['id' => 86], 'formation' => '3-5-2', 'roster' => []],
@@ -68,7 +78,11 @@ test('updates the fixture state, score and formation from the live event', funct
         ->and($fixture->local_score)->toBe(2)
         ->and($fixture->guest_score)->toBe(1)
         ->and($fixture->local_formation)->toBe('4-3-3')
-        ->and($fixture->guest_formation)->toBe('3-5-2');
+        ->and($fixture->guest_formation)->toBe('3-5-2')
+        ->and($fixture->local_color)->toBe('0000ff')
+        ->and($fixture->local_alternate_color)->toBe('ffc0cb')
+        ->and($fixture->guest_color)->toBe('ff0000')
+        ->and($fixture->guest_alternate_color)->toBe('ffffff');
 });
 
 test('ignores fixtures outside the live window or without a match_data_id', function (): void {
@@ -415,7 +429,18 @@ test('replaces fixture_events from keyEvents on every sync, mapped from the API 
                 'yellowCard' => true,
                 'ownGoal' => false,
                 'penaltyKick' => false,
-                // no athletesInvolved — must still create the event, with a null player
+                // no athletesInvolved (typically a coach card) — must be dropped, not created blank
+            ],
+            [
+                'type' => ['text' => 'Red Card'],
+                'clock' => ['displayValue' => "80'"],
+                'team' => ['id' => 86],
+                'scoringPlay' => false,
+                'redCard' => true,
+                'yellowCard' => false,
+                'ownGoal' => false,
+                'penaltyKick' => false,
+                'athletesInvolved' => [['id' => 5099, 'displayName' => 'Unlinked Player']],
             ],
         ],
     ]);
@@ -428,14 +453,16 @@ test('replaces fixture_events from keyEvents on every sync, mapped from the API 
     $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
 
     $goal = FixtureEvent::query()->where('type', 'goal')->sole();
-    $card = FixtureEvent::query()->where('type', 'yellow_card')->sole();
+    $redCard = FixtureEvent::query()->where('type', 'red_card')->sole();
 
-    expect($goal->minute)->toBe(73)
+    expect(FixtureEvent::query()->where('type', 'yellow_card')->exists())->toBeFalse()
+        ->and($goal->minute)->toBe(73)
         ->and($goal->player_id)->toBe($scorer->id)
         ->and($goal->team_id)->toBe($home->id)
-        ->and($card->minute)->toBe(44)
-        ->and($card->player_id)->toBeNull()
-        ->and($card->team_id)->toBe($away->id);
+        ->and($goal->unresolved_name)->toBeNull()
+        ->and($redCard->player_id)->toBeNull()
+        ->and($redCard->match_data_id)->toBe(5099)
+        ->and($redCard->unresolved_name)->toBe('Unlinked Player');
 
     // Second sync with a different payload replaces, not appends
     $connector2 = (new Worldcup26Connector)->withMockClient(new MockClient([

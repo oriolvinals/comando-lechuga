@@ -29,10 +29,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read FixtureState $state
  * @property-read string|null $local_formation
  * @property-read string|null $guest_formation
+ * @property-read string|null $local_color
+ * @property-read string|null $local_alternate_color
+ * @property-read string|null $guest_color
+ * @property-read string|null $guest_alternate_color
  */
 #[UseFactory(FixtureFactory::class)]
 #[Table(name: 'fixtures', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fantasy_id', 'match_data_id', 'season_id', 'week_number', 'date', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'local_formation', 'guest_formation'])]
+#[Fillable(['fantasy_id', 'match_data_id', 'season_id', 'week_number', 'date', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'local_formation', 'guest_formation', 'local_color', 'local_alternate_color', 'guest_color', 'guest_alternate_color'])]
 class Fixture extends Model
 {
     /** @use HasFactory<FixtureFactory> */
@@ -92,6 +96,10 @@ class Fixture extends Model
             'state' => FixtureState::class,
             'local_formation' => 'string',
             'guest_formation' => 'string',
+            'local_color' => 'string',
+            'local_alternate_color' => 'string',
+            'guest_color' => 'string',
+            'guest_alternate_color' => 'string',
         ];
     }
 }

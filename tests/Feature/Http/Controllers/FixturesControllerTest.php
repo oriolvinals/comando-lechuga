@@ -157,7 +157,7 @@ test('includes lineups with pitch coordinates, points and dazn', function (): vo
         ->where('lineups.0.jersey', '3')
         ->where('lineups.0.points', 4)
         ->where('lineups.0.dazn_points', 0)
-        ->where('lineups.0.x', 18)
+        ->where('lineups.0.x', 14)
     );
 });
 
@@ -352,7 +352,7 @@ test('includes events with the player relation, ordered by minute', function ():
     $scorer = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
 
     FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->localTeam->id, 'player_id' => $scorer->id, 'type' => 'goal', 'minute' => 73]);
-    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->guestTeam->id, 'player_id' => null, 'type' => 'yellow_card', 'minute' => 12]);
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->guestTeam->id, 'player_id' => null, 'unresolved_name' => 'Unlinked Player', 'type' => 'yellow_card', 'minute' => 12]);
 
     $response = $this->get(route('fixtures.show', $fixture));
 
@@ -361,6 +361,7 @@ test('includes events with the player relation, ordered by minute', function ():
         ->has('events', 2)
         ->where('events.0.minute', 12)
         ->where('events.0.player', null)
+        ->where('events.0.unresolved_name', 'Unlinked Player')
         ->where('events.1.minute', 73)
         ->where('events.1.player.id', $scorer->id)
     );
