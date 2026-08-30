@@ -28,9 +28,11 @@ class LinkMatchDataPlayers extends Command
      */
     private const array PLAYER_MAP = [
         2776 => 277876, // A. Abqar - GET
+        2976 => 308006, // A. Alti - RCD
         2519 => 195032, // A. Batalla - RAY
         3235 => 3129002, // A. Bonel - OSA
         2680 => 332246, // A. Castrín - SEV
+        2975 => 96060, // A. Ferllo - RCD
         2565 => 307419, // A. Fortuño - ESP
         3040 => 240624, // A. Herrero - MGA
         2715 => 330433, // A. Iturbe - ELC
@@ -68,7 +70,7 @@ class LinkMatchDataPlayers extends Command
         1674 => 310452, // Arda Güler - RMA
         2335 => 300876, // Areso - ATH
         2846 => 380918, // Arguibide - OSA
-        3236 => 231618, // Arnau - VAL
+        3236 => 308728, // Arnau - VAL
         3194 => 328289, // Arnau Ortiz - ATM
         3148 => 384414, // Asp Jensen - RCD
         3108 => 122260, // Aubameyang - RCD
@@ -119,6 +121,7 @@ class LinkMatchDataPlayers extends Command
         3020 => 421199, // Carlos Sánchez - RAC
         1251 => 250508, // Carmona - SEV
         2604 => 298343, // Carreira - CEL
+        3163 => 3128976, // Caste - RAC
         3201 => 184757, // Castillo - ATM
         1033 => 264175, // Catena - OSA
         2933 => 320648, // Cepeda - ELC
@@ -140,6 +143,7 @@ class LinkMatchDataPlayers extends Command
         2881 => 368593, // D. Martínez - ATM
         2991 => 331742, // D. Villares - RCD
         3036 => 331533, // Dani Lorenzo - MGA
+        2588 => 231618, // Danjuma - VAL
         184 => 196339, // David Soria - GET
         2736 => 406832, // Davinchi - GET
         886 => 260740, // De Frutos - RAY
@@ -261,6 +265,7 @@ class LinkMatchDataPlayers extends Command
         2678 => 319231, // J. Vertrouwd - RAY
         2461 => 189804, // J. Vázquez - VAL
         3216 => 3124771, // Jaume Durà - VAL
+        3050 => 270610, // Jauregi - MGA
         2040 => 377792, // Jauregizar - ATH
         2329 => 231838, // Javi Galán - CEL
         3075 => 16340, // Javi Guerra - VAL
@@ -303,6 +308,7 @@ class LinkMatchDataPlayers extends Command
         3104 => 362150, // Lamine Yamal - BAR
         3065 => 159317, // Laporte - ATH
         3072 => 297828, // Larrubia - MGA
+        255 => 214888, // Le Normand - ATM
         2836 => 366886, // Lebarbier - RSO
         3082 => 140754, // Lejeune - RAY
         3109 => 300926, // Leo Román - RCD
@@ -388,6 +394,7 @@ class LinkMatchDataPlayers extends Command
         2693 => 377768, // Otorbi - VAL
         3203 => 3110515, // Otu Jr - MGA
         3091 => 229018, // Oyarzabal - RSO
+        2666 => 316040, // P. Campos - LEV
         3207 => 271151, // P. Martínez - MGA
         2397 => 138448, // Pablo Durán - CEL
         2712 => 399278, // Pablo García - BET
@@ -422,6 +429,7 @@ class LinkMatchDataPlayers extends Command
         2560 => 253763, // Raba - VAL
         3038 => 357858, // Rafa Rodríguez - MGA
         2677 => 119332, // Rafa Romero - SEV
+        3041 => 376166, // Rafita - MGA
         3048 => 292225, // Ramon - MGA
         2522 => 231050, // Raphinha - BAR
         3081 => 287224, // Ratiu - RAY
@@ -453,6 +461,7 @@ class LinkMatchDataPlayers extends Command
         3137 => 284854, // Satriano - GET
         1989 => 265993, // Sergio Gómez - RSO
         644 => 191360, // Sergio Herrera - OSA
+        3024 => 409318, // Sergio - RAC
         988 => 200910, // Sivera - ALA
         2390 => 195790, // Starfelt - CEL
         2753 => 222037, // Suazo - SEV
