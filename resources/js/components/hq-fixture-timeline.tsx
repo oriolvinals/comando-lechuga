@@ -21,7 +21,11 @@ function EventIcon({ event }: { event: FixtureEventEntry }) {
     }
 
     if (event.type === 'goal' && event.is_own_goal) {
-        return <span className="text-xs whitespace-nowrap">⚽ PP</span>;
+        return (
+            <span title="Autogol" className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">
+                PP
+            </span>
+        );
     }
 
     return <span className="text-xs">{EVENT_ICON[event.type]}</span>;
@@ -59,11 +63,12 @@ export function HqFixtureTimeline({ events, localTeamId }: HqFixtureTimelineProp
                         <span className={cn('flex-1 pr-2.5 text-right', isLocal ? 'text-hq-paper' : 'text-hq-moss-dim italic')}>
                             {isLocal ? label : ''}
                         </span>
-                        <span className="w-6 text-center">
+                        <span className="w-2" />
+                        <span className="flex w-16 items-center justify-center gap-1">
                             <EventIcon event={event} />
+                            <span className="font-mono text-[11px] text-hq-moss">{event.minute}'</span>
                         </span>
-                        <span className="w-8.5 font-mono text-[11px] text-hq-moss">{event.minute}'</span>
-                        <span className="w-6" />
+                        <span className="w-2" />
                         <span className={cn('flex-1 pl-2.5', !isLocal ? 'text-hq-paper' : 'text-hq-moss-dim italic')}>
                             {!isLocal ? label : ''}
                         </span>
