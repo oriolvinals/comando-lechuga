@@ -140,6 +140,7 @@ class FixturesController extends Controller
         return [
             'id' => $lineup->id,
             'player' => $lineup->player,
+            'unresolved_name' => $lineup->unresolved_name,
             'team_id' => $lineup->team_id,
             'starter' => $lineup->starter,
             'position' => $lineup->position,

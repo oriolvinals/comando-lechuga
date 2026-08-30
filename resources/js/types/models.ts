@@ -55,6 +55,7 @@ export interface Fixture {
 export interface FixtureLineupEntry {
     id: number;
     player: Player | null;
+    unresolved_name: string | null;
     team_id: number;
     starter: boolean;
     position: string;
