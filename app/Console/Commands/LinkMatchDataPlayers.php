@@ -42,6 +42,7 @@ class LinkMatchDataPlayers extends Command
         2005 => 300284, // Abel Bretones - OSA
         2545 => 379707, // Adama - ATH
         3209 => 274913, // Adeyemi - BAR
+        3067 => 313230, // Affengruber - ELC
         1219 => 323970, // Agirrezabala - RAC
         2453 => 282289, // Agoumé - SEV
         2900 => 410486, // Aguirre - RSO
@@ -56,7 +57,6 @@ class LinkMatchDataPlayers extends Command
         3190 => 376156, // Ali Houary - ELC
         1529 => 286604, // Almeida - VAL
         3180 => 3128651, // Alonso - RAY
-        3016 => 300471, // Alvaro J. - RAC
         3119 => 356639, // Amatucci - RCD
         3135 => 356080, // Andrés Garcia - GET
         3073 => 3141, // Andrés Martín - RAC
@@ -109,6 +109,7 @@ class LinkMatchDataPlayers extends Command
         3105 => 355902, // Cala - ESP
         1300 => 285150, // Camavinga - RMA
         2387 => 276652, // Camello - RAY
+        3125 => 125383, // Canales - RAC
         2906 => 176399, // Cancelo - BAR
         1614 => 289072, // Cardona - VIL
         3129 => 380286, // Carlos Espí - RMA
@@ -139,19 +140,18 @@ class LinkMatchDataPlayers extends Command
         2881 => 368593, // D. Martínez - ATM
         2991 => 331742, // D. Villares - RCD
         3036 => 331533, // Dani Lorenzo - MGA
-        2844 => 313230, // David Delgado - ELC
         184 => 196339, // David Soria - GET
         2736 => 406832, // Davinchi - GET
         886 => 260740, // De Frutos - RAY
         1070 => 157708, // De Galarreta - ATH
         3120 => 282086, // De Haas - VAL
         2725 => 389447, // De Las Sias - RAY
+        2300 => 276841, // Dela - LEV
         2474 => 163068, // Denis Suárez - ALA
         2626 => 322908, // Deossa - BET
         2458 => 241117, // Diakhaby - VAL
         3158 => 213535, // Diarra - ALA
         2902 => 396751, // Diatta - VIL
-        2468 => 181530, // Diego Conde - BET
         3031 => 396027, // Diego Diaz - RAC
         2366 => 193943, // Diego Rico - OSA
         3121 => 232803, // Dieng - VAL
@@ -187,6 +187,8 @@ class LinkMatchDataPlayers extends Command
         2603 => 279904, // Ferran Jutglà - CEL
         2819 => 388898, // Ferrer - GET
         2940 => 283827, // Fidalgo - BET
+        2546 => 157739, // Foulquier - VAL
+        3099 => 227714, // Fornals - BET
         2470 => 242710, // Foyth - VIL
         2429 => 213050, // Fran García - BET
         2579 => 362874, // Fran González - SEV
@@ -207,6 +209,7 @@ class LinkMatchDataPlayers extends Command
         1210 => 323838, // Giuliano - ATM
         3210 => 268782, // Gordon - BAR
         2865 => 406383, // Gorka Carrera - RSO
+        2621 => 388601, // Gorrotxa - RSO
         3202 => 396611, // Goti - RSO
         2780 => 242739, // Grady Diangana - ELC
         3155 => 166396, // Grimaldo - ATM
@@ -283,8 +286,10 @@ class LinkMatchDataPlayers extends Command
         2912 => 387493, // Julio Díaz - SEV
         3088 => 277206, // Julián Alvarez - ATM
         2627 => 269655, // Junior - BET
+        2467 => 307648, // Júnior R. - VIL
         2905 => 415819, // K. Tunde - LEV
         2471 => 325553, // Kambwala - VIL
+        3193 => 274197, // Kang-In Lee - ATM
         3186 => 331530, // Kevin - RCD
         2337 => 209580, // Kike Barja - OSA
         2479 => 334163, // Kike Salas - SEV
@@ -298,12 +303,12 @@ class LinkMatchDataPlayers extends Command
         3104 => 362150, // Lamine Yamal - BAR
         3065 => 159317, // Laporte - ATH
         3072 => 297828, // Larrubia - MGA
-        255 => 274197, // Le Normand - ATM
         2836 => 366886, // Lebarbier - RSO
         3082 => 140754, // Lejeune - RAY
         3109 => 300926, // Leo Román - RCD
         2363 => 344245, // Letacek - GET
         3171 => 381681, // Llorenç - ESP
+        2415 => 181530, // Llorente - BET
         3049 => 301869, // Lobete - MGA
         3079 => 229645, // Lookman - ATM
         3178 => 268751, // Lozano - RAY
@@ -319,6 +324,7 @@ class LinkMatchDataPlayers extends Command
         3174 => 150451, // Mandi - LEV
         3166 => 3129042, // Manel Usedo - LEV
         3133 => 228424, // Mangala - GET
+        2999 => 300471, // Mantilla - RAC
         2687 => 356228, // Manu Bueno - SEV
         2794 => 390091, // Manu G. - BET
         3008 => 259839, // Manu Hernando - RAC
@@ -512,7 +518,7 @@ class LinkMatchDataPlayers extends Command
 
         $players = Player::query()
             ->whereIn('team_id', $season->teams()->select('teams.id'))
-            ->where('status', '!=', PlayerStatus::OutOfLeague)
+            ->whereNotIn('status', [PlayerStatus::OutOfLeague, PlayerStatus::Injured])
             ->whereNull('match_data_id')
             ->whereNotNull('fantasy_id')
             ->whereHas('seasons', fn ($query) => $query

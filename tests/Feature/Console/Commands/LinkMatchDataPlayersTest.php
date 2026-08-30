@@ -39,6 +39,21 @@ test('ignores coaches entirely — they never appear in a worldcup26 match roste
         ->assertSuccessful();
 });
 
+test('ignores injured players entirely — they have not featured in any match yet', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+    Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Injured, 'position' => PlayerPosition::Midfield]);
+
+    $this->artisan(LinkMatchDataPlayers::class)
+        ->expectsOutput('0 players linked, 0 fixture lineups backfilled.')
+        ->doesntExpectOutputToContain('unresolved')
+        ->assertSuccessful();
+});
+
 test('ignores out_of_league players entirely', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
