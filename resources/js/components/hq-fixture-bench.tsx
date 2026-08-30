@@ -25,7 +25,10 @@ function BenchColumn({ entries, onSelect }: { entries: FixtureLineupEntry[]; onS
 
 export function HqFixtureBench({ lineups, localTeam, guestTeam, onSelect }: HqFixtureBenchProps) {
     const [selectedTeamId, setSelectedTeamId] = useState(localTeam.id);
-    const bench = lineups.filter((entry) => !entry.starter).toSorted(byPlayerPositionThenJersey);
+    // Played subs first, then unused ones — position/jersey order within each group.
+    const bench = lineups
+        .filter((entry) => !entry.starter)
+        .toSorted((a, b) => Number(b.subbed_in) - Number(a.subbed_in) || byPlayerPositionThenJersey(a, b));
 
     return (
         <div>
