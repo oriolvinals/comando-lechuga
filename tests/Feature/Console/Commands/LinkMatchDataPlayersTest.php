@@ -115,8 +115,8 @@ test('does not reassign a match_data_id already claimed by another player', func
         'team_guest_id' => $away->id,
         'match_data_id' => 401882926,
     ]);
-    $alreadyLinked = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Arnau', 'match_data_id' => 231618]);
-    $ambiguous = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Danjuma']);
+    $alreadyLinked = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Arnau', 'match_data_id' => 231618, 'status' => PlayerStatus::Ok]);
+    $ambiguous = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Danjuma', 'status' => PlayerStatus::Ok]);
 
     $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
         GetEventRequest::class => MockResponse::make([
