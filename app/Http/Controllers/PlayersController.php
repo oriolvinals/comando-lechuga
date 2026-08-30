@@ -79,6 +79,7 @@ class PlayersController extends Controller
                     ->where('player_seasons.season_id', $season->id);
             })
             ->with('team')
+            ->whereNotNull('fantasy_id')
             ->where('status', '!=', PlayerStatus::OutOfLeague)
             ->when($positions !== [], fn ($query) => $query->whereIn('player_seasons.position', $positions))
             ->when($teams !== [], fn ($query) => $query->whereIn('team_id', $teams))
@@ -132,6 +133,8 @@ class PlayersController extends Controller
 
     public function show(Player $player): Response
     {
+        abort_if($player->fantasy_id === null, 404);
+
         $player->load('team');
         $season = Season::current();
 

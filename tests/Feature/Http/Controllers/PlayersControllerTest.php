@@ -900,3 +900,34 @@ test('player ficha lineup_manager is resolved via ManagerLineupPlayer.fixture_id
         ->where('scores.0.lineup_manager.id', $seasonManager->id)
     );
 });
+
+test('excludes players with no fantasy_id from the index listing', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $linkedPlayer = Player::factory()->create(['fantasy_id' => 12345, 'status' => PlayerStatus::Ok]);
+    Player::factory()->create(['fantasy_id' => null, 'status' => PlayerStatus::Ok]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('players.data', 1)
+        ->where('players.data.0.id', $linkedPlayer->id)
+    );
+});
+
+test('returns 404 for a player ficha with no fantasy_id', function (): void {
+    $player = Player::factory()->create(['fantasy_id' => null]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertNotFound();
+});
+
+test('returns 200 for a player ficha with a fantasy_id', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['fantasy_id' => 12345]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+});
