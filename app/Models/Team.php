@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property-read string $short_name
  * @property-read string $logo
  * @property-read int $fantasy_id
- * @property-read int|null $match_data_id
+ * @property-read int $match_data_id
  * @property-read CarbonImmutable|null $created_at
  * @property-read CarbonImmutable|null $updated_at
  */

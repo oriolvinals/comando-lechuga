@@ -2,66 +2,128 @@
 
 use App\Console\Commands\SyncCurrentSeasonTeams;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
-use App\Http\Integrations\LaLigaFantasy\Requests\GetAssetRequest;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetTeamInfoRequest;
+use App\Http\Integrations\Worldcup26\Requests\GetFixturesRequest;
+use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Season;
 use App\Models\Team;
-use Illuminate\Support\Facades\Storage;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
-test('creates and updates the active season teams', function (): void {
-    Storage::fake('public');
+function worldcup26FixturesPayload(array $events, int $pageIndex = 1, int $pageCount = 1): array
+{
+    return [
+        'league' => 'esp.1',
+        'count' => count($events),
+        'pageIndex' => $pageIndex,
+        'pageSize' => 25,
+        'pageCount' => $pageCount,
+        'filters' => [],
+        'events' => $events,
+    ];
+}
 
+function worldcup26FixtureEvent(int $localTeamId, string $localTeamName, string $localShort, int $guestTeamId, string $guestTeamName, string $guestShort): array
+{
+    return [
+        'id' => (string) random_int(400000000, 499999999),
+        'season' => ['year' => 2026, 'type_id' => '14357', 'slug' => '2026-27-laliga', 'name' => ''],
+        'competitions' => [[
+            'competitors' => [
+                ['homeAway' => 'home', 'team' => ['id' => (string) $localTeamId, 'name' => $localTeamName, 'shortDisplayName' => $localShort]],
+                ['homeAway' => 'away', 'team' => ['id' => (string) $guestTeamId, 'name' => $guestTeamName, 'shortDisplayName' => $guestShort]],
+            ],
+        ]],
+    ];
+}
+
+test('creates teams from worldcup26 fixtures, backfills fantasy_id from the hardcoded map', function (): void {
     $season = Season::factory()->create([
+        'match_data_season_slug' => '2026-27-laliga',
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $existingTeam = Team::factory()->create([
-        'fantasy_id' => 2,
-        'main_name' => 'Old name',
-    ]);
-    $season->teams()->attach($existingTeam);
 
-    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
-        GetTeamInfoRequest::class => MockResponse::make([
-            [
-                'id' => 2,
-                'mainName' => 'Atlético de Madrid',
-                'name' => 'Club Atlético de Madrid SAD',
-                'shortName' => 'ATM',
-                'slug' => 'atletico-de-madrid',
-                'badgeColor' => 'https://assets-fantasy.llt-services.com/teambadge/atletico.png',
-                'players' => [['id' => 2332]],
-            ],
-            [
-                'id' => 3,
-                'mainName' => 'Athletic Club',
-                'name' => 'Athletic Club',
-                'shortName' => 'ATH',
-                'slug' => 'athletic-club',
-                'badgeColor' => 'https://assets-fantasy.llt-services.com/teambadge/athletic.png',
-                'players' => [],
-            ],
-        ]),
-        GetAssetRequest::class => MockResponse::make('team badge'),
+    $event = worldcup26FixtureEvent(83, 'Real Madrid', 'RMA', 86, 'Villarreal', 'VIL');
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetFixturesRequest::class => MockResponse::make(worldcup26FixturesPayload([$event])),
     ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
 
-    app()->instance(LaLigaFantasyConnector::class, $connector);
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamInfoRequest::class => MockResponse::make([]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
 
-    $this->artisan(SyncCurrentSeasonTeams::class)
-        ->expectsOutput('2 teams synchronized.')
-        ->assertSuccessful();
+    $this->artisan(SyncCurrentSeasonTeams::class)->assertSuccessful();
 
-    expect(Team::query()->count())->toBe(2)
-        ->and($existingTeam->refresh())
-        ->main_name->toBe('Atlético de Madrid')
-        ->and($existingTeam->logo)->toBe('images/team/2.png')
-        ->and($existingTeam->toArray()['logo'])->toBe(asset('storage/images/team/2.png'))
-        ->and($season->teams()->count())->toBe(2);
+    $realMadrid = Team::query()->where('match_data_id', 83)->sole();
+    expect($realMadrid->name)->toBe('Real Madrid')
+        ->and($realMadrid->short_name)->toBe('RMA')
+        ->and($realMadrid->fantasy_id)->toBe(4); // TEAM_MAP: fantasy_id 4 => worldcup26 id 83
 
-    Storage::disk('public')->assertExists([
-        'images/team/2.png',
-        'images/team/3.png',
+    $villarreal = Team::query()->where('match_data_id', 86)->sole();
+    expect($villarreal->fantasy_id)->not->toBeNull();
+});
+
+test('filters out events from a different season by match_data_season_slug', function (): void {
+    Season::factory()->create([
+        'match_data_season_slug' => '2026-27-laliga',
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
     ]);
+
+    $currentSeasonEvent = worldcup26FixtureEvent(83, 'Real Madrid', 'RMA', 86, 'Villarreal', 'VIL');
+    $otherSeasonEvent = worldcup26FixtureEvent(999, 'Old Team A', 'OTA', 998, 'Old Team B', 'OTB');
+    $otherSeasonEvent['season']['slug'] = '2025-26-laliga';
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetFixturesRequest::class => MockResponse::make(worldcup26FixturesPayload([$currentSeasonEvent, $otherSeasonEvent])),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamInfoRequest::class => MockResponse::make([]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonTeams::class)->assertSuccessful();
+
+    expect(Team::query()->where('match_data_id', 999)->exists())->toBeFalse();
+});
+
+test('enriches an existing team by fantasy_id, never creates a new row', function (): void {
+    $season = Season::factory()->create([
+        'match_data_season_slug' => '2026-27-laliga',
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $existing = Team::factory()->create(['match_data_id' => 83, 'fantasy_id' => 4, 'main_name' => '', 'slug' => '', 'logo' => '']);
+
+    $event = worldcup26FixtureEvent(83, 'Real Madrid', 'RMA', 86, 'Villarreal', 'VIL');
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetFixturesRequest::class => MockResponse::make(worldcup26FixturesPayload([$event])),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamInfoRequest::class => MockResponse::make([
+            ['id' => 4, 'mainName' => 'Real Madrid CF', 'name' => 'Real Madrid', 'slug' => 'real-madrid', 'shortName' => 'RMA', 'badgeColor' => null],
+        ]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonTeams::class)->assertSuccessful();
+
+    // 2, not 1: the fixture event's two competitors (Real Madrid + Villarreal) both get
+    // created/updated by syncFromWorldcup26() — that's the worldcup26-first design. What this
+    // test actually verifies is that enrichFromFantasy() never creates its own row for
+    // fantasy_id 4: it must find and update the team syncFromWorldcup26() already produced,
+    // not add a duplicate.
+    expect(Team::query()->count())->toBe(2)
+        ->and(Team::query()->where('fantasy_id', 4)->count())->toBe(1)
+        ->and($existing->fresh()->main_name)->toBe('Real Madrid CF')
+        ->and($existing->fresh()->slug)->toBe('real-madrid');
 });

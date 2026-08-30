@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
+use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Season;
 use App\Models\Team;
 use Illuminate\Console\Attributes\Description;
@@ -18,9 +19,15 @@ use Saloon\Exceptions\Request\RequestException;
 use Throwable;
 
 #[Signature('season:sync-teams')]
-#[Description('Synchronize the current season teams from La Liga Fantasy')]
+#[Description('Synchronize the current season teams from worldcup26.ir, enriched with Fantasy data')]
 class SyncCurrentSeasonTeams extends Command
 {
+    /**
+     * fantasy_id => worldcup26.ir team id — validated 1:1 against real data
+     * (same mapping previously used by the now-deleted LinkMatchDataTeams).
+     *
+     * @var array<int, int>
+     */
     private const array TEAM_MAP = [
         2 => 1068,
         3 => 93,
@@ -44,61 +51,129 @@ class SyncCurrentSeasonTeams extends Command
         49 => 87,
     ];
 
+    /** @var array<int, int> worldcup26 id => fantasy_id, the inverse of TEAM_MAP */
+    private array $matchDataIdToFantasyId;
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        $this->matchDataIdToFantasyId = array_flip(self::TEAM_MAP);
+    }
+
     /**
      * @throws Throwable
      * @throws FatalRequestException
      * @throws RequestException
      * @throws JsonException
      */
-    public function handle(LaLigaFantasyConnector $connector): int
+    public function handle(Worldcup26Connector $worldcup26Connector, LaLigaFantasyConnector $fantasyConnector): int
     {
         $season = Season::current();
 
-        $teams = [];
+        $created = DB::transaction(fn (): int => $this->syncFromWorldcup26($worldcup26Connector, $season));
 
-        foreach ($connector->getTeamInfo()->throw()->json() as $teamData) {
-            $fantasyId = (int)$teamData['id'];
-            $badgeColor = $teamData['badgeColor'] ?? null;
+        $enriched = DB::transaction(fn (): int => $this->enrichFromFantasy($fantasyConnector));
 
-            $teams[] = [
-                'fantasy_id' => $fantasyId,
-                'main_name' => (string)$teamData['mainName'],
-                'name' => (string)$teamData['name'],
-                'slug' => (string)$teamData['slug'],
-                'short_name' => (string)$teamData['shortName'],
-                'logo' => $this->storeBadge($connector, $fantasyId, is_string($badgeColor) ? $badgeColor : null),
-                'match_data_id' => self::TEAM_MAP[$fantasyId] ?? $fantasyId,
-            ];
-        }
-
-        $teamIds = DB::transaction(function () use ($season, $teams): array {
-            $teamIds = [];
-
-            foreach ($teams as $teamData) {
-                $team = Team::query()
-                    ->updateOrCreate(
-                        ['fantasy_id' => $teamData['fantasy_id']],
-                        [
-                            'main_name' => $teamData['main_name'],
-                            'name' => $teamData['name'],
-                            'slug' => $teamData['slug'],
-                            'short_name' => $teamData['short_name'],
-                            'logo' => $teamData['logo'],
-                            'match_data_id' => $teamData['match_data_id'],
-                        ],
-                    );
-
-                $teamIds[] = $team->id;
-            }
-
-            $season->teams()->sync($teamIds);
-
-            return $teamIds;
-        });
-
-        $this->info(count($teamIds).' teams synchronized.');
+        $this->info("{$created} teams synced from worldcup26, {$enriched} enriched from Fantasy.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws RequestException
+     * @throws JsonException
+     */
+    private function syncFromWorldcup26(Worldcup26Connector $connector, Season $season): int
+    {
+        /** @var array<int, array{name: string, shortName: string}> $teamsById */
+        $teamsById = [];
+        $pageIndex = 1;
+
+        do {
+            $response = $connector->getFixtures($pageIndex)->throw()->json();
+            $events = is_array($response['events'] ?? null) ? $response['events'] : [];
+            $pageCount = (int) ($response['pageCount'] ?? 1);
+
+            foreach ($events as $event) {
+                if (!is_array($event) || ($event['season']['slug'] ?? null) !== $season->match_data_season_slug) {
+                    continue;
+                }
+
+                $competitors = $event['competitions'][0]['competitors'] ?? [];
+
+                if (!is_array($competitors)) {
+                    continue;
+                }
+
+                foreach ($competitors as $competitor) {
+                    $team = $competitor['team'] ?? null;
+
+                    if (!is_array($team) || !isset($team['id'])) {
+                        continue;
+                    }
+
+                    $matchDataId = (int) $team['id'];
+                    $teamsById[$matchDataId] = [
+                        'name' => (string) ($team['name'] ?? ''),
+                        'shortName' => (string) ($team['shortDisplayName'] ?? ''),
+                    ];
+                }
+            }
+
+            $pageIndex++;
+        } while ($pageIndex <= $pageCount);
+
+        $synced = 0;
+
+        foreach ($teamsById as $matchDataId => $teamData) {
+            Team::query()->updateOrCreate(
+                ['match_data_id' => $matchDataId],
+                [
+                    'name' => $teamData['name'],
+                    'short_name' => $teamData['shortName'],
+                    'fantasy_id' => $this->matchDataIdToFantasyId[$matchDataId] ?? null,
+                ],
+            );
+
+            $synced++;
+        }
+
+        return $synced;
+    }
+
+    /**
+     * @throws FatalRequestException
+     * @throws RequestException
+     * @throws JsonException
+     */
+    private function enrichFromFantasy(LaLigaFantasyConnector $connector): int
+    {
+        $enriched = 0;
+
+        foreach ($connector->getTeamInfo()->throw()->json() as $teamData) {
+            $fantasyId = (int) $teamData['id'];
+            $team = Team::query()->where('fantasy_id', $fantasyId)->first();
+
+            if ($team === null) {
+                continue;
+            }
+
+            $badgeColor = $teamData['badgeColor'] ?? null;
+
+            $team->update([
+                'main_name' => (string) $teamData['mainName'],
+                'name' => (string) $teamData['name'],
+                'slug' => (string) $teamData['slug'],
+                'short_name' => (string) $teamData['shortName'],
+                'logo' => $this->storeBadge($connector, $fantasyId, is_string($badgeColor) ? $badgeColor : null),
+            ]);
+
+            $enriched++;
+        }
+
+        return $enriched;
     }
 
     /**
