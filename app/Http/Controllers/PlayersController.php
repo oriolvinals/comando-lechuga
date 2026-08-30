@@ -207,7 +207,7 @@ class PlayersController extends Controller
             ]);
 
         // Fixtures for the player's current club up to the current week, including weeks
-        // that haven't produced a PlayerScore yet — lets the match timeline link to a
+        // that haven't produced a FixtureLineup yet — lets the match timeline link to a
         // fixture (e.g. "aún no jugada") before any stats exist for it.
         $teamFixtures = Fixture::query()
             ->where('season_id', $season->id)

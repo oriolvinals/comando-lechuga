@@ -30,10 +30,12 @@ test('syncs lineups for each season manager through the current week, resolving 
         'fantasy_id' => 37394771,
     ]);
     $player = Player::factory()->create(['fantasy_id' => 2759]);
+    // team_local_id/team_guest_id deliberately default to fresh, unrelated teams
+    // (not $player->team_id) so this test can only pass if fixture resolution
+    // goes through the FixtureLineup row's player_id — not a team match.
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'week_number' => 1,
-        'team_local_id' => $player->team_id,
     ]);
     FixtureLineup::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $player->id]);
     $loginConnector = Mockery::mock(LaLigaLoginConnector::class);

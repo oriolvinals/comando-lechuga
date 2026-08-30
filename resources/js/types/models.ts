@@ -205,8 +205,8 @@ export interface PlayerFichaScore {
     id: number;
     team_id: number;
     team: Team;
-    points: number;
-    stats: JornadaStats;
+    points: number | null;
+    stats: JornadaStats | null;
     fixture: Fixture;
     lineup_manager: SeasonManager | null;
 }

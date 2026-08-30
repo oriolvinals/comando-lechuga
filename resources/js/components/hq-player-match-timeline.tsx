@@ -69,7 +69,7 @@ export function HqPlayerMatchTimeline({
                                 selectedWeek === week
                                     ? 'border-hq-paper'
                                     : 'border-transparent hover:border-hq-border-strong',
-                                score
+                                score && score.points !== null
                                     ? matchPointsBadgeClass(score.points)
                                     : notCalledUp
                                       ? 'border-dashed border-hq-live text-hq-live'
@@ -80,7 +80,11 @@ export function HqPlayerMatchTimeline({
                                 J{week}
                             </span>
                             <span className="font-display text-lg leading-none">
-                                {score ? score.points : notCalledUp ? 'NC' : '—'}
+                                {score && score.points !== null
+                                    ? score.points
+                                    : notCalledUp
+                                      ? 'NC'
+                                      : '—'}
                             </span>
                         </button>
                     );
@@ -96,10 +100,14 @@ export function HqPlayerMatchTimeline({
                         <span
                             className={cn(
                                 'rounded-sm px-3 py-0.5 font-display text-xl',
-                                matchPointsBadgeClass(selectedScore.points),
+                                selectedScore.points !== null
+                                    ? matchPointsBadgeClass(
+                                          selectedScore.points,
+                                      )
+                                    : 'border-dashed border-hq-border-strong text-hq-moss-dim',
                             )}
                         >
-                            {selectedScore.points}
+                            {selectedScore.points ?? '—'}
                         </span>
                         <span className="font-mono text-xs text-hq-moss">
                             {selectedScore.fixture.local_team.short_name}{' '}
@@ -108,7 +116,7 @@ export function HqPlayerMatchTimeline({
                             {selectedScore.fixture.guest_team.short_name}
                         </span>
                         {didNotPlayMatch(
-                            selectedScore.stats,
+                            selectedScore.stats ?? {},
                             selectedScore.fixture.state,
                         ) && (
                             <span className="border border-hq-moss-dim px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-moss-dim uppercase">
@@ -116,7 +124,7 @@ export function HqPlayerMatchTimeline({
                             </span>
                         )}
                         <MatchEventIcons
-                            stats={selectedScore.stats}
+                            stats={selectedScore.stats ?? {}}
                             position={playerPosition}
                         />
                         <div className="ml-auto flex items-center gap-2.5">
@@ -141,7 +149,7 @@ export function HqPlayerMatchTimeline({
                                     {selectedScore.lineup_manager.name}
                                 </Link>
                             )}
-                            {selectedScore.stats.marca_points && (
+                            {selectedScore.stats?.marca_points && (
                                 <span className="border border-hq-khaki px-1.5 py-0.5 font-mono text-[11px] text-hq-khaki">
                                     DAZN {selectedScore.stats.marca_points[1]}
                                 </span>
@@ -159,9 +167,9 @@ export function HqPlayerMatchTimeline({
                     </div>
                     <div className="grid grid-cols-2">
                         {BODY_STAT_ORDER.map((key, index) => {
-                            const [value, delta] = selectedScore.stats[key] ?? [
-                                0, 0,
-                            ];
+                            const [value, delta] = selectedScore.stats?.[
+                                key
+                            ] ?? [0, 0];
                             const isZero = value === 0 && delta === 0;
 
                             return (

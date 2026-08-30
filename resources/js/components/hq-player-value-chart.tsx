@@ -213,19 +213,22 @@ export function HqPlayerValueChart({
 
         const slot = width / n;
         const barWidth = Math.min(64, slot * 0.5);
-        const maxPoints = Math.max(...scores.map((score) => score.points), 12);
+        const maxPoints = Math.max(
+            ...scores.map((score) => score.points ?? 0),
+            12,
+        );
 
         const bars = scores.map((score, index) => {
             const cx = index * slot + slot / 2;
             const barHeight =
-                (score.points / maxPoints) * (HEIGHT - BAR_LABEL_SPACE);
+                ((score.points ?? 0) / maxPoints) * (HEIGHT - BAR_LABEL_SPACE);
 
             return {
                 cx,
                 y: HEIGHT - barHeight,
                 height: barHeight,
                 week: score.fixture.week_number,
-                points: score.points,
+                points: score.points ?? 0,
             };
         });
 
@@ -291,7 +294,7 @@ export function HqPlayerValueChart({
                 x: rect.left + bar.cx * pxRatio,
                 y: rect.top + bar.y * pxRatio,
                 date: `Jornada ${score.fixture.week_number}`,
-                value: `${score.points} puntos`,
+                value: `${score.points ?? 0} puntos`,
                 diff: null,
                 ownerName: segment?.seasonManager?.name ?? 'Libre',
                 ownerColor: segment?.seasonManager

@@ -53,13 +53,14 @@ export default function PlayerShow({
 
     const daznScores = scores.filter(
         (score) =>
+            score.stats != null &&
             !didNotPlayMatch(score.stats, score.fixture.state) &&
             score.stats.marca_points,
     );
     const daznAverage =
         daznScores.length > 0
             ? daznScores.reduce(
-                  (sum, score) => sum + score.stats.marca_points[1],
+                  (sum, score) => sum + (score.stats?.marca_points?.[1] ?? 0),
                   0,
               ) / daznScores.length
             : null;
