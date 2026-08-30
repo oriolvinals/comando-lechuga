@@ -64,3 +64,36 @@ test('creates and updates players for the active season teams', function (): voi
         ->and($existingPlayer->team_id)->toBe($team->id)
         ->and($existingPlayer->seasons()->where('season_id', $season->id)->sole()->position)->toBe(PlayerPosition::Goalkeeper);
 });
+
+test('skips coaches entirely — they never appear in a worldcup26 match roster', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create(['fantasy_id' => 3]);
+    $season->teams()->attach($team);
+
+    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayersRequest::class => MockResponse::make([
+            [
+                'id' => 1976,
+                'positionId' => 5,
+                'nickname' => 'Hansi Flick',
+                'playerStatus' => 'ok',
+                'marketValue' => '0',
+                'points' => 0,
+                'averagePoints' => 0,
+                'image' => 'https://assets-fantasy.llt-services.com/players/t174/p1976/256x256/p1976.png',
+                'teamId' => 3,
+            ],
+        ]),
+    ]));
+
+    app()->instance(LaLigaFantasyConnector::class, $connector);
+
+    $this->artisan(SyncCurrentSeasonPlayers::class)
+        ->expectsOutput('0 players synchronized.')
+        ->assertSuccessful();
+
+    expect(Player::query()->where('fantasy_id', 1976)->exists())->toBeFalse();
+});
