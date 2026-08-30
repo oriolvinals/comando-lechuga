@@ -2,140 +2,82 @@
 
 use App\Console\Commands\LinkMatchDataPlayers;
 use App\Enums\PlayerStatus;
-use App\Http\Integrations\Worldcup26\Requests\GetEventRequest;
-use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
-use Saloon\Http\Faking\MockClient;
-use Saloon\Http\Faking\MockResponse;
 
-test('links players by fetching the roster of each already-linked fixture', function (): void {
+test('links no one and reports every eligible player as unresolved when none are in PLAYER_MAP', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
-    $season->teams()->attach([$home->id, $away->id]);
-    Fixture::factory()->create([
-        'season_id' => $season->id,
-        'team_local_id' => $home->id,
-        'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
-    ]);
-    $homePlayer = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Sivera']);
-    $awayPlayer = Player::factory()->create(['team_id' => $away->id, 'nickname' => 'Bellingham']);
-
-    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
-        GetEventRequest::class => MockResponse::make([
-            'rosters' => [
-                [
-                    'team' => ['id' => 83],
-                    'roster' => [
-                        ['athlete' => ['id' => 5001, 'displayName' => 'Antonio Sivera'], 'starter' => true],
-                    ],
-                ],
-                [
-                    'team' => ['id' => 86],
-                    'roster' => [
-                        ['athlete' => ['id' => 5002, 'displayName' => 'Jude Bellingham'], 'starter' => true],
-                    ],
-                ],
-            ],
-        ]),
-    ]));
-
-    app()->instance(Worldcup26Connector::class, $connector);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+    Player::factory()->create(['team_id' => $team->id, 'nickname' => 'Zzyzx', 'status' => PlayerStatus::Ok]);
 
     $this->artisan(LinkMatchDataPlayers::class)
-        ->expectsOutput('2 players linked.')
+        ->expectsOutput('0 players linked, 0 fixture lineups backfilled.')
+        ->expectsOutputToContain('1 players still unresolved')
         ->assertSuccessful();
-
-    expect($homePlayer->refresh()->match_data_id)->toBe(5001)
-        ->and($awayPlayer->refresh()->match_data_id)->toBe(5002);
 });
 
-test('reports unresolved players without linking them', function (): void {
+test('ignores out_of_league players entirely', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
-    $season->teams()->attach([$home->id, $away->id]);
-    Fixture::factory()->create([
-        'season_id' => $season->id,
-        'team_local_id' => $home->id,
-        'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
-    ]);
-    $unmatchable = Player::factory()->create([
-        'team_id' => $home->id,
-        'nickname' => 'Zzyzx',
-        'status' => PlayerStatus::Ok,
-    ]);
-    Player::factory()->create(['team_id' => $away->id, 'nickname' => 'Bellingham']);
-
-    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
-        GetEventRequest::class => MockResponse::make([
-            'rosters' => [
-                ['team' => ['id' => 83], 'roster' => [
-                    ['athlete' => ['id' => 5001, 'displayName' => 'Antonio Sivera'], 'starter' => true],
-                ]],
-                ['team' => ['id' => 86], 'roster' => [
-                    ['athlete' => ['id' => 5002, 'displayName' => 'Jude Bellingham'], 'starter' => true],
-                ]],
-            ],
-        ]),
-    ]));
-
-    app()->instance(Worldcup26Connector::class, $connector);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+    Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::OutOfLeague]);
 
     $this->artisan(LinkMatchDataPlayers::class)
-        ->expectsOutput('1 players linked.')
-        ->expectsOutputToContain('Zzyzx')
+        ->expectsOutput('0 players linked, 0 fixture lineups backfilled.')
+        ->doesntExpectOutputToContain('unresolved')
         ->assertSuccessful();
-
-    expect($unmatchable->refresh()->match_data_id)->toBeNull();
 });
 
-test('does not reassign a match_data_id already claimed by another player', function (): void {
+test('leaves an already-linked player untouched and out of the unresolved count', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
-    $season->teams()->attach([$home->id, $away->id]);
-    Fixture::factory()->create([
-        'season_id' => $season->id,
-        'team_local_id' => $home->id,
-        'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
-    ]);
-    $alreadyLinked = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Arnau', 'match_data_id' => 231618, 'status' => PlayerStatus::Ok]);
-    $ambiguous = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Danjuma', 'status' => PlayerStatus::Ok]);
-
-    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
-        GetEventRequest::class => MockResponse::make([
-            'rosters' => [
-                ['team' => ['id' => 83], 'roster' => [
-                    ['athlete' => ['id' => 231618, 'displayName' => 'Arnaud Danjuma'], 'starter' => true],
-                ]],
-                ['team' => ['id' => 86], 'roster' => []],
-            ],
-        ]),
-    ]));
-
-    app()->instance(Worldcup26Connector::class, $connector);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'match_data_id' => 12345]);
 
     $this->artisan(LinkMatchDataPlayers::class)
-        ->expectsOutput('0 players linked.')
-        ->expectsOutputToContain('Danjuma')
+        ->expectsOutput('0 players linked, 0 fixture lineups backfilled.')
+        ->doesntExpectOutputToContain('unresolved')
         ->assertSuccessful();
 
-    expect($alreadyLinked->refresh()->match_data_id)->toBe(231618)
-        ->and($ambiguous->refresh()->match_data_id)->toBeNull();
+    expect($player->refresh()->match_data_id)->toBe(12345);
+});
+
+test('linkFromMap links a player found in the map and backfills its waiting fixture_lineups', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+    $fixture = Fixture::factory()->create(['team_local_id' => $team->id]);
+    $lineup = FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'team_id' => $team->id,
+        'player_id' => null,
+        'unresolved_name' => 'Zzyzx',
+        'match_data_id' => 999,
+    ]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'fantasy_id' => 42]);
+
+    $command = new LinkMatchDataPlayers;
+    $linkFromMap = new ReflectionMethod($command, 'linkFromMap');
+    $result = $linkFromMap->invoke($command, collect([$player]), [42 => 999]);
+
+    expect($result)->toBe(['linked' => 1, 'lineupsBackfilled' => 1])
+        ->and($player->refresh()->match_data_id)->toBe(999)
+        ->and($lineup->refresh()->player_id)->toBe($player->id)
+        ->and($lineup->refresh()->unresolved_name)->toBeNull();
 });

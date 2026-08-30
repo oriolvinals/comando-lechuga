@@ -197,12 +197,12 @@ trait SyncsMatchData
 
                 if ($player === null) {
                     $unresolved[] = (string) ($rosterPlayer['athlete']['displayName'] ?? $athleteMatchDataId);
-                    $this->createUnresolvedLineup($fixture, $team, $rosterPlayer);
+                    $this->createUnresolvedLineup($fixture, $team, $rosterPlayer, $athleteMatchDataId);
 
                     continue;
                 }
 
-                $this->upsertLineup($fixture, $team, $player, $rosterPlayer);
+                $this->upsertLineup($fixture, $team, $player, $rosterPlayer, $athleteMatchDataId);
                 $currentPlayerIds[] = $player->id;
             }
         }
@@ -222,12 +222,13 @@ trait SyncsMatchData
     /**
      * @param  array<string, mixed>  $rosterPlayer
      */
-    private function createUnresolvedLineup(Fixture $fixture, Team $team, array $rosterPlayer): void
+    private function createUnresolvedLineup(Fixture $fixture, Team $team, array $rosterPlayer, int $athleteMatchDataId): void
     {
         FixtureLineup::query()->create([
             'fixture_id' => $fixture->id,
             'player_id' => null,
             'unresolved_name' => (string) ($rosterPlayer['athlete']['displayName'] ?? ''),
+            'match_data_id' => $athleteMatchDataId,
             'team_id' => $team->id,
             'starter' => (bool) ($rosterPlayer['starter'] ?? false),
             'position' => (string) ($rosterPlayer['position']['displayName'] ?? ''),
@@ -243,7 +244,7 @@ trait SyncsMatchData
     /**
      * @param  array<string, mixed>  $rosterPlayer
      */
-    private function upsertLineup(Fixture $fixture, Team $team, Player $player, array $rosterPlayer): void
+    private function upsertLineup(Fixture $fixture, Team $team, Player $player, array $rosterPlayer, int $athleteMatchDataId): void
     {
         $subbedIn = (bool) ($rosterPlayer['subbedIn'] ?? false);
         $subbedOut = (bool) ($rosterPlayer['subbedOut'] ?? false);
@@ -261,6 +262,7 @@ trait SyncsMatchData
         FixtureLineup::query()->updateOrCreate(
             ['fixture_id' => $fixture->id, 'player_id' => $player->id],
             [
+                'match_data_id' => $athleteMatchDataId,
                 'team_id' => $team->id,
                 'starter' => (bool) ($rosterPlayer['starter'] ?? false),
                 'position' => (string) ($rosterPlayer['position']['displayName'] ?? ''),

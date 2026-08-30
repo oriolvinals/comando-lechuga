@@ -24,6 +24,7 @@ class FixtureLineupFactory extends Factory
             'fixture_id' => Fixture::factory(),
             'player_id' => Player::factory(),
             'unresolved_name' => null,
+            'match_data_id' => $this->faker->unique()->numberBetween(100000, 999999),
             'team_id' => Team::factory(),
             'starter' => true,
             'position' => 'Goalkeeper',
