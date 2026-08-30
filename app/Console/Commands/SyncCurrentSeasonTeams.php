@@ -21,6 +21,29 @@ use Throwable;
 #[Description('Synchronize the current season teams from La Liga Fantasy')]
 class SyncCurrentSeasonTeams extends Command
 {
+    private const array TEAM_MAP = [
+        2 => 1068,
+        3 => 93,
+        4 => 83,
+        5 => 244,
+        6 => 85,
+        7 => 3751,
+        8 => 88,
+        9 => 2922,
+        11 => 1538,
+        12 => 99,
+        13 => 97,
+        14 => 101,
+        15 => 86,
+        16 => 89,
+        17 => 243,
+        18 => 94,
+        20 => 102,
+        21 => 96,
+        26 => 90,
+        49 => 87,
+    ];
+
     /**
      * @throws Throwable
      * @throws FatalRequestException
@@ -44,6 +67,7 @@ class SyncCurrentSeasonTeams extends Command
                 'slug' => (string)$teamData['slug'],
                 'short_name' => (string)$teamData['shortName'],
                 'logo' => $this->storeBadge($connector, $fantasyId, is_string($badgeColor) ? $badgeColor : null),
+                'match_data_id' => self::TEAM_MAP[$fantasyId] ?? $fantasyId,
             ];
         }
 
@@ -60,6 +84,7 @@ class SyncCurrentSeasonTeams extends Command
                             'slug' => $teamData['slug'],
                             'short_name' => $teamData['short_name'],
                             'logo' => $teamData['logo'],
+                            'match_data_id' => $teamData['match_data_id'],
                         ],
                     );
 

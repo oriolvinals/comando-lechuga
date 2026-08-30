@@ -21,6 +21,7 @@ class TeamFactory extends Factory
             'short_name' => $this->faker->unique()->lexify('???'),
             'logo' => '',
             'fantasy_id' => $this->faker->unique()->numberBetween(1, 99999),
+            'match_data_id' => $this->faker->unique()->numberBetween(1, 99999),
         ];
     }
 }
