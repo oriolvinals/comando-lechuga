@@ -51,6 +51,10 @@ export interface Fixture {
     state: FixtureState;
     local_formation: string | null;
     guest_formation: string | null;
+    local_color: string | null;
+    local_alternate_color: string | null;
+    guest_color: string | null;
+    guest_alternate_color: string | null;
     local_team: Team;
     guest_team: Team;
 }

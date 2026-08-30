@@ -33,6 +33,22 @@ interface FixtureShowProps {
     [key: string]: unknown;
 }
 
+// This match's kit colors — left half primary, right half alternate — not the
+// club's default palette, since a team can play in a different kit from
+// match to match (e.g. an away kit to avoid a color clash).
+function TeamColorSwatch({ color, alternateColor }: { color: string | null; alternateColor: string | null }) {
+    if (!color || !alternateColor) {
+        return null;
+    }
+
+    return (
+        <div className="flex h-2 w-20 overflow-hidden rounded-[1px]">
+            <span className="flex-1" style={{ backgroundColor: `#${color}` }} />
+            <span className="flex-1" style={{ backgroundColor: `#${alternateColor}` }} />
+        </div>
+    );
+}
+
 export default function FixtureShow({
     fixture,
     weekFixtures,
@@ -189,6 +205,7 @@ export default function FixtureShow({
                             <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
                                 {fixture.local_team.main_name}
                             </span>
+                            <TeamColorSwatch color={fixture.local_color} alternateColor={fixture.local_alternate_color} />
                         </div>
                         <div className="shrink-0 text-center">
                             <p className="mb-1 font-mono text-[9px] tracking-widest text-hq-moss uppercase sm:mb-1.5 sm:text-[10px]">
@@ -233,6 +250,7 @@ export default function FixtureShow({
                             <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
                                 {fixture.guest_team.main_name}
                             </span>
+                            <TeamColorSwatch color={fixture.guest_color} alternateColor={fixture.guest_alternate_color} />
                         </div>
                     </div>
 
