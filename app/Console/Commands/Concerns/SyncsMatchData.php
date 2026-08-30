@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Concerns;
 
 use App\Enums\FixtureState;
+use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Fixture;
 use App\Models\FixtureEvent;
@@ -36,7 +37,7 @@ trait SyncsMatchData
      *
      * @throws Throwable
      */
-    private function syncMatchDataForFixtures(Collection $fixtures, Worldcup26Connector $connector): array
+    private function syncMatchDataForFixtures(Collection $fixtures, Worldcup26Connector $connector, LaLigaFantasyConnector $fantasyConnector): array
     {
         $synced = 0;
         $unresolved = [];
@@ -57,10 +58,51 @@ trait SyncsMatchData
                 $this->syncEvents($fixture, $event);
             });
 
+            $this->fillFantasyScores($fixture, $fantasyConnector);
+
             $synced++;
         }
 
         return ['synced' => $synced, 'unresolved' => $unresolved];
+    }
+
+    private function fillFantasyScores(Fixture $fixture, LaLigaFantasyConnector $connector): void
+    {
+        FixtureLineup::query()
+            ->where('fixture_id', $fixture->id)
+            ->whereNotNull('player_id')
+            ->with('player')
+            ->get()
+            ->each(function (FixtureLineup $lineup) use ($fixture, $connector): void {
+                $fantasyId = $lineup->player?->fantasy_id;
+
+                if ($fantasyId === null) {
+                    return;
+                }
+
+                try {
+                    $playerData = $connector->getPlayer($fantasyId)->throw()->json();
+                } catch (FatalRequestException|RequestException|JsonException $exception) {
+                    Log::warning("Failed to fetch Fantasy stats for player {$fantasyId} (fixture {$fixture->id}): {$exception->getMessage()}");
+
+                    return;
+                }
+
+                $playerStats = is_array($playerData['playerStats'] ?? null) ? $playerData['playerStats'] : [];
+
+                $weekStats = collect($playerStats)->first(
+                    fn ($stat): bool => is_array($stat) && ($stat['weekNumber'] ?? null) === $fixture->week_number,
+                );
+
+                if (!is_array($weekStats)) {
+                    return;
+                }
+
+                $lineup->update([
+                    'fantasy_points' => isset($weekStats['totalPoints']) ? (int) $weekStats['totalPoints'] : null,
+                    'fantasy_stats' => is_array($weekStats['stats'] ?? null) ? $weekStats['stats'] : null,
+                ]);
+            });
     }
 
     /**

@@ -2,6 +2,8 @@
 
 use App\Console\Commands\SyncLiveSeasonMatchData;
 use App\Enums\FixtureState;
+use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
+use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerRequest;
 use App\Http\Integrations\Worldcup26\Requests\GetEventRequest;
 use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Fixture;
@@ -561,4 +563,97 @@ test('stores the worldcup26 display name for an unresolved lineup entry', functi
 
     $unresolvedRow = FixtureLineup::query()->whereNull('player_id')->where('fixture_id', $fixture->id)->sole();
     expect($unresolvedRow->unresolved_name)->toBe('Unknown Player');
+});
+
+test('fills fantasy_points and fantasy_stats for a resolved lineup player from Fantasy live scores', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 3]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'week_number' => 3,
+        'date' => now()->subMinutes(30),
+    ]);
+    $player = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001, 'fantasy_id' => 2759]);
+
+    $payload = liveMatchEventPayload([
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 5001, 'displayName' => 'Known Player'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => []],
+                ],
+            ],
+        ],
+    ]);
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make([
+            'id' => 2759,
+            'playerStats' => [
+                ['weekNumber' => 3, 'totalPoints' => 7, 'stats' => ['mins_played' => [90, 2], 'goals' => [1, 5]]],
+                ['weekNumber' => 2, 'totalPoints' => 2, 'stats' => ['mins_played' => [90, 2]]],
+            ],
+        ]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $lineup = FixtureLineup::query()->where('player_id', $player->id)->sole();
+    expect($lineup->fantasy_points)->toBe(7)
+        ->and($lineup->fantasy_stats)->toBe(['mins_played' => [90, 2], 'goals' => [1, 5]]);
+});
+
+test('leaves fantasy_points/fantasy_stats null for an unresolved lineup entry', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 1]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'week_number' => 1,
+        'date' => now()->subMinutes(30),
+    ]);
+
+    $payload = liveMatchEventPayload([
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 9999, 'displayName' => 'Unknown Player'], 'starter' => true, 'position' => ['displayName' => 'CB'], 'jersey' => '5', 'stats' => []],
+                ],
+            ],
+        ],
+    ]);
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $lineup = FixtureLineup::query()->whereNull('player_id')->sole();
+    expect($lineup->fantasy_points)->toBeNull()
+        ->and($lineup->fantasy_stats)->toBeNull();
 });

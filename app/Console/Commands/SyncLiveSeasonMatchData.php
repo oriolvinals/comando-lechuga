@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Console\Commands\Concerns\SyncsMatchData;
+use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\Worldcup26\Worldcup26Connector;
 use App\Models\Fixture;
 use App\Models\Season;
@@ -25,7 +26,7 @@ class SyncLiveSeasonMatchData extends Command
     /**
      * @throws Throwable
      */
-    public function handle(Worldcup26Connector $connector): int
+    public function handle(Worldcup26Connector $connector, LaLigaFantasyConnector $fantasyConnector): int
     {
         $season = Season::current();
 
@@ -36,7 +37,7 @@ class SyncLiveSeasonMatchData extends Command
             ->where('date', '>=', now()->subHours(self::LIVE_WINDOW_HOURS))
             ->get();
 
-        $result = $this->syncMatchDataForFixtures($fixtures, $connector);
+        $result = $this->syncMatchDataForFixtures($fixtures, $connector, $fantasyConnector);
 
         $this->info("{$result['synced']} fixtures synced.");
 
