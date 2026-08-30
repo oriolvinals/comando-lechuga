@@ -127,3 +127,31 @@ test('enriches an existing team by fantasy_id, never creates a new row', functio
         ->and($existing->fresh()->main_name)->toBe('Real Madrid CF')
         ->and($existing->fresh()->slug)->toBe('real-madrid');
 });
+
+test('syncs the season_team pivot so downstream commands can find the current season teams', function (): void {
+    $season = Season::factory()->create([
+        'match_data_season_slug' => '2026-27-laliga',
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    $event = worldcup26FixtureEvent(83, 'Real Madrid', 'RMA', 86, 'Villarreal', 'VIL');
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetFixturesRequest::class => MockResponse::make(worldcup26FixturesPayload([$event])),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamInfoRequest::class => MockResponse::make([]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonTeams::class)->assertSuccessful();
+
+    $realMadridId = Team::query()->where('match_data_id', 83)->sole()->id;
+    $villarrealId = Team::query()->where('match_data_id', 86)->sole()->id;
+
+    expect(Season::current()->teams->pluck('id')->all())
+        ->toEqualCanonicalizing([$realMadridId, $villarrealId]);
+});

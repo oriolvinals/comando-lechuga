@@ -11,7 +11,6 @@ use App\Models\Team;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use JsonException;
 use Saloon\Exceptions\Request\FatalRequestException;
@@ -71,9 +70,9 @@ class SyncCurrentSeasonTeams extends Command
     {
         $season = Season::current();
 
-        $created = DB::transaction(fn (): int => $this->syncFromWorldcup26($worldcup26Connector, $season));
+        $created = $this->syncFromWorldcup26($worldcup26Connector, $season);
 
-        $enriched = DB::transaction(fn (): int => $this->enrichFromFantasy($fantasyConnector));
+        $enriched = $this->enrichFromFantasy($fantasyConnector);
 
         $this->info("{$created} teams synced from worldcup26, {$enriched} enriched from Fantasy.");
 
@@ -125,10 +124,10 @@ class SyncCurrentSeasonTeams extends Command
             $pageIndex++;
         } while ($pageIndex <= $pageCount);
 
-        $synced = 0;
+        $teamIds = [];
 
         foreach ($teamsById as $matchDataId => $teamData) {
-            Team::query()->updateOrCreate(
+            $team = Team::query()->updateOrCreate(
                 ['match_data_id' => $matchDataId],
                 [
                     'name' => $teamData['name'],
@@ -137,10 +136,12 @@ class SyncCurrentSeasonTeams extends Command
                 ],
             );
 
-            $synced++;
+            $teamIds[] = $team->id;
         }
 
-        return $synced;
+        $season->teams()->sync($teamIds);
+
+        return count($teamIds);
     }
 
     /**
