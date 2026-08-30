@@ -100,3 +100,42 @@ test('reports unresolved players without linking them', function (): void {
 
     expect($unmatchable->refresh()->match_data_id)->toBeNull();
 });
+
+test('does not reassign a match_data_id already claimed by another player', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+    ]);
+    $alreadyLinked = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Arnau', 'match_data_id' => 231618]);
+    $ambiguous = Player::factory()->create(['team_id' => $home->id, 'nickname' => 'Danjuma']);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make([
+            'rosters' => [
+                ['team' => ['id' => 83], 'roster' => [
+                    ['athlete' => ['id' => 231618, 'displayName' => 'Arnaud Danjuma'], 'starter' => true],
+                ]],
+                ['team' => ['id' => 86], 'roster' => []],
+            ],
+        ]),
+    ]));
+
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(LinkMatchDataPlayers::class)
+        ->expectsOutput('0 players linked.')
+        ->expectsOutputToContain('Danjuma')
+        ->assertSuccessful();
+
+    expect($alreadyLinked->refresh()->match_data_id)->toBe(231618)
+        ->and($ambiguous->refresh()->match_data_id)->toBeNull();
+});

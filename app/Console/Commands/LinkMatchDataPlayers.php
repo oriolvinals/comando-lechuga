@@ -41,6 +41,10 @@ class LinkMatchDataPlayers extends Command
 
         $linked = 0;
 
+        /** @var array<int, true> $claimedMatchDataIds */
+        $claimedMatchDataIds = Player::query()->whereNotNull('match_data_id')->pluck('match_data_id')
+            ->mapWithKeys(fn (int $id): array => [$id => true])->all();
+
         foreach ($fixtures as $fixture) {
             $event = $connector->getEvent($fixture->match_data_id)->throw()->json();
             $rosters = is_array($event['rosters'] ?? null) ? $event['rosters'] : [];
@@ -70,15 +74,17 @@ class LinkMatchDataPlayers extends Command
                         'id' => (int) $entry['athlete']['id'],
                         'displayName' => (string) $entry['athlete']['displayName'],
                     ])
+                    ->filter(fn (array $entry): bool => !isset($claimedMatchDataIds[$entry['id']]))
                     ->values()
                     ->all();
 
                 $matches = $matcher->match($players, $roster);
 
-                DB::transaction(function () use ($players, $matches, &$linked): void {
+                DB::transaction(function () use ($players, $matches, &$linked, &$claimedMatchDataIds): void {
                     foreach ($players as $player) {
                         if (isset($matches[$player->id])) {
                             $player->update(['match_data_id' => $matches[$player->id]]);
+                            $claimedMatchDataIds[$matches[$player->id]] = true;
                             $linked++;
                         }
                     }
