@@ -1,5 +1,6 @@
 export interface Team {
     id: number;
+    main_name: string;
     name: string;
     short_name: string;
     logo: string;
@@ -48,6 +49,8 @@ export interface Fixture {
     local_score: number | null;
     guest_score: number | null;
     state: FixtureState;
+    local_formation: string | null;
+    guest_formation: string | null;
     local_team: Team;
     guest_team: Team;
 }
@@ -84,6 +87,7 @@ export interface FixtureEventEntry {
     is_own_goal: boolean;
     is_penalty: boolean;
     player: Player | null;
+    unresolved_name: string | null;
 }
 
 export interface FixtureTeamStat {

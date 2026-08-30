@@ -1,16 +1,15 @@
 import { Head, Link } from '@inertiajs/react';
-import { Shield } from 'lucide-react';
+import { LayoutGrid, List, Shield } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqFixtureBench } from '@/components/hq-fixture-bench';
+import { HqFixtureLineupList } from '@/components/hq-fixture-lineup-list';
 import { HqFixtureTeamStats } from '@/components/hq-fixture-team-stats';
 import { HqFixtureTimeline } from '@/components/hq-fixture-timeline';
 import { HqMatchPitch } from '@/components/hq-match-pitch';
-import {
-    HqPlayerStatsModal,
-    type HqPlayerStatsEntry,
-} from '@/components/hq-player-stats-modal';
+import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
+import type { HqPlayerStatsEntry } from '@/components/hq-player-stats-modal';
 import { HqScrollRow } from '@/components/hq-scroll-row';
 import AppLayout from '@/layouts/app-layout';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
@@ -44,6 +43,7 @@ export default function FixtureShow({
     const [activeTab, setActiveTab] = useState<'bench' | 'stats' | 'timeline'>(
         'bench',
     );
+    const [viewMode, setViewMode] = useState<'pitch' | 'list'>('pitch');
     const [selectedEntry, setSelectedEntry] = useState<FixtureLineupEntry | null>(
         null,
     );
@@ -59,7 +59,7 @@ export default function FixtureShow({
     return (
         <>
             <Head
-                title={`${fixture.local_team.name} vs ${fixture.guest_team.name}`}
+                title={`${fixture.local_team.main_name} vs ${fixture.guest_team.main_name}`}
             />
             <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
                 <div className="mx-auto max-w-7xl px-6 py-9">
@@ -142,22 +142,52 @@ export default function FixtureShow({
 
                     <div
                         className={cn(
-                            'flex items-center justify-between gap-2 border bg-gradient-to-br from-hq-panel-alt to-hq-panel px-4 py-4 sm:justify-center sm:gap-7 sm:px-6 sm:py-6',
+                            'relative flex items-center justify-between gap-2 border bg-gradient-to-br from-hq-panel-alt to-hq-panel px-4 py-4 sm:justify-center sm:gap-7 sm:px-6 sm:py-6',
                             isLive
                                 ? 'border-hq-live'
                                 : 'border-hq-border-strong',
                         )}
                     >
+                        {fixture.state !== 'scheduled' && lineups.length > 0 && (
+                            <div className="absolute top-2 right-2 z-10 hidden overflow-hidden border border-hq-border-strong bg-hq-panel xl:flex">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('pitch')}
+                                    aria-label="Vista de campo"
+                                    className={cn(
+                                        'flex h-6 w-7 items-center justify-center transition-colors',
+                                        viewMode === 'pitch'
+                                            ? 'bg-hq-lime text-hq-ink'
+                                            : 'text-hq-moss hover:text-hq-paper',
+                                    )}
+                                >
+                                    <LayoutGrid className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('list')}
+                                    aria-label="Vista de lista"
+                                    className={cn(
+                                        'flex h-6 w-7 items-center justify-center transition-colors',
+                                        viewMode === 'list'
+                                            ? 'bg-hq-lime text-hq-ink'
+                                            : 'text-hq-moss hover:text-hq-paper',
+                                    )}
+                                >
+                                    <List className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        )}
                         <div className="flex w-20 min-w-0 flex-col items-center gap-1.5 sm:w-36 sm:gap-2">
                             <EntityImage
                                 src={fixture.local_team.logo}
-                                alt={fixture.local_team.name}
+                                alt={fixture.local_team.main_name}
                                 fallback={Shield}
                                 shape="square"
                                 className="h-9 w-9 bg-transparent sm:h-14 sm:w-14"
                             />
                             <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
-                                {fixture.local_team.name}
+                                {fixture.local_team.main_name}
                             </span>
                         </div>
                         <div className="shrink-0 text-center">
@@ -195,13 +225,13 @@ export default function FixtureShow({
                         <div className="flex w-20 min-w-0 flex-col items-center gap-1.5 sm:w-36 sm:gap-2">
                             <EntityImage
                                 src={fixture.guest_team.logo}
-                                alt={fixture.guest_team.name}
+                                alt={fixture.guest_team.main_name}
                                 fallback={Shield}
                                 shape="square"
                                 className="h-9 w-9 bg-transparent sm:h-14 sm:w-14"
                             />
                             <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
-                                {fixture.guest_team.name}
+                                {fixture.guest_team.main_name}
                             </span>
                         </div>
                     </div>
@@ -219,74 +249,21 @@ export default function FixtureShow({
                         </div>
                     ) : (
                         <>
-                            <div className="mt-6">
+                            <div className={cn('mt-6', viewMode === 'pitch' ? 'hidden xl:block' : 'hidden')}>
                                 <HqMatchPitch
                                     lineups={lineups}
+                                    localFormation={fixture.local_formation}
+                                    guestFormation={fixture.guest_formation}
                                     onSelect={handleSelectLineupEntry}
                                 />
                             </div>
-
-                            <div className="mt-4 flex flex-wrap items-center gap-2 border border-hq-border bg-hq-panel px-4 py-3 font-mono text-[11px] text-hq-moss">
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    ⚽ Gol
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    ➜ Asistencia
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="border border-hq-gold px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-gold">
-                                        P+
-                                    </span>
-                                    Provoca penalti
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="border border-hq-lime px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-lime">
-                                        P✓
-                                    </span>
-                                    Penalti parado
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="border border-hq-lime px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-lime">
-                                        0
-                                    </span>
-                                    Portería a cero
-                                </span>
-
-                                <span className="mx-1 h-5 w-px shrink-0 bg-hq-border-strong" />
-
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="border border-hq-live px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-live">
-                                        PP
-                                    </span>
-                                    Autogol
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="hq-crest-cut h-[18px] w-3 bg-hq-gold" />
-                                    Amarilla
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="relative inline-block h-[18px] w-[18px]">
-                                        <span className="hq-crest-cut absolute top-0.5 left-0 h-[15px] w-[10px] bg-hq-gold/60" />
-                                        <span className="hq-crest-cut absolute top-0 left-2 h-[15px] w-[10px] bg-hq-gold" />
-                                    </span>
-                                    Doble amarilla
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="hq-crest-cut h-[18px] w-3 bg-hq-live" />
-                                    Roja
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="border border-hq-ember px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
-                                        P−
-                                    </span>
-                                    Comete penalti
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="border border-hq-live px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-live">
-                                        P✗
-                                    </span>
-                                    Penalti fallado
-                                </span>
+                            <div className={cn('mt-6', viewMode === 'list' ? 'block' : 'block xl:hidden')}>
+                                <HqFixtureLineupList
+                                    lineups={lineups}
+                                    localTeam={fixture.local_team}
+                                    guestTeam={fixture.guest_team}
+                                    onSelect={handleSelectLineupEntry}
+                                />
                             </div>
 
                             <div className="mt-5 flex gap-0.5 border-b border-hq-border-strong">
@@ -317,8 +294,8 @@ export default function FixtureShow({
                                 {activeTab === 'bench' && (
                                     <HqFixtureBench
                                         lineups={lineups}
-                                        localTeamId={fixture.local_team.id}
-                                        guestTeamId={fixture.guest_team.id}
+                                        localTeam={fixture.local_team}
+                                        guestTeam={fixture.guest_team}
                                         onSelect={handleSelectLineupEntry}
                                     />
                                 )}

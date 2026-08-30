@@ -4,28 +4,29 @@ import { byPlayerPositionThenJersey } from '@/lib/lineup-sort';
 import { cn } from '@/lib/utils';
 import type { FixtureLineupEntry, Team } from '@/types/models';
 
-interface HqFixtureBenchProps {
+interface HqFixtureLineupListProps {
     lineups: FixtureLineupEntry[];
     localTeam: Team;
     guestTeam: Team;
     onSelect?: (entry: FixtureLineupEntry) => void;
 }
 
-function BenchColumn({ entries, onSelect }: { entries: FixtureLineupEntry[]; onSelect?: (entry: FixtureLineupEntry) => void }) {
+// Starters only — substitutes already have their own "Suplentes" tab below,
+// listing them again here would just duplicate it.
+function TeamStarters({ entries, onSelect }: { entries: FixtureLineupEntry[]; onSelect?: (entry: FixtureLineupEntry) => void }) {
+    const sorted = entries.filter((entry) => entry.starter).toSorted(byPlayerPositionThenJersey);
+
     return (
         <div className="divide-y divide-hq-border border border-hq-border bg-hq-panel">
-            {entries.map((entry) => (
-                <div key={entry.id} className={cn(!entry.subbed_in && 'opacity-55')}>
-                    <HqLineupPlayerToken entry={entry} variant="bench" onSelect={onSelect} />
-                </div>
+            {sorted.map((entry) => (
+                <HqLineupPlayerToken key={entry.id} entry={entry} variant="bench" onSelect={onSelect} />
             ))}
         </div>
     );
 }
 
-export function HqFixtureBench({ lineups, localTeam, guestTeam, onSelect }: HqFixtureBenchProps) {
+export function HqFixtureLineupList({ lineups, localTeam, guestTeam, onSelect }: HqFixtureLineupListProps) {
     const [selectedTeamId, setSelectedTeamId] = useState(localTeam.id);
-    const bench = lineups.filter((entry) => !entry.starter).toSorted(byPlayerPositionThenJersey);
 
     return (
         <div>
@@ -54,13 +55,13 @@ export function HqFixtureBench({ lineups, localTeam, guestTeam, onSelect }: HqFi
                     <p className="mb-1.5 hidden font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase sm:block">
                         {localTeam.main_name}
                     </p>
-                    <BenchColumn entries={bench.filter((entry) => entry.team_id === localTeam.id)} onSelect={onSelect} />
+                    <TeamStarters entries={lineups.filter((entry) => entry.team_id === localTeam.id)} onSelect={onSelect} />
                 </div>
                 <div className={cn(selectedTeamId === guestTeam.id ? 'block' : 'hidden', 'sm:block')}>
                     <p className="mb-1.5 hidden font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase sm:block">
                         {guestTeam.main_name}
                     </p>
-                    <BenchColumn entries={bench.filter((entry) => entry.team_id === guestTeam.id)} onSelect={onSelect} />
+                    <TeamStarters entries={lineups.filter((entry) => entry.team_id === guestTeam.id)} onSelect={onSelect} />
                 </div>
             </div>
         </div>

@@ -24,6 +24,33 @@ export function matchPointsBadgeClass(points: number): string {
 }
 
 /**
+ * Same six-tier palette as {@link matchPointsBadgeClass}, at a less
+ * translucent background — for the fixture pitch token, where the badge
+ * sits directly on the player's photo and needs more contrast than the
+ * standard tier background gives it. Scoped to that one context so it
+ * doesn't change every other place matchPointsBadgeClass is used.
+ */
+export function matchPointsBadgeClassOnPhoto(points: number): string {
+    if (points < 0) {
+        return 'bg-hq-live/35 text-hq-live';
+    }
+
+    if (points < 5) {
+        return 'bg-hq-gold/35 text-hq-gold';
+    }
+
+    if (points < 9) {
+        return 'bg-hq-lime/30 text-hq-lime';
+    }
+
+    if (points < 14) {
+        return 'bg-hq-azure/35 text-hq-azure';
+    }
+
+    return 'bg-hq-violet/35 text-hq-violet';
+}
+
+/**
  * Formats a points total with an explicit sign — `+12` for zero or positive,
  * `-5` for negative (the number's own minus, not a doubled `+-5`).
  */

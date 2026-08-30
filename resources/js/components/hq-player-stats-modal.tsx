@@ -3,6 +3,7 @@ import { ArrowUpRight, Shield, User, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { MatchEventIcons } from '@/components/match-event-icons';
 import { JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
@@ -153,6 +154,9 @@ export function HqPlayerStatsModal({
                                 {daznPoints}
                             </span>
                         )}
+                    </div>
+                    <div className="mt-1">
+                        <MatchEventIcons stats={stats} position={player.position} />
                     </div>
                 </div>
 

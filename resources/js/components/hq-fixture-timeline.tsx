@@ -44,7 +44,7 @@ export function HqFixtureTimeline({ events, localTeamId }: HqFixtureTimelineProp
     return (
         <div className="border border-hq-border bg-hq-panel">
             {events.map((event) => {
-                const label = event.player?.nickname ?? 'Sin jugador vinculado';
+                const label = event.player?.nickname ?? event.unresolved_name ?? 'Sin jugador vinculado';
                 // An own goal's team_id is the scorer's own team (see
                 // SyncLiveSeasonMatchData), but the goal actually counts for
                 // the other side — render it on the side it benefits, not
