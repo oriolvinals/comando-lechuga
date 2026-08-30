@@ -169,6 +169,11 @@ test('upserts fixture_lineups from the rosters, including substitution minute an
     ]));
     app()->instance(Worldcup26Connector::class, $connector);
 
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make(['playerStats' => []]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
     $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
 
     $starterLineup = FixtureLineup::query()->where('player_id', $starter->id)->sole();
@@ -226,6 +231,11 @@ test('resolves a player by match_data_id even when Player.team_id no longer matc
     ]));
     app()->instance(Worldcup26Connector::class, $connector);
 
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make(['playerStats' => []]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
     $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
 
     $lineup = FixtureLineup::query()->where('player_id', $transferred->id)->sole();
@@ -266,6 +276,11 @@ test('creates a fixture_lineups row with a null player_id for an unresolved athl
         GetEventRequest::class => MockResponse::make($payload),
     ]));
     app()->instance(Worldcup26Connector::class, $connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make(['playerStats' => []]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
 
     $this->artisan(SyncLiveSeasonMatchData::class)
         ->expectsOutputToContain('Unknown Player')

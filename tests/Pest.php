@@ -3,7 +3,15 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Saloon\Config;
 use Tests\TestCase;
+
+// Any Saloon HTTP call made during the test suite without an explicit MockClient bound
+// throws loudly instead of silently reaching the network. This catches tests that create
+// models (e.g. Player::factory(), which assigns a random fantasy_id) and then, via some
+// code path, end up calling a real connector — which would otherwise hit production APIs
+// non-deterministically and have its failure silently swallowed by a catch block.
+Config::preventStrayRequests();
 
 /*
 |--------------------------------------------------------------------------
