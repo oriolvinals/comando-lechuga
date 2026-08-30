@@ -325,6 +325,60 @@ test('creates a fixture_lineups row with a null player_id for an unresolved athl
         ->toBe([['name' => 'saves', 'value' => 4]]);
 });
 
+test('prunes a resolved lineup row when worldcup26 corrects the roster and the player is no longer in it', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'date' => now()->subMinutes(30),
+    ]);
+    $current = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
+    $removed = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5002]);
+
+    // A stale resolved lineup row for a player the corrected roster no longer includes —
+    // e.g. worldcup26 published a provisional lineup and later swapped this player out
+    // before the match started.
+    $staleLineup = FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $removed->id,
+        'team_id' => $home->id,
+    ]);
+
+    $payload = liveMatchEventPayload([
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 5001, 'displayName' => 'Current'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => []],
+                ],
+            ],
+        ],
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make(['playerStats' => []]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect(FixtureLineup::query()->whereKey($staleLineup->id)->exists())->toBeFalse()
+        ->and(FixtureLineup::query()->where('fixture_id', $fixture->id)->where('player_id', $removed->id)->exists())->toBeFalse()
+        ->and(FixtureLineup::query()->where('fixture_id', $fixture->id)->where('player_id', $current->id)->exists())->toBeTrue();
+});
+
 test('replaces fixture_events from keyEvents on every sync, mapped from the API flags', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $home = Team::factory()->create(['match_data_id' => 83]);

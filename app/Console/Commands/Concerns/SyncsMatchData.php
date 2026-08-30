@@ -41,6 +41,7 @@ trait SyncsMatchData
     {
         $synced = 0;
         $unresolved = [];
+        $fantasyPlayerCache = [];
 
         foreach ($fixtures as $fixture) {
             try {
@@ -58,7 +59,7 @@ trait SyncsMatchData
                 $this->syncEvents($fixture, $event);
             });
 
-            $this->fillFantasyScores($fixture, $fantasyConnector);
+            $this->fillFantasyScores($fixture, $fantasyConnector, $fantasyPlayerCache);
 
             $synced++;
         }
@@ -66,25 +67,35 @@ trait SyncsMatchData
         return ['synced' => $synced, 'unresolved' => $unresolved];
     }
 
-    private function fillFantasyScores(Fixture $fixture, LaLigaFantasyConnector $connector): void
+    /**
+     * @param  array<int, array<string, mixed>|false>  $fantasyPlayerCache  fantasy_id => decoded getPlayer() response, or false if the fetch failed (cached to avoid retrying a known-bad id within the same run). Memoized across the whole syncMatchDataForFixtures() run so a player who appears in many fixtures (e.g. across a full-season backfill) is only fetched from Fantasy once.
+     */
+    private function fillFantasyScores(Fixture $fixture, LaLigaFantasyConnector $connector, array &$fantasyPlayerCache): void
     {
         FixtureLineup::query()
             ->where('fixture_id', $fixture->id)
             ->whereNotNull('player_id')
             ->with('player')
             ->get()
-            ->each(function (FixtureLineup $lineup) use ($fixture, $connector): void {
+            ->each(function (FixtureLineup $lineup) use ($fixture, $connector, &$fantasyPlayerCache): void {
                 $fantasyId = $lineup->player?->fantasy_id;
 
                 if ($fantasyId === null) {
                     return;
                 }
 
-                try {
-                    $playerData = $connector->getPlayer($fantasyId)->throw()->json();
-                } catch (FatalRequestException|RequestException|JsonException $exception) {
-                    Log::warning("Failed to fetch Fantasy stats for player {$fantasyId} (fixture {$fixture->id}): {$exception->getMessage()}");
+                if (!array_key_exists($fantasyId, $fantasyPlayerCache)) {
+                    try {
+                        $fantasyPlayerCache[$fantasyId] = $connector->getPlayer($fantasyId)->throw()->json();
+                    } catch (FatalRequestException|RequestException|JsonException $exception) {
+                        Log::warning("Failed to fetch Fantasy stats for player {$fantasyId} (fixture {$fixture->id}): {$exception->getMessage()}");
+                        $fantasyPlayerCache[$fantasyId] = false;
+                    }
+                }
 
+                $playerData = $fantasyPlayerCache[$fantasyId];
+
+                if ($playerData === false) {
                     return;
                 }
 
@@ -164,6 +175,7 @@ trait SyncsMatchData
     {
         $rosters = is_array($event['rosters'] ?? null) ? $event['rosters'] : [];
         $unresolved = [];
+        $currentPlayerIds = [];
 
         FixtureLineup::query()->where('fixture_id', $fixture->id)->whereNull('player_id')->delete();
 
@@ -191,8 +203,18 @@ trait SyncsMatchData
                 }
 
                 $this->upsertLineup($fixture, $team, $player, $rosterPlayer);
+                $currentPlayerIds[] = $player->id;
             }
         }
+
+        // Prune resolved rows for players worldcup26 no longer lists in this fixture's
+        // roster — e.g. a provisional lineup got corrected before kickoff. The unresolved
+        // wipe above only ever covered player_id IS NULL rows; this covers the rest.
+        FixtureLineup::query()
+            ->where('fixture_id', $fixture->id)
+            ->whereNotNull('player_id')
+            ->whereNotIn('player_id', $currentPlayerIds)
+            ->delete();
 
         return $unresolved;
     }
