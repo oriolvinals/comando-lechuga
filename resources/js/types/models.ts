@@ -56,6 +56,7 @@ export interface FixtureLineupEntry {
     id: number;
     player: Player | null;
     unresolved_name: string | null;
+    match_data_id: number;
     team_id: number;
     starter: boolean;
     position: string;

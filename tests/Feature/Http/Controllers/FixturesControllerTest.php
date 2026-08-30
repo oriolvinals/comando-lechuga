@@ -267,6 +267,28 @@ test('includes a null player for an unresolved lineup entry, with no points/dazn
     );
 });
 
+test('includes match_data_id on a lineup entry so an unresolved player can be looked up', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => null,
+        'team_id' => $fixture->localTeam->id,
+        'starter' => true,
+        'position' => 'Goalkeeper',
+        'jersey' => '1',
+        'match_data_id' => 415742,
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.match_data_id', 415742)
+    );
+});
+
 test('mirrors x coordinates for the guest team', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id]);

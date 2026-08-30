@@ -105,7 +105,10 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
     );
 
     const nameLine = (
-        <div className={cn('truncate font-mono text-hq-paper', isPitch ? 'text-center text-[11px]' : 'text-[12.5px]')}>
+        <div
+            className={cn('truncate font-mono text-hq-paper', isPitch ? 'text-center text-[11px]' : 'text-[12.5px]')}
+            title={entry.player ? undefined : `match_data_id: ${entry.match_data_id}`}
+        >
             <b className="mr-1 text-hq-lime">{entry.jersey}</b>
             {entry.player?.nickname ?? entry.unresolved_name ?? 'No vinculado'}
         </div>

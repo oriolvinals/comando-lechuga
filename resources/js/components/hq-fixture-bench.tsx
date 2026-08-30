@@ -1,12 +1,36 @@
 import { HqLineupPlayerToken } from '@/components/hq-lineup-player-token';
 import { cn } from '@/lib/utils';
-import type { FixtureLineupEntry } from '@/types/models';
+import type { FixtureLineupEntry, PlayerPosition } from '@/types/models';
 
 interface HqFixtureBenchProps {
     lineups: FixtureLineupEntry[];
     localTeamId: number;
     guestTeamId: number;
     onSelect?: (entry: FixtureLineupEntry) => void;
+}
+
+// worldcup26 tags every bench player's raw `position` as "Substitute" — it
+// doesn't distinguish goalkeeper/defender/etc. for subs — so ordering the
+// bench by real position has to come from the linked Player's own (Fantasy)
+// position instead. An unresolved entry has no Player, so no position to
+// sort by; it sorts after every resolved one.
+const POSITION_ORDER: Record<PlayerPosition, number> = {
+    goalkeeper: 0,
+    defender: 1,
+    midfield: 2,
+    striker: 3,
+    coach: 4,
+};
+
+function bySortedPosition(a: FixtureLineupEntry, b: FixtureLineupEntry): number {
+    const orderA = a.player ? POSITION_ORDER[a.player.position] : 5;
+    const orderB = b.player ? POSITION_ORDER[b.player.position] : 5;
+
+    if (orderA !== orderB) {
+        return orderA - orderB;
+    }
+
+    return Number(a.jersey) - Number(b.jersey);
 }
 
 function BenchColumn({ entries, onSelect }: { entries: FixtureLineupEntry[]; onSelect?: (entry: FixtureLineupEntry) => void }) {
@@ -22,7 +46,7 @@ function BenchColumn({ entries, onSelect }: { entries: FixtureLineupEntry[]; onS
 }
 
 export function HqFixtureBench({ lineups, localTeamId, guestTeamId, onSelect }: HqFixtureBenchProps) {
-    const bench = lineups.filter((entry) => !entry.starter);
+    const bench = lineups.filter((entry) => !entry.starter).toSorted(bySortedPosition);
 
     return (
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
