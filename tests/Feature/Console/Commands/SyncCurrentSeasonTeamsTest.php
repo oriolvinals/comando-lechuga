@@ -128,6 +128,65 @@ test('enriches an existing team by fantasy_id, never creates a new row', functio
         ->and($existing->fresh()->slug)->toBe('real-madrid');
 });
 
+test('skips a team with no TEAM_MAP entry instead of crashing, and still syncs the mapped team', function (): void {
+    $season = Season::factory()->create([
+        'match_data_season_slug' => '2026-27-laliga',
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    // 999999 is not a value in TEAM_MAP — this simulates a promoted/relegated club
+    // not yet added to the hardcoded map.
+    $event = worldcup26FixtureEvent(83, 'Real Madrid', 'RMA', 999999, 'Unmapped Team', 'UNM');
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetFixturesRequest::class => MockResponse::make(worldcup26FixturesPayload([$event])),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamInfoRequest::class => MockResponse::make([]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonTeams::class)
+        ->expectsOutputToContain('Unmapped Team')
+        ->assertSuccessful();
+
+    expect(Team::query()->where('match_data_id', 999999)->exists())->toBeFalse();
+
+    $realMadrid = Team::query()->where('match_data_id', 83)->sole();
+    expect($realMadrid->name)->toBe('Real Madrid')
+        ->and($realMadrid->fantasy_id)->toBe(4);
+});
+
+test('leaves the season_team pivot untouched when nothing matches the current season slug', function (): void {
+    $season = Season::factory()->create([
+        'match_data_season_slug' => '2026-27-laliga',
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $existingTeam = Team::factory()->create(['match_data_id' => 83, 'fantasy_id' => 4]);
+    $season->teams()->attach([$existingTeam->id]);
+
+    $otherSeasonEvent = worldcup26FixtureEvent(83, 'Real Madrid', 'RMA', 86, 'Villarreal', 'VIL');
+    $otherSeasonEvent['season']['slug'] = '2025-26-laliga';
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetFixturesRequest::class => MockResponse::make(worldcup26FixturesPayload([$otherSeasonEvent])),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamInfoRequest::class => MockResponse::make([]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonTeams::class)->assertSuccessful();
+
+    expect(Season::current()->teams->pluck('id')->all())->toEqualCanonicalizing([$existingTeam->id]);
+});
+
 test('syncs the season_team pivot so downstream commands can find the current season teams', function (): void {
     $season = Season::factory()->create([
         'match_data_season_slug' => '2026-27-laliga',

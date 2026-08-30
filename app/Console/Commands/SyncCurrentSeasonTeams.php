@@ -125,18 +125,37 @@ class SyncCurrentSeasonTeams extends Command
         } while ($pageIndex <= $pageCount);
 
         $teamIds = [];
+        $skipped = [];
 
         foreach ($teamsById as $matchDataId => $teamData) {
+            $fantasyId = $this->matchDataIdToFantasyId[$matchDataId] ?? null;
+
+            if ($fantasyId === null) {
+                $skipped[] = $teamData['name'] !== '' ? $teamData['name'] : (string) $matchDataId;
+
+                continue;
+            }
+
             $team = Team::query()->updateOrCreate(
                 ['match_data_id' => $matchDataId],
                 [
                     'name' => $teamData['name'],
                     'short_name' => $teamData['shortName'],
-                    'fantasy_id' => $this->matchDataIdToFantasyId[$matchDataId] ?? null,
+                    'fantasy_id' => $fantasyId,
                 ],
             );
 
             $teamIds[] = $team->id;
+        }
+
+        if ($skipped !== []) {
+            $this->warn('Teams with no TEAM_MAP entry — update the map: '.implode(', ', $skipped));
+        }
+
+        if ($teamIds === []) {
+            $this->warn('No teams matched the current season slug — leaving season_team untouched.');
+
+            return 0;
         }
 
         $season->teams()->sync($teamIds);
