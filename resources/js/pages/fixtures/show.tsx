@@ -226,10 +226,34 @@ export default function FixtureShow({
                                 />
                             </div>
 
-                            <div className="mt-4 flex flex-wrap gap-2 border border-hq-border bg-hq-panel px-4 py-3 font-mono text-[11px] text-hq-moss">
+                            <div className="mt-4 flex flex-wrap items-center gap-2 border border-hq-border bg-hq-panel px-4 py-3 font-mono text-[11px] text-hq-moss">
                                 <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
                                     ⚽ Gol
                                 </span>
+                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
+                                    ➜ Asistencia
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
+                                    <span className="border border-hq-gold px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-gold">
+                                        P+
+                                    </span>
+                                    Provoca penalti
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
+                                    <span className="border border-hq-lime px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-lime">
+                                        P✓
+                                    </span>
+                                    Penalti parado
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
+                                    <span className="border border-hq-lime px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-lime">
+                                        0
+                                    </span>
+                                    Portería a cero
+                                </span>
+
+                                <span className="mx-1 h-5 w-px shrink-0 bg-hq-border-strong" />
+
                                 <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
                                     <span className="border border-hq-live px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-live">
                                         PP
@@ -237,32 +261,31 @@ export default function FixtureShow({
                                     Autogol
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="inline-block h-[18px] w-3 rounded-[1px] bg-hq-gold" />
+                                    <span className="hq-crest-cut h-[18px] w-3 bg-hq-gold" />
                                     Amarilla
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="inline-block h-[18px] w-3 rounded-[1px] bg-hq-live" />
+                                    <span className="relative inline-block h-[18px] w-[18px]">
+                                        <span className="hq-crest-cut absolute top-0.5 left-0 h-[15px] w-[10px] bg-hq-gold/60" />
+                                        <span className="hq-crest-cut absolute top-0 left-2 h-[15px] w-[10px] bg-hq-gold" />
+                                    </span>
+                                    Doble amarilla
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
+                                    <span className="hq-crest-cut h-[18px] w-3 bg-hq-live" />
                                     Roja
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
+                                    <span className="border border-hq-ember px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
+                                        P−
+                                    </span>
+                                    Comete penalti
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
                                     <span className="border border-hq-live px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-live">
                                         P✗
                                     </span>
                                     Penalti fallado
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <span className="border border-hq-lime bg-hq-ink px-1 py-px font-mono text-[9px] font-bold text-hq-lime">
-                                        ↳54
-                                    </span>
-                                    Entra (min.)
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 border border-hq-border bg-hq-panel-alt px-2 py-1">
-                                    <img
-                                        src="/images/dazn-logo.png"
-                                        alt="DAZN"
-                                        className="h-3.5 w-3.5"
-                                    />
-                                    Puntos DAZN
                                 </span>
                             </div>
 
@@ -329,7 +352,6 @@ export default function FixtureShow({
                                       : undefined,
                               stats: selectedEntry.stats ?? ({} as JornadaStats),
                               lineupManager: selectedEntry.lineup_manager,
-                              matchPosition: selectedEntry.position,
                               subMinute:
                                   selectedEntry.sub_minute === null
                                       ? null

@@ -130,7 +130,7 @@ test('lineups prop is empty when no FixtureLineup rows are synced yet, with no s
     );
 });
 
-test('includes lineups with pitch coordinates, event counts, points and dazn', function (): void {
+test('includes lineups with pitch coordinates, points and dazn', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::Finished]);
     $home = $fixture->localTeam;
@@ -143,12 +143,6 @@ test('includes lineups with pitch coordinates, event counts, points and dazn', f
         'starter' => true,
         'position' => 'Left Back',
         'jersey' => '3',
-        'stats' => [
-            ['name' => 'totalGoals', 'value' => 1],
-            ['name' => 'goalAssists', 'value' => 0],
-            ['name' => 'yellowCards', 'value' => 1],
-            ['name' => 'redCards', 'value' => 0],
-        ],
         'fantasy_points' => 4,
         'fantasy_stats' => ['marca_points' => [3, 0]],
     ]);
@@ -161,13 +155,55 @@ test('includes lineups with pitch coordinates, event counts, points and dazn', f
         ->where('lineups.0.player.id', $player->id)
         ->where('lineups.0.position', 'Left Back')
         ->where('lineups.0.jersey', '3')
-        ->where('lineups.0.goals', 1)
-        ->where('lineups.0.assists', 0)
-        ->where('lineups.0.yellow_cards', 1)
-        ->where('lineups.0.red_cards', 0)
         ->where('lineups.0.points', 4)
         ->where('lineups.0.dazn_points', 0)
         ->where('lineups.0.x', 18)
+    );
+});
+
+test('exposes fantasy_stats as the stats prop, the single source for lineup event badges', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $fixture->localTeam->id,
+        'fantasy_stats' => ['goals' => [1, 5], 'penalty_won' => [1, 5]],
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.stats', ['goals' => [1, 5], 'penalty_won' => [1, 5]])
+    );
+});
+
+test('falls back to worldcup26 stats, shaped like fantasy_stats, when there is no fantasy_stats', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $fixture->localTeam->id,
+        'fantasy_stats' => null,
+        'stats' => [
+            ['name' => 'totalGoals', 'value' => 2],
+            ['name' => 'yellowCards', 'value' => 1],
+        ],
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.stats.goals', [2, 0])
+        ->where('lineups.0.stats.yellow_card', [1, 0])
+        ->where('lineups.0.stats.red_card', [0, 0])
     );
 });
 

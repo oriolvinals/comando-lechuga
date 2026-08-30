@@ -20,48 +20,94 @@ const AVATAR_SIZE: Record<'pitch' | 'bench', string> = {
     bench: 'h-8.5 w-8.5', // 34px
 };
 
+function statCount(stats: FixtureLineupEntry['stats'], key: string): number {
+    return stats?.[key]?.[0] ?? 0;
+}
+
 export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayerTokenProps) {
     const isPitch = variant === 'pitch';
     const clickable = entry.player !== null && onSelect !== undefined;
     const handleClick = clickable ? () => onSelect(entry) : undefined;
-    const hasGoodEvent = entry.goals > 0 || entry.assists > 0;
-    const hasBadEvent = entry.yellow_cards > 0 || entry.red_cards > 0;
     const hasPlayed = entry.starter || entry.subbed_in;
     const subMinute = entry.subbed_in || entry.subbed_out ? entry.sub_minute : null;
+
+    // Everything here reads off fantasy_stats (entry.stats), not worldcup26's
+    // own event log — worldcup26 doesn't distinguish an own goal from a
+    // regular one, a second yellow from a first, or give penalty
+    // won/conceded/saved or clean sheets. Mirrors MatchEventIcons (used on
+    // the player ficha's own match timeline) exactly, split into good/bad
+    // groups for the two-corner badge layout that component doesn't need.
+    const goals = statCount(entry.stats, 'goals');
+    const ownGoals = statCount(entry.stats, 'own_goals');
+    const assists = statCount(entry.stats, 'goal_assist');
+    const secondYellow = statCount(entry.stats, 'second_yellow_card') > 0;
+    const yellow = statCount(entry.stats, 'yellow_card') > 0 && !secondYellow;
+    const red = statCount(entry.stats, 'red_card') > 0 && !secondYellow;
+    const penaltyWon = statCount(entry.stats, 'penalty_won') > 0;
+    const penaltyConceded = statCount(entry.stats, 'penalty_conceded') > 0;
+    const penaltyMissed = statCount(entry.stats, 'penalty_failed') > 0;
+    const penaltySaved = statCount(entry.stats, 'penalty_save') > 0;
+    const cleanSheet =
+        entry.player?.position === 'goalkeeper' &&
+        statCount(entry.stats, 'goals_conceded') === 0 &&
+        statCount(entry.stats, 'mins_played') >= 60;
+
+    const hasGoodEvent = goals > 0 || assists > 0 || penaltyWon || penaltySaved || cleanSheet;
+    const hasBadEvent = ownGoals > 0 || yellow || secondYellow || red || penaltyConceded || penaltyMissed;
 
     // Icon content only — positioning/background differ between the pitch
     // (pegged to the avatar corner) and the bench (its own strip below the
     // name, since the bench row has room to spare and the pitch token doesn't).
     const goodIcons = (
         <>
-            {Array.from({ length: entry.goals }, (_, i) => (
-                <span key={`g-${i}`}>⚽</span>
+            {Array.from({ length: goals }, (_, i) => (
+                <span key={`g-${i}`} className="text-[13px] leading-none">⚽</span>
             ))}
-            {Array.from({ length: entry.assists }, (_, i) => (
-                <span key={`a-${i}`}>➜</span>
+            {Array.from({ length: assists }, (_, i) => (
+                <span key={`a-${i}`} className="text-[13px] leading-none text-hq-med">➜</span>
             ))}
+            {penaltyWon && (
+                <span className="border border-hq-gold px-1 py-px font-mono text-[9px] font-bold text-hq-gold">P+</span>
+            )}
+            {penaltySaved && (
+                <span className="border border-hq-lime px-1 py-px font-mono text-[9px] font-bold text-hq-lime">P✓</span>
+            )}
+            {cleanSheet && (
+                <span className="border border-hq-lime px-1 py-px font-mono text-[9px] font-bold text-hq-lime">0</span>
+            )}
         </>
     );
     const badIcons = (
         <>
-            {Array.from({ length: entry.yellow_cards }, (_, i) => (
-                <span key={`y-${i}`} className="inline-block h-2.5 w-[7px] rounded-[1px] bg-hq-gold" />
+            {Array.from({ length: ownGoals }, (_, i) => (
+                <span key={`og-${i}`} className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">PP</span>
             ))}
-            {Array.from({ length: entry.red_cards }, (_, i) => (
-                <span key={`r-${i}`} className="inline-block h-2.5 w-[7px] rounded-[1px] bg-hq-live" />
-            ))}
+            {yellow && <span className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold" />}
+            {secondYellow && (
+                <span className="relative inline-block h-3.5 w-4">
+                    <span className="hq-crest-cut absolute top-0.5 left-0 h-3 w-2 bg-hq-gold/60" />
+                    <span className="hq-crest-cut absolute top-0 left-1.5 h-3 w-2 bg-hq-gold" />
+                </span>
+            )}
+            {red && <span className="hq-crest-cut h-3.5 w-2.5 bg-hq-live" />}
+            {penaltyConceded && (
+                <span className="border border-hq-ember px-1 py-px font-mono text-[9px] font-bold text-hq-ember">P−</span>
+            )}
+            {penaltyMissed && (
+                <span className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">P✗</span>
+            )}
         </>
     );
 
     const avatar = (
         <div className={cn('relative shrink-0', AVATAR_SIZE[variant])}>
             {isPitch && hasBadEvent && (
-                <span className="absolute -top-1.5 right-8 z-10 flex items-center gap-0.5 whitespace-nowrap border border-hq-live bg-hq-bad-corner px-1 py-px font-mono text-[9px] font-bold text-hq-live">
+                <span className="absolute -top-1.5 right-8 z-10 flex items-center gap-1 whitespace-nowrap px-1 py-px font-mono text-[9px] font-bold text-hq-live">
                     {badIcons}
                 </span>
             )}
             {isPitch && hasGoodEvent && (
-                <span className="absolute -top-1.5 left-8 z-10 flex items-center gap-0.5 whitespace-nowrap border border-hq-lime bg-hq-good-corner px-1 py-px font-mono text-[9px] font-bold text-hq-lime">
+                <span className="absolute -top-1.5 left-8 z-10 flex items-center gap-1 whitespace-nowrap px-1 py-px font-mono text-[9px] font-bold text-hq-lime">
                     {goodIcons}
                 </span>
             )}
@@ -181,12 +227,12 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
     const benchEventStrip = !isPitch && (hasGoodEvent || hasBadEvent) && (
         <div className="flex shrink-0 items-center gap-1.5">
             {hasGoodEvent && (
-                <span className="flex items-center gap-0.5 border border-hq-lime bg-hq-good-corner px-1.5 py-px font-mono text-[9px] font-bold text-hq-lime">
+                <span className="flex items-center gap-1 px-1.5 py-px font-mono text-[9px] font-bold text-hq-lime">
                     {goodIcons}
                 </span>
             )}
             {hasBadEvent && (
-                <span className="flex items-center gap-0.5 border border-hq-live bg-hq-bad-corner px-1.5 py-px font-mono text-[9px] font-bold text-hq-live">
+                <span className="flex items-center gap-1 px-1.5 py-px font-mono text-[9px] font-bold text-hq-live">
                     {badIcons}
                 </span>
             )}

@@ -106,51 +106,6 @@ export function didNotPlayMatch(
     return fixtureState === 'finished' && (stats.mins_played?.[0] ?? 0) === 0;
 }
 
-/**
- * Spanish translations for the raw worldcup26 match-position text (e.g.
- * "Left Back", "Center Right Defender") shown next to the Fantasy
- * `HqPositionTag` in the player stats modal. Covers the line/side
- * combinations `MatchPositionLine`/`MatchPositionSide` already classify on
- * the backend — anything not listed here falls back to the raw text rather
- * than rendering nothing (see `translateMatchPosition`).
- */
-export const MATCH_POSITION_LABELS: Record<string, string> = {
-    Goalkeeper: 'Portero',
-    Substitute: 'Suplente',
-
-    'Left Back': 'Lateral izquierdo',
-    'Right Back': 'Lateral derecho',
-    'Center Back': 'Defensa central',
-    'Center Left Back': 'Defensa central izquierdo',
-    'Center Right Back': 'Defensa central derecho',
-
-    'Left Defender': 'Lateral izquierdo',
-    'Right Defender': 'Lateral derecho',
-    'Center Defender': 'Defensa central',
-    'Center Left Defender': 'Defensa central izquierdo',
-    'Center Right Defender': 'Defensa central derecho',
-
-    'Left Midfielder': 'Centrocampista izquierdo',
-    'Right Midfielder': 'Centrocampista derecho',
-    'Center Midfielder': 'Centrocampista',
-    'Center Left Midfielder': 'Centrocampista izquierdo',
-    'Center Right Midfielder': 'Centrocampista derecho',
-    'Defensive Midfielder': 'Mediocentro defensivo',
-    'Attacking Midfielder': 'Mediapunta',
-
-    'Left Forward': 'Delantero izquierdo',
-    'Right Forward': 'Delantero derecho',
-    'Center Forward': 'Delantero centro',
-    'Center Left Forward': 'Delantero izquierdo',
-    'Center Right Forward': 'Delantero derecho',
-    Striker: 'Delantero centro',
-};
-
-/** Translates a raw worldcup26 match-position string to Spanish, falling back to the raw text for anything not in `MATCH_POSITION_LABELS` rather than hiding it. */
-export function translateMatchPosition(text: string): string {
-    return MATCH_POSITION_LABELS[text] ?? text;
-}
-
 export const JORNADA_STAT_LABELS: Record<string, string> = {
     mins_played: 'Minutos jugados',
     goals: 'Goles',

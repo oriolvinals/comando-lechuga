@@ -150,12 +150,8 @@ class FixturesController extends Controller
             'subbed_out' => $lineup->subbed_out,
             'sub_minute' => $lineup->sub_minute,
             'counterpart_player' => $lineup->counterpartPlayer,
-            'goals' => $this->statValue($lineup->stats, 'totalGoals'),
-            'assists' => $this->statValue($lineup->stats, 'goalAssists'),
-            'yellow_cards' => $this->statValue($lineup->stats, 'yellowCards'),
-            'red_cards' => $this->statValue($lineup->stats, 'redCards'),
             'points' => $lineup->fantasy_points,
-            'stats' => $lineup->fantasy_stats,
+            'stats' => $lineup->fantasy_stats ?? $this->worldcup26StatsFallback($lineup->stats),
             'dazn_points' => $daznPoints,
             'x' => $lineup->starter ? $this->pitchX($lineup->position, $isLocal) : null,
             'y' => $lineup->starter ? $this->pitchY($lineup, $fixtureLineups) : null,
@@ -175,6 +171,40 @@ class FixturesController extends Controller
         }
 
         return 0;
+    }
+
+    /**
+     * Shapes worldcup26's own per-player stats into the same JornadaStats
+     * form as fantasy_stats, for a lineup entry with no Fantasy data to draw
+     * from (player has no fantasy_id, or was never resolved to a Player at
+     * all). Only covers what worldcup26 actually reports — no penalty
+     * won/conceded/saved/missed, no second-yellow distinction, no minutes
+     * played, so clean sheets and those badges just won't show for these
+     * entries. Front end reads this exactly like fantasy_stats via the same
+     * `stats[key]?.[0]` lookup.
+     *
+     * @param  array<int, array<string, mixed>>  $stats
+     * @return array<string, array{int, int}>
+     */
+    private function worldcup26StatsFallback(array $stats): array
+    {
+        /** @var array<string, string> $keyMap worldcup26 name => JornadaStats key */
+        $keyMap = [
+            'totalGoals' => 'goals',
+            'ownGoals' => 'own_goals',
+            'goalAssists' => 'goal_assist',
+            'yellowCards' => 'yellow_card',
+            'redCards' => 'red_card',
+            'goalsConceded' => 'goals_conceded',
+        ];
+
+        $shaped = [];
+
+        foreach ($keyMap as $worldcup26Key => $jornadaKey) {
+            $shaped[$jornadaKey] = [$this->statValue($stats, $worldcup26Key), 0];
+        }
+
+        return $shaped;
     }
 
     private function pitchX(string $position, bool $isLocal): float

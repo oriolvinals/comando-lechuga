@@ -65,10 +65,6 @@ export interface FixtureLineupEntry {
     subbed_out: boolean;
     sub_minute: number | null;
     counterpart_player: Player | null;
-    goals: number;
-    assists: number;
-    yellow_cards: number;
-    red_cards: number;
     points: number | null;
     stats: JornadaStats | null;
     dazn_points: number | null;
