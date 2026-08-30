@@ -524,3 +524,40 @@ test('skips a fixture whose getEvent call fails, without blocking the rest', fun
     expect($failing->refresh()->state)->toBe(FixtureState::Scheduled)
         ->and($ok->refresh()->state)->toBe(FixtureState::Finished);
 });
+
+test('stores the worldcup26 display name for an unresolved lineup entry', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'date' => now()->subMinutes(30),
+    ]);
+
+    $payload = liveMatchEventPayload([
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 9999, 'displayName' => 'Unknown Player'], 'starter' => true, 'position' => ['displayName' => 'CB'], 'jersey' => '5', 'stats' => []],
+                ],
+            ],
+        ],
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $unresolvedRow = FixtureLineup::query()->whereNull('player_id')->where('fixture_id', $fixture->id)->sole();
+    expect($unresolvedRow->unresolved_name)->toBe('Unknown Player');
+});
