@@ -46,6 +46,7 @@ trait SyncsMatchData
                 $event = $connector->getEvent($fixture->match_data_id)->throw()->json();
             } catch (FatalRequestException|RequestException|JsonException $exception) {
                 Log::warning("Failed to sync match data for fixture {$fixture->id}: {$exception->getMessage()}");
+                $this->warn("Skipped fixture #{$fixture->id}: {$exception->getMessage()}");
 
                 continue;
             }

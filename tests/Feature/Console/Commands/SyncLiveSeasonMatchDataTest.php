@@ -518,6 +518,7 @@ test('skips a fixture whose getEvent call fails, without blocking the rest', fun
     app()->instance(Worldcup26Connector::class, $connector);
 
     $this->artisan(SyncLiveSeasonMatchData::class)
+        ->expectsOutputToContain("Skipped fixture #{$failing->id}")
         ->expectsOutput('1 fixtures synced.')
         ->assertSuccessful();
 
