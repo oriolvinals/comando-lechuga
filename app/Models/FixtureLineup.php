@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int $id
  * @property-read int $fixture_id
  * @property-read int|null $player_id
+ * @property-read string|null $unresolved_name
  * @property-read int $team_id
  * @property-read bool $starter
  * @property-read string $position
@@ -30,7 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[UseFactory(FixtureLineupFactory::class)]
 #[Table(name: 'fixture_lineups', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fixture_id', 'player_id', 'team_id', 'starter', 'position', 'jersey', 'subbed_in', 'subbed_out', 'counterpart_player_id', 'sub_minute', 'stats', 'fantasy_points', 'fantasy_stats'])]
+#[Fillable(['fixture_id', 'player_id', 'unresolved_name', 'team_id', 'starter', 'position', 'jersey', 'subbed_in', 'subbed_out', 'counterpart_player_id', 'sub_minute', 'stats', 'fantasy_points', 'fantasy_stats'])]
 class FixtureLineup extends Model
 {
     /** @use HasFactory<FixtureLineupFactory> */
@@ -79,6 +80,7 @@ class FixtureLineup extends Model
             'id' => 'int',
             'fixture_id' => 'int',
             'player_id' => 'int',
+            'unresolved_name' => 'string',
             'team_id' => 'int',
             'starter' => 'bool',
             'position' => 'string',

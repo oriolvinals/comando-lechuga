@@ -53,3 +53,18 @@ test('fantasy_points and fantasy_stats default to null', function (): void {
     expect($lineup->fantasy_points)->toBeNull()
         ->and($lineup->fantasy_stats)->toBeNull();
 });
+
+test('stores the worldcup26 display name for an unresolved lineup entry', function (): void {
+    $lineup = FixtureLineup::factory()->create([
+        'player_id' => null,
+        'unresolved_name' => 'Unknown Player',
+    ]);
+
+    expect($lineup->unresolved_name)->toBe('Unknown Player');
+});
+
+test('unresolved_name defaults to null', function (): void {
+    $lineup = FixtureLineup::factory()->create();
+
+    expect($lineup->unresolved_name)->toBeNull();
+});

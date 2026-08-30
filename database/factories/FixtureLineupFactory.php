@@ -23,6 +23,7 @@ class FixtureLineupFactory extends Factory
         return [
             'fixture_id' => Fixture::factory(),
             'player_id' => Player::factory(),
+            'unresolved_name' => null,
             'team_id' => Team::factory(),
             'starter' => true,
             'position' => 'Goalkeeper',
