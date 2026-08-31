@@ -49,7 +49,7 @@ export default function FixturesIndex({
                     Partidos
                 </h1>
 
-                <div className="sticky top-0 z-20 -mx-6 border-b border-hq-border bg-hq-ink px-6 pt-2 pb-4">
+                <div className="sticky top-12 z-40 -mx-6 border-b border-hq-border bg-hq-ink px-6 pt-2 pb-4">
                     <HqWeekScrollPicker
                         week={selectedWeek}
                         maxWeek={season.total_weeks}

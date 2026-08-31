@@ -9,15 +9,18 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
     return (
         <div className="min-h-screen bg-white text-neutral-900">
-            <header className="bg-hq-ink">
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 font-mono text-[11px] tracking-widest text-hq-moss uppercase">
-                    <span>Temporada {season.name}</span>
+            <header className="sticky top-0 z-50 border-b border-hq-border bg-hq-ink">
+                <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-2.5">
+                    <Link
+                        href={home().url}
+                        className="shrink-0 font-display text-lg tracking-wide text-hq-paper uppercase transition-opacity hover:opacity-80"
+                    >
+                        Comando <span className="text-hq-lime">Lechuga</span>
+                    </Link>
                     <span
                         className={cn(
-                            'flex items-center gap-1.5 font-bold',
-                            liveMatchday
-                                ? 'text-hq-live'
-                                : 'text-hq-moss-dim',
+                            'hidden shrink-0 items-center gap-1.5 border-l border-hq-border-strong pl-4 font-mono text-[10px] font-bold tracking-widest uppercase sm:flex',
+                            liveMatchday ? 'text-hq-live' : 'text-hq-moss-dim',
                         )}
                     >
                         <span
@@ -29,21 +32,14 @@ export default function AppLayout({ children }: PropsWithChildren) {
                             )}
                         />
                         <span className="text-hq-khaki">
-                            Jornada{' '}
-                            {String(season.current_week).padStart(2, '0')}
+                            J{String(season.current_week).padStart(2, '0')}
                         </span>
                         <span className="text-hq-border-strong">·</span>
                         {liveMatchday ? 'Online' : 'Offline'}
                     </span>
-                </div>
-                <div className="mx-auto flex max-w-7xl items-center justify-between border-t border-hq-border px-6 py-3">
-                    <Link
-                        href={home().url}
-                        className="font-display text-xl tracking-wide text-hq-paper uppercase transition-opacity hover:opacity-80"
-                    >
-                        Comando <span className="text-hq-lime">Lechuga</span>
-                    </Link>
-                    <MainNav />
+                    <div className="ml-auto">
+                        <MainNav />
+                    </div>
                 </div>
             </header>
             <main className="mx-auto max-w-7xl px-6">{children}</main>

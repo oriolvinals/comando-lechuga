@@ -16,7 +16,7 @@ const navItems = [
 
 function pillClassName(isActive: boolean) {
     return cn(
-        'border px-3.5 py-1.5 font-mono text-xs font-bold tracking-wider uppercase transition-colors',
+        'border px-3 py-1 font-mono text-[11px] font-bold tracking-wider uppercase transition-colors',
         isActive
             ? 'border-hq-lime bg-hq-lime text-hq-ink'
             : 'border-hq-border text-hq-moss hover:border-hq-border-strong hover:text-hq-paper',

@@ -3,12 +3,16 @@
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
-html,
-body {
-    overflow-x: hidden;
-}
-
+/*
+ * overflow-x lives on html ONLY, not body: setting it on both used to make
+ * body its own independent scroll container nested inside html's — which
+ * silently breaks position:sticky for anything anchored near body's top
+ * (mouse-wheel scrolling moves the OUTER html scroller, sliding body, and
+ * anything sticky inside it, off-screen as one block). html alone still
+ * clips horizontal overflow at the viewport with none of that.
+ */
 html {
+    overflow-x: hidden;
     scrollbar-gutter: stable;
 }
 
