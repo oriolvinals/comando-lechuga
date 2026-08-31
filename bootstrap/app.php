@@ -125,7 +125,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // 404 never runs the "web" middleware group, so season/liveMatchday
         // wouldn't otherwise reach the page.
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
-            if (!in_array($response->getStatusCode(), [403, 404, 419, 429, 500, 503], true)) {
+            if ($request->is('api/*') || !in_array($response->getStatusCode(), [403, 404, 419, 429, 500, 503], true)) {
                 return $response;
             }
 
