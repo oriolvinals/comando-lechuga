@@ -9,6 +9,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -114,4 +116,25 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Renders our own Inertia error page for the handful of HTTP error
+        // codes that have dedicated copy, in every environment (including
+        // local) so it can actually be previewed while developing. Reuses
+        // HandleInertiaRequests::share() directly since a route-not-found
+        // 404 never runs the "web" middleware group, so season/liveMatchday
+        // wouldn't otherwise reach the page.
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+            if (!in_array($response->getStatusCode(), [403, 404, 419, 429, 500, 503], true)) {
+                return $response;
+            }
+
+            $props = [
+                ...app(HandleInertiaRequests::class)->share($request),
+                'status' => $response->getStatusCode(),
+            ];
+
+            return Inertia::render('errors/error', $props)
+                ->toResponse($request)
+                ->setStatusCode($response->getStatusCode());
+        });
     })->create();
