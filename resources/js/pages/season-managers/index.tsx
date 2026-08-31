@@ -53,7 +53,7 @@ export default function SeasonManagersIndex({
 
     return (
         <>
-            <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
+            <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
                 <div className="mx-auto max-w-7xl px-6 py-9">
                     <Head title="Managers" />
 

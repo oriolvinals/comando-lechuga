@@ -1,5 +1,7 @@
 import { Head } from '@inertiajs/react';
+import { User } from 'lucide-react';
 import type { ReactElement } from 'react';
+import { EntityImage } from '@/components/entity-image';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { HqPlayerMatchTimeline } from '@/components/hq-player-match-timeline';
 import { HqPlayerPropertyCard } from '@/components/hq-player-property-card';
@@ -73,17 +75,16 @@ export default function PlayerShow({
     return (
         <>
             <Head title={player.nickname} />
-            <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
+            <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
                 <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-9 lg:flex-row lg:items-start">
                     <div className="w-full shrink-0 lg:w-64">
                         <div className="hq-card-cut p-4 text-center">
-                            <div className="mx-auto mb-3 h-22 w-22 overflow-hidden rounded-full border-2 border-hq-border-strong bg-hq-border">
-                                <img
-                                    src={player.image}
-                                    alt={player.nickname}
-                                    className="h-full w-full scale-125 object-cover object-bottom"
-                                />
-                            </div>
+                            <EntityImage
+                                src={player.image}
+                                alt={player.nickname}
+                                fallback={User}
+                                className="mx-auto mb-3 h-22 w-22 border-2 border-hq-border-strong bg-hq-border"
+                            />
                             <h1 className="mb-1.5 font-display text-xl text-hq-paper uppercase">
                                 {player.nickname}
                             </h1>

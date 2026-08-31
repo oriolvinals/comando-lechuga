@@ -8,7 +8,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
     const { season, liveMatchday } = usePage().props;
 
     return (
-        <div className="min-h-screen bg-white text-neutral-900">
+        <div className="flex min-h-screen flex-col bg-white text-neutral-900">
             <header className="sticky top-0 z-50 border-b border-hq-border bg-hq-ink">
                 <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-2.5">
                     <Link
@@ -32,7 +32,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
                             )}
                         />
                         <span className="text-hq-khaki">
-                            J{String(season.current_week).padStart(2, '0')}
+                            J{season.current_week}
                         </span>
                         <span className="text-hq-border-strong">·</span>
                         {liveMatchday ? 'Online' : 'Offline'}
@@ -42,7 +42,9 @@ export default function AppLayout({ children }: PropsWithChildren) {
                     </div>
                 </div>
             </header>
-            <main className="mx-auto max-w-7xl px-6">{children}</main>
+            <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6">
+                {children}
+            </main>
         </div>
     );
 }

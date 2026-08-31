@@ -61,7 +61,7 @@ export default function SeasonManagerShow({
 
     return (
         <div
-            className="hq-texture hq-bleed relative min-h-[calc(100vh-95px)] border-y border-hq-border"
+            className="hq-texture hq-bleed relative flex-1 border-y border-hq-border"
             style={
                 {
                     '--pc': seasonManager.primary_color ?? 'transparent',

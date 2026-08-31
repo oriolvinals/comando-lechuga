@@ -77,7 +77,7 @@ export default function ErrorPage({ status }: ErrorPageProps) {
     return (
         <>
             <Head title={`Error ${status}`} />
-            <div className="hq-texture hq-bleed flex min-h-[calc(100vh-95px)] flex-col items-center justify-center border-y border-hq-border px-6 py-16 text-center">
+            <div className="hq-texture hq-bleed flex flex-1 flex-col items-center justify-center border-y border-hq-border px-6 py-16 text-center">
                 <p className={cn('font-display text-8xl', copy.accentText)}>
                     {status}
                 </p>

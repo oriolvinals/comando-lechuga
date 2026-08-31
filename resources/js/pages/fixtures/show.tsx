@@ -77,7 +77,7 @@ export default function FixtureShow({
             <Head
                 title={`${fixture.local_team.main_name} vs ${fixture.guest_team.main_name}`}
             />
-            <div className="hq-texture hq-bleed min-h-[calc(100vh-95px)] border-y border-hq-border">
+            <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
                 <div className="mx-auto max-w-7xl px-6 py-9">
                     <HqScrollRow className="mb-5">
                         {weekFixtures.map((weekFixture) => {
