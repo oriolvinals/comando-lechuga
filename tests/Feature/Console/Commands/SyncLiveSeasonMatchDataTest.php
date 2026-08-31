@@ -121,6 +121,59 @@ test('stores the worldcup26 displayClock for a fixture in progress', function ()
         ->and($fixture->display_clock)->toBe("45'+4'");
 });
 
+test('leaves the fixture untouched when worldcup26 reports an unmapped status name', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'date' => now()->subMinutes(45),
+        'state' => FixtureState::FirstHalf,
+        'display_clock' => "44'",
+        'local_score' => 1,
+        'guest_score' => 0,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory(),
+        'team_id' => $home->id,
+    ]);
+
+    $payload = liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'status' => ['type' => ['name' => 'STATUS_END_PERIOD'], 'displayClock' => "45'"],
+                    'competitors' => [
+                        ['homeAway' => 'home', 'score' => '1'],
+                        ['homeAway' => 'away', 'score' => '0'],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)
+        ->expectsOutput('0 fixtures synced.')
+        ->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->state)->toBe(FixtureState::FirstHalf)
+        ->and($fixture->display_clock)->toBe("44'")
+        ->and($fixture->local_score)->toBe(1)
+        ->and($fixture->guest_score)->toBe(0)
+        ->and($fixture->fixtureLineups)->toHaveCount(1);
+});
+
 test('ignores fixtures outside the live window or without a match_data_id', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $home = Team::factory()->create(['match_data_id' => 83]);

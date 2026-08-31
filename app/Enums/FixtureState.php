@@ -23,14 +23,21 @@ enum FixtureState: string
         };
     }
 
-    public static function fromWorldcup26Name(string $name): self
+    /**
+     * Returns null for a status name worldcup26 doesn't document (e.g. a
+     * transient value during a state transition) — callers should leave the
+     * fixture's existing state untouched rather than overwrite it with a
+     * guess.
+     */
+    public static function fromWorldcup26Name(string $name): ?self
     {
         return match ($name) {
+            'STATUS_SCHEDULED' => self::Scheduled,
             'STATUS_FIRST_HALF' => self::FirstHalf,
             'STATUS_HALFTIME' => self::HalfTime,
             'STATUS_SECOND_HALF' => self::SecondHalf,
             'STATUS_FULL_TIME' => self::Finished,
-            default => self::Scheduled,
+            default => null,
         };
     }
 

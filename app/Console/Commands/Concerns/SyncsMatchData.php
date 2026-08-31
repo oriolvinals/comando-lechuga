@@ -22,15 +22,6 @@ use Throwable;
 
 trait SyncsMatchData
 {
-    /** @var list<string> */
-    private const array KNOWN_WORLDCUP26_STATUS_NAMES = [
-        'STATUS_SCHEDULED',
-        'STATUS_FIRST_HALF',
-        'STATUS_HALFTIME',
-        'STATUS_SECOND_HALF',
-        'STATUS_FULL_TIME',
-    ];
-
     /**
      * @param  Collection<int, Fixture>  $fixtures
      * @return array{synced: int, unresolved: list<string>}
@@ -53,8 +44,17 @@ trait SyncsMatchData
                 continue;
             }
 
-            DB::transaction(function () use ($fixture, $event, &$unresolved): void {
-                $this->syncFixture($fixture, $event);
+            $statusName = (string) ($event['header']['competitions'][0]['status']['type']['name'] ?? '');
+            $state = FixtureState::fromWorldcup26Name($statusName);
+
+            if ($state === null) {
+                Log::warning("Unmapped worldcup26 status name: {$statusName} (fixture {$fixture->id})");
+
+                continue;
+            }
+
+            DB::transaction(function () use ($fixture, $event, $state, &$unresolved): void {
+                $this->syncFixture($fixture, $event, $state);
                 $unresolved = [...$unresolved, ...$this->syncLineups($fixture, $event)];
                 $this->syncEvents($fixture, $event);
             });
@@ -119,20 +119,15 @@ trait SyncsMatchData
     /**
      * @param  array<string, mixed>  $event
      */
-    private function syncFixture(Fixture $fixture, array $event): void
+    private function syncFixture(Fixture $fixture, array $event, FixtureState $state): void
     {
         $competition = $event['header']['competitions'][0] ?? [];
-        $statusName = (string) ($competition['status']['type']['name'] ?? '');
         $displayClock = isset($competition['status']['displayClock']) ? (string) $competition['status']['displayClock'] : null;
         $competitors = is_array($competition['competitors'] ?? null) ? array_values($competition['competitors']) : [];
         $rosters = is_array($event['rosters'] ?? null) ? array_values($event['rosters']) : [];
 
-        if (!in_array($statusName, self::KNOWN_WORLDCUP26_STATUS_NAMES, true)) {
-            Log::warning("Unmapped worldcup26 status name: {$statusName} (fixture {$fixture->id})");
-        }
-
         $fixture->update([
-            'state' => FixtureState::fromWorldcup26Name($statusName),
+            'state' => $state,
             'display_clock' => $displayClock,
             'local_score' => $this->scoreFor($competitors, 'home'),
             'guest_score' => $this->scoreFor($competitors, 'away'),
