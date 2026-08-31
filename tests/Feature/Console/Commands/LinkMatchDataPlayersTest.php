@@ -40,33 +40,33 @@ test('ignores coaches entirely — they never appear in a worldcup26 match roste
         ->assertSuccessful();
 });
 
-test('ignores injured players entirely — they have not featured in any match yet', function (): void {
+test('still reports injured players as unresolved when not in PLAYER_MAP', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
     $team = Team::factory()->create();
     $season->teams()->attach([$team->id]);
-    Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Injured, 'position' => PlayerPosition::Midfield]);
+    Player::factory()->create(['team_id' => $team->id, 'nickname' => 'Zzyzx', 'status' => PlayerStatus::Injured, 'position' => PlayerPosition::Midfield]);
 
     $this->artisan(LinkMatchDataPlayers::class)
         ->expectsOutput('0 players linked, 0 fixture lineups backfilled, 0 fixture events backfilled.')
-        ->doesntExpectOutputToContain('unresolved')
+        ->expectsOutputToContain('1 players still unresolved')
         ->assertSuccessful();
 });
 
-test('ignores out_of_league players entirely', function (): void {
+test('still reports out_of_league players as unresolved when not in PLAYER_MAP', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
     $team = Team::factory()->create();
     $season->teams()->attach([$team->id]);
-    Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::OutOfLeague]);
+    Player::factory()->create(['team_id' => $team->id, 'nickname' => 'Zzyzx', 'status' => PlayerStatus::OutOfLeague, 'position' => PlayerPosition::Midfield]);
 
     $this->artisan(LinkMatchDataPlayers::class)
         ->expectsOutput('0 players linked, 0 fixture lineups backfilled, 0 fixture events backfilled.')
-        ->doesntExpectOutputToContain('unresolved')
+        ->expectsOutputToContain('1 players still unresolved')
         ->assertSuccessful();
 });
 

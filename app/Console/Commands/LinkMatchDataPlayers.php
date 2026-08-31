@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Enums\PlayerPosition;
-use App\Enums\PlayerStatus;
 use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\Player;
@@ -528,7 +527,6 @@ class LinkMatchDataPlayers extends Command
 
         $players = Player::query()
             ->whereIn('team_id', $season->teams()->select('teams.id'))
-            ->whereNotIn('status', [PlayerStatus::OutOfLeague, PlayerStatus::Injured])
             ->whereNull('match_data_id')
             ->whereNotNull('fantasy_id')
             ->whereHas('seasons', fn ($query) => $query
