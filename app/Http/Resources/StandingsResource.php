@@ -18,6 +18,7 @@ class StandingsResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'url' => route('season-managers.show', $this->id),
             'name' => $this->name,
             'logo' => $this->logo ? asset($this->logo) : '',
             'primary_color' => $this->primary_color,

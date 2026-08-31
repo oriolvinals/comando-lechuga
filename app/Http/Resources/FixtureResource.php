@@ -18,6 +18,7 @@ class FixtureResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'url' => route('fixtures.show', $this->id),
             'date' => $this->date->toIso8601String(),
             'state' => $this->state->value,
             'state_label' => $this->state->label(),

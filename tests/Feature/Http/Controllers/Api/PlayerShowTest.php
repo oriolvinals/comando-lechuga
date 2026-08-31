@@ -36,6 +36,7 @@ test('returns the player info fields', function (): void {
 
     $response->assertOk();
     $response->assertJsonPath('data.id', $player->id);
+    $response->assertJsonPath('data.url', route('players.show', $player->id));
     $response->assertJsonPath('data.nickname', 'Pedri');
     $response->assertJsonPath('data.status', 'ok');
     $response->assertJsonPath('data.position', 'midfield');

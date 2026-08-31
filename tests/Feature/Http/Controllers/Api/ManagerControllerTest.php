@@ -29,6 +29,7 @@ test('returns the manager info fields', function (): void {
 
     $response->assertOk();
     $response->assertJsonPath('data.id', $manager->id);
+    $response->assertJsonPath('data.url', route('season-managers.show', $manager->id));
     $response->assertJsonPath('data.name', 'Comando Lechuga');
     $response->assertJsonPath('data.position', 1);
     $response->assertJsonPath('data.last_position', 2);

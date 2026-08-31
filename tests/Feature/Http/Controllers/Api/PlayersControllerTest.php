@@ -151,7 +151,7 @@ test('sorts players by market value difference when requested', function (): voi
 test('returns player fields including team and market data', function (): void {
     Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $team = Team::factory()->create(['main_name' => 'FC Barcelona', 'logo' => 'team/4.png']);
-    Player::factory()->create([
+    $player = Player::factory()->create([
         'status' => PlayerStatus::Ok,
         'nickname' => 'Pedri',
         'image' => 'players/9.png',
@@ -166,6 +166,7 @@ test('returns player fields including team and market data', function (): void {
     $response = $this->getJson('/api/players');
 
     $response->assertOk();
+    $response->assertJsonPath('data.0.url', route('players.show', $player->id));
     $response->assertJsonPath('data.0.nickname', 'Pedri');
     $response->assertJsonPath('data.0.image', asset('storage/players/9.png'));
     $response->assertJsonPath('data.0.status', 'ok');

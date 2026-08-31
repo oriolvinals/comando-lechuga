@@ -18,6 +18,7 @@ class FixtureDetailResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'url' => route('fixtures.show', $this->id),
             'date' => $this->date->toIso8601String(),
             'week_number' => $this->week_number,
             'state' => $this->state->value,

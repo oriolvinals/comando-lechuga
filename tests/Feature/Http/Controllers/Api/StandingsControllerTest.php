@@ -26,6 +26,19 @@ test('returns the standings ordered by position', function (): void {
     $response->assertJsonPath('data.2.id', $third->id);
 });
 
+test('includes the full manager page url', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id, 'position' => 1]);
+
+    $response = $this->getJson('/api/standings');
+
+    $response->assertOk();
+    $response->assertJsonPath('data.0.url', route('season-managers.show', $manager->id));
+});
+
 test('never exposes a live_points field', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
