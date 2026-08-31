@@ -21,7 +21,7 @@ function liveMatchEventPayload(array $overrides = []): array
         'header' => [
             'competitions' => [
                 [
-                    'status' => ['type' => ['name' => 'STATUS_FULL_TIME']],
+                    'status' => ['type' => ['name' => 'STATUS_FULL_TIME'], 'displayClock' => 'FT'],
                     'competitors' => [
                         ['homeAway' => 'home', 'score' => '2'],
                         ['homeAway' => 'away', 'score' => '1'],
@@ -75,6 +75,7 @@ test('updates the fixture state, score, formation and kit colors from the live e
 
     $fixture->refresh();
     expect($fixture->state)->toBe(FixtureState::Finished)
+        ->and($fixture->display_clock)->toBe('FT')
         ->and($fixture->local_score)->toBe(2)
         ->and($fixture->guest_score)->toBe(1)
         ->and($fixture->local_formation)->toBe('4-3-3')
@@ -83,6 +84,41 @@ test('updates the fixture state, score, formation and kit colors from the live e
         ->and($fixture->local_alternate_color)->toBe('ffc0cb')
         ->and($fixture->guest_color)->toBe('ff0000')
         ->and($fixture->guest_alternate_color)->toBe('ffffff');
+});
+
+test('stores the worldcup26 displayClock for a fixture in progress', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'date' => now()->subMinutes(45),
+    ]);
+
+    $payload = liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'status' => ['type' => ['name' => 'STATUS_FIRST_HALF'], 'displayClock' => "45'+4'"],
+                ],
+            ],
+        ],
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->state)->toBe(FixtureState::FirstHalf)
+        ->and($fixture->display_clock)->toBe("45'+4'");
 });
 
 test('ignores fixtures outside the live window or without a match_data_id', function (): void {

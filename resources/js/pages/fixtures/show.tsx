@@ -12,8 +12,15 @@ import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import type { HqPlayerStatsEntry } from '@/components/hq-player-stats-modal';
 import { HqScrollRow } from '@/components/hq-scroll-row';
 import AppLayout from '@/layouts/app-layout';
-import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
+import {
+    COUNTDOWN_THRESHOLD_MS,
+    FIXTURE_STATE_LABELS,
+    formatFixtureSecondaryText,
+    isLiveFixtureState,
+} from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
+import { useCountdown } from '@/lib/use-countdown';
+import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import type {
@@ -49,6 +56,93 @@ function TeamColorSwatch({ color, alternateColor }: { color: string | null; alte
     );
 }
 
+function WeekFixtureLink({
+    weekFixture,
+    isCurrent,
+}: {
+    weekFixture: Fixture;
+    isCurrent: boolean;
+}) {
+    const countdown = useCountdown(weekFixture.date);
+    const now = useNow();
+    const isLive = isLiveFixtureState(weekFixture.state);
+    const hasScore = isLive || weekFixture.state === 'finished';
+    const isScheduled = weekFixture.state === 'scheduled';
+    const remainingMs = new Date(weekFixture.date).getTime() - now;
+    const startsSoon =
+        isScheduled && remainingMs > 0 && remainingMs < COUNTDOWN_THRESHOLD_MS;
+    const secondaryText = startsSoon
+        ? formatMatchDateTime(weekFixture.date)
+        : formatFixtureSecondaryText(
+              weekFixture.state,
+              weekFixture.date,
+              weekFixture.display_clock,
+              formatMatchDateTime,
+          );
+
+    return (
+        <Link
+            href={fixturesShow(weekFixture.id).url}
+            className={cn(
+                'shrink-0 border bg-hq-panel px-3 py-2.5 text-center font-mono transition-colors',
+                isCurrent
+                    ? 'border-hq-lime bg-hq-panel-alt'
+                    : isLive
+                      ? 'border-hq-live'
+                      : 'border-hq-border hover:border-hq-border-strong',
+            )}
+        >
+            <div className="mb-1 flex items-center justify-center gap-2">
+                <img
+                    src={weekFixture.local_team.logo}
+                    alt={weekFixture.local_team.main_name}
+                    className="h-5 w-5 object-contain"
+                />
+                <span className="text-sm font-bold text-hq-paper">
+                    {hasScore ? weekFixture.local_score : ''}
+                </span>
+            </div>
+            <div className="mb-1.5 flex items-center justify-center gap-2">
+                <img
+                    src={weekFixture.guest_team.logo}
+                    alt={weekFixture.guest_team.main_name}
+                    className="h-5 w-5 object-contain"
+                />
+                <span className="text-sm font-bold text-hq-paper">
+                    {hasScore ? weekFixture.guest_score : ''}
+                </span>
+            </div>
+            <div
+                className={cn(
+                    'flex items-center justify-center gap-1 text-[9px] uppercase',
+                    isLive && 'text-hq-live',
+                    startsSoon && 'font-bold text-hq-gold',
+                    !isLive && !startsSoon && 'text-hq-moss-dim',
+                )}
+            >
+                {isLive && (
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
+                )}
+                {isScheduled
+                    ? startsSoon
+                        ? countdown
+                        : formatMatchDateTime(weekFixture.date)
+                    : FIXTURE_STATE_LABELS[weekFixture.state]}
+            </div>
+            {secondaryText && (
+                <div
+                    className={cn(
+                        'mt-0.5 text-center text-[9px] uppercase',
+                        isLive ? 'text-hq-live' : 'text-hq-moss-dim',
+                    )}
+                >
+                    {secondaryText}
+                </div>
+            )}
+        </Link>
+    );
+}
+
 export default function FixtureShow({
     fixture,
     weekFixtures,
@@ -65,6 +159,20 @@ export default function FixtureShow({
     );
     const isLive = isLiveFixtureState(fixture.state);
     const hasScore = isLive || fixture.state === 'finished';
+    const isScheduled = fixture.state === 'scheduled';
+    const countdown = useCountdown(fixture.date);
+    const now = useNow();
+    const remainingMs = new Date(fixture.date).getTime() - now;
+    const startsSoon =
+        isScheduled && remainingMs > 0 && remainingMs < COUNTDOWN_THRESHOLD_MS;
+    const fixtureSecondaryText = startsSoon
+        ? formatMatchDateTime(fixture.date)
+        : formatFixtureSecondaryText(
+              fixture.state,
+              fixture.date,
+              fixture.display_clock,
+              formatMatchDateTime,
+          );
 
     const handleSelectLineupEntry = (entry: FixtureLineupEntry) => {
         if (entry.player) {
@@ -80,80 +188,13 @@ export default function FixtureShow({
             <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
                 <div className="mx-auto max-w-7xl px-6 py-9">
                     <HqScrollRow className="mb-5">
-                        {weekFixtures.map((weekFixture) => {
-                            const weekFixtureIsLive = isLiveFixtureState(
-                                weekFixture.state,
-                            );
-                            const weekFixtureHasScore =
-                                weekFixtureIsLive ||
-                                weekFixture.state === 'finished';
-
-                            return (
-                                <Link
-                                    key={weekFixture.id}
-                                    href={fixturesShow(weekFixture.id).url}
-                                    className={cn(
-                                        'shrink-0 border bg-hq-panel px-3 py-2.5 text-center font-mono transition-colors',
-                                        weekFixture.id === fixture.id
-                                            ? 'border-hq-lime bg-hq-panel-alt'
-                                            : weekFixtureIsLive
-                                              ? 'border-hq-live'
-                                              : 'border-hq-border hover:border-hq-border-strong',
-                                    )}
-                                >
-                                    <div className="mb-1 flex items-center justify-center gap-2">
-                                        <img
-                                            src={weekFixture.local_team.logo}
-                                            alt={weekFixture.local_team.main_name}
-                                            className="h-5 w-5 object-contain"
-                                        />
-                                        <span className="text-sm font-bold text-hq-paper">
-                                            {weekFixtureHasScore
-                                                ? weekFixture.local_score
-                                                : ''}
-                                        </span>
-                                    </div>
-                                    <div className="mb-1.5 flex items-center justify-center gap-2">
-                                        <img
-                                            src={weekFixture.guest_team.logo}
-                                            alt={weekFixture.guest_team.main_name}
-                                            className="h-5 w-5 object-contain"
-                                        />
-                                        <span className="text-sm font-bold text-hq-paper">
-                                            {weekFixtureHasScore
-                                                ? weekFixture.guest_score
-                                                : ''}
-                                        </span>
-                                    </div>
-                                    <div
-                                        className={cn(
-                                            'flex items-center justify-center gap-1 text-[9px] uppercase',
-                                            weekFixtureIsLive
-                                                ? 'text-hq-live'
-                                                : 'text-hq-moss-dim',
-                                        )}
-                                    >
-                                        {weekFixtureIsLive && (
-                                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
-                                        )}
-                                        {weekFixture.state === 'scheduled'
-                                            ? formatMatchDateTime(
-                                                  weekFixture.date,
-                                              )
-                                            : FIXTURE_STATE_LABELS[
-                                                  weekFixture.state
-                                              ]}
-                                    </div>
-                                    {weekFixture.state !== 'scheduled' && (
-                                        <div className="mt-0.5 text-center text-[9px] text-hq-moss-dim uppercase">
-                                            {formatMatchDateTime(
-                                                weekFixture.date,
-                                            )}
-                                        </div>
-                                    )}
-                                </Link>
-                            );
-                        })}
+                        {weekFixtures.map((weekFixture) => (
+                            <WeekFixtureLink
+                                key={weekFixture.id}
+                                weekFixture={weekFixture}
+                                isCurrent={weekFixture.id === fixture.id}
+                            />
+                        ))}
                     </HqScrollRow>
 
                     <div
@@ -220,21 +261,30 @@ export default function FixtureShow({
                                 <p
                                     className={cn(
                                         'flex items-center justify-center gap-1.5 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:text-[10px]',
-                                        isLive
-                                            ? 'text-hq-live'
-                                            : 'text-hq-lime',
+                                        isLive && 'text-hq-live',
+                                        startsSoon && 'font-bold text-hq-gold',
+                                        !isLive && !startsSoon && 'text-hq-lime',
                                     )}
                                 >
                                     {isLive && (
                                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
                                     )}
-                                    {fixture.state === 'scheduled'
-                                        ? formatMatchDateTime(fixture.date)
+                                    {isScheduled
+                                        ? startsSoon
+                                            ? countdown
+                                            : formatMatchDateTime(fixture.date)
                                         : FIXTURE_STATE_LABELS[fixture.state]}
                                 </p>
-                                {fixture.state !== 'scheduled' && (
-                                    <p className="mt-1 font-mono text-[8px] tracking-widest whitespace-nowrap text-hq-moss-dim uppercase sm:text-[9px]">
-                                        {formatMatchDateTime(fixture.date)}
+                                {fixtureSecondaryText && (
+                                    <p
+                                        className={cn(
+                                            'mt-1 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:text-[9px]',
+                                            isLive
+                                                ? 'text-hq-live'
+                                                : 'text-hq-moss-dim',
+                                        )}
+                                    >
+                                        {fixtureSecondaryText}
                                     </p>
                                 )}
                             </div>

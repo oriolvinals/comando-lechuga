@@ -123,6 +123,7 @@ trait SyncsMatchData
     {
         $competition = $event['header']['competitions'][0] ?? [];
         $statusName = (string) ($competition['status']['type']['name'] ?? '');
+        $displayClock = isset($competition['status']['displayClock']) ? (string) $competition['status']['displayClock'] : null;
         $competitors = is_array($competition['competitors'] ?? null) ? array_values($competition['competitors']) : [];
         $rosters = is_array($event['rosters'] ?? null) ? array_values($event['rosters']) : [];
 
@@ -132,6 +133,7 @@ trait SyncsMatchData
 
         $fixture->update([
             'state' => FixtureState::fromWorldcup26Name($statusName),
+            'display_clock' => $displayClock,
             'local_score' => $this->scoreFor($competitors, 'home'),
             'guest_score' => $this->scoreFor($competitors, 'away'),
             'local_formation' => $this->formationFor($rosters, 'home'),

@@ -59,6 +59,7 @@ export interface Fixture {
     local_score: number | null;
     guest_score: number | null;
     state: FixtureState;
+    display_clock: string | null;
     local_formation: string | null;
     guest_formation: string | null;
     local_color: string | null;

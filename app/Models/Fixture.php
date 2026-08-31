@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read int|null $local_score
  * @property-read int|null $guest_score
  * @property-read FixtureState $state
+ * @property-read string|null $display_clock
  * @property-read string|null $local_formation
  * @property-read string|null $guest_formation
  * @property-read string|null $local_color
@@ -40,7 +41,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 #[UseFactory(FixtureFactory::class)]
 #[Table(name: 'fixtures', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fantasy_id', 'match_data_id', 'season_id', 'week_number', 'date', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'local_formation', 'guest_formation', 'local_color', 'local_alternate_color', 'guest_color', 'guest_alternate_color'])]
+#[Fillable(['fantasy_id', 'match_data_id', 'season_id', 'week_number', 'date', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'display_clock', 'local_formation', 'guest_formation', 'local_color', 'local_alternate_color', 'guest_color', 'guest_alternate_color'])]
 class Fixture extends Model
 {
     /** @use HasFactory<FixtureFactory> */
@@ -98,6 +99,7 @@ class Fixture extends Model
             'local_score' => 'int',
             'guest_score' => 'int',
             'state' => FixtureState::class,
+            'display_clock' => 'string',
             'local_formation' => 'string',
             'guest_formation' => 'string',
             'local_color' => 'string',

@@ -1,15 +1,18 @@
 import { Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
-import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
+import {
+    COUNTDOWN_THRESHOLD_MS,
+    FIXTURE_STATE_LABELS,
+    formatFixtureSecondaryText,
+    isLiveFixtureState,
+} from '@/lib/fixture-state';
 import { formatMatchDateShort, formatMatchDateTime } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import type { Fixture } from '@/types/models';
-
-const COUNTDOWN_THRESHOLD_MS = 2 * 60 * 60 * 1000;
 
 export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
     const countdown = useCountdown(fixture.date);
@@ -21,6 +24,14 @@ export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
     const remainingMs = new Date(fixture.date).getTime() - now;
     const startsSoon =
         isScheduled && remainingMs > 0 && remainingMs < COUNTDOWN_THRESHOLD_MS;
+    const secondaryText = startsSoon
+        ? formatMatchDateShort(fixture.date)
+        : formatFixtureSecondaryText(
+              fixture.state,
+              fixture.date,
+              fixture.display_clock,
+              formatMatchDateShort,
+          );
 
     return (
         <Link
@@ -91,9 +102,14 @@ export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
                         : formatMatchDateTime(fixture.date)
                     : FIXTURE_STATE_LABELS[fixture.state]}
             </p>
-            {!isScheduled && (
-                <p className="mt-0.5 font-mono text-[9px] text-hq-moss-dim uppercase">
-                    {formatMatchDateShort(fixture.date)}
+            {secondaryText && (
+                <p
+                    className={cn(
+                        'mt-0.5 font-mono text-[9px] uppercase',
+                        isLive ? 'text-hq-live' : 'text-hq-moss-dim',
+                    )}
+                >
+                    {secondaryText}
                 </p>
             )}
         </Link>

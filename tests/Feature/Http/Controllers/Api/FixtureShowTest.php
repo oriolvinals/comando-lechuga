@@ -24,6 +24,7 @@ test('returns the fixture info with teams, score and formations', function (): v
         'state' => FixtureState::Finished,
         'local_formation' => '4-3-3',
         'guest_formation' => '4-4-2',
+        'display_clock' => 'FT',
     ]);
 
     $response = $this->getJson("/api/fixtures/{$fixture->id}");
@@ -33,6 +34,7 @@ test('returns the fixture info with teams, score and formations', function (): v
     $response->assertJsonPath('data.week_number', 3);
     $response->assertJsonPath('data.state', 'finished');
     $response->assertJsonPath('data.state_label', 'Finalizado');
+    $response->assertJsonPath('data.display_clock', 'FT');
     $response->assertJsonPath('data.local_team.name', 'FC Barcelona');
     $response->assertJsonPath('data.guest_team.name', 'Real Madrid');
     $response->assertJsonPath('data.local_score', 2);
