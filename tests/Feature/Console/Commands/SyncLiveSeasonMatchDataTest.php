@@ -98,6 +98,13 @@ test('ignores fixtures outside the live window or without a match_data_id', func
         'match_data_id' => 111,
         'date' => now()->subHours(5),
     ]);
+    $tooFarInFuture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 112,
+        'date' => now()->addHours(2),
+    ]);
     $unlinked = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
@@ -116,7 +123,50 @@ test('ignores fixtures outside the live window or without a match_data_id', func
         ->assertSuccessful();
 
     expect($tooOld->refresh()->state)->toBe(FixtureState::Scheduled)
+        ->and($tooFarInFuture->refresh()->state)->toBe(FixtureState::Scheduled)
         ->and($unlinked->refresh()->state)->toBe(FixtureState::Scheduled);
+});
+
+test('starts syncing a fixture up to 1 hour before kickoff, to pick up lineups early', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'date' => now()->addMinutes(30),
+    ]);
+
+    $payload = liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'status' => ['type' => ['name' => 'STATUS_SCHEDULED']],
+                ],
+            ],
+        ],
+        'rosters' => [
+            ['homeAway' => 'home', 'team' => ['id' => 83], 'formation' => '4-3-3', 'roster' => []],
+            ['homeAway' => 'away', 'team' => ['id' => 86], 'formation' => '3-5-2', 'roster' => []],
+        ],
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)
+        ->expectsOutput('1 fixtures synced.')
+        ->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->state)->toBe(FixtureState::Scheduled)
+        ->and($fixture->local_formation)->toBe('4-3-3')
+        ->and($fixture->guest_formation)->toBe('3-5-2');
 });
 
 test('upserts fixture_lineups from the rosters, including substitution minute and counterpart', function (): void {

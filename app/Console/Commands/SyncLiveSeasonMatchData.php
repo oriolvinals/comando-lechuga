@@ -24,6 +24,13 @@ class SyncLiveSeasonMatchData extends Command
     private const int LIVE_WINDOW_HOURS = 4;
 
     /**
+     * Worldcup26 can publish official lineups before kickoff — starting the
+     * sync this early means we pick them up as soon as they're available
+     * instead of waiting for the match to actually start.
+     */
+    private const int PRE_MATCH_WINDOW_HOURS = 1;
+
+    /**
      * @throws Throwable
      */
     public function handle(Worldcup26Connector $connector, LaLigaFantasyConnector $fantasyConnector): int
@@ -33,7 +40,7 @@ class SyncLiveSeasonMatchData extends Command
         $fixtures = Fixture::query()
             ->where('season_id', $season->id)
             ->whereNotNull('match_data_id')
-            ->where('date', '<=', now())
+            ->where('date', '<=', now()->addHours(self::PRE_MATCH_WINDOW_HOURS))
             ->where('date', '>=', now()->subHours(self::LIVE_WINDOW_HOURS))
             ->get();
 
