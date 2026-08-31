@@ -369,6 +369,7 @@ class LinkMatchDataPlayers extends Command
         3086 => 307390, // Moleiro - VIL
         637 => 286176, // Moncayola - OSA
         2827 => 411235, // Monreal - ATH
+        2958 => 421310, // Morcillo - ATM
         3127 => 361468, // Moscardo - ESP
         1959 => 318098, // Mouriño - VIL
         2742 => 409383, // Nacho Perez - LEV
@@ -454,6 +455,7 @@ class LinkMatchDataPlayers extends Command
         2428 => 169438, // Rüdiger - RMA
         3134 => 314403, // Saba Sazonov - GET
         2617 => 211770, // Sadiq - VAL
+        3242 => 311163, // Saliba - VIL
         2525 => 184488, // Salinas - MGA
         3138 => 304213, // Sangante - SEV
         2873 => 415867, // Santos - OSA
@@ -524,9 +526,10 @@ class LinkMatchDataPlayers extends Command
     public function handle(): int
     {
         $season = Season::current();
+        $teamIds = $season->teams()->select('teams.id');
 
-        $players = Player::query()
-            ->whereIn('team_id', $season->teams()->select('teams.id'))
+        $unlinkedPlayers = Player::query()
+            ->whereIn('team_id', $teamIds)
             ->whereNull('match_data_id')
             ->whereNotNull('fantasy_id')
             ->whereHas('seasons', fn ($query) => $query
@@ -534,11 +537,25 @@ class LinkMatchDataPlayers extends Command
                 ->where('position', '!=', PlayerPosition::Coach))
             ->get();
 
-        ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled, 'eventsBackfilled' => $eventsBackfilled] = $this->linkFromMap($players, self::PLAYER_MAP);
+        ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled, 'eventsBackfilled' => $eventsBackfilled] = $this->linkFromMap($unlinkedPlayers, self::PLAYER_MAP);
+
+        // Also re-sweep players linked in a previous run: fixture_lineups/fixture_events
+        // for their match_data_id can still arrive after that run (e.g. a later matchday),
+        // and only this pass — not the one above, which only touches newly-linked players — picks those up.
+        $alreadyLinkedPlayers = Player::query()
+            ->whereIn('team_id', $teamIds)
+            ->whereNotNull('match_data_id')
+            ->get();
+
+        foreach ($alreadyLinkedPlayers as $player) {
+            ['lineupsBackfilled' => $lineups, 'eventsBackfilled' => $events] = $this->backfillFixtures($player, $player->match_data_id);
+            $lineupsBackfilled += $lineups;
+            $eventsBackfilled += $events;
+        }
 
         $this->info("{$linked} players linked, {$lineupsBackfilled} fixture lineups backfilled, {$eventsBackfilled} fixture events backfilled.");
 
-        $remaining = $players->count() - $linked;
+        $remaining = $unlinkedPlayers->count() - $linked;
 
         if ($remaining > 0) {
             $this->warn("{$remaining} players still unresolved — run season:list-unlinked-match-data-players to review.");
@@ -568,17 +585,29 @@ class LinkMatchDataPlayers extends Command
             $player->update(['match_data_id' => $matchDataId]);
             $linked++;
 
-            $lineupsBackfilled += FixtureLineup::query()
-                ->where('match_data_id', $matchDataId)
-                ->whereNull('player_id')
-                ->update(['player_id' => $player->id, 'unresolved_name' => null]);
-
-            $eventsBackfilled += FixtureEvent::query()
-                ->where('match_data_id', $matchDataId)
-                ->whereNull('player_id')
-                ->update(['player_id' => $player->id, 'unresolved_name' => null]);
+            ['lineupsBackfilled' => $lineups, 'eventsBackfilled' => $events] = $this->backfillFixtures($player, $matchDataId);
+            $lineupsBackfilled += $lineups;
+            $eventsBackfilled += $events;
         }
 
         return ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled, 'eventsBackfilled' => $eventsBackfilled];
+    }
+
+    /**
+     * @return array{lineupsBackfilled: int, eventsBackfilled: int}
+     */
+    private function backfillFixtures(Player $player, int $matchDataId): array
+    {
+        $lineupsBackfilled = FixtureLineup::query()
+            ->where('match_data_id', $matchDataId)
+            ->whereNull('player_id')
+            ->update(['player_id' => $player->id, 'unresolved_name' => null]);
+
+        $eventsBackfilled = FixtureEvent::query()
+            ->where('match_data_id', $matchDataId)
+            ->whereNull('player_id')
+            ->update(['player_id' => $player->id, 'unresolved_name' => null]);
+
+        return ['lineupsBackfilled' => $lineupsBackfilled, 'eventsBackfilled' => $eventsBackfilled];
     }
 }

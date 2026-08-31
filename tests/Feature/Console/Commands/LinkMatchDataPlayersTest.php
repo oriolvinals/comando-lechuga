@@ -87,6 +87,31 @@ test('leaves an already-linked player untouched and out of the unresolved count'
     expect($player->refresh()->match_data_id)->toBe(12345);
 });
 
+test('backfills a fixture_lineup that arrives after its player was already linked in a previous run', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'match_data_id' => 999]);
+    $fixture = Fixture::factory()->create(['team_local_id' => $team->id]);
+    $lineup = FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'team_id' => $team->id,
+        'player_id' => null,
+        'unresolved_name' => 'Zzyzx',
+        'match_data_id' => 999,
+    ]);
+
+    $this->artisan(LinkMatchDataPlayers::class)
+        ->expectsOutput('0 players linked, 1 fixture lineups backfilled, 0 fixture events backfilled.')
+        ->assertSuccessful();
+
+    expect($lineup->refresh()->player_id)->toBe($player->id)
+        ->and($lineup->refresh()->unresolved_name)->toBeNull();
+});
+
 test('linkFromMap links a player found in the map and backfills its waiting fixture_lineups and fixture_events', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
