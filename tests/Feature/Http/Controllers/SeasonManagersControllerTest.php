@@ -592,6 +592,25 @@ test('shows live_points once the current week has kicked off', function (): void
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('seasonManager.live_points', 23));
 });
 
+test('hides live_points once the current week has finished but the season has not advanced yet', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 5,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 5,
+        'state' => FixtureState::Finished,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id, 'live_points' => 23]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('seasonManager.live_points', null));
+});
+
 test('lineup player points/stats come from the linked FixtureLineup via fixture_id', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 1]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);

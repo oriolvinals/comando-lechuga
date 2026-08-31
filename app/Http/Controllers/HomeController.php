@@ -46,7 +46,7 @@ class HomeController extends Controller
             ->orderBy('position')
             ->get();
 
-        if (!$this->currentWeekStarted($season)) {
+        if (!$this->currentWeekIsLive($season)) {
             $standings->each(function (SeasonManager $manager): void {
                 $manager->live_points = null;
             });

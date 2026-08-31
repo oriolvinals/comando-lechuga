@@ -7,6 +7,7 @@ use App\Enums\PlayerPosition;
 use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
+use App\Models\ManagerLineup;
 use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
@@ -378,5 +379,32 @@ test('shows live_points once the current week has kicked off', function (): void
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('standings.0.live_points', 17)
+    );
+});
+
+test('hides live_points once the current week has finished but the season has not advanced yet', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 5,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 5,
+        'state' => FixtureState::Finished,
+    ]);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id, 'live_points' => 17]);
+    ManagerLineup::factory()->create([
+        'season_manager_id' => $manager->id,
+        'week_number' => 5,
+        'points' => 17,
+    ]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('standings.0.live_points', null)
+        ->where('standings.0.recent_form', [17, null, null])
     );
 });

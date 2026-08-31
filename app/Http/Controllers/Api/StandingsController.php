@@ -40,7 +40,7 @@ class StandingsController extends Controller
     private function attachApiRecentForm(Collection $standings, Season $season): void
     {
         $finishedWeeks = $this->finishedWeekNumbers($season);
-        $isLive = $this->currentWeekStarted($season) && !in_array($season->current_week, $finishedWeeks, true);
+        $isLive = $this->currentWeekIsLive($season);
 
         $lineupsByManager = ManagerLineup::query()
             ->whereIn('season_manager_id', $standings->pluck('id'))

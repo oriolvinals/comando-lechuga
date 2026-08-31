@@ -48,6 +48,21 @@ trait FiltersSeasonWeeks
     }
 
     /**
+     * Whether the current jornada is actually in progress: kicked off, but
+     * not yet finished. False both before it starts and after it finishes —
+     * the latter matters because `current_week` doesn't advance to the next
+     * jornada until the sync job runs, so a finished-but-not-yet-advanced
+     * week must not still count as "live", or live-only data like
+     * `SeasonManager::live_points` would duplicate a jornada already covered
+     * by the finished-weeks data (e.g. `recent_form`).
+     */
+    private function currentWeekIsLive(Season $season): bool
+    {
+        return $this->currentWeekStarted($season)
+            && !in_array($season->current_week, $this->finishedWeekNumbers($season), true);
+    }
+
+    /**
      * Week numbers considered finished: every week before the current one
      * (same trust-the-past reasoning as {@see startedWeekNumbers()}), plus
      * the current week only if all of its fixtures have finished. Never a

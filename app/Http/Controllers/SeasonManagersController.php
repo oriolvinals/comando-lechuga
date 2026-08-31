@@ -61,7 +61,7 @@ class SeasonManagersController extends Controller
     {
         $season = Season::current();
 
-        if (!$this->currentWeekStarted($season)) {
+        if (!$this->currentWeekIsLive($season)) {
             $seasonManager->live_points = null;
         }
 

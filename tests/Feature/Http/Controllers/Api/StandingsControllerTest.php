@@ -113,6 +113,32 @@ test('recent_form appends the live current week and keeps only the 2 latest fini
     ]);
 });
 
+test('recent_form has no duplicate live entry once the current week has finished but the season has not advanced yet', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 5,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 5,
+        'state' => FixtureState::Finished,
+    ]);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id, 'live_points' => 17]);
+    ManagerLineup::factory()->create([
+        'season_manager_id' => $manager->id,
+        'week_number' => 5,
+        'points' => 17,
+    ]);
+
+    $response = $this->getJson('/api/standings');
+
+    $response->assertOk();
+    $response->assertJsonPath('data.0.recent_form', [
+        ['week_number' => 5, 'points' => 17, 'live' => false],
+    ]);
+});
+
 test('recent_form has fewer than 3 entries when fewer jornadas have finished', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
