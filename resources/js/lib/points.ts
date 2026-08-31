@@ -32,22 +32,22 @@ export function matchPointsBadgeClass(points: number): string {
  */
 export function matchPointsBadgeClassOnPhoto(points: number): string {
     if (points < 0) {
-        return 'bg-hq-live/35 text-hq-live';
+        return 'bg-hq-live/20 text-hq-live';
     }
 
     if (points < 5) {
-        return 'bg-hq-gold/35 text-hq-gold';
+        return 'bg-hq-gold/20 text-hq-gold';
     }
 
     if (points < 9) {
-        return 'bg-hq-lime/30 text-hq-lime';
+        return 'bg-hq-lime/20 text-hq-lime';
     }
 
     if (points < 14) {
-        return 'bg-hq-azure/35 text-hq-azure';
+        return 'bg-hq-azure/20 text-hq-azure';
     }
 
-    return 'bg-hq-violet/35 text-hq-violet';
+    return 'bg-hq-violet/20 text-hq-violet';
 }
 
 /**
