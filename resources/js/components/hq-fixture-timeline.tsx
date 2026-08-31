@@ -74,7 +74,7 @@ export function HqFixtureTimeline({
                     >
                         <span
                             className={cn(
-                                'flex-1 pr-2 text-right',
+                                'flex-1 pr-3 text-right',
                                 isLocal
                                     ? 'text-hq-paper'
                                     : 'text-hq-moss-dim italic',
@@ -82,20 +82,20 @@ export function HqFixtureTimeline({
                         >
                             {isLocal ? label : ''}
                         </span>
-                        <span className="flex w-14 shrink-0 items-center justify-center">
-                            <span className="flex w-5 justify-end">
+                        <span className="flex w-16 shrink-0 items-center justify-center">
+                            <span className="flex w-6 shrink-0 justify-end">
                                 {isLocal && <EventIcon event={event} />}
                             </span>
-                            <span className="mx-1 font-mono text-[11px] text-hq-moss">
+                            <span className="mx-1 shrink-0 font-mono text-[11px] text-hq-moss">
                                 {event.minute}'
                             </span>
-                            <span className="flex w-5 justify-start">
+                            <span className="flex w-6 shrink-0 justify-start">
                                 {!isLocal && <EventIcon event={event} />}
                             </span>
                         </span>
                         <span
                             className={cn(
-                                'flex-1 pl-2',
+                                'flex-1 pl-3',
                                 !isLocal
                                     ? 'text-hq-paper'
                                     : 'text-hq-moss-dim italic',
