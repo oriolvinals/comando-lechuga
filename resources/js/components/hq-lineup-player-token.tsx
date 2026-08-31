@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { EventGlyph } from '@/components/match-event-icons';
 import { matchPointsBadgeClass, matchPointsBadgeClassOnPhoto } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
@@ -51,34 +52,42 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
     const secondYellow = statCount(entry.stats, 'second_yellow_card') > 0;
     const yellow = statCount(entry.stats, 'yellow_card') > 0 && !secondYellow;
     const red = statCount(entry.stats, 'red_card') > 0 && !secondYellow;
-    const penaltyWon = statCount(entry.stats, 'penalty_won') > 0;
-    const penaltyConceded = statCount(entry.stats, 'penalty_conceded') > 0;
-    const penaltyMissed = statCount(entry.stats, 'penalty_failed') > 0;
-    const penaltySaved = statCount(entry.stats, 'penalty_save') > 0;
+    const penaltyWon = statCount(entry.stats, 'penalty_won');
+    const penaltyConceded = statCount(entry.stats, 'penalty_conceded');
+    const penaltyMissed = statCount(entry.stats, 'penalty_failed');
+    const penaltySaved = statCount(entry.stats, 'penalty_save');
     const cleanSheet =
         entry.player?.position === 'goalkeeper' &&
         statCount(entry.stats, 'goals_conceded') === 0 &&
         statCount(entry.stats, 'mins_played') >= 60;
 
-    const hasGoodEvent = goals > 0 || assists > 0 || penaltyWon || penaltySaved || cleanSheet;
-    const hasBadEvent = ownGoals > 0 || yellow || secondYellow || red || penaltyConceded || penaltyMissed;
+    const hasGoodEvent = goals > 0 || assists > 0 || penaltyWon > 0 || penaltySaved > 0 || cleanSheet;
+    const hasBadEvent = ownGoals > 0 || yellow || secondYellow || red || penaltyConceded > 0 || penaltyMissed > 0;
 
     // Icon content only — positioning/background differ between the pitch
     // (pegged to the avatar corner) and the bench (its own strip below the
     // name, since the bench row has room to spare and the pitch token doesn't).
     const goodIcons = (
         <>
-            {Array.from({ length: goals }, (_, i) => (
-                <span key={`g-${i}`} title="Gol" className="text-[13px] leading-none">⚽</span>
-            ))}
-            {Array.from({ length: assists }, (_, i) => (
-                <span key={`a-${i}`} title="Asistencia" className="text-[13px] leading-none text-hq-med">➜</span>
-            ))}
-            {penaltyWon && (
-                <span title="Provoca penalti" className="border border-hq-gold px-1 py-px font-mono text-[9px] font-bold text-hq-gold">P+</span>
+            {goals > 0 && (
+                <EventGlyph count={goals} title="Gol">
+                    <span className="text-[13px] leading-none">⚽</span>
+                </EventGlyph>
             )}
-            {penaltySaved && (
-                <span title="Penalti parado" className="border border-hq-lime px-1 py-px font-mono text-[9px] font-bold text-hq-lime">P✓</span>
+            {assists > 0 && (
+                <EventGlyph count={assists} title="Asistencia">
+                    <span className="text-[13px] leading-none text-hq-med">➜</span>
+                </EventGlyph>
+            )}
+            {penaltyWon > 0 && (
+                <EventGlyph count={penaltyWon} title="Provoca penalti">
+                    <span className="border border-hq-gold px-1 py-px font-mono text-[9px] font-bold text-hq-gold">P+</span>
+                </EventGlyph>
+            )}
+            {penaltySaved > 0 && (
+                <EventGlyph count={penaltySaved} title="Penalti parado">
+                    <span className="border border-hq-lime px-1 py-px font-mono text-[9px] font-bold text-hq-lime">P✓</span>
+                </EventGlyph>
             )}
             {cleanSheet && (
                 <span title="Portería a cero" className="border border-hq-lime px-1 py-px font-mono text-[9px] font-bold text-hq-lime">0</span>
@@ -87,9 +96,11 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
     );
     const badIcons = (
         <>
-            {Array.from({ length: ownGoals }, (_, i) => (
-                <span key={`og-${i}`} title="Autogol" className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">PP</span>
-            ))}
+            {ownGoals > 0 && (
+                <EventGlyph count={ownGoals} title="Autogol">
+                    <span className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">PP</span>
+                </EventGlyph>
+            )}
             {yellow && <span title="Amarilla" className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold" />}
             {secondYellow && (
                 <span title="Doble amarilla" className="relative inline-block h-3.5 w-4">
@@ -98,11 +109,15 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
                 </span>
             )}
             {red && <span title="Roja" className="hq-crest-cut h-3.5 w-2.5 bg-hq-live" />}
-            {penaltyConceded && (
-                <span title="Comete penalti" className="border border-hq-ember px-1 py-px font-mono text-[9px] font-bold text-hq-ember">P−</span>
+            {penaltyConceded > 0 && (
+                <EventGlyph count={penaltyConceded} title="Comete penalti">
+                    <span className="border border-hq-ember px-1 py-px font-mono text-[9px] font-bold text-hq-ember">P−</span>
+                </EventGlyph>
             )}
-            {penaltyMissed && (
-                <span title="Penalti fallado" className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">P✗</span>
+            {penaltyMissed > 0 && (
+                <EventGlyph count={penaltyMissed} title="Penalti fallado">
+                    <span className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">P✗</span>
+                </EventGlyph>
             )}
         </>
     );
