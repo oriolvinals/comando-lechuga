@@ -1,8 +1,8 @@
 <?php
 
 use App\Enums\PlayerPosition;
-use App\Models\FixtureLineup;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
