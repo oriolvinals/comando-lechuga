@@ -101,8 +101,8 @@ class PlayersController extends Controller
         $this->attachRecentScores($players->getCollection(), $season);
 
         $realTeams = Team::query()
-            ->orderBy('name')
-            ->get(['id', 'name']);
+            ->orderBy('main_name')
+            ->get(['id', 'main_name']);
 
         $seasonManagerOptions = SeasonManager::query()
             ->where('season_id', $season->id)

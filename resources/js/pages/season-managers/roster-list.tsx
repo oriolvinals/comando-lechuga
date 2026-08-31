@@ -132,7 +132,7 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                     <div className="mt-0.5 flex items-center gap-1.5">
                         <EntityImage
                             src={entry.player.team.logo}
-                            alt={entry.player.team.name}
+                            alt={entry.player.team.main_name}
                             fallback={Shield}
                             shape="square"
                             className="h-3.5 w-3.5"
@@ -193,7 +193,7 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                         <div className="mt-0.5 flex items-center gap-1.5">
                             <EntityImage
                                 src={entry.player.team.logo}
-                                alt={entry.player.team.name}
+                                alt={entry.player.team.main_name}
                                 fallback={Shield}
                                 shape="square"
                                 className="h-[10px] w-[10px]"

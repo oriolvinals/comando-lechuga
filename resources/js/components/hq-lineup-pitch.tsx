@@ -137,7 +137,7 @@ export function HqLineupPitch({
                                     />
                                     <EntityImage
                                         src={entry.player.team.logo}
-                                        alt={entry.player.team.name}
+                                        alt={entry.player.team.main_name}
                                         fallback={Shield}
                                         shape="square"
                                         className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-[3px] bg-hq-panel p-1"

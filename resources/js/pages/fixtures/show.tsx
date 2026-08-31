@@ -104,7 +104,7 @@ export default function FixtureShow({
                                     <div className="mb-1 flex items-center justify-center gap-2">
                                         <img
                                             src={weekFixture.local_team.logo}
-                                            alt={weekFixture.local_team.name}
+                                            alt={weekFixture.local_team.main_name}
                                             className="h-5 w-5 object-contain"
                                         />
                                         <span className="text-sm font-bold text-hq-paper">
@@ -116,7 +116,7 @@ export default function FixtureShow({
                                     <div className="mb-1.5 flex items-center justify-center gap-2">
                                         <img
                                             src={weekFixture.guest_team.logo}
-                                            alt={weekFixture.guest_team.name}
+                                            alt={weekFixture.guest_team.main_name}
                                             className="h-5 w-5 object-contain"
                                         />
                                         <span className="text-sm font-bold text-hq-paper">

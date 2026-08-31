@@ -86,7 +86,7 @@ export default function PlayerShow({
                                 <HqPositionTag position={player.position} />
                                 <img
                                     src={player.team.logo}
-                                    alt={player.team.name}
+                                    alt={player.team.main_name}
                                     className="h-7 w-7 object-contain"
                                 />
                             </div>

@@ -138,7 +138,7 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
             <div className="mt-1.5 flex items-center gap-1.5">
                 <EntityImage
                     src={player.team.logo}
-                    alt={player.team.name}
+                    alt={player.team.main_name}
                     fallback={Shield}
                     shape="square"
                     className="h-[11px] w-[11px]"

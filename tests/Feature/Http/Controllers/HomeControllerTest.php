@@ -267,14 +267,14 @@ test('shows the 10 most recent activity entries in the current season, newest fi
     );
 });
 
-test('shows the local and guest team names for each fixture', function (): void {
+test('shows the local and guest team main_name for each fixture', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
         'current_week' => 1,
     ]);
-    $local = Team::factory()->create(['name' => 'Real Sociedad']);
-    $guest = Team::factory()->create(['name' => 'Villarreal CF']);
+    $local = Team::factory()->create(['main_name' => 'Real Sociedad']);
+    $guest = Team::factory()->create(['main_name' => 'Villarreal CF']);
 
     Fixture::factory()->create([
         'season_id' => $season->id,
@@ -287,8 +287,8 @@ test('shows the local and guest team names for each fixture', function (): void 
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('fixtures.0.local_team.name', 'Real Sociedad')
-        ->where('fixtures.0.guest_team.name', 'Villarreal CF')
+        ->where('fixtures.0.local_team.main_name', 'Real Sociedad')
+        ->where('fixtures.0.guest_team.main_name', 'Villarreal CF')
     );
 });
 

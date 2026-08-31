@@ -30,12 +30,17 @@ interface TeamOption {
     name: string;
 }
 
+interface RealTeamOption {
+    id: number;
+    main_name: string;
+}
+
 type PlayerSort = 'points' | 'value' | 'difference';
 type SortDirection = 'asc' | 'desc';
 
 interface PlayersIndexProps {
     players: Paginated<Player>;
-    teams: TeamOption[];
+    teams: RealTeamOption[];
     seasonManagers: TeamOption[];
     filters: {
         position: PlayerPosition[];
@@ -95,7 +100,7 @@ function PlayerRow({ player }: { player: Player }) {
                         <div className="mt-0.5 flex items-center gap-1.5">
                             <EntityImage
                                 src={player.team.logo}
-                                alt={player.team.name}
+                                alt={player.team.main_name}
                                 fallback={Shield}
                                 shape="square"
                                 className="h-3.5 w-3.5"
@@ -195,7 +200,7 @@ function PlayerRow({ player }: { player: Player }) {
                         <div className="mt-0.5 flex items-center gap-1.5">
                             <EntityImage
                                 src={player.team.logo}
-                                alt={player.team.name}
+                                alt={player.team.main_name}
                                 fallback={Shield}
                                 shape="square"
                                 className="h-[10px] w-[10px]"
@@ -311,7 +316,7 @@ export default function PlayersIndex({
 
     const teamOptions = teams.map((team) => ({
         value: String(team.id),
-        label: team.name,
+        label: team.main_name,
     }));
     const seasonManagerOptions = seasonManagers.map((seasonManager) => ({
         value: String(seasonManager.id),

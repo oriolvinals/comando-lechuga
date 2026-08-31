@@ -111,12 +111,12 @@ export function HqPlayerStatsModal({
                     <div className="flex items-center gap-1.5 font-mono text-[11px] text-hq-moss">
                         <EntityImage
                             src={team.logo}
-                            alt={team.name}
+                            alt={team.main_name}
                             fallback={Shield}
                             shape="square"
                             className="h-4 w-4 bg-transparent"
                         />
-                        {team.name}
+                        {team.main_name}
                     </div>
                     {lineupManager && (
                         <Link

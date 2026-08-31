@@ -448,16 +448,16 @@ test('lists the real teams for the team filter', function (): void {
         'end_date' => now()->addDay(),
     ]);
 
-    Team::factory()->create(['name' => 'Villarreal CF']);
-    Team::factory()->create(['name' => 'Athletic Club']);
+    Team::factory()->create(['main_name' => 'Villarreal CF']);
+    Team::factory()->create(['main_name' => 'Athletic Club']);
 
     $response = $this->get(route('players.index'));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->has('teams', 2)
-        ->where('teams.0.name', 'Athletic Club')
-        ->where('teams.1.name', 'Villarreal CF')
+        ->where('teams.0.main_name', 'Athletic Club')
+        ->where('teams.1.main_name', 'Villarreal CF')
     );
 });
 

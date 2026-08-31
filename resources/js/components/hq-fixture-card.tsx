@@ -44,7 +44,7 @@ export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
                 <div className="shrink-0">
                     <EntityImage
                         src={fixture.local_team.logo}
-                        alt={fixture.local_team.name}
+                        alt={fixture.local_team.main_name}
                         fallback={Shield}
                         shape="square"
                         className="h-12 w-12 border border-hq-border-strong bg-hq-border-strong/40 p-1.5"
@@ -67,7 +67,7 @@ export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
                 <div className="shrink-0">
                     <EntityImage
                         src={fixture.guest_team.logo}
-                        alt={fixture.guest_team.name}
+                        alt={fixture.guest_team.main_name}
                         fallback={Shield}
                         shape="square"
                         className="h-12 w-12 border border-hq-border-strong bg-hq-border-strong/40 p-1.5"
