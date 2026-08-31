@@ -32,6 +32,7 @@ class LinkMatchDataPlayers extends Command
         2519 => 195032, // A. Batalla - RAY
         3235 => 3129002, // A. Bonel - OSA
         2680 => 332246, // A. Castrín - SEV
+        3233 => 394885, // A. De Pablo - BET
         2975 => 96060, // A. Ferllo - RCD
         2565 => 307419, // A. Fortuño - ESP
         3040 => 240624, // A. Herrero - MGA
@@ -44,6 +45,7 @@ class LinkMatchDataPlayers extends Command
         2005 => 300284, // Abel Bretones - OSA
         2545 => 379707, // Adama - ATH
         3209 => 274913, // Adeyemi - BAR
+        2724 => 300878, // Adrián Molina - RAY
         3067 => 313230, // Affengruber - ELC
         1219 => 323970, // Agirrezabala - RAC
         2453 => 282289, // Agoumé - SEV
@@ -217,6 +219,7 @@ class LinkMatchDataPlayers extends Command
         3202 => 396611, // Goti - RSO
         2780 => 242739, // Grady Diangana - ELC
         3155 => 166396, // Grimaldo - ATM
+        2452 => 136673, // Gudelj - GET
         3085 => 213141, // Guedes - RSO
         270 => 260256, // Guevara - ALA
         2473 => 255889, // Gueye - VIL
@@ -285,6 +288,7 @@ class LinkMatchDataPlayers extends Command
         3011 => 178237, // Jorge Salinas - RAC
         2587 => 214330, // Josan - ELC
         3172 => 397289, // Jose Angel - ESP
+        2664 => 376208, // Joselu - GET
         3140 => 145565, // Juan Cruz - MGA
         1147 => 279738, // Juan Iglesias - SEV
         3204 => 3110513, // Juani - MGA
@@ -325,6 +329,7 @@ class LinkMatchDataPlayers extends Command
         2613 => 173749, // M. Dituro - ELC
         2965 => 259915, // M. Loureiro - RCD
         2639 => 353736, // M. Román - CEL
+        3238 => 355433, // M. Sarr - RSO
         3206 => 222661, // Maffeo - VAL
         3012 => 342654, // Maguette - RAC
         3174 => 150451, // Mandi - LEV
@@ -356,6 +361,7 @@ class LinkMatchDataPlayers extends Command
         3234 => 107960, // Matteo Prati - RAC
         2723 => 409475, // Mauro - OSA
         2887 => 379231, // Mañas - ALA
+        3239 => 419048, // Mayol - VAL
         3103 => 231388, // Mbappé - RMA
         2994 => 375390, // Mella - RCD
         2722 => 350351, // Mestre - RMA
@@ -442,6 +448,7 @@ class LinkMatchDataPlayers extends Command
         274 => 217319, // Remiro - RSO
         2728 => 337011, // Renato Veiga - VIL
         3228 => 362752, // Requena - LEV
+        3241 => 3100794, // Ribes - CEL
         2785 => 323737, // Riedel - ESP
         2977 => 279609, // Riki - RCD
         581 => 264177, // Rioja - VAL

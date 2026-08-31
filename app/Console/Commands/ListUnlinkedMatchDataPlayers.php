@@ -18,8 +18,9 @@ class ListUnlinkedMatchDataPlayers extends Command
         $unresolved = FixtureLineup::query()
             ->whereNull('fixture_lineups.player_id')
             ->join('fixtures', 'fixtures.id', '=', 'fixture_lineups.fixture_id')
+            ->with('team')
             ->orderByDesc('fixtures.date')
-            ->get(['fixture_lineups.jersey', 'fixture_lineups.unresolved_name', 'fixture_lineups.match_data_id'])
+            ->get(['fixture_lineups.jersey', 'fixture_lineups.unresolved_name', 'fixture_lineups.match_data_id', 'fixture_lineups.team_id'])
             ->unique('match_data_id')
             ->sortBy('unresolved_name');
 
@@ -30,10 +31,11 @@ class ListUnlinkedMatchDataPlayers extends Command
         }
 
         $this->table(
-            ['jersey', 'nombre', 'match_data_id'],
+            ['jersey', 'nombre', 'equipo', 'match_data_id'],
             $unresolved->map(fn (FixtureLineup $lineup): array => [
                 $lineup->jersey,
                 $lineup->unresolved_name,
+                $lineup->team?->name,
                 $lineup->match_data_id,
             ]),
         );
