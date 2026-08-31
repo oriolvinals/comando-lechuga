@@ -86,7 +86,7 @@ function PlayerRow({ player }: { player: Player }) {
     return (
         <Link href={playersShow(player.id).url} className="block">
             {/* Desktop / tablet row */}
-            <div className="hq-card-cut mb-1.5 hidden items-center justify-between px-3.5 py-2.5 transition-[filter] hover:brightness-125 md:flex">
+            <div className="hq-card-cut mb-1.5 hidden items-center justify-between px-3.5 py-2.5 transition-[filter] hover:brightness-125 xl:flex">
                 <div className="flex min-w-0 items-center gap-3">
                     <EntityImage
                         src={player.image}
@@ -186,7 +186,7 @@ function PlayerRow({ player }: { player: Player }) {
             </div>
 
             {/* Mobile row */}
-            <div className="hq-card-cut mb-2 px-3 py-2.5 transition-[filter] hover:brightness-125 md:hidden">
+            <div className="hq-card-cut mb-2 px-3 py-2.5 transition-[filter] hover:brightness-125 xl:hidden">
                 <div className="flex items-center gap-2.5">
                     <EntityImage
                         src={player.image}
@@ -450,7 +450,7 @@ export default function PlayersIndex({
                     </div>
                 ) : (
                     <>
-                        <div className="mb-2 hidden items-center justify-between px-3.5 font-mono text-[10px] text-hq-moss-dim uppercase md:flex">
+                        <div className="mb-2 hidden items-center justify-between px-3.5 font-mono text-[10px] text-hq-moss-dim uppercase xl:flex">
                             <div className="flex items-center gap-3">
                                 <span className="w-11 shrink-0" />
                                 <span className="w-[190px] shrink-0">
