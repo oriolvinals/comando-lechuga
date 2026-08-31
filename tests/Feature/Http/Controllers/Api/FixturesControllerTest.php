@@ -73,7 +73,7 @@ test('returns each fixture\'s teams, score, state and label', function (): void 
 
     $response->assertOk();
     $response->assertJsonPath('data.0.fixtures.0.id', $fixture->id);
-    $response->assertJsonPath('data.0.fixtures.0.url', route('fixtures.show', $fixture->id));
+    $response->assertJsonPath('data.0.fixtures.0.url', route('api.fixtures.show', $fixture->id));
     $response->assertJsonPath('data.0.fixtures.0.local_team.id', $localTeam->id);
     $response->assertJsonPath('data.0.fixtures.0.local_team.name', 'FC Barcelona');
     $response->assertJsonPath('data.0.fixtures.0.local_team.logo', asset('storage/team/1.png'));

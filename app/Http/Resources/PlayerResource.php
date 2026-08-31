@@ -18,7 +18,7 @@ class PlayerResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'url' => route('players.show', $this->id),
+            'url' => route('api.players.show', $this->id),
             'nickname' => $this->nickname,
             'image' => $this->image ? asset('storage/'.$this->image) : '',
             'status' => $this->status->value,

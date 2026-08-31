@@ -31,7 +31,7 @@ test('returns the fixture info with teams, score and formations', function (): v
 
     $response->assertOk();
     $response->assertJsonPath('data.id', $fixture->id);
-    $response->assertJsonPath('data.url', route('fixtures.show', $fixture->id));
+    $response->assertJsonPath('data.url', route('api.fixtures.show', $fixture->id));
     $response->assertJsonPath('data.week_number', 3);
     $response->assertJsonPath('data.state', 'finished');
     $response->assertJsonPath('data.state_label', 'Finalizado');

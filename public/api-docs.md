@@ -13,7 +13,7 @@ Referencia de la API de solo lectura de [comandolechuga.com](https://comandolech
 - **Fechas**: siempre en ISO 8601 con offset horario, p. ej. `2026-08-30T18:05:00+02:00`.
 - **Dinero**: siempre en euros como unidad entera (nunca céntimos), p. ej. `45000000` son 45.000.000 €.
 - **Imágenes** (`logo`, `image`): siempre URLs absolutas y completas, listas para usar directamente en un `<img src>`. Cuando un recurso no tiene imagen, el campo es una cadena vacía `""`, nunca `null`.
-- **`url`**: managers, partidos y jugadores incluyen un campo `url` con el enlace absoluto y completo a su ficha en la web (p. ej. `https://comandolechuga.com/jugadores/646`) — listo para usar tal cual, sin construirlo a partir del `id`.
+- **`url`**: managers, partidos y jugadores incluyen un campo `url` con el endpoint absoluto y completo de la API para ese recurso (p. ej. `https://comandolechuga.com/api/players/646`) — listo para hacer `GET` directamente, sin construirlo a partir del `id`.
 - **IDs**: los `id` de cada recurso son los IDs internos de Comando Lechuga (no los de la Fantasy oficial ni los de ningún proveedor externo). Para enlazar entre recursos (p. ej. de una actividad a un manager) usa siempre estos IDs.
 
 ### Paginación
@@ -82,7 +82,7 @@ Sin filtros ni paginación — devuelve todos los managers de la temporada actua
   "data": [
     {
       "id": 1,
-      "url": "https://comandolechuga.com/managers/1",
+      "url": "https://comandolechuga.com/api/managers/1",
       "name": "Gauchitos F.C",
       "logo": "https://comandolechuga.com/images/managers/37394521.png",
       "primary_color": null,
@@ -176,7 +176,7 @@ GET https://comandolechuga.com/api/managers/4
 {
   "data": {
     "id": 4,
-    "url": "https://comandolechuga.com/managers/4",
+    "url": "https://comandolechuga.com/api/managers/4",
     "name": "Comando Lechuga",
     "logo": "https://comandolechuga.com/images/managers/37394771.png",
     "primary_color": null,
@@ -249,7 +249,7 @@ Sin filtros ni paginación — son 38 jornadas, un volumen pequeño.
       "fixtures": [
         {
           "id": 10,
-          "url": "https://comandolechuga.com/partidos/10",
+          "url": "https://comandolechuga.com/api/fixtures/10",
           "date": "2026-08-15T19:30:00+02:00",
           "state": "finished",
           "state_label": "Finalizado",
@@ -282,7 +282,7 @@ GET https://comandolechuga.com/api/fixtures/10
 {
   "data": {
     "id": 10,
-    "url": "https://comandolechuga.com/partidos/10",
+    "url": "https://comandolechuga.com/api/fixtures/10",
     "date": "2026-08-15T19:30:00+02:00",
     "week_number": 1,
     "state": "finished",
@@ -396,7 +396,7 @@ GET https://comandolechuga.com/api/players?position=midfield,striker&team=38,39&
 ```json
 {
   "id": 646,
-  "url": "https://comandolechuga.com/jugadores/646",
+  "url": "https://comandolechuga.com/api/players/646",
   "nickname": "Raphinha",
   "image": "https://comandolechuga.com/storage/images/player/2522.png",
   "status": "ok",
@@ -440,7 +440,7 @@ GET https://comandolechuga.com/api/players/646
 {
   "data": {
     "id": 646,
-    "url": "https://comandolechuga.com/jugadores/646",
+    "url": "https://comandolechuga.com/api/players/646",
     "nickname": "Raphinha",
     "image": "https://comandolechuga.com/storage/images/player/2522.png",
     "status": "ok",

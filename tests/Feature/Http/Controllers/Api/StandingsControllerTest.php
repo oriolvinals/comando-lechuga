@@ -36,7 +36,7 @@ test('includes the full manager page url', function (): void {
     $response = $this->getJson('/api/standings');
 
     $response->assertOk();
-    $response->assertJsonPath('data.0.url', route('season-managers.show', $manager->id));
+    $response->assertJsonPath('data.0.url', route('api.managers.show', $manager->id));
 });
 
 test('never exposes a live_points field', function (): void {

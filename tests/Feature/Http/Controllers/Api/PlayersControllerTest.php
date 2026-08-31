@@ -166,7 +166,7 @@ test('returns player fields including team and market data', function (): void {
     $response = $this->getJson('/api/players');
 
     $response->assertOk();
-    $response->assertJsonPath('data.0.url', route('players.show', $player->id));
+    $response->assertJsonPath('data.0.url', route('api.players.show', $player->id));
     $response->assertJsonPath('data.0.nickname', 'Pedri');
     $response->assertJsonPath('data.0.image', asset('storage/players/9.png'));
     $response->assertJsonPath('data.0.status', 'ok');
