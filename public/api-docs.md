@@ -153,7 +153,7 @@ Campo | Significado
 `type_label` | La etiqueta en español de `type`, ya traducida — úsala si solo necesitas mostrar/leer el tipo, no razonar sobre él.
 `source_season_manager` | El manager que origina la actividad (quien ficha, quien vende, quien paga la cláusula...). Nunca `null`.
 `target_season_manager` | Solo relevante en `buyout`: el manager al que se le paga la cláusula (el dueño anterior del jugador). `null` en el resto de tipos.
-`player` | `null` solo en `joined_league` (un alta de manager no involucra a ningún jugador).
+`player` | `null` en `joined_league` (un alta de manager no involucra a ningún jugador) y en `weekly_prize` (el premio es del manager, no de un jugador). Siempre presente en el resto de tipos.
 `amount` | El importe en euros de la operación. `null` cuando el tipo no tiene importe asociado (`shield`, `joined_league`).
 `week_number` | Solo relevante en `weekly_prize` (qué jornada ganó). `null` en el resto.
 `value_difference` | Diferencia entre `amount` y el valor de mercado del jugador ese día. `null` si no hay jugador, no hay importe, o no hay cotización de mercado registrada para esa fecha.
