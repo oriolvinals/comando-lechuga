@@ -112,7 +112,19 @@ GET https://comandolechuga.com/api/activity
 GET https://comandolechuga.com/api/activity?page=2
 ```
 
-**Sin filtros todavía** — no se puede filtrar por manager, jugador ni tipo de actividad desde la API (la web sí lo permite; la API es deliberadamente más simple por ahora).
+### Filtros (todos combinables, todos opcionales)
+
+Parámetro | Valores | Ejemplo
+---|---|---
+`manager` | Uno o varios IDs de manager fantasy (de `/api/standings`), separados por comas — filtra actividad donde ese manager es `source_season_manager` **o** `target_season_manager` (p. ej. una cláusula pagada por otro manager a él también cuenta) | `?manager=4`
+`player` | Uno o varios IDs de jugador, separados por comas | `?player=88`
+`type` | Uno o varios de: `signing`, `sale`, `buyout`, `shield`, `weekly_prize`, `joined_league`, separados por comas | `?type=signing,sale`
+
+Ejemplo combinando los tres, con paginación:
+
+```
+GET https://comandolechuga.com/api/activity?manager=4&player=88&type=signing,buyout&page=1
+```
 
 ```json
 {
@@ -489,4 +501,4 @@ Sin filtros ni paginación — es una lista corta (~10 jugadores al día). Exclu
 }
 ```
 
-`sale_price` es el precio de venta actual (baja con el tiempo si nadie puja); `value` es la valoración de mercado del jugador; `bids` es el número de pujas recibidas hasta ahora.
+`sale_price` es el precio al que salió a la venta ese listado (no se actualiza mientras dura la oferta, aunque el mercado cambie cada día); `value` es la valoración de mercado del jugador; `bids` es el número de pujas recibidas hasta ahora.
