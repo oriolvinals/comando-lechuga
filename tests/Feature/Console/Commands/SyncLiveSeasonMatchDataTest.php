@@ -723,6 +723,90 @@ test('maps red_card and penalty_missed key events, and persists is_own_goal / is
         ->and($penaltyMissed->player_id)->toBe($penaltyMisser->id);
 });
 
+test('maps key events from the in-progress payload shape (participants/type.type, no boolean flags)', function (): void {
+    // While a match is still live, worldcup26 omits athletesInvolved and the
+    // redCard/yellowCard/ownGoal/penaltyKick flags entirely — it only sends
+    // participants[].athlete and a type.type slug. Verified against the real
+    // API on a live match.
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['match_data_id' => 83]);
+    $away = Team::factory()->create(['match_data_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'match_data_id' => 401882926,
+        'date' => now()->subMinutes(30),
+    ]);
+    $scorer = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
+    $ownGoalScorer = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5002]);
+    $carded = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5003]);
+
+    $payload = liveMatchEventPayload([
+        'keyEvents' => [
+            [
+                'type' => ['id' => '70', 'text' => 'Goal', 'type' => 'goal'],
+                'clock' => ['displayValue' => "12'"],
+                'team' => ['id' => 83],
+                'scoringPlay' => true,
+                'participants' => [['athlete' => ['id' => 5001, 'displayName' => 'Scorer']]],
+            ],
+            [
+                'type' => ['id' => '97', 'text' => 'Own Goal', 'type' => 'own-goal'],
+                'clock' => ['displayValue' => "51'"],
+                'team' => ['id' => 86],
+                'scoringPlay' => true,
+                'participants' => [['athlete' => ['id' => 5002, 'displayName' => 'Own Goal Scorer']]],
+            ],
+            [
+                'type' => ['id' => '94', 'text' => 'Yellow Card', 'type' => 'yellow-card'],
+                'clock' => ['displayValue' => "54'"],
+                'team' => ['id' => 86],
+                'scoringPlay' => false,
+                'participants' => [['athlete' => ['id' => 5003, 'displayName' => 'Carded Player']]],
+            ],
+            [
+                'type' => ['id' => '76', 'text' => 'Substitution', 'type' => 'substitution'],
+                'clock' => ['displayValue' => "57'"],
+                'team' => ['id' => 86],
+                'scoringPlay' => false,
+                'participants' => [
+                    ['athlete' => ['id' => 5004, 'displayName' => 'Coming On']],
+                    ['athlete' => ['id' => 5005, 'displayName' => 'Going Off']],
+                ],
+            ],
+            [
+                'type' => ['id' => '94', 'text' => 'Yellow Card', 'type' => 'yellow-card'],
+                'clock' => ['displayValue' => "60'"],
+                'team' => ['id' => 86],
+                'scoringPlay' => false,
+                // no participants — a coach/staff card, must be dropped
+            ],
+        ],
+    ]);
+
+    $connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $connector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $goal = FixtureEvent::query()->where('minute', 12)->sole();
+    $ownGoal = FixtureEvent::query()->where('minute', 51)->sole();
+    $yellowCard = FixtureEvent::query()->where('type', 'yellow_card')->sole();
+
+    expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->count())->toBe(3)
+        ->and($goal->type)->toBe('goal')
+        ->and($goal->player_id)->toBe($scorer->id)
+        ->and($ownGoal->type)->toBe('goal')
+        ->and($ownGoal->is_own_goal)->toBeTrue()
+        ->and($ownGoal->player_id)->toBe($ownGoalScorer->id)
+        ->and($yellowCard->minute)->toBe(54)
+        ->and($yellowCard->player_id)->toBe($carded->id);
+});
+
 test('skips a fixture whose getEvent call fails, without blocking the rest', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $home = Team::factory()->create(['match_data_id' => 83]);

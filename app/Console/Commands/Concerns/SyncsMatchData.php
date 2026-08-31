@@ -347,7 +347,7 @@ trait SyncsMatchData
                 continue;
             }
 
-            $athletes = is_array($keyEvent['athletesInvolved'] ?? null) ? $keyEvent['athletesInvolved'] : [];
+            $athletes = $this->eventAthletes($keyEvent);
 
             if ($athletes === []) {
                 // No athlete data at all — typically a card against a coach/staff
@@ -361,6 +361,8 @@ trait SyncsMatchData
                 ? Player::query()->where('match_data_id', $athleteMatchDataId)->first()
                 : null;
 
+            $typeSlug = (string) ($keyEvent['type']['type'] ?? '');
+
             FixtureEvent::query()->create([
                 'fixture_id' => $fixture->id,
                 'team_id' => $team->id,
@@ -369,22 +371,62 @@ trait SyncsMatchData
                 'unresolved_name' => $player === null ? (isset($athletes[0]['displayName']) ? (string) $athletes[0]['displayName'] : null) : null,
                 'type' => $type,
                 'minute' => $this->minuteFromClock((string) ($keyEvent['clock']['displayValue'] ?? '')) ?? 0,
-                'is_own_goal' => (bool) ($keyEvent['ownGoal'] ?? false),
-                'is_penalty' => (bool) ($keyEvent['penaltyKick'] ?? false),
+                'is_own_goal' => (bool) ($keyEvent['ownGoal'] ?? $typeSlug === 'own-goal'),
+                'is_penalty' => (bool) ($keyEvent['penaltyKick'] ?? str_contains($typeSlug, 'penalty')),
             ]);
         }
     }
 
     /**
+     * worldcup26 sends two different shapes for the same athlete depending on
+     * match status: a flat `athletesInvolved` array once the match is final,
+     * or `participants[].athlete` while it's still live/in-progress.
+     *
+     * @param  array<string, mixed>  $keyEvent
+     * @return list<array<string, mixed>>
+     */
+    private function eventAthletes(array $keyEvent): array
+    {
+        if (is_array($keyEvent['athletesInvolved'] ?? null)) {
+            return $keyEvent['athletesInvolved'];
+        }
+
+        $participants = is_array($keyEvent['participants'] ?? null) ? $keyEvent['participants'] : [];
+
+        return array_values(array_filter(array_map(
+            fn (mixed $participant): ?array => is_array($participant['athlete'] ?? null) ? $participant['athlete'] : null,
+            $participants,
+        )));
+    }
+
+    /**
+     * Mirrors eventAthletes(): the finished-match shape exposes boolean flags
+     * (redCard/yellowCard/penaltyKick), the live shape only exposes a machine
+     * slug in type.type (e.g. "yellow-card") and no flags at all.
+     *
      * @param  array<string, mixed>  $keyEvent
      */
     private function eventType(array $keyEvent): ?string
     {
+        if (($keyEvent['scoringPlay'] ?? false) === true) {
+            return 'goal';
+        }
+
+        if (array_key_exists('redCard', $keyEvent)) {
+            return match (true) {
+                ($keyEvent['redCard'] ?? false) === true => 'red_card',
+                ($keyEvent['yellowCard'] ?? false) === true => 'yellow_card',
+                ($keyEvent['penaltyKick'] ?? false) === true => 'penalty_missed',
+                default => null,
+            };
+        }
+
+        $slug = (string) ($keyEvent['type']['type'] ?? '');
+
         return match (true) {
-            ($keyEvent['scoringPlay'] ?? false) === true => 'goal',
-            ($keyEvent['redCard'] ?? false) === true => 'red_card',
-            ($keyEvent['yellowCard'] ?? false) === true => 'yellow_card',
-            ($keyEvent['penaltyKick'] ?? false) === true => 'penalty_missed',
+            str_contains($slug, 'red-card') => 'red_card',
+            str_contains($slug, 'yellow-card') => 'yellow_card',
+            str_contains($slug, 'penalty') => 'penalty_missed',
             default => null,
         };
     }
