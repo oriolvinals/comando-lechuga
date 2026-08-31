@@ -15,10 +15,14 @@ final class ActivityFilter extends BaseRequestFilter
     /** @var SeasonActivityType[] */
     private readonly array $types;
 
+    /** @var int[] */
+    private readonly array $players;
+
     public function __construct(Request $request)
     {
         $this->managers = $this->parseIntList($request->string('manager')->toString());
         $this->types = $this->parseEnumList(SeasonActivityType::class, $request->string('type')->toString());
+        $this->players = $this->parseIntList($request->string('player')->toString());
     }
 
     /**
@@ -35,5 +39,13 @@ final class ActivityFilter extends BaseRequestFilter
     public function getTypes(): array
     {
         return $this->types;
+    }
+
+    /**
+     * @return int[]
+     */
+    public function getPlayers(): array
+    {
+        return $this->players;
     }
 }

@@ -27,4 +27,19 @@ enum SeasonActivityType: string
             default => throw new InvalidArgumentException("Unknown activity type ID: {$activityTypeId}"),
         };
     }
+
+    /**
+     * Spanish display label — mirrors resources/js/components/activity-helpers.tsx's TYPE_LABELS.
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Buyout => 'Cláusula',
+            self::Shield => 'Blindaje',
+            self::WeeklyPrize => 'Premio semanal',
+            self::JoinedLeague => 'Nuevo manager',
+            self::Signing => 'Fichaje',
+            self::Sale => 'Venta',
+        };
+    }
 }

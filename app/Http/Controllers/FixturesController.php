@@ -9,6 +9,7 @@ use App\Enums\MatchPositionLine;
 use App\Enums\MatchPositionSide;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
+use App\Http\Controllers\Concerns\SummarizesFixtureStats;
 use App\Models\Fixture;
 use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
@@ -22,6 +23,7 @@ class FixturesController extends Controller
 {
     use AttachesCurrentPlayerSeason;
     use FiltersSeasonWeeks;
+    use SummarizesFixtureStats;
 
     // Fixed depth for the three anchor lines, calibrated against the pitch
     // markings drawn in HqMatchPitch: the defender line sits just past the
@@ -48,16 +50,6 @@ class FixturesController extends Controller
     ];
 
     private const float PITCH_LINE_STEP = 76 / 3; // ≈ 25.333 — same per-player spacing a 4-player line already uses
-
-    /** @var array<string, string> */
-    private const array TEAM_STAT_LABELS = [
-        'shotsOnTarget' => 'Tiros a puerta',
-        'totalShots' => 'Tiros totales',
-        'foulsCommitted' => 'Faltas cometidas',
-        'saves' => 'Paradas',
-        'goalAssists' => 'Asistencias',
-        'yellowCards' => 'Tarjetas amarillas',
-    ];
 
     public function index(): Response
     {
@@ -177,54 +169,6 @@ class FixturesController extends Controller
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $stats
-     */
-    private function statValue(array $stats, string $name): int
-    {
-        foreach ($stats as $stat) {
-            if (($stat['name'] ?? null) === $name) {
-                return (int) ($stat['value'] ?? 0);
-            }
-        }
-
-        return 0;
-    }
-
-    /**
-     * Shapes worldcup26's own per-player stats into the same JornadaStats
-     * form as fantasy_stats, for a lineup entry with no Fantasy data to draw
-     * from (player has no fantasy_id, or was never resolved to a Player at
-     * all). Only covers what worldcup26 actually reports — no penalty
-     * won/conceded/saved/missed, no second-yellow distinction, no minutes
-     * played, so clean sheets and those badges just won't show for these
-     * entries. Front end reads this exactly like fantasy_stats via the same
-     * `stats[key]?.[0]` lookup.
-     *
-     * @param  array<int, array<string, mixed>>  $stats
-     * @return array<string, array{int, int}>
-     */
-    private function worldcup26StatsFallback(array $stats): array
-    {
-        /** @var array<string, string> $keyMap worldcup26 name => JornadaStats key */
-        $keyMap = [
-            'totalGoals' => 'goals',
-            'ownGoals' => 'own_goals',
-            'goalAssists' => 'goal_assist',
-            'yellowCards' => 'yellow_card',
-            'redCards' => 'red_card',
-            'goalsConceded' => 'goals_conceded',
-        ];
-
-        $shaped = [];
-
-        foreach ($keyMap as $worldcup26Key => $jornadaKey) {
-            $shaped[$jornadaKey] = [$this->statValue($stats, $worldcup26Key), 0];
-        }
-
-        return $shaped;
-    }
-
-    /**
      * @param  Collection<int, FixtureLineup>  $fixtureLineups  Already loaded, scoped to this fixture.
      */
     private function pitchX(FixtureLineup $lineup, bool $isLocal, Collection $fixtureLineups): float
@@ -291,24 +235,6 @@ class FixturesController extends Controller
         $start = 50 - ($span / 2);
 
         return round($start + ($index * $step), 1);
-    }
-
-    /**
-     * @param  Collection<int, FixtureLineup>  $fixtureLineups  Already loaded, scoped to this fixture.
-     * @return list<array{label: string, local: int, guest: int}>
-     */
-    private function teamStats(Collection $fixtureLineups, Fixture $fixture): array
-    {
-        return array_values(collect(self::TEAM_STAT_LABELS)
-            ->map(function (string $label, string $key) use ($fixtureLineups, $fixture): array {
-                $local = $fixtureLineups->where('team_id', $fixture->team_local_id)
-                    ->sum(fn (FixtureLineup $lineup): int => $this->statValue($lineup->stats, $key));
-                $guest = $fixtureLineups->where('team_id', $fixture->team_guest_id)
-                    ->sum(fn (FixtureLineup $lineup): int => $this->statValue($lineup->stats, $key));
-
-                return ['label' => $label, 'local' => $local, 'guest' => $guest];
-            })
-            ->all());
     }
 
     /**

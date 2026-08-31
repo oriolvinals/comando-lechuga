@@ -29,6 +29,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read array<int, array<string, mixed>> $stats
  * @property-read int|null $fantasy_points
  * @property-read array<string, mixed>|null $fantasy_stats
+ * @property array<string, mixed>|null $resolved_stats fantasy_stats if present, else worldcup26StatsFallback(stats). Computed at query time by Api\FixturesController; not a database column.
  */
 #[UseFactory(FixtureLineupFactory::class)]
 #[Table(name: 'fixture_lineups', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
