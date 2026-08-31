@@ -1,9 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { TYPE_LABELS } from '@/components/activity-helpers';
 import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
 import { HqMultiSelect } from '@/components/hq-multi-select';
 import AppLayout from '@/layouts/app-layout';
+import { activityCardTintStyle } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import { index as activityIndex } from '@/routes/activity';
 import type {
@@ -121,6 +122,13 @@ export default function ActivityIndex({
                                         <div
                                             key={entry.id}
                                             className="hq-card-cut px-4 py-1"
+                                            style={
+                                                activityCardTintStyle(
+                                                    entry
+                                                        .source_season_manager
+                                                        .primary_color,
+                                                ) as CSSProperties
+                                            }
                                         >
                                             <HqActivityTimelineEntry
                                                 activity={entry}

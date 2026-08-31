@@ -40,3 +40,17 @@ export function cardTintStyle(
 
     return { '--hq-card-tint': `${primaryColor}26` };
 }
+
+/**
+ * A lighter version of `cardTintStyle`, for a list of many cards (e.g. the
+ * activity feed) where a wash this faint per card still reads clearly.
+ */
+export function activityCardTintStyle(
+    primaryColor: string | null,
+): { '--hq-card-tint': string } | undefined {
+    if (!primaryColor) {
+        return undefined;
+    }
+
+    return { '--hq-card-tint': `${primaryColor}14` };
+}
