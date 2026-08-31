@@ -18,6 +18,7 @@ import {
     formatFixtureSecondaryText,
     isLiveFixtureState,
 } from '@/lib/fixture-state';
+import { getStoredFixtureViewMode, setStoredFixtureViewMode } from '@/lib/fixture-view-mode';
 import { formatMatchDateTime } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
 import { useNow } from '@/lib/use-now';
@@ -153,7 +154,13 @@ export default function FixtureShow({
     const [activeTab, setActiveTab] = useState<'bench' | 'stats' | 'timeline'>(
         'bench',
     );
-    const [viewMode, setViewMode] = useState<'pitch' | 'list'>('pitch');
+    const [viewMode, setViewModeState] = useState<'pitch' | 'list'>(() =>
+        getStoredFixtureViewMode(),
+    );
+    const setViewMode = (mode: 'pitch' | 'list') => {
+        setViewModeState(mode);
+        setStoredFixtureViewMode(mode);
+    };
     const [selectedEntry, setSelectedEntry] = useState<FixtureLineupEntry | null>(
         null,
     );
