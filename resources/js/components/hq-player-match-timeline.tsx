@@ -25,6 +25,7 @@ interface HqPlayerMatchTimelineProps {
     teamFixtures: Fixture[];
     currentWeek: number;
     playerPosition: PlayerPosition;
+    teamId: number;
 }
 
 export function HqPlayerMatchTimeline({
@@ -32,6 +33,7 @@ export function HqPlayerMatchTimeline({
     teamFixtures,
     currentWeek,
     playerPosition,
+    teamId,
 }: HqPlayerMatchTimelineProps) {
     const [selectedWeek, setSelectedWeek] = useState(currentWeek);
     const scoresByWeek = new Map(
@@ -55,9 +57,13 @@ export function HqPlayerMatchTimeline({
                     (_, index) => index + 1,
                 ).map((week) => {
                     const score = scoresByWeek.get(week);
-                    const notCalledUp =
-                        !score &&
-                        fixturesByWeek.get(week)?.state === 'finished';
+                    const fixture = fixturesByWeek.get(week);
+                    const notCalledUp = !score && fixture?.state === 'finished';
+                    const opponent = fixture
+                        ? fixture.local_team.id === teamId
+                            ? fixture.guest_team
+                            : fixture.local_team
+                        : null;
 
                     return (
                         <button
@@ -65,7 +71,7 @@ export function HqPlayerMatchTimeline({
                             type="button"
                             onClick={() => setSelectedWeek(week)}
                             className={cn(
-                                'flex h-14 w-14 shrink-0 cursor-pointer flex-col items-center justify-center border-2 font-mono',
+                                'relative flex h-14 w-14 shrink-0 cursor-pointer flex-col items-center justify-center border-2 font-mono',
                                 selectedWeek === week
                                     ? 'border-hq-paper'
                                     : 'border-transparent hover:border-hq-border-strong',
@@ -86,6 +92,14 @@ export function HqPlayerMatchTimeline({
                                       ? 'NC'
                                       : '—'}
                             </span>
+                            {opponent && (
+                                <img
+                                    src={opponent.logo}
+                                    alt={opponent.main_name}
+                                    title={opponent.main_name}
+                                    className="absolute -bottom-2 left-1/2 h-3.5 w-3.5 -translate-x-1/2 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+                                />
+                            )}
                         </button>
                     );
                 })}

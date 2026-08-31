@@ -421,6 +421,30 @@ test('marks a recent score slot as not called up when the match finished without
     );
 });
 
+test('shows the rival faced in each recent score, not the player\'s own team', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    $rival = Team::factory()->create(['main_name' => 'Rival CF']);
+    $fixtureAsLocal = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->subDays(10),
+        'team_local_id' => $player->team_id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Finished,
+    ]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixtureAsLocal->id, 'fantasy_points' => 5]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('players.data.0.recent_scores_opponents.0.id', $rival->id)
+    );
+});
+
 test('excludes scores from a fixture in a different season for the recent scores', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
@@ -439,6 +463,76 @@ test('excludes scores from a fixture in a different season for the recent scores
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.recent_scores', [null, null, null])
+    );
+});
+
+test('shows the next 3 scheduled fixtures for a player, soonest first, with opponent and home/away', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    $rivalA = Team::factory()->create();
+    $rivalB = Team::factory()->create();
+    $soonest = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->addDays(3),
+        'week_number' => 5,
+        'team_local_id' => $player->team_id,
+        'team_guest_id' => $rivalA->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+    $later = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->addDays(10),
+        'week_number' => 6,
+        'team_local_id' => $rivalB->id,
+        'team_guest_id' => $player->team_id,
+        'state' => FixtureState::Scheduled,
+    ]);
+    // Finished/live fixtures never count as "next".
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->subDay(),
+        'team_local_id' => $player->team_id,
+        'state' => FixtureState::Finished,
+    ]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('players.data.0.next_fixtures.0.week_number', 5)
+        ->where('players.data.0.next_fixtures.0.opponent.id', $rivalA->id)
+        ->where('players.data.0.next_fixtures.0.is_home', true)
+        ->where('players.data.0.next_fixtures.1.week_number', 6)
+        ->where('players.data.0.next_fixtures.1.opponent.id', $rivalB->id)
+        ->where('players.data.0.next_fixtures.1.is_home', false)
+        ->where('players.data.0.next_fixtures.2', null)
+    );
+});
+
+test('gives an out-of-league player 3 null next_fixtures on their own ficha', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create([
+        'status' => PlayerStatus::OutOfLeague,
+        'fantasy_id' => 12345,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->addDays(3),
+        'team_local_id' => $player->team_id,
+        'state' => FixtureState::Scheduled,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('player.next_fixtures', [null, null, null])
     );
 });
 

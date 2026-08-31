@@ -19,6 +19,12 @@ export interface OwnerManager {
     primary_color: string | null;
 }
 
+export interface NextFixtureSlot {
+    week_number: number;
+    opponent: Team;
+    is_home: boolean;
+}
+
 export interface Player {
     id: number;
     nickname: string;
@@ -37,6 +43,10 @@ export interface Player {
     recent_scores_finished: boolean[];
     /** Per recent_scores slot, whether the player was in a given manager's lineup that week. Only present on the manager ficha. */
     recent_scores_used?: (boolean | null)[];
+    /** Per recent_scores slot, the rival the player's team faced in that match. */
+    recent_scores_opponents: (Team | null)[];
+    /** The team's next 3 upcoming (not yet started) fixtures, soonest first — null-padded at the end when fewer than 3 remain on the calendar. */
+    next_fixtures: (NextFixtureSlot | null)[];
 }
 
 export type FixtureState =

@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import type { ReactElement } from 'react';
+import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { HqPlayerMatchTimeline } from '@/components/hq-player-match-timeline';
 import { HqPlayerPropertyCard } from '@/components/hq-player-property-card';
 import { HqPlayerValueChart } from '@/components/hq-player-value-chart';
@@ -7,7 +8,11 @@ import { HqPositionTag } from '@/components/hq-position-tag';
 import AppLayout from '@/layouts/app-layout';
 import { formatAverage, formatCurrency } from '@/lib/format';
 import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
-import { didNotPlayMatch, STATUS_BADGE_CLASS, STATUS_LABELS } from '@/lib/player-labels';
+import {
+    didNotPlayMatch,
+    STATUS_BADGE_CLASS,
+    STATUS_LABELS,
+} from '@/lib/player-labels';
 import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import type {
@@ -121,7 +126,9 @@ export default function PlayerShow({
                                         ),
                                     )}
                                 >
-                                    {formatAverage(Number(player.average_points))}
+                                    {formatAverage(
+                                        Number(player.average_points),
+                                    )}
                                 </span>
                             </div>
                             {daznAverage !== null && (
@@ -139,6 +146,15 @@ export default function PlayerShow({
                                     </span>
                                 </div>
                             )}
+                            <div className="flex items-center justify-between border-t border-hq-border py-1.5">
+                                <span className="font-mono text-[11px] text-hq-moss">
+                                    PRÓXIMOS
+                                </span>
+                                <HqNextFixtures
+                                    fixtures={player.next_fixtures}
+                                    size="sm"
+                                />
+                            </div>
                             <div className="flex items-center justify-between border-t border-hq-border py-1.5">
                                 <span className="font-mono text-[11px] text-hq-moss">
                                     VALOR
@@ -160,8 +176,12 @@ export default function PlayerShow({
                                                 : 'text-hq-live',
                                         )}
                                     >
-                                        {player.market_value_difference > 0 ? '+' : ''}
-                                        {formatCurrency(player.market_value_difference)}
+                                        {player.market_value_difference > 0
+                                            ? '+'
+                                            : ''}
+                                        {formatCurrency(
+                                            player.market_value_difference,
+                                        )}
                                     </span>
                                 </div>
                             )}
@@ -187,6 +207,7 @@ export default function PlayerShow({
                             teamFixtures={teamFixtures}
                             currentWeek={season.current_week}
                             playerPosition={player.position}
+                            teamId={player.team.id}
                         />
                     </div>
                 </div>

@@ -8,6 +8,7 @@ use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
+use App\Http\Controllers\Concerns\AttachesNextFixtures;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Filters\PlayerFilter;
 use App\Models\Activity;
@@ -30,6 +31,7 @@ use Inertia\Response;
 class PlayersController extends Controller
 {
     use AttachesCurrentPlayerSeason;
+    use AttachesNextFixtures;
     use AttachesRecentScores;
 
     /**
@@ -99,6 +101,7 @@ class PlayersController extends Controller
         $this->attachOwnership($players, $season->id);
         $this->attachCurrentSeason($players->getCollection(), $season->id);
         $this->attachRecentScores($players->getCollection(), $season);
+        $this->attachNextFixtures($players->getCollection(), $season);
 
         $realTeams = Team::query()
             ->orderBy('main_name')
@@ -139,6 +142,7 @@ class PlayersController extends Controller
         $season = Season::current();
 
         $this->attachCurrentSeason(new Collection([$player]), $season->id);
+        $this->attachNextFixtures(new Collection([$player]), $season);
 
         $owner = ManagerPlayer::query()
             ->where('player_id', $player->id)

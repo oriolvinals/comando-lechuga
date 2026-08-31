@@ -10,6 +10,7 @@ use App\Models\FixtureLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
 use App\Models\Season;
+use App\Models\Team;
 use Illuminate\Support\Collection;
 
 trait AttachesRecentScores
@@ -44,6 +45,7 @@ trait AttachesRecentScores
             ->where(fn ($query) => $query
                 ->whereIn('team_local_id', $teamIds)
                 ->orWhereIn('team_guest_id', $teamIds))
+            ->with(['localTeam', 'guestTeam'])
             ->get(['id', 'week_number', 'date', 'team_local_id', 'team_guest_id'])
             ->each(function (Fixture $fixture) use ($teamIds, &$fixturesByTeam): void {
                 foreach ([$fixture->team_local_id, $fixture->team_guest_id] as $teamId) {
@@ -82,15 +84,25 @@ trait AttachesRecentScores
             $points = $recentFixtures
                 ->map(fn (Fixture $fixture): ?int => $playerScores->get($fixture->id)?->fantasy_points)
                 ->all();
+            // The rival the player's team faced in that match.
+            $opponents = $recentFixtures
+                ->map(fn (Fixture $fixture) => $fixture->team_local_id === $player->team_id
+                    ? $fixture->guestTeam
+                    : $fixture->localTeam)
+                ->all();
             $finished = array_fill(0, count($points), true);
 
             /** @var array<int, int|null> $paddedPoints */
             $paddedPoints = array_pad($points, 3, null);
 
+            /** @var array<int, Team|null> $paddedOpponents */
+            $paddedOpponents = array_pad($opponents, 3, null);
+
             /** @var array<int, bool> $paddedFinished */
             $paddedFinished = array_pad($finished, 3, false);
 
             $player->recent_scores = $paddedPoints;
+            $player->recent_scores_opponents = $paddedOpponents;
             $player->recent_scores_finished = $paddedFinished;
 
             if ($seasonManagerId === null) {

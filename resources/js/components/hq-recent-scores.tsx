@@ -1,5 +1,6 @@
 import { formatSignedPoints, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
+import type { Team } from '@/types/models';
 
 interface HqRecentScoresProps {
     scores: (number | null)[];
@@ -7,6 +8,8 @@ interface HqRecentScoresProps {
     finished?: boolean[];
     /** Per-slot: was the player in this team's lineup that week? Omit entirely outside the team ficha, where the question doesn't apply. */
     used?: (boolean | null)[];
+    /** Per-slot: the rival the player's team faced in that match — shows a small crest floating at the bottom center when provided. */
+    opponents?: (Team | null)[];
     className?: string;
     size?: 'md' | 'sm';
     /** Color tier for a slot's value — defaults to the per-player scale; pass {@link teamFormBadgeClass} for team-level totals. */
@@ -33,6 +36,7 @@ export function HqRecentScores({
     scores,
     finished,
     used,
+    opponents,
     className,
     size = 'md',
     badgeClass = matchPointsBadgeClass,
@@ -59,12 +63,18 @@ export function HqRecentScores({
             ? used?.slice(1)
             : used?.slice(0, -1)
         : used;
+    const visibleOpponents = hasLive
+        ? trimStart
+            ? opponents?.slice(1)
+            : opponents?.slice(0, -1)
+        : opponents;
 
     return (
         <div className={cn('flex shrink-0 gap-1', className)}>
             {visibleScores.map((points, index) => {
                 const wasUsed = visibleUsed?.[index];
                 const notCalledUp = points === null && visibleFinished?.[index];
+                const opponent = visibleOpponents?.[index];
 
                 return (
                     <span
@@ -88,6 +98,14 @@ export function HqRecentScores({
                                         ? 'bg-hq-lime'
                                         : 'border border-hq-border-strong',
                                 )}
+                            />
+                        )}
+                        {opponent && (
+                            <img
+                                src={opponent.logo}
+                                alt={opponent.main_name}
+                                title={opponent.main_name}
+                                className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
                             />
                         )}
                     </span>

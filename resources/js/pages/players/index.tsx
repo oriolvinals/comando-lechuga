@@ -4,6 +4,7 @@ import type { MouseEvent as ReactMouseEvent, ReactElement } from 'react';
 import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqMultiSelect } from '@/components/hq-multi-select';
+import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import AppLayout from '@/layouts/app-layout';
@@ -151,9 +152,11 @@ function PlayerRow({ player }: { player: Player }) {
                     </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-6">
+                    <HqNextFixtures fixtures={player.next_fixtures} />
                     <HqRecentScores
                         scores={player.recent_scores}
                         finished={player.recent_scores_finished}
+                        opponents={player.recent_scores_opponents}
                         className="w-[130px]"
                     />
                     <div className="w-[130px] shrink-0 text-right">
@@ -169,9 +172,7 @@ function PlayerRow({ player }: { player: Player }) {
                                         : 'text-hq-live',
                                 )}
                             >
-                                {player.market_value_difference > 0
-                                    ? '▲'
-                                    : '▼'}{' '}
+                                {player.market_value_difference > 0 ? '▲' : '▼'}{' '}
                                 {formatCurrency(
                                     Math.abs(player.market_value_difference),
                                 )}
@@ -237,9 +238,7 @@ function PlayerRow({ player }: { player: Player }) {
                                         : 'text-hq-live',
                                 )}
                             >
-                                {player.market_value_difference > 0
-                                    ? '▲'
-                                    : '▼'}{' '}
+                                {player.market_value_difference > 0 ? '▲' : '▼'}{' '}
                                 {formatCurrency(
                                     Math.abs(player.market_value_difference),
                                 )}
@@ -271,10 +270,13 @@ function PlayerRow({ player }: { player: Player }) {
                         )}
                     </div>
                 </div>
-                <div className="mt-2 border-t border-hq-ink pt-2">
+                <div className="mt-2 flex items-center justify-between border-t border-hq-ink pt-2">
+                    <HqNextFixtures fixtures={player.next_fixtures} size="sm" />
                     <HqRecentScores
                         scores={player.recent_scores}
                         finished={player.recent_scores_finished}
+                        opponents={player.recent_scores_opponents}
+                        size="sm"
                     />
                 </div>
             </div>
@@ -463,6 +465,9 @@ export default function PlayersIndex({
                                 </span>
                             </div>
                             <div className="flex items-center gap-6">
+                                <span className="shrink-0">
+                                    Siguientes partidos
+                                </span>
                                 <span className="w-[130px] shrink-0">
                                     Últimas 3 jornadas
                                 </span>
