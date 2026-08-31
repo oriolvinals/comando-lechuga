@@ -15,3 +15,4 @@ Route::get('managers/{seasonManager}', [ManagerController::class, 'show'])->name
 Route::get('fixtures', [FixturesController::class, 'index'])->name('api.fixtures');
 Route::get('fixtures/{fixture}', [FixturesController::class, 'show'])->name('api.fixtures.show');
 Route::get('players', [PlayersController::class, 'index'])->name('api.players');
+Route::get('players/{player}', [PlayersController::class, 'show'])->name('api.players.show');

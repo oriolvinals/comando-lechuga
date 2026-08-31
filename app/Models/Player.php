@@ -40,6 +40,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property array<int, array{week_number: int, opponent: Team, is_home: bool}|null> $next_fixtures The team's next 3 upcoming (not yet started) fixtures, soonest first; null-padded at the end when fewer than 3 remain on the calendar. Computed at query time by PlayersController; not a database column.
  * @property array<int, array{week_number: int, opponent: array<string, mixed>, points: int|null}> $api_recent_scores The team's last (up to) 3 finished matches, oldest first — unlike recent_scores, no padding: fewer entries when fewer matches have been played. `opponent` is a resolved TeamResource. Computed at query time by Api\PlayersController; not a database column.
  * @property array<int, array{week_number: int, opponent: array<string, mixed>, is_home: bool}> $api_next_fixtures The team's next (up to) 3 scheduled matches, soonest first — unlike next_fixtures, no padding. `opponent` is a resolved TeamResource. Computed at query time by Api\PlayersController; not a database column.
+ * @property array{sale_price: int, value: int, bids: int, expires_at: string}|null $api_market_listing The player's current market listing, if any. Computed at query time by Api\PlayersController; not a database column.
+ * @property array<int, array{date: string, value: int}> $api_market_history The player's market value over time, oldest first. Computed at query time by Api\PlayersController; not a database column.
+ * @property array<int, array<string, mixed>> $api_scores One entry per played fixture with a FixtureLineup for this player, oldest first. Computed at query time by Api\PlayersController; not a database column.
+ * @property array<int, array<string, mixed>> $api_ownership_activity Signing/sale/buyout activity for this player, oldest first. Resolved ActivityResource entries. Computed at query time by Api\PlayersController; not a database column.
  */
 #[UseFactory(PlayerFactory::class)]
 #[Table(name: 'players', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
