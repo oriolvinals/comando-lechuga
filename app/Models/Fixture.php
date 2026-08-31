@@ -10,6 +10,7 @@ use Database\Factories\FixtureFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -33,6 +34,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read string|null $local_alternate_color
  * @property-read string|null $guest_color
  * @property-read string|null $guest_alternate_color
+ * @property Collection<int, FixtureLineup> $api_lineups Computed at query time by Api\FixturesController; not a database relation.
+ * @property Collection<int, FixtureEvent> $api_events Computed at query time by Api\FixturesController; not a database relation.
+ * @property array<int, array{stat: string, label: string, local: int, guest: int}> $api_team_stats Computed at query time by Api\FixturesController; not a database column.
  */
 #[UseFactory(FixtureFactory::class)]
 #[Table(name: 'fixtures', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]

@@ -12,3 +12,4 @@ Route::get('standings', [StandingsController::class, 'index'])->name('api.standi
 Route::get('activity', [ActivityController::class, 'index'])->name('api.activity');
 Route::get('managers/{seasonManager}', [ManagerController::class, 'show'])->name('api.managers.show');
 Route::get('fixtures', [FixturesController::class, 'index'])->name('api.fixtures');
+Route::get('fixtures/{fixture}', [FixturesController::class, 'show'])->name('api.fixtures.show');

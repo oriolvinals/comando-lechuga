@@ -105,6 +105,7 @@ export interface FixtureEventEntry {
 }
 
 export interface FixtureTeamStat {
+    stat: string;
     label: string;
     local: number;
     guest: number;
