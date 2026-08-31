@@ -633,3 +633,49 @@ test('lineup player points/stats are null when fixture_id is not yet set', funct
         ->where('lineups.0.players.0.stats', null)
     );
 });
+
+test('lineup player points fall back to the stored value when fixture_id never resolved', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 1]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'fixture_id' => null,
+        'points' => 5,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.points', 5)
+    );
+});
+
+test('lineup player points prefer the linked FixtureLineup over the stored fallback once fixture_id resolves', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 1]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'fantasy_points' => 7,
+    ]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        // Stale fallback from before this player resolved a fixture_id — the
+        // linked FixtureLineup's fantasy_points should win now.
+        'points' => 5,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.points', 7)
+    );
+});

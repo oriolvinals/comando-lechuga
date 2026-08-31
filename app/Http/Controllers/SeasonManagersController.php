@@ -144,10 +144,14 @@ class SeasonManagersController extends Controller
     }
 
     /**
-     * `ManagerLineupPlayer` no longer stores its own points/stats — both are
-     * looked up from the linked `FixtureLineup` row (via `fixture_id`, set once
-     * the lineup was saved) and attached as virtual properties, the same way
-     * `attachMatchFinished` already does for `match_finished`.
+     * `stats` is looked up entirely from the linked `FixtureLineup` row (via
+     * `fixture_id`, set once the lineup was synced). `points` prefers that
+     * same row's `fantasy_points` but falls back to the raw `points` column
+     * already loaded on the entry (set by SyncCurrentSeasonManagerLineups
+     * from the Fantasy API directly) for a player who never resolves a
+     * `fixture_id` — see `ManagerLineupPlayer::$points`. Both are attached as
+     * virtual properties, the same way `attachMatchFinished` already does for
+     * `match_finished`.
      *
      * This is a manual bulk lookup, not `ManagerLineupPlayer::fixtureLineup()`
      * eager-loaded via `->with()` — that relation is deliberately lazy-only
@@ -173,7 +177,7 @@ class SeasonManagersController extends Controller
                 ? null
                 : $fixtureLineupsByKey->get("{$entry->fixture_id}-{$entry->player_id}");
 
-            $entry->points = $fixtureLineup?->fantasy_points;
+            $entry->points = $fixtureLineup->fantasy_points ?? $entry->points;
             $entry->stats = $fixtureLineup?->fantasy_stats;
         });
     }

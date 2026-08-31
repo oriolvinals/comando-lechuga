@@ -16,6 +16,7 @@ use App\Models\SeasonManager;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use JsonException;
 use Saloon\Exceptions\Request\FatalRequestException;
@@ -93,6 +94,18 @@ class SyncCurrentSeasonManagerLineups extends Command
                                     ->where('week_number', $weekNumber))
                                 ->first();
 
+                            // playerMaster.points/weekPoints reflect the player's most recent match, not
+                            // necessarily this jornada — lastStats is the same response's per-week
+                            // breakdown, keyed by weekNumber. Only used as a fallback for when this
+                            // player never resolves a fixture_id (see ManagerLineupPlayer::$points).
+                            $lastStats = $playerData['lastStats'] ?? [];
+                            $weekStats = is_array($lastStats)
+                                ? Arr::first(
+                                    $lastStats,
+                                    fn ($stat): bool => is_array($stat) && ($stat['weekNumber'] ?? null) === $weekNumber,
+                                )
+                                : null;
+
                             ManagerLineupPlayer::query()->updateOrCreate(
                                 [
                                     'manager_lineup_id' => $lineup->id,
@@ -100,6 +113,7 @@ class SyncCurrentSeasonManagerLineups extends Command
                                 ],
                                 [
                                     'fixture_id' => $fixtureLineup?->fixture_id,
+                                    'points' => is_array($weekStats) ? (int) ($weekStats['totalPoints'] ?? 0) : null,
                                     'position' => $position,
                                 ],
                             );

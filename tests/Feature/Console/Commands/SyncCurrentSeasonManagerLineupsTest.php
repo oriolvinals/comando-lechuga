@@ -49,8 +49,14 @@ test('syncs lineups for each season manager through the current week, resolving 
                     [
                         'playerMaster' => [
                             'id' => '2759',
+                            // Deliberately different from lastStats' week-1 entry below: points/weekPoints
+                            // reflect the player's most recent match, not necessarily this jornada, so the
+                            // command must not read them (see the "lastStats" test further down).
                             'points' => 154,
                             'weekPoints' => 154,
+                            'lastStats' => [
+                                ['weekNumber' => 1, 'totalPoints' => 9],
+                            ],
                         ],
                     ],
                 ],
@@ -79,7 +85,59 @@ test('syncs lineups for each season manager through the current week, resolving 
         ->and($lineup->points)->toBe(6)
         ->and($lineupPlayer->player_id)->toBe($player->id)
         ->and($lineupPlayer->fixture_id)->toBe($fixture->id)
+        ->and($lineupPlayer->points)->toBe(9)
         ->and($lineupPlayer->position)->toBe(PlayerPosition::Goalkeeper);
+});
+
+test('stores null points for a week missing from lastStats, not playerMaster.points', function (): void {
+    Cache::forget('la_liga_fantasy.access_token');
+
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+    SeasonManager::factory()->create([
+        'season_id' => $season->id,
+        'fantasy_id' => 37394771,
+    ]);
+    Player::factory()->create(['fantasy_id' => 2759]);
+    $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
+    $loginConnector->shouldReceive('accessToken')
+        ->once()
+        ->andReturn('header.eyJleHAiOjE3ODc0MTc3NTB9.signature');
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetTeamLineupRequest::class => MockResponse::make([
+            'formation' => [
+                'goalkeeper' => [
+                    [
+                        'playerMaster' => [
+                            'id' => '2759',
+                            'points' => 154,
+                            // lastStats is a rolling window and doesn't include week 1.
+                            'lastStats' => [
+                                ['weekNumber' => 2, 'totalPoints' => 5],
+                            ],
+                        ],
+                    ],
+                ],
+                'defender' => [],
+                'midfield' => [],
+                'striker' => [],
+                'tacticalFormation' => [3, 5, 2],
+            ],
+            'points' => 0,
+        ]),
+    ]));
+
+    app()->instance(LaLigaLoginConnector::class, $loginConnector);
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncCurrentSeasonManagerLineups::class)
+        ->expectsOutput('1 manager lineups synchronized.')
+        ->assertSuccessful();
+
+    expect(ManagerLineupPlayer::query()->sole()->points)->toBeNull();
 });
 
 test('leaves fixture_id null when the player\'s team has no fixture that week', function (): void {

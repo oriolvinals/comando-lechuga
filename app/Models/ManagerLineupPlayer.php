@@ -19,14 +19,17 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read int $manager_lineup_id
  * @property-read int $player_id
  * @property-read int|null $fixture_id
+ * @property int|null $points Set by SyncCurrentSeasonManagerLineups from the Fantasy API's own per-week
+ *                            score at sync time — a fallback for when this player never resolves a `fixture_id` (and so has no
+ *                            `FixtureLineup` to derive points from). SeasonManagersController::attachLineupPlayerScores()
+ *                            overwrites this with the more authoritative `FixtureLineup.fantasy_points` whenever one exists.
  * @property-read PlayerPosition $position
  * @property bool $match_finished Computed at query time by SeasonManagersController; not a database column.
- * @property int|null $points Computed at query time by SeasonManagersController from the linked FixtureLineup; not a database column.
  * @property array<string, mixed>|null $stats Computed at query time by SeasonManagersController from the linked FixtureLineup; not a database column.
  */
 #[UseFactory(ManagerLineupPlayerFactory::class)]
 #[Table(name: 'manager_lineup_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['manager_lineup_id', 'player_id', 'fixture_id', 'position'])]
+#[Fillable(['manager_lineup_id', 'player_id', 'fixture_id', 'points', 'position'])]
 class ManagerLineupPlayer extends Model
 {
     /** @use HasFactory<ManagerLineupPlayerFactory> */
@@ -85,6 +88,7 @@ class ManagerLineupPlayer extends Model
             'manager_lineup_id' => 'int',
             'player_id' => 'int',
             'fixture_id' => 'int',
+            'points' => 'int',
             'position' => PlayerPosition::class,
         ];
     }
