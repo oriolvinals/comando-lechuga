@@ -9,6 +9,7 @@ use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesNextFixtures;
+use App\Http\Controllers\Concerns\AttachesOwnerManager;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Filters\PlayerFilter;
 use App\Models\Activity;
@@ -23,7 +24,6 @@ use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,6 +32,7 @@ class PlayersController extends Controller
 {
     use AttachesCurrentPlayerSeason;
     use AttachesNextFixtures;
+    use AttachesOwnerManager;
     use AttachesRecentScores;
 
     /**
@@ -98,7 +99,7 @@ class PlayersController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $this->attachOwnership($players, $season->id);
+        $this->attachOwnerManager($players->getCollection(), $season->id);
         $this->attachCurrentSeason($players->getCollection(), $season->id);
         $this->attachRecentScores($players->getCollection(), $season);
         $this->attachNextFixtures($players->getCollection(), $season);
@@ -236,33 +237,5 @@ class PlayersController extends Controller
             'teamJoinedAt' => $teamJoinedAt,
             'teamFixtures' => $teamFixtures,
         ]);
-    }
-
-    /**
-     * @param  LengthAwarePaginator<int, Player>  $players
-     */
-    private function attachOwnership(LengthAwarePaginator $players, int $seasonId): void
-    {
-        /** @var Collection<int, Player> $entries */
-        $entries = $players->getCollection();
-        $playerIds = $entries->pluck('id')->all();
-
-        $owners = ManagerPlayer::query()
-            ->whereIn('player_id', $playerIds)
-            ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $seasonId))
-            ->with('seasonManager')
-            ->get()
-            ->keyBy('player_id');
-
-        $entries->each(function (Player $player) use ($owners): void {
-            $seasonManager = $owners->get($player->id)?->seasonManager;
-
-            $player->owner_manager = $seasonManager === null ? null : [
-                'id' => $seasonManager->id,
-                'name' => $seasonManager->name,
-                'logo' => $seasonManager->logo,
-                'primary_color' => $seasonManager->primary_color,
-            ];
-        });
     }
 }

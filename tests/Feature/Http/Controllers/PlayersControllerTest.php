@@ -311,7 +311,7 @@ test('shows the owning fantasy manager when a player is owned', function (): voi
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('players.data.0.owner_manager.id', $seasonManager->id)
         ->where('players.data.0.owner_manager.name', 'Ariobretxa')
-        ->where('players.data.0.owner_manager.logo', $seasonManager->logo)
+        ->where('players.data.0.owner_manager.logo', asset($seasonManager->logo))
         ->where('players.data.0.owner_manager.primary_color', '#c4ff3d')
     );
 });

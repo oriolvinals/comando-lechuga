@@ -38,6 +38,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property array<int, Team|null> $recent_scores_opponents Per recent_scores slot, the rival the player's team faced in that match. Computed at query time alongside recent_scores; not a database column.
  * @property array<int, bool|null>|null $recent_scores_used Per recent_scores slot, whether the player was in that manager's lineup that week. Only set on the manager ficha (SeasonManagersController); null-padded like recent_scores, and entirely absent elsewhere.
  * @property array<int, array{week_number: int, opponent: Team, is_home: bool}|null> $next_fixtures The team's next 3 upcoming (not yet started) fixtures, soonest first; null-padded at the end when fewer than 3 remain on the calendar. Computed at query time by PlayersController; not a database column.
+ * @property array<int, array{week_number: int, opponent: array<string, mixed>, points: int|null}> $api_recent_scores The team's last (up to) 3 finished matches, oldest first — unlike recent_scores, no padding: fewer entries when fewer matches have been played. `opponent` is a resolved TeamResource. Computed at query time by Api\PlayersController; not a database column.
+ * @property array<int, array{week_number: int, opponent: array<string, mixed>, is_home: bool}> $api_next_fixtures The team's next (up to) 3 scheduled matches, soonest first — unlike next_fixtures, no padding. `opponent` is a resolved TeamResource. Computed at query time by Api\PlayersController; not a database column.
  */
 #[UseFactory(PlayerFactory::class)]
 #[Table(name: 'players', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
