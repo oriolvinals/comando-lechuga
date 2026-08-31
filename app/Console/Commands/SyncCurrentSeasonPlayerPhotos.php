@@ -11,6 +11,7 @@ use App\Models\Season;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use JsonException;
 use Saloon\Exceptions\Request\FatalRequestException;
@@ -49,7 +50,16 @@ class SyncCurrentSeasonPlayerPhotos extends Command
             }
 
             $fantasyId = (int)$playerData['id'];
-            $path = $this->storeImage($connector, $fantasyId, $image);
+
+            try {
+                $path = $this->storeImage($connector, $fantasyId, $image);
+            } catch (FatalRequestException|RequestException $exception) {
+                $message = "Failed to fetch photo for player {$fantasyId}: {$exception->getMessage()}";
+                $this->warn($message);
+                Log::warning($message);
+
+                continue;
+            }
 
             $updated += Player::query()
                 ->where('fantasy_id', $fantasyId)
