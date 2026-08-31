@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\ActivityController;
 use App\Http\Controllers\Api\FixturesController;
 use App\Http\Controllers\Api\ManagerController;
+use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\PlayersController;
 use App\Http\Controllers\Api\StandingsController;
 use Illuminate\Support\Facades\Route;
@@ -16,3 +17,4 @@ Route::get('fixtures', [FixturesController::class, 'index'])->name('api.fixtures
 Route::get('fixtures/{fixture}', [FixturesController::class, 'show'])->name('api.fixtures.show');
 Route::get('players', [PlayersController::class, 'index'])->name('api.players');
 Route::get('players/{player}', [PlayersController::class, 'show'])->name('api.players.show');
+Route::get('market', [MarketController::class, 'index'])->name('api.market');

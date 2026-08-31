@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\FixtureState;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
+use App\Http\Controllers\Concerns\AttachesApiNextFixtures;
+use App\Http\Controllers\Concerns\AttachesApiRecentScores;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesOwnerManager;
 use App\Http\Controllers\Controller;
@@ -17,7 +18,6 @@ use App\Http\Resources\PlayerDetailResource;
 use App\Http\Resources\PlayerResource;
 use App\Http\Resources\TeamResource;
 use App\Models\Activity;
-use App\Models\Fixture;
 use App\Models\FixtureLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\MarketPlayer;
@@ -31,6 +31,8 @@ use Illuminate\Support\Str;
 class PlayersController extends Controller
 {
     use AttachesActivityValueDifference;
+    use AttachesApiNextFixtures;
+    use AttachesApiRecentScores;
     use AttachesCurrentPlayerSeason;
     use AttachesOwnerManager;
 
@@ -206,122 +208,5 @@ class PlayersController extends Controller
         }
 
         return $expression;
-    }
-
-    /**
-     * Same source data as AttachesRecentScores, reshaped for the API: a
-     * variable-length list (0-3 entries, oldest first) instead of a
-     * null-padded fixed-length array — every entry here is a real finished
-     * match, so there's no "empty slot" to represent.
-     *
-     * @param  Collection<int, Player>  $players
-     */
-    private function attachApiRecentScores(Collection $players, Season $season): void
-    {
-        $playerIds = $players->pluck('id')->all();
-        $teamIds = $players->pluck('team_id')->unique()->all();
-
-        /** @var array<int, list<Fixture>> $fixturesByTeam */
-        $fixturesByTeam = [];
-
-        Fixture::query()
-            ->where('season_id', $season->id)
-            ->where('state', FixtureState::Finished)
-            ->where(fn ($query) => $query
-                ->whereIn('team_local_id', $teamIds)
-                ->orWhereIn('team_guest_id', $teamIds))
-            ->with(['localTeam', 'guestTeam'])
-            ->get(['id', 'week_number', 'date', 'team_local_id', 'team_guest_id'])
-            ->each(function (Fixture $fixture) use ($teamIds, &$fixturesByTeam): void {
-                foreach ([$fixture->team_local_id, $fixture->team_guest_id] as $teamId) {
-                    if (in_array($teamId, $teamIds, true)) {
-                        $fixturesByTeam[$teamId][] = $fixture;
-                    }
-                }
-            });
-
-        $scoresByPlayer = FixtureLineup::query()
-            ->whereIn('player_id', $playerIds)
-            ->whereHas('fixture', fn ($query) => $query->where('season_id', $season->id))
-            ->get(['player_id', 'fixture_id', 'fantasy_points'])
-            ->groupBy('player_id')
-            ->map(fn (Collection $rows) => $rows->keyBy('fixture_id'));
-
-        $players->each(function (Player $player) use ($fixturesByTeam, $scoresByPlayer): void {
-            $recentFixtures = collect($fixturesByTeam[$player->team_id] ?? [])
-                ->sortByDesc(fn (Fixture $fixture) => $fixture->date)
-                ->take(3)
-                ->sortBy(fn (Fixture $fixture) => $fixture->date)
-                ->values();
-
-            $playerScores = $scoresByPlayer->get($player->id) ?? collect();
-
-            $player->api_recent_scores = $recentFixtures
-                ->map(fn (Fixture $fixture): array => [
-                    'week_number' => $fixture->week_number,
-                    'opponent' => (new TeamResource($fixture->team_local_id === $player->team_id
-                        ? $fixture->guestTeam
-                        : $fixture->localTeam))->resolve(),
-                    'points' => $playerScores->get($fixture->id)?->fantasy_points,
-                ])
-                ->values()
-                ->all();
-        });
-    }
-
-    /**
-     * Same source data as AttachesNextFixtures, reshaped for the API: a
-     * variable-length list (0-3 entries, soonest first) instead of a
-     * null-padded fixed-length array.
-     *
-     * @param  Collection<int, Player>  $players
-     */
-    private function attachApiNextFixtures(Collection $players, Season $season): void
-    {
-        $eligiblePlayers = $players->filter(
-            fn (Player $player): bool => $player->status !== PlayerStatus::OutOfLeague,
-        );
-        $teamIds = $eligiblePlayers->pluck('team_id')->unique()->all();
-
-        /** @var array<int, list<Fixture>> $fixturesByTeam */
-        $fixturesByTeam = [];
-
-        Fixture::query()
-            ->where('season_id', $season->id)
-            ->where('state', FixtureState::Scheduled)
-            ->where(fn ($query) => $query
-                ->whereIn('team_local_id', $teamIds)
-                ->orWhereIn('team_guest_id', $teamIds))
-            ->with(['localTeam', 'guestTeam'])
-            ->orderBy('date')
-            ->get()
-            ->each(function (Fixture $fixture) use ($teamIds, &$fixturesByTeam): void {
-                foreach ([$fixture->team_local_id, $fixture->team_guest_id] as $teamId) {
-                    if (in_array($teamId, $teamIds, true)) {
-                        $fixturesByTeam[$teamId][] = $fixture;
-                    }
-                }
-            });
-
-        $players->each(function (Player $player) use ($fixturesByTeam): void {
-            if ($player->status === PlayerStatus::OutOfLeague) {
-                $player->api_next_fixtures = [];
-
-                return;
-            }
-
-            $player->api_next_fixtures = collect($fixturesByTeam[$player->team_id] ?? [])
-                ->sortBy(fn (Fixture $fixture) => $fixture->date)
-                ->take(3)
-                ->map(fn (Fixture $fixture): array => [
-                    'week_number' => $fixture->week_number,
-                    'opponent' => (new TeamResource($fixture->team_local_id === $player->team_id
-                        ? $fixture->guestTeam
-                        : $fixture->localTeam))->resolve(),
-                    'is_home' => $fixture->team_local_id === $player->team_id,
-                ])
-                ->values()
-                ->all();
-        });
     }
 }
