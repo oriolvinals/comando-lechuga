@@ -74,7 +74,7 @@ test('returns lineup history with each player\'s points and whether their match 
     ]);
     $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
     $team = Team::factory()->create();
-    $player = Player::factory()->create(['nickname' => 'Pedri', 'team_id' => $team->id]);
+    $player = Player::factory()->create(['nickname' => 'Pedri', 'team_id' => $team->id, 'image' => 'players/9.png']);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'week_number' => 1,
@@ -102,6 +102,7 @@ test('returns lineup history with each player\'s points and whether their match 
     $response->assertJsonPath('data.lineup_history.0.points', 45);
     $response->assertJsonPath('data.lineup_history.0.tactical_formation', [4, 4, 2]);
     $response->assertJsonPath('data.lineup_history.0.players.0.player.id', $player->id);
+    $response->assertJsonPath('data.lineup_history.0.players.0.player.image', asset('storage/players/9.png'));
     $response->assertJsonPath('data.lineup_history.0.players.0.position', 'midfield');
     $response->assertJsonPath('data.lineup_history.0.players.0.points', 9);
     $response->assertJsonPath('data.lineup_history.0.players.0.match_finished', true);

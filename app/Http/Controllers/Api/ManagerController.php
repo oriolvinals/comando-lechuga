@@ -71,7 +71,11 @@ class ManagerController extends Controller
             'points' => $lineup->points,
             'tactical_formation' => $lineup->tactical_formation,
             'players' => $lineup->players->map(fn (ManagerLineupPlayer $entry): array => [
-                'player' => ['id' => $entry->player->id, 'nickname' => $entry->player->nickname],
+                'player' => [
+                    'id' => $entry->player->id,
+                    'nickname' => $entry->player->nickname,
+                    'image' => $entry->player->image ? asset('storage/'.$entry->player->image) : '',
+                ],
                 'position' => $entry->position->value,
                 'points' => $entry->points,
                 'match_finished' => $entry->match_finished,
