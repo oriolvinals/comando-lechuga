@@ -419,6 +419,7 @@ class LinkMatchDataPlayers extends Command
         3100 => 250465, // Pedri - BAR
         2385 => 264078, // Pedro Díaz - RAY
         3139 => 361455, // Pedro Felipe - RAC
+        1056 => 277292, // Pedrosa - RAY
         3023 => 388805, // Peio Canales - ATH
         3157 => 386579, // Pelayo - RAY
         3087 => 210397, // Pepe - VIL
