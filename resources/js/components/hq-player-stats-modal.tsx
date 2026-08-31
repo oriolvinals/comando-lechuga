@@ -2,9 +2,9 @@ import { Link } from '@inertiajs/react';
 import { ArrowUpRight, Shield, User, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { MatchEventIcons } from '@/components/match-event-icons';
-import { JORNADA_STAT_LABELS, JORNADA_STAT_ORDER } from '@/lib/player-labels';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
@@ -26,10 +26,6 @@ interface HqPlayerStatsModalProps {
     entry: HqPlayerStatsEntry | null;
     onClose: () => void;
 }
-
-const BODY_STAT_ORDER = JORNADA_STAT_ORDER.filter(
-    (key) => key !== 'marca_points',
-);
 
 export function HqPlayerStatsModal({
     entry,
@@ -95,7 +91,7 @@ export function HqPlayerStatsModal({
                         {subMinute && (
                             <span
                                 className={cn(
-                                    'absolute -right-2 -bottom-1 whitespace-nowrap border bg-hq-ink px-1.5 py-0.5 font-mono text-[10px] font-bold',
+                                    'absolute -right-2 -bottom-1 border bg-hq-ink px-1.5 py-0.5 font-mono text-[10px] font-bold whitespace-nowrap',
                                     subMinute.direction === 'out'
                                         ? 'border-hq-live text-hq-live'
                                         : 'border-hq-lime text-hq-lime',
@@ -156,59 +152,14 @@ export function HqPlayerStatsModal({
                         )}
                     </div>
                     <div className="mt-1">
-                        <MatchEventIcons stats={stats} position={player.position} />
+                        <MatchEventIcons
+                            stats={stats}
+                            position={player.position}
+                        />
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2">
-                    {BODY_STAT_ORDER.map((key, index) => {
-                        const [value, delta] = stats[key] ?? [0, 0];
-                        const isZero = value === 0 && delta === 0;
-
-                        return (
-                            <div
-                                key={key}
-                                className={cn(
-                                    'flex flex-col gap-0.5 border-t border-hq-border px-4 py-1.5',
-                                    index % 2 === 1 &&
-                                        'border-l border-hq-border',
-                                )}
-                            >
-                                <span
-                                    className={cn(
-                                        'font-mono text-[10px] tracking-wide text-hq-moss uppercase',
-                                        isZero && 'opacity-40',
-                                    )}
-                                >
-                                    {JORNADA_STAT_LABELS[key] ?? key}
-                                </span>
-                                <span
-                                    className={cn(
-                                        'flex items-center gap-1.5 font-mono',
-                                        isZero && 'opacity-40',
-                                    )}
-                                >
-                                    <span className="font-bold text-hq-paper">
-                                        {value}
-                                    </span>
-                                    {delta !== 0 && (
-                                        <span
-                                            className={cn(
-                                                'text-[10px] font-bold',
-                                                delta > 0
-                                                    ? 'text-hq-lime'
-                                                    : 'text-hq-live',
-                                            )}
-                                        >
-                                            {delta > 0 ? '+' : ''}
-                                            {delta}
-                                        </span>
-                                    )}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
+                <HqJornadaStatsGrid stats={stats} />
 
                 <Link
                     href={playersShow(player.id).url}

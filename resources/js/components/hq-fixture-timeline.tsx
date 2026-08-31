@@ -22,7 +22,10 @@ function EventIcon({ event }: { event: FixtureEventEntry }) {
 
     if (event.type === 'goal' && event.is_own_goal) {
         return (
-            <span title="Autogol" className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">
+            <span
+                title="Autogol"
+                className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live"
+            >
                 PP
             </span>
         );
@@ -36,7 +39,10 @@ interface HqFixtureTimelineProps {
     localTeamId: number;
 }
 
-export function HqFixtureTimeline({ events, localTeamId }: HqFixtureTimelineProps) {
+export function HqFixtureTimeline({
+    events,
+    localTeamId,
+}: HqFixtureTimelineProps) {
     if (events.length === 0) {
         return (
             <p className="border border-dashed border-hq-border-strong px-4 py-6 text-center font-mono text-[11px] text-hq-moss-dim">
@@ -48,7 +54,10 @@ export function HqFixtureTimeline({ events, localTeamId }: HqFixtureTimelineProp
     return (
         <div className="border border-hq-border bg-hq-panel">
             {events.map((event) => {
-                const label = event.player?.nickname ?? event.unresolved_name ?? 'Sin jugador vinculado';
+                const label =
+                    event.player?.nickname ??
+                    event.unresolved_name ??
+                    'Sin jugador vinculado';
                 // An own goal's team_id is the scorer's own team (see
                 // SyncLiveSeasonMatchData), but the goal actually counts for
                 // the other side — render it on the side it benefits, not
@@ -59,17 +68,39 @@ export function HqFixtureTimeline({ events, localTeamId }: HqFixtureTimelineProp
                         : event.team_id === localTeamId;
 
                 return (
-                    <div key={event.id} className="flex items-center border-b border-hq-border px-3 py-2 text-[12.5px] last:border-b-0">
-                        <span className={cn('flex-1 pr-2.5 text-right', isLocal ? 'text-hq-paper' : 'text-hq-moss-dim italic')}>
+                    <div
+                        key={event.id}
+                        className="flex items-center border-b border-hq-border px-3 py-2 text-[12.5px] last:border-b-0"
+                    >
+                        <span
+                            className={cn(
+                                'flex-1 pr-2 text-right',
+                                isLocal
+                                    ? 'text-hq-paper'
+                                    : 'text-hq-moss-dim italic',
+                            )}
+                        >
                             {isLocal ? label : ''}
                         </span>
-                        <span className="w-2" />
-                        <span className="flex w-16 items-center justify-center gap-1">
-                            <EventIcon event={event} />
-                            <span className="font-mono text-[11px] text-hq-moss">{event.minute}'</span>
+                        <span className="flex w-14 shrink-0 items-center justify-center">
+                            <span className="flex w-5 justify-end">
+                                {isLocal && <EventIcon event={event} />}
+                            </span>
+                            <span className="mx-1 font-mono text-[11px] text-hq-moss">
+                                {event.minute}'
+                            </span>
+                            <span className="flex w-5 justify-start">
+                                {!isLocal && <EventIcon event={event} />}
+                            </span>
                         </span>
-                        <span className="w-2" />
-                        <span className={cn('flex-1 pl-2.5', !isLocal ? 'text-hq-paper' : 'text-hq-moss-dim italic')}>
+                        <span
+                            className={cn(
+                                'flex-1 pl-2',
+                                !isLocal
+                                    ? 'text-hq-paper'
+                                    : 'text-hq-moss-dim italic',
+                            )}
+                        >
                             {!isLocal ? label : ''}
                         </span>
                     </div>

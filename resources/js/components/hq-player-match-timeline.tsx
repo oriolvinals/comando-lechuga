@@ -1,24 +1,17 @@
 import { Link } from '@inertiajs/react';
 import { ArrowUpRight } from 'lucide-react';
 import { useState } from 'react';
+import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
 import { HqScrollRow } from '@/components/hq-scroll-row';
 import { MatchEventIcons } from '@/components/match-event-icons';
 import { formatMatchDateTime } from '@/lib/format';
-import {
-    didNotPlayMatch,
-    JORNADA_STAT_LABELS,
-    JORNADA_STAT_ORDER,
-} from '@/lib/player-labels';
+import { didNotPlayMatch } from '@/lib/player-labels';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import { show as seasonManagersShow } from '@/routes/season-managers';
 import type { Fixture, PlayerFichaScore, PlayerPosition } from '@/types/models';
-
-const BODY_STAT_ORDER = JORNADA_STAT_ORDER.filter(
-    (key) => key !== 'marca_points',
-);
 
 interface HqPlayerMatchTimelineProps {
     scores: PlayerFichaScore[];
@@ -113,63 +106,6 @@ export function HqPlayerMatchTimeline({
                     const scoreOpponent = isHome
                         ? selectedScore.fixture.guest_team
                         : selectedScore.fixture.local_team;
-                    const statsWithData = BODY_STAT_ORDER.filter((key) => {
-                        const [value, delta] = selectedScore.stats?.[key] ?? [
-                            0, 0,
-                        ];
-
-                        return value !== 0 || delta !== 0;
-                    });
-                    const statsWithoutData = BODY_STAT_ORDER.filter(
-                        (key) => !statsWithData.includes(key),
-                    );
-                    const statCell = (
-                        key: (typeof BODY_STAT_ORDER)[number],
-                    ) => {
-                        const [value, delta] = selectedScore.stats?.[key] ?? [
-                            0, 0,
-                        ];
-                        const isZero = value === 0 && delta === 0;
-
-                        return (
-                            <div
-                                key={key}
-                                className="flex flex-col gap-0.5 px-3 py-1.5"
-                            >
-                                <span
-                                    className={cn(
-                                        'truncate font-mono text-[9px] tracking-wide text-hq-moss uppercase',
-                                        isZero && 'opacity-40',
-                                    )}
-                                >
-                                    {JORNADA_STAT_LABELS[key] ?? key}
-                                </span>
-                                <span
-                                    className={cn(
-                                        'flex items-center gap-1 font-mono text-[13px]',
-                                        isZero && 'opacity-30',
-                                    )}
-                                >
-                                    <span className="font-bold text-hq-paper">
-                                        {value}
-                                    </span>
-                                    {delta !== 0 && (
-                                        <span
-                                            className={cn(
-                                                'text-[9px] font-bold',
-                                                delta > 0
-                                                    ? 'text-hq-lime'
-                                                    : 'text-hq-live',
-                                            )}
-                                        >
-                                            {delta > 0 ? '+' : ''}
-                                            {delta}
-                                        </span>
-                                    )}
-                                </span>
-                            </div>
-                        );
-                    };
 
                     return (
                         <div className="hq-card-cut">
@@ -285,28 +221,10 @@ export function HqPlayerMatchTimeline({
                                 </div>
                             </div>
 
-                            <div className="p-1.5">
-                                {statsWithData.length > 0 && (
-                                    <>
-                                        <p className="px-3 pt-2 pb-1 font-mono text-[9px] tracking-wide text-hq-moss-dim uppercase">
-                                            Esta jornada
-                                        </p>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3">
-                                            {statsWithData.map(statCell)}
-                                        </div>
-                                    </>
-                                )}
-                                {statsWithoutData.length > 0 && (
-                                    <>
-                                        <p className="px-3 pt-2 pb-1 font-mono text-[9px] tracking-wide text-hq-moss-dim uppercase">
-                                            Sin registro esta jornada
-                                        </p>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3">
-                                            {statsWithoutData.map(statCell)}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            <HqJornadaStatsGrid
+                                stats={selectedScore.stats}
+                                columns={3}
+                            />
                         </div>
                     );
                 })()
