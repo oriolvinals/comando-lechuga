@@ -33,4 +33,22 @@ enum FixtureState: string
             default => self::Scheduled,
         };
     }
+
+    /**
+     * Spanish display label for the public API — unlike the frontend's
+     * FIXTURE_STATE_LABELS (resources/js/lib/fixture-state.ts), Scheduled
+     * gets a real label here instead of an empty string, since the frontend
+     * substitutes the kickoff date/time for that case but an API consumer
+     * has no such fallback.
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Scheduled => 'Programado',
+            self::FirstHalf => '1ª parte',
+            self::HalfTime => 'Descanso',
+            self::SecondHalf => '2ª parte',
+            self::Finished => 'Finalizado',
+        };
+    }
 }
