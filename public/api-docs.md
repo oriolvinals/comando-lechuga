@@ -501,4 +501,4 @@ Sin filtros ni paginación — es una lista corta (~10 jugadores al día). Exclu
 }
 ```
 
-`sale_price` es el precio al que salió a la venta ese listado (no se actualiza mientras dura la oferta, aunque el mercado cambie cada día); `value` es la valoración de mercado del jugador; `bids` es el número de pujas recibidas hasta ahora.
+`sale_price` es el precio del jugador en el momento exacto en que salió al mercado — fijo, no cambia mientras dura ese listado. `value` es su valoración de mercado, que sí varía día a día (puede subir o bajar) independientemente de `sale_price`. `bids` es el número de pujas recibidas hasta ahora.
