@@ -18,7 +18,7 @@ class ApiDocsController extends Controller
     public function show(): BinaryFileResponse
     {
         return response()->file(resource_path('docs/api-docs.md'), [
-            'Content-Type' => 'text/markdown; charset=UTF-8',
+            'Content-Type' => 'text/plain; charset=UTF-8',
         ]);
     }
 }
