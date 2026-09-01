@@ -2,15 +2,17 @@ import { Link } from '@inertiajs/react';
 import { ArrowUpRight, Shield, User, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqFixtureCardContent } from '@/components/hq-fixture-card';
 import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { MatchEventIcons } from '@/components/match-event-icons';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
+import { show as fixturesShow } from '@/routes/fixtures';
 import { show as playersShow } from '@/routes/players';
 import { show as seasonManagersShow } from '@/routes/season-managers';
-import type { JornadaStats, Player, SeasonManager, Team } from '@/types/models';
+import type { Fixture, JornadaStats, Player, SeasonManager, Team } from '@/types/models';
 
 export interface HqPlayerStatsEntry {
     player: Player;
@@ -20,6 +22,8 @@ export interface HqPlayerStatsEntry {
     stats: JornadaStats;
     lineupManager?: SeasonManager | null;
     subMinute?: { minute: number; direction: 'in' | 'out' } | null;
+    /** The match this jornada's stats came from — shown below the stats grid with its result. Omit (or null) when the modal is already opened from that match's own ficha, where repeating it would be redundant. */
+    fixture?: Fixture | null;
 }
 
 interface HqPlayerStatsModalProps {
@@ -59,6 +63,7 @@ export function HqPlayerStatsModal({
         stats,
         lineupManager,
         subMinute,
+        fixture,
     } = entry;
 
     return (
@@ -80,7 +85,7 @@ export function HqPlayerStatsModal({
                     </button>
                 </div>
 
-                <div className="flex flex-col items-center gap-1.5 px-5 pt-1 pb-4 text-center">
+                <div className="flex flex-col items-center gap-1.5 px-5 pt-1 text-center">
                     <div className="relative">
                         <EntityImage
                             src={player.image}
@@ -158,6 +163,18 @@ export function HqPlayerStatsModal({
                         />
                     </div>
                 </div>
+
+                {fixture && (
+                    <Link
+                        href={fixturesShow(fixture.id).url}
+                        className="block border-t border-b border-hq-border px-4 py-2.5 text-center hover:bg-hq-panel-alt"
+                    >
+                        <p className="mb-0.5 font-mono text-[10px] tracking-widest text-hq-moss uppercase">
+                            Jornada {fixture.week_number}
+                        </p>
+                        <HqFixtureCardContent fixture={fixture} />
+                    </Link>
+                )}
 
                 <HqJornadaStatsGrid stats={stats} />
 

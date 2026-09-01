@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
+use App\Http\Controllers\Concerns\AttachesLineupFixtures;
 use App\Http\Controllers\Concerns\AttachesLineupPlayerScores;
 use App\Http\Controllers\Concerns\AttachesMatchFinished;
 use App\Http\Controllers\Concerns\AttachesNextFixtures;
@@ -25,6 +26,7 @@ class SeasonManagersController extends Controller
 {
     use AttachesActivityValueDifference;
     use AttachesCurrentPlayerSeason;
+    use AttachesLineupFixtures;
     use AttachesLineupPlayerScores;
     use AttachesMatchFinished;
     use AttachesNextFixtures;
@@ -47,6 +49,7 @@ class SeasonManagersController extends Controller
         $this->attachCurrentSeason($lineups->flatMap(fn (ManagerLineup $lineup) => $lineup->players->pluck('player')), $season->id);
         $this->attachMatchFinished($lineups, $season);
         $this->attachLineupPlayerScores($lineups);
+        $this->attachLineupFixtures($lineups, $season);
 
         return Inertia::render('season-managers/index', [
             'season' => $season,
@@ -85,6 +88,7 @@ class SeasonManagersController extends Controller
         $this->attachCurrentSeason($lineupHistory->flatMap(fn (ManagerLineup $lineup) => $lineup->players->pluck('player')), $season->id);
         $this->attachMatchFinished($lineupHistory, $season);
         $this->attachLineupPlayerScores($lineupHistory);
+        $this->attachLineupFixtures($lineupHistory, $season);
 
         $activity = Activity::query()
             ->where(fn ($query) => $query

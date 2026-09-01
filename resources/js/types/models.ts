@@ -177,6 +177,8 @@ export interface ManagerLineupPlayerEntry {
     player: Player;
     /** Whether this player's team fixture for that week has finished — distinguishes "not called up" from "not played yet" when points is null. */
     match_finished: boolean;
+    /** The fixture this player's team played that week, resolved by team + week rather than a possibly-unset fixture_id. Null when no fixture exists for that team/week yet. */
+    fixture: Fixture | null;
 }
 
 export interface ManagerLineup {

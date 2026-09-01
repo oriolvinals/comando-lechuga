@@ -14,7 +14,14 @@ import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import type { Fixture } from '@/types/models';
 
-export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
+/**
+ * The crests/score/state content shared by HqFixtureCard and any other
+ * layout that wants to embed it under its own Link/hover (e.g. a modal
+ * section where the whole block — including a label above this content —
+ * should hover as one unit, which isn't possible with a Link nested inside
+ * another Link).
+ */
+export function HqFixtureCardContent({ fixture }: { fixture: Fixture }) {
     const countdown = useCountdown(fixture.date);
     const now = useNow();
     const isLive = isLiveFixtureState(fixture.state);
@@ -25,7 +32,7 @@ export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
     const startsSoon =
         isScheduled && remainingMs > 0 && remainingMs < COUNTDOWN_THRESHOLD_MS;
     const secondaryText = startsSoon
-        ? formatMatchDateShort(fixture.date)
+        ? null
         : formatFixtureSecondaryText(
               fixture.state,
               fixture.date,
@@ -34,23 +41,7 @@ export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
           );
 
     return (
-        <Link
-            href={fixturesShow(fixture.id).url}
-            className={cn(
-                'relative rounded-md border bg-hq-panel px-4 py-3.5 text-center transition-colors hover:bg-hq-panel-alt',
-                isLive
-                    ? 'border-hq-live'
-                    : 'border-hq-border hover:border-hq-border-strong',
-            )}
-        >
-            <span
-                className={cn(
-                    'absolute top-2.5 right-2.5 h-2 w-2 rounded-full',
-                    isFinished && 'bg-hq-lime',
-                    isLive && 'animate-pulse bg-hq-live',
-                    fixture.state === 'scheduled' && 'bg-hq-moss-dim',
-                )}
-            />
+        <>
             <div className="flex items-center justify-center gap-2 sm:gap-4">
                 <div className="shrink-0">
                     <EntityImage
@@ -90,7 +81,7 @@ export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
             </div>
             <p
                 className={cn(
-                    'mt-3 font-mono text-[10px] uppercase',
+                    'mt-1 font-mono text-[10px] uppercase',
                     isLive && 'font-bold text-hq-live',
                     startsSoon && 'font-bold text-hq-gold',
                     !isLive && !startsSoon && 'text-hq-moss-dim',
@@ -112,6 +103,33 @@ export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
                     {secondaryText}
                 </p>
             )}
+        </>
+    );
+}
+
+export function HqFixtureCard({ fixture }: { fixture: Fixture }) {
+    const isLive = isLiveFixtureState(fixture.state);
+    const isFinished = fixture.state === 'finished';
+
+    return (
+        <Link
+            href={fixturesShow(fixture.id).url}
+            className={cn(
+                'relative rounded-md border bg-hq-panel px-4 py-3.5 text-center transition-colors hover:bg-hq-panel-alt',
+                isLive
+                    ? 'border-hq-live'
+                    : 'border-hq-border hover:border-hq-border-strong',
+            )}
+        >
+            <span
+                className={cn(
+                    'absolute top-2.5 right-2.5 h-2 w-2 rounded-full',
+                    isFinished && 'bg-hq-lime',
+                    isLive && 'animate-pulse bg-hq-live',
+                    fixture.state === 'scheduled' && 'bg-hq-moss-dim',
+                )}
+            />
+            <HqFixtureCardContent fixture={fixture} />
         </Link>
     );
 }

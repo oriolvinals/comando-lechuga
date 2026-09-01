@@ -220,6 +220,7 @@ export default function SeasonManagerShow({
                                       ? selectedPlayer.stats.marca_points?.[1]
                                       : undefined,
                               stats: selectedPlayer.stats ?? {},
+                              fixture: selectedPlayer.fixture,
                           }
                         : null
                 }
