@@ -388,7 +388,10 @@ trait SyncsMatchData
     private function eventAthletes(array $keyEvent): array
     {
         if (is_array($keyEvent['athletesInvolved'] ?? null)) {
-            return $keyEvent['athletesInvolved'];
+            return array_values(array_filter(
+                $keyEvent['athletesInvolved'],
+                fn (mixed $athlete): bool => is_array($athlete),
+            ));
         }
 
         $participants = is_array($keyEvent['participants'] ?? null) ? $keyEvent['participants'] : [];
