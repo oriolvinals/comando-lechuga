@@ -105,6 +105,24 @@ export function HqPlayerValueChart({
     const legend = useMemo(() => {
         const seen = new Map<string, { label: string; color: string }>();
 
+        if (mode === 'puntos') {
+            for (const score of scores) {
+                const manager = score.lineup_manager;
+                const key = manager ? `team-${manager.id}` : 'libre';
+
+                if (!seen.has(key)) {
+                    seen.set(key, {
+                        label: manager?.name ?? 'No alineado',
+                        color: manager
+                            ? managerColor(manager.primary_color)
+                            : 'var(--color-hq-moss-dim)',
+                    });
+                }
+            }
+
+            return [...seen.values()];
+        }
+
         for (const segment of ownershipSegments) {
             const key = segment.seasonManager ? `team-${segment.seasonManager.id}` : 'libre';
 
@@ -119,7 +137,7 @@ export function HqPlayerValueChart({
         }
 
         return [...seen.values()];
-    }, [ownershipSegments]);
+    }, [mode, scores, ownershipSegments]);
 
     const visibleHistory = useMemo(() => {
         if (mode !== 'valor' || range === 'all') {
@@ -232,7 +250,7 @@ export function HqPlayerValueChart({
             };
         });
 
-        const owners = scores.map((score) => ownerAtDate(ownershipSegments, score.fixture.date));
+        const owners = scores.map((score) => score.lineup_manager);
         const bandSegments = owners.map((owner, index) => ({
             x: index * slot,
             width: slot,
@@ -247,7 +265,7 @@ export function HqPlayerValueChart({
         }
 
         return { slot, barWidth, bars, bandSegments, boundaries };
-    }, [scores, ownershipSegments, width]);
+    }, [scores, width]);
 
     function handleMove(clientX: number) {
         const svg = svgRef.current;
@@ -286,7 +304,6 @@ export function HqPlayerValueChart({
             const n = scores.length;
             const index = Math.max(0, Math.min(n - 1, Math.floor(relX / puntosGeometry.slot)));
             const score = scores[index];
-            const segment = segmentAtDate(ownershipSegments, score.fixture.date);
             const bar = puntosGeometry.bars[index];
 
             setHoverPoint({ x: bar.cx, y: bar.y });
@@ -296,9 +313,9 @@ export function HqPlayerValueChart({
                 date: `Jornada ${score.fixture.week_number}`,
                 value: `${score.points ?? 0} puntos`,
                 diff: null,
-                ownerName: segment?.seasonManager?.name ?? 'Libre',
-                ownerColor: segment?.seasonManager
-                    ? managerColor(segment.seasonManager.primary_color)
+                ownerName: score.lineup_manager?.name ?? 'No alineado',
+                ownerColor: score.lineup_manager
+                    ? managerColor(score.lineup_manager.primary_color)
                     : 'var(--color-hq-moss-dim)',
                 action: null,
             });
