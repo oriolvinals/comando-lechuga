@@ -35,6 +35,7 @@ class SyncCurrentSeasonMarket extends Command
     ): int {
         $season = Season::current();
 
+        $this->info('Fetching league market...');
         $market = $fantasyConnector
             ->getLeagueMarketWithLogin($loginConnector, $season->fantasy_id)
             ->json();

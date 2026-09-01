@@ -41,6 +41,8 @@ class SyncCurrentSeasonActivity extends Command
         $page = 0;
 
         do {
+            $this->info("Fetching activity page {$page}...");
+
             $activities = $fantasyConnector
                 ->getLeagueActivityWithLogin($loginConnector, $season->fantasy_id, $page)
                 ->json();

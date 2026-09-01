@@ -36,6 +36,8 @@ class SyncCurrentSeasonPlayers extends Command
         $teams = $season->teams()->get()->keyBy('fantasy_id');
         $players = [];
 
+        $this->info('Fetching player list...');
+
         foreach ($connector->getPlayers()->throw()->json() as $playerData) {
             /** @var Team|null $team */
             $team = $teams->get((int)$playerData['teamId']);
@@ -64,6 +66,8 @@ class SyncCurrentSeasonPlayers extends Command
                 'average_points' => (float) $playerData['averagePoints'],
             ];
         }
+
+        $this->info('Upserting '.count($players).' players...');
 
         $playerIds = DB::transaction(function () use ($players, $season): array {
             $playerIds = [];

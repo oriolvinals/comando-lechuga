@@ -33,6 +33,8 @@ class SyncCurrentSeasonStanding extends Command
         LaLigaFantasyConnector $fantasyConnector,
     ): int {
         $season = Season::current();
+
+        $this->info('Fetching league standing...');
         $standing = $fantasyConnector
             ->getLeagueStandingWithLogin($loginConnector, $season->fantasy_id)
             ->json();

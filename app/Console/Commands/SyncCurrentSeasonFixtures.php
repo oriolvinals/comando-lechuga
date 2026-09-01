@@ -34,7 +34,11 @@ class SyncCurrentSeasonFixtures extends Command
         $teams = $season->teams()->get()->keyBy('fantasy_id');
         $fixtures = [];
 
+        $this->output->progressStart($season->total_weeks);
+
         foreach (range(1, $season->total_weeks) as $weekNumber) {
+            $this->output->progressAdvance();
+
             foreach ($connector->getFixtures($weekNumber, $season->total_weeks)->throw()->json() as $fixtureData) {
                 /** @var Team|null $localTeam */
                 $localTeam = $teams->get((int)$fixtureData['localId']);
@@ -57,6 +61,8 @@ class SyncCurrentSeasonFixtures extends Command
                 ];
             }
         }
+
+        $this->output->progressFinish();
 
         $fixtureIds = DB::transaction(function () use ($season, $fixtures): array {
             $fixtureIds = [];

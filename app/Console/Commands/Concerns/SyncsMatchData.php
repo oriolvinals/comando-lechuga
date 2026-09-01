@@ -33,13 +33,18 @@ trait SyncsMatchData
         $synced = 0;
         $unresolved = [];
         $fantasyPlayerCache = [];
+        $warnings = [];
+
+        $this->output->progressStart($fixtures->count());
 
         foreach ($fixtures as $fixture) {
+            $this->output->progressAdvance();
+
             try {
                 $event = $connector->getEvent($fixture->match_data_id)->throw()->json();
             } catch (FatalRequestException|RequestException|JsonException $exception) {
                 Log::warning("Failed to sync match data for fixture {$fixture->id}: {$exception->getMessage()}");
-                $this->warn("Skipped fixture #{$fixture->id}: {$exception->getMessage()}");
+                $warnings[] = "Skipped fixture #{$fixture->id}: {$exception->getMessage()}";
 
                 continue;
             }
@@ -62,6 +67,12 @@ trait SyncsMatchData
             $this->fillFantasyScores($fixture, $fantasyConnector, $fantasyPlayerCache);
 
             $synced++;
+        }
+
+        $this->output->progressFinish();
+
+        foreach ($warnings as $warning) {
+            $this->warn($warning);
         }
 
         return ['synced' => $synced, 'unresolved' => $unresolved];

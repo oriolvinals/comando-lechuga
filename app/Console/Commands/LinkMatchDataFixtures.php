@@ -38,6 +38,8 @@ class LinkMatchDataFixtures extends Command
         $pageIndex = 1;
 
         do {
+            $this->info("Fetching worldcup26 fixtures page {$pageIndex}...");
+
             $page = $connector->getFixtures($pageIndex)->throw()->json();
             $events = is_array($page['events'] ?? null) ? $page['events'] : [];
 
@@ -79,6 +81,8 @@ class LinkMatchDataFixtures extends Command
             ->where('season_id', $season->id)
             ->whereNull('match_data_id')
             ->get();
+
+        $this->info("Matching {$fixtures->count()} unlinked fixtures against ".count($remoteFixtures).' worldcup26 fixtures...');
 
         $linked = DB::transaction(function () use ($fixtures, $remoteFixtures, $teamsByMatchDataId): int {
             $linked = 0;

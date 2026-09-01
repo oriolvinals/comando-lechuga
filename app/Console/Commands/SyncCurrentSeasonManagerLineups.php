@@ -39,8 +39,13 @@ class SyncCurrentSeasonManagerLineups extends Command
     ): int {
         $season = Season::current();
         $lineupsSynchronized = 0;
+        $seasonManagers = SeasonManager::query()->where('season_id', $season->id)->get();
 
-        foreach (SeasonManager::query()->where('season_id', $season->id)->get() as $seasonManager) {
+        $this->output->progressStart($seasonManagers->count());
+
+        foreach ($seasonManagers as $seasonManager) {
+            $this->output->progressAdvance();
+
             for ($weekNumber = 1; $weekNumber <= $season->current_week; $weekNumber++) {
                 $lineupData = $fantasyConnector
                     ->getTeamLineupWithLogin($loginConnector, $seasonManager->fantasy_id, $weekNumber)
@@ -131,6 +136,8 @@ class SyncCurrentSeasonManagerLineups extends Command
                 $lineupsSynchronized++;
             }
         }
+
+        $this->output->progressFinish();
 
         $this->info($lineupsSynchronized.' manager lineups synchronized.');
 

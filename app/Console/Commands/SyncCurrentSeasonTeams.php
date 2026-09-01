@@ -70,8 +70,10 @@ class SyncCurrentSeasonTeams extends Command
     {
         $season = Season::current();
 
+        $this->info('Syncing teams from worldcup26...');
         $created = $this->syncFromWorldcup26($worldcup26Connector, $season);
 
+        $this->info('Enriching teams from Fantasy...');
         $enriched = $this->enrichFromFantasy($fantasyConnector);
 
         $this->info("{$created} teams synced from worldcup26, {$enriched} enriched from Fantasy.");
@@ -91,6 +93,8 @@ class SyncCurrentSeasonTeams extends Command
         $pageIndex = 1;
 
         do {
+            $this->line("  fixtures page {$pageIndex}...");
+
             $response = $connector->getFixtures($pageIndex)->throw()->json();
             $events = is_array($response['events'] ?? null) ? $response['events'] : [];
             $pageCount = (int) ($response['pageCount'] ?? 1);

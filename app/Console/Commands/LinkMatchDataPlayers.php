@@ -545,6 +545,8 @@ class LinkMatchDataPlayers extends Command
                 ->where('position', '!=', PlayerPosition::Coach))
             ->get();
 
+        $this->info("Linking {$unlinkedPlayers->count()} unlinked players from the map...");
+
         ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled, 'eventsBackfilled' => $eventsBackfilled] = $this->linkFromMap($unlinkedPlayers, self::PLAYER_MAP);
 
         // Also re-sweep players linked in a previous run: fixture_lineups/fixture_events
@@ -554,6 +556,8 @@ class LinkMatchDataPlayers extends Command
             ->whereIn('team_id', $teamIds)
             ->whereNotNull('match_data_id')
             ->get();
+
+        $this->info("Re-sweeping {$alreadyLinkedPlayers->count()} already-linked players for late fixture data...");
 
         foreach ($alreadyLinkedPlayers as $player) {
             ['lineupsBackfilled' => $lineups, 'eventsBackfilled' => $events] = $this->backfillFixtures($player, $player->match_data_id);

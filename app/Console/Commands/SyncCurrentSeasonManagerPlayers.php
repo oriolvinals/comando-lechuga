@@ -36,8 +36,13 @@ class SyncCurrentSeasonManagerPlayers extends Command
     ): int {
         $season = Season::current();
         $managersSynchronized = 0;
+        $seasonManagers = SeasonManager::query()->where('season_id', $season->id)->get();
 
-        foreach (SeasonManager::query()->where('season_id', $season->id)->get() as $seasonManager) {
+        $this->output->progressStart($seasonManagers->count());
+
+        foreach ($seasonManagers as $seasonManager) {
+            $this->output->progressAdvance();
+
             $managerData = $fantasyConnector
                 ->getLeagueTeamWithLogin($loginConnector, $season->fantasy_id, $seasonManager->fantasy_id)
                 ->json();
@@ -94,6 +99,8 @@ class SyncCurrentSeasonManagerPlayers extends Command
 
             $managersSynchronized++;
         }
+
+        $this->output->progressFinish();
 
         $this->info($managersSynchronized.' season manager squads synchronized.');
 

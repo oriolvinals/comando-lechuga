@@ -37,7 +37,11 @@ class SyncCurrentSeasonPlayerMarkets extends Command
             ->get();
         $playersSynchronized = 0;
 
+        $this->output->progressStart($players->count());
+
         foreach ($players as $player) {
+            $this->output->progressAdvance();
+
             $markets = [];
 
             foreach ($connector->getPlayerMarketValue($player->fantasy_id)->throw()->json() as $marketData) {
@@ -79,6 +83,8 @@ class SyncCurrentSeasonPlayerMarkets extends Command
 
             $playersSynchronized++;
         }
+
+        $this->output->progressFinish();
 
         $this->info($playersSynchronized.' player markets synchronized.');
 

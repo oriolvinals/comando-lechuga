@@ -33,8 +33,16 @@ class SyncCurrentSeasonPlayerPhotos extends Command
         $season = Season::current();
         $teamFantasyIds = $season->teams()->pluck('fantasy_id')->flip();
         $updated = 0;
+        $warnings = [];
 
-        foreach ($connector->getPlayers()->throw()->json() as $playerData) {
+        $this->info('Fetching player list...');
+        $players = $connector->getPlayers()->throw()->json();
+
+        $this->output->progressStart(count($players));
+
+        foreach ($players as $playerData) {
+            $this->output->progressAdvance();
+
             if (!$teamFantasyIds->has((int)$playerData['teamId'])) {
                 continue;
             }
@@ -55,7 +63,7 @@ class SyncCurrentSeasonPlayerPhotos extends Command
                 $path = $this->storeImage($connector, $fantasyId, $image);
             } catch (FatalRequestException|RequestException $exception) {
                 $message = "Failed to fetch photo for player {$fantasyId}: {$exception->getMessage()}";
-                $this->warn($message);
+                $warnings[] = $message;
                 Log::warning($message);
 
                 continue;
@@ -64,6 +72,12 @@ class SyncCurrentSeasonPlayerPhotos extends Command
             $updated += Player::query()
                 ->where('fantasy_id', $fantasyId)
                 ->update(['image' => $path]);
+        }
+
+        $this->output->progressFinish();
+
+        foreach ($warnings as $warning) {
+            $this->warn($warning);
         }
 
         $this->info($updated.' player photos synchronized.');
