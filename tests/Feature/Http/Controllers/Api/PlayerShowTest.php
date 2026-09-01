@@ -222,7 +222,7 @@ test('returns next_fixtures without padding', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $team = Team::factory()->create();
     $opponent = Team::factory()->create(['main_name' => 'Rival FC']);
-    $player = Player::factory()->create(['team_id' => $team->id]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
 
     Fixture::factory()->create([
         'season_id' => $season->id,
