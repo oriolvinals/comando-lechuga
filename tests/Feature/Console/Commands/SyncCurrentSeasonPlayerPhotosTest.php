@@ -72,6 +72,53 @@ test('downloads and stores photos for players on the active season teams', funct
     Storage::disk('public')->assertMissing('images/player/99.png');
 });
 
+test('downloads a photo whose URL contains an unencoded space', function (): void {
+    Storage::fake('public');
+
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create(['fantasy_id' => 3]);
+    $season->teams()->attach($team);
+    $player = Player::factory()->create([
+        'fantasy_id' => 68,
+        'image' => '',
+        'team_id' => $team->id,
+    ]);
+
+    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayersRequest::class => MockResponse::make([
+            [
+                'id' => 68,
+                'positionId' => 1,
+                'nickname' => 'Unai Simón',
+                'playerStatus' => 'ok',
+                'marketValue' => '1',
+                'points' => 0,
+                'averagePoints' => 0,
+                'image' => 'https://assets-fantasy.llt-services.com/players/t174/p68/256x256/p68_t174_1_001_000 (1).png',
+                'teamId' => 3,
+            ],
+        ]),
+        GetAssetRequest::class => MockResponse::make('player image'),
+    ]));
+
+    app()->instance(LaLigaFantasyConnector::class, $connector);
+
+    $this->artisan(SyncCurrentSeasonPlayerPhotos::class)
+        ->expectsOutput('1 player photos synchronized.')
+        ->assertSuccessful();
+
+    expect($player->refresh()->image)->toBe('images/player/68.png');
+    Storage::disk('public')->assertExists('images/player/68.png');
+
+    $connector->getMockClient()->assertSent(
+        fn ($request, $response): bool => (string)$response->getPendingRequest()->getUri()
+            === 'https://assets-fantasy.llt-services.com/players/t174/p68/256x256/p68_t174_1_001_000%20%281%29.png',
+    );
+});
+
 test('skips a player whose photo URL 404s and keeps syncing the rest', function (): void {
     Storage::fake('public');
 

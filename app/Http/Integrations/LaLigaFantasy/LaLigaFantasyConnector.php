@@ -404,6 +404,30 @@ class LaLigaFantasyConnector extends Connector
             throw new InvalidArgumentException('The asset URL must use the Liga Fantasy assets host.');
         }
 
-        return $this->send(new GetAssetRequest($url));
+        return $this->send(new GetAssetRequest(self::normalizeAssetUrl($url)));
+    }
+
+    /**
+     * The API returns asset URLs with raw, unencoded characters (e.g. spaces) in the path.
+     * Saloon's absolute-URL detection relies on filter_var(FILTER_VALIDATE_URL), which rejects
+     * those characters, so an un-normalized URL is wrongly treated as a relative endpoint and
+     * gets appended to the connector's base URL instead of being requested as-is.
+     */
+    private static function normalizeAssetUrl(string $url): string
+    {
+        $parts = parse_url($url);
+
+        if ($parts === false || !isset($parts['scheme'], $parts['host'], $parts['path'])) {
+            return $url;
+        }
+
+        $path = implode('/', array_map(
+            static fn (string $segment): string => rawurlencode(rawurldecode($segment)),
+            explode('/', $parts['path']),
+        ));
+
+        $query = isset($parts['query']) ? '?'.$parts['query'] : '';
+
+        return "{$parts['scheme']}://{$parts['host']}{$path}{$query}";
     }
 }
