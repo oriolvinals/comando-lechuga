@@ -1,10 +1,7 @@
 import { Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { cn } from '@/lib/utils';
-import type {
-    PlayerPosition,
-    ManagerLineupPlayerEntry,
-} from '@/types/models';
+import type { PlayerPosition, ManagerLineupPlayerEntry } from '@/types/models';
 
 /**
  * Top-to-bottom row order and vertical anchor (% of pitch height), matching
@@ -81,11 +78,13 @@ function nameMaxWidthForRowCount(count: number): string {
 
 interface HqLineupPitchProps {
     players: ManagerLineupPlayerEntry[];
+    formation?: string | null;
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
 }
 
 export function HqLineupPitch({
     players,
+    formation,
     onSelectPlayer,
 }: HqLineupPitchProps) {
     const rows = ROWS.map((row) => ({
@@ -109,6 +108,12 @@ export function HqLineupPitch({
                     <div className="absolute top-2 left-1/2 h-[13.5%] w-[55%] -translate-x-1/2 border-2 border-t-0 border-white/75" />
                     <div className="absolute bottom-2 left-1/2 h-[13.5%] w-[55%] -translate-x-1/2 border-2 border-b-0 border-white/75" />
                 </div>
+
+                {formation && (
+                    <span className="absolute top-2 left-2 z-20 border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-hq-moss uppercase">
+                        {formation}
+                    </span>
+                )}
 
                 {rows.map((row) => {
                     const nameMaxWidth = nameMaxWidthForRowCount(
@@ -153,9 +158,7 @@ export function HqLineupPitch({
                                         )}
                                     >
                                         {entry.points ??
-                                            (entry.match_finished
-                                                ? 'NC'
-                                                : '–')}
+                                            (entry.match_finished ? 'NC' : '–')}
                                     </span>
                                     <span
                                         className={cn(

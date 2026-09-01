@@ -78,8 +78,7 @@ export default function SeasonManagersIndex({
                                 Sin alineaciones
                             </p>
                             <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
-                                Nadie tenía alineación registrada esta
-                                jornada.
+                                Nadie tenía alineación registrada esta jornada.
                             </p>
                         </div>
                     ) : (
@@ -103,12 +102,8 @@ export default function SeasonManagersIndex({
                                             className="flex min-w-0 flex-1 items-center gap-2.5 hover:opacity-80"
                                         >
                                             <EntityImage
-                                                src={
-                                                    lineup.season_manager.logo
-                                                }
-                                                alt={
-                                                    lineup.season_manager.name
-                                                }
+                                                src={lineup.season_manager.logo}
+                                                alt={lineup.season_manager.name}
                                                 fallback={Shield}
                                                 shape="square"
                                                 style={crestTintStyle(
@@ -128,6 +123,13 @@ export default function SeasonManagersIndex({
 
                                     <HqLineupPitch
                                         players={lineup.players}
+                                        formation={
+                                            lineup.tactical_formation.length > 0
+                                                ? lineup.tactical_formation.join(
+                                                      '-',
+                                                  )
+                                                : null
+                                        }
                                         onSelectPlayer={setSelectedPlayer}
                                     />
                                 </div>
