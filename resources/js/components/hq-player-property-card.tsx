@@ -29,7 +29,7 @@ export function ClauseDifference({
 }) {
     if (clause === marketValue) {
         return (
-            <p className="mt-0.5 font-mono text-[10px] whitespace-nowrap text-hq-moss-dim">
+            <p className="mt-0.5 truncate font-mono text-[10px] text-hq-moss-dim">
                 {formatCurrency(clause)} (=)
             </p>
         );
@@ -40,7 +40,7 @@ export function ClauseDifference({
     return (
         <p
             className={cn(
-                'mt-0.5 font-mono text-[10px] whitespace-nowrap',
+                'mt-0.5 truncate font-mono text-[10px]',
                 valueColorClass,
             )}
         >

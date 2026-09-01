@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesLineupPlayerScores;
 use App\Http\Controllers\Concerns\AttachesMatchFinished;
+use App\Http\Controllers\Concerns\AttachesNextFixtures;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
@@ -26,6 +27,7 @@ class SeasonManagersController extends Controller
     use AttachesCurrentPlayerSeason;
     use AttachesLineupPlayerScores;
     use AttachesMatchFinished;
+    use AttachesNextFixtures;
     use AttachesRecentScores;
     use FiltersSeasonWeeks;
     use ResolvesRequestedWeek;
@@ -72,6 +74,7 @@ class SeasonManagersController extends Controller
 
         $this->attachCurrentSeason($roster->pluck('player'), $season->id);
         $this->attachRecentScores($roster->pluck('player'), $season, $seasonManager->id);
+        $this->attachNextFixtures($roster->pluck('player'), $season);
 
         $lineupHistory = ManagerLineup::query()
             ->where('season_manager_id', $seasonManager->id)
