@@ -19,6 +19,9 @@ import type {
     WeekProgressMap,
 } from '@/types/models';
 
+/** La Liga Fantasy's fixed squad cap — not enforced server-side, so there's no backend value to read it from. */
+const MAX_ROSTER_SIZE = 24;
+
 interface SeasonManagerShowProps {
     season: Season;
     seasonManager: SeasonManager;
@@ -105,12 +108,17 @@ export default function SeasonManagerShow({
                             aria-labelledby="roster-heading"
                             className="min-w-0 flex-1"
                         >
-                            <h2
-                                id="roster-heading"
-                                className="mb-3 font-display text-lg text-hq-paper uppercase"
-                            >
-                                Plantilla actual
-                            </h2>
+                            <div className="mb-3 flex items-center gap-2.5">
+                                <h2
+                                    id="roster-heading"
+                                    className="font-display text-lg text-hq-paper uppercase"
+                                >
+                                    Plantilla actual
+                                </h2>
+                                <span className="border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-hq-moss">
+                                    {roster.length}/{MAX_ROSTER_SIZE}
+                                </span>
+                            </div>
                             <RosterList roster={roster} />
                         </section>
 
