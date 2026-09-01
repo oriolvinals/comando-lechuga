@@ -33,6 +33,29 @@ export const TYPE_COLORS: Record<SeasonActivityType, string> = {
     joined_league: 'text-hq-moss',
 };
 
+/** CSS color vars matching TYPE_BAR_CLASSES/TYPE_COLORS — same palette, for card tints. */
+const TYPE_TINT_VARS: Record<SeasonActivityType, string> = {
+    signing: 'var(--color-hq-lime)',
+    sale: 'var(--color-hq-ember)',
+    buyout: 'var(--color-hq-med)',
+    shield: 'var(--color-hq-def)',
+    weekly_prize: 'var(--color-hq-gold)',
+    joined_league: 'var(--color-hq-moss)',
+};
+
+/**
+ * Sets the `--hq-card-tint` custom property an `hq-card-cut` block reads,
+ * washing the activity card's background by activity type rather than by
+ * the source manager's color.
+ */
+export function activityTypeTintStyle(
+    type: SeasonActivityType,
+): { '--hq-card-tint': string } {
+    return {
+        '--hq-card-tint': `color-mix(in srgb, ${TYPE_TINT_VARS[type]} 8%, transparent)`,
+    };
+}
+
 export function describeActivityBody(activity: Activity): ReactNode {
     const team = (
         <Link

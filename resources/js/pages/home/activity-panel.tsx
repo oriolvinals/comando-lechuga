@@ -1,8 +1,8 @@
 import { Link } from '@inertiajs/react';
 import type { CSSProperties } from 'react';
+import { activityTypeTintStyle } from '@/components/activity-helpers';
 import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
 import { HqSection } from '@/components/hq-section';
-import { activityCardTintStyle } from '@/lib/season-manager-colors';
 import { index as activityIndex } from '@/routes/activity';
 import type { Activity } from '@/types/models';
 
@@ -34,8 +34,8 @@ export function ActivityPanel({ activity }: ActivityPanelProps) {
                             key={entry.id}
                             className="hq-card-cut px-4 py-1"
                             style={
-                                activityCardTintStyle(
-                                    entry.source_season_manager.primary_color,
+                                activityTypeTintStyle(
+                                    entry.type,
                                 ) as CSSProperties
                             }
                         >
