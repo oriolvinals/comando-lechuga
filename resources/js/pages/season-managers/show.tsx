@@ -7,6 +7,8 @@ import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqTeamPointsChart } from '@/components/hq-team-points-chart';
 import { HqWeekScrollPicker } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
+import { formatCurrency } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { ManagerHero } from '@/pages/season-managers/manager-hero';
 import { RosterList } from '@/pages/season-managers/roster-list';
 import type {
@@ -60,6 +62,10 @@ export default function SeasonManagerShow({
             return acc;
         },
         {},
+    );
+    const rosterValueDifference = roster.reduce(
+        (sum, entry) => sum + entry.player.market_value_difference,
+        0,
     );
 
     return (
@@ -118,17 +124,67 @@ export default function SeasonManagerShow({
                                 <span className="border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-hq-moss">
                                     {roster.length}/{MAX_ROSTER_SIZE}
                                 </span>
+                                {rosterValueDifference !== 0 && (
+                                    <span
+                                        className={cn(
+                                            'font-mono text-xs font-bold whitespace-nowrap',
+                                            rosterValueDifference > 0
+                                                ? 'text-hq-lime'
+                                                : 'text-hq-live',
+                                        )}
+                                    >
+                                        {rosterValueDifference > 0 ? '▲' : '▼'}{' '}
+                                        {formatCurrency(
+                                            Math.abs(rosterValueDifference),
+                                        )}
+                                    </span>
+                                )}
                             </div>
                             <RosterList roster={roster} />
                         </section>
 
                         <section
                             aria-labelledby="activity-heading"
-                            className="w-full shrink-0 lg:w-[340px]"
+                            className="w-full shrink-0 lg:w-[400px]"
                         >
+                            <div className="mb-4 flex flex-col gap-2.5">
+                                <h2 className="font-display text-lg text-hq-paper uppercase">
+                                    Alineación de la jornada
+                                </h2>
+                                <div className="min-w-0">
+                                    <HqWeekScrollPicker
+                                        week={selectedWeek}
+                                        maxWeek={season.total_weeks}
+                                        playedThroughWeek={season.current_week}
+                                        weekProgress={weekProgress}
+                                        weekPoints={weekPoints}
+                                        onChange={setSelectedWeek}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mx-auto max-w-[360px]">
+                                {lineupForWeek ? (
+                                    <HqLineupPitch
+                                        players={lineupForWeek.players}
+                                        tacticalFormation={
+                                            lineupForWeek.tactical_formation
+                                        }
+                                        onSelectPlayer={setSelectedPlayer}
+                                    />
+                                ) : (
+                                    <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
+                                        <p className="font-mono text-[11px] text-hq-moss-dim">
+                                            Sin alineación registrada esa
+                                            jornada.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
                             <h2
                                 id="activity-heading"
-                                className="mb-3 font-display text-lg text-hq-paper uppercase"
+                                className="mt-8 mb-3 font-display text-lg text-hq-paper uppercase"
                             >
                                 Actividad
                             </h2>
@@ -147,42 +203,6 @@ export default function SeasonManagerShow({
                                 </div>
                             )}
                         </section>
-                    </div>
-
-                    <div className="mt-10 border-t border-dashed border-hq-border pt-6">
-                        <div className="mb-4 flex flex-col gap-2.5">
-                            <h2 className="font-display text-lg text-hq-paper uppercase">
-                                Alineación de la jornada
-                            </h2>
-                            <div className="min-w-0">
-                                <HqWeekScrollPicker
-                                    week={selectedWeek}
-                                    maxWeek={season.total_weeks}
-                                    playedThroughWeek={season.current_week}
-                                    weekProgress={weekProgress}
-                                    weekPoints={weekPoints}
-                                    onChange={setSelectedWeek}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="mx-auto max-w-[360px]">
-                            {lineupForWeek ? (
-                                <HqLineupPitch
-                                    players={lineupForWeek.players}
-                                    tacticalFormation={
-                                        lineupForWeek.tactical_formation
-                                    }
-                                    onSelectPlayer={setSelectedPlayer}
-                                />
-                            ) : (
-                                <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                                    <p className="font-mono text-[11px] text-hq-moss-dim">
-                                        Sin alineación registrada esa jornada.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
                     </div>
                 </div>
             </div>
