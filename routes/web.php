@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\ApiDocsController;
 use App\Http\Controllers\FixturesController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PlayersController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\SeasonManagersController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/api-docs.md', [ApiDocsController::class, 'show'])->name('api-docs');
 Route::get('/managers', [SeasonManagersController::class, 'index'])->name('season-managers.index');
 Route::get('/managers/{seasonManager}', [SeasonManagersController::class, 'show'])->name('season-managers.show');
 Route::get('/jugadores', [PlayersController::class, 'index'])->name('players.index');
