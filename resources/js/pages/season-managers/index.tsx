@@ -123,12 +123,8 @@ export default function SeasonManagersIndex({
 
                                     <HqLineupPitch
                                         players={lineup.players}
-                                        formation={
-                                            lineup.tactical_formation.length > 0
-                                                ? lineup.tactical_formation.join(
-                                                      '-',
-                                                  )
-                                                : null
+                                        tacticalFormation={
+                                            lineup.tactical_formation
                                         }
                                         onSelectPlayer={setSelectedPlayer}
                                     />

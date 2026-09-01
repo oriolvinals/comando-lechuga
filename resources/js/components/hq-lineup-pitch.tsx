@@ -18,6 +18,16 @@ const ROWS: { position: PlayerPosition; top: string }[] = [
 ];
 
 /**
+ * `tactical_formation` is stored as [defenders, midfielders, strikers] — the
+ * goalkeeper slot is always exactly 1 and isn't part of that array.
+ */
+const FORMATION_ROW_POSITIONS: PlayerPosition[] = [
+    'defender',
+    'midfield',
+    'striker',
+];
+
+/**
  * Same tiers as `matchPointsBadgeClass`, but opaque — the badge sits on
  * grass, not a dark panel, so the translucent tints used elsewhere lose
  * contrast here. Every tier (including "no data") gets a real color, never
@@ -78,19 +88,41 @@ function nameMaxWidthForRowCount(count: number): string {
 
 interface HqLineupPitchProps {
     players: ManagerLineupPlayerEntry[];
-    formation?: string | null;
+    tacticalFormation?: number[] | null;
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
 }
 
 export function HqLineupPitch({
     players,
-    formation,
+    tacticalFormation,
     onSelectPlayer,
 }: HqLineupPitchProps) {
-    const rows = ROWS.map((row) => ({
-        ...row,
-        entries: players.filter((entry) => entry.position === row.position),
-    })).filter((row) => row.entries.length > 0);
+    const expectedCounts: Partial<Record<PlayerPosition, number>> = {
+        goalkeeper: 1,
+    };
+
+    if (tacticalFormation?.length === FORMATION_ROW_POSITIONS.length) {
+        FORMATION_ROW_POSITIONS.forEach((position, index) => {
+            expectedCounts[position] = tacticalFormation[index];
+        });
+    }
+
+    const rows = ROWS.map((row) => {
+        const entries = players.filter(
+            (entry) => entry.position === row.position,
+        );
+        const emptySlots = Math.max(
+            (expectedCounts[row.position] ?? entries.length) - entries.length,
+            0,
+        );
+
+        return { ...row, entries, emptySlots };
+    }).filter((row) => row.entries.length > 0 || row.emptySlots > 0);
+
+    const formationLabel =
+        tacticalFormation && tacticalFormation.length > 0
+            ? tacticalFormation.join('-')
+            : null;
 
     return (
         <div>
@@ -109,15 +141,15 @@ export function HqLineupPitch({
                     <div className="absolute bottom-2 left-1/2 h-[13.5%] w-[55%] -translate-x-1/2 border-2 border-b-0 border-white/75" />
                 </div>
 
-                {formation && (
+                {formationLabel && (
                     <span className="absolute top-2 left-2 z-20 border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-hq-moss uppercase">
-                        {formation}
+                        {formationLabel}
                     </span>
                 )}
 
                 {rows.map((row) => {
                     const nameMaxWidth = nameMaxWidthForRowCount(
-                        row.entries.length,
+                        row.entries.length + row.emptySlots,
                     );
 
                     return (
@@ -133,13 +165,15 @@ export function HqLineupPitch({
                                     onClick={() => onSelectPlayer(entry)}
                                     className="relative shrink-0 cursor-pointer"
                                 >
-                                    <EntityImage
-                                        src={entry.player.image}
-                                        alt={entry.player.nickname}
-                                        fallback={User}
-                                        shape="square"
-                                        className="h-12 w-12 rounded-[3px] border-2 border-white bg-hq-border object-cover object-bottom"
-                                    />
+                                    <span className="block h-12 w-12 overflow-hidden rounded-[3px] border-2 border-white bg-hq-border">
+                                        <EntityImage
+                                            src={entry.player.image}
+                                            alt={entry.player.nickname}
+                                            fallback={User}
+                                            shape="square"
+                                            className="h-full w-full translate-y-[8%] object-cover object-bottom"
+                                        />
+                                    </span>
                                     <EntityImage
                                         src={entry.player.team.logo}
                                         alt={entry.player.team.main_name}
@@ -172,6 +206,16 @@ export function HqLineupPitch({
                                     </span>
                                 </button>
                             ))}
+                            {Array.from({ length: row.emptySlots }).map(
+                                (_, index) => (
+                                    <div
+                                        key={`empty-${row.position}-${index}`}
+                                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-white/40"
+                                    >
+                                        <User className="h-5 w-5 text-white/40" />
+                                    </div>
+                                ),
+                            )}
                         </div>
                     );
                 })}

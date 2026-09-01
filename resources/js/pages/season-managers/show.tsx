@@ -162,13 +162,8 @@ export default function SeasonManagerShow({
                             {lineupForWeek ? (
                                 <HqLineupPitch
                                     players={lineupForWeek.players}
-                                    formation={
+                                    tacticalFormation={
                                         lineupForWeek.tactical_formation
-                                            .length > 0
-                                            ? lineupForWeek.tactical_formation.join(
-                                                  '-',
-                                              )
-                                            : null
                                     }
                                     onSelectPlayer={setSelectedPlayer}
                                 />
