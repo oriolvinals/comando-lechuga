@@ -126,19 +126,19 @@ export function HqLineupPitch({
 
     return (
         <div>
-            <div
-                className="relative aspect-[280/440] w-full border-2 border-[#0e4a24]"
-                style={{
-                    background:
-                        'repeating-linear-gradient(180deg, #1f7a3f 0px, #1f7a3f 11%, #1a6b37 11%, #1a6b37 22%)',
-                }}
-            >
+            <div className="relative aspect-[280/440] w-full border-2 border-[#0e4a24] bg-[#1a6b37]">
                 <div className="absolute inset-0 overflow-hidden">
-                    <div className="absolute inset-2 border-2 border-white/75" />
+                    <div
+                        className="absolute inset-2 border-2 border-white/75"
+                        style={{
+                            background:
+                                'repeating-linear-gradient(180deg, #1f7a3f 0%, #1f7a3f 6.25%, #1a6b37 6.25%, #1a6b37 12.5%)',
+                        }}
+                    />
                     <div className="absolute top-1/2 right-2 left-2 border-t-2 border-white/75" />
                     <div className="absolute top-1/2 left-1/2 aspect-square w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/75" />
-                    <div className="absolute top-2 left-1/2 h-[13.5%] w-[55%] -translate-x-1/2 border-2 border-t-0 border-white/75" />
-                    <div className="absolute bottom-2 left-1/2 h-[13.5%] w-[55%] -translate-x-1/2 border-2 border-b-0 border-white/75" />
+                    <div className="absolute top-2 left-1/2 h-[12.5%] w-[55%] -translate-x-1/2 border-2 border-t-0 border-white/75" />
+                    <div className="absolute bottom-2 left-1/2 h-[12.5%] w-[55%] -translate-x-1/2 border-2 border-b-0 border-white/75" />
                 </div>
 
                 {formationLabel && (
