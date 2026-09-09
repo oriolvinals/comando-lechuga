@@ -264,12 +264,14 @@ export interface StandingsFormEntry {
     opponent: Team;
     score: string;
     result: 'win' | 'draw' | 'loss';
+    date: string;
 }
 
 export interface StandingsNext {
     fixture_id: number;
     opponent: Team;
     is_home: boolean;
+    date: string;
 }
 
 export interface StandingsRow {

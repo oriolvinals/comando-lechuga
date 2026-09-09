@@ -146,7 +146,7 @@ class TeamsController extends Controller
      * Each team's single soonest scheduled fixture — used as the standings
      * table's "next match" slot for a team that isn't currently live.
      *
-     * @return array<int, array{fixture_id: int, opponent: Team, is_home: bool}>
+     * @return array<int, array{fixture_id: int, opponent: Team, is_home: bool, date: \Carbon\CarbonImmutable}>
      */
     private function nextFixtureByTeam(Season $season): array
     {
@@ -168,6 +168,7 @@ class TeamsController extends Controller
                         'fixture_id' => $fixture->id,
                         'opponent' => $fixture->team_local_id === $teamId ? $fixture->guestTeam : $fixture->localTeam,
                         'is_home' => $fixture->team_local_id === $teamId,
+                        'date' => $fixture->date,
                     ];
                 }
             });
@@ -187,8 +188,8 @@ class TeamsController extends Controller
      *
      * @param  Collection<int, Team>  $teams
      * @param  Collection<int, Fixture>  $fixtures  from standingsFixtures() — finished + live
-     * @param  array<int, array{fixture_id: int, opponent: Team, is_home: bool}>  $nextByTeam  from nextFixtureByTeam(), keyed by team id
-     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss'}>, live: array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss'}|null, next: array{fixture_id: int, opponent: Team, is_home: bool}|null}>
+     * @param  array<int, array{fixture_id: int, opponent: Team, is_home: bool, date: \Carbon\CarbonImmutable}>  $nextByTeam  from nextFixtureByTeam(), keyed by team id
+     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss', date: \Carbon\CarbonImmutable}>, live: array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss', date: \Carbon\CarbonImmutable}|null, next: array{fixture_id: int, opponent: Team, is_home: bool, date: \Carbon\CarbonImmutable}|null}>
      */
     private function standingsFor(Collection $teams, Collection $fixtures, array $nextByTeam = []): array
     {
@@ -200,7 +201,7 @@ class TeamsController extends Controller
             $goalsFor = 0;
             $goalsAgainst = 0;
             $live = null;
-            /** @var list<array{date: \Carbon\CarbonImmutable, fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss'}> $formEntries */
+            /** @var list<array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss', date: \Carbon\CarbonImmutable}> $formEntries */
             $formEntries = [];
 
             foreach ($fixtures as $fixture) {
@@ -234,6 +235,7 @@ class TeamsController extends Controller
                     'opponent' => $opponent,
                     'score' => "{$for}-{$against}",
                     'result' => $result,
+                    'date' => $fixture->date,
                 ];
 
                 if (in_array($fixture->state, self::LIVE_STATES, true)) {
@@ -241,15 +243,12 @@ class TeamsController extends Controller
                 }
 
                 if ($fixture->state === FixtureState::Finished) {
-                    $formEntries[] = ['date' => $fixture->date, ...$entry];
+                    $formEntries[] = $entry;
                 }
             }
 
             usort($formEntries, fn (array $a, array $b): int => $b['date'] <=> $a['date']);
-            $recentForm = array_map(
-                fn (array $entry): array => collect($entry)->except('date')->all(),
-                array_slice($formEntries, 0, 4),
-            );
+            $recentForm = array_slice($formEntries, 0, 4);
 
             return [
                 'team' => $team,
