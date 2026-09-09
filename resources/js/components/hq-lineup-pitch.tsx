@@ -132,7 +132,7 @@ export function HqLineupPitch({
                         className="absolute inset-2 border-2 border-white/75"
                         style={{
                             background:
-                                'repeating-linear-gradient(180deg, #1f7a3f 0%, #1f7a3f 6.25%, #1a6b37 6.25%, #1a6b37 12.5%)',
+                                'repeating-linear-gradient(180deg, #1f7a3f 0%, #1f7a3f 12.5%, #1a6b37 12.5%, #1a6b37 25%)',
                         }}
                     />
                     <div className="absolute top-1/2 right-2 left-2 border-t-2 border-white/75" />
