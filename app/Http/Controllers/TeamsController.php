@@ -39,9 +39,10 @@ class TeamsController extends Controller
         $season = Season::current();
         $teams = $season->teams;
         $fixtures = $this->standingsFixtures($season);
+        $nextByTeam = $this->nextFixtureByTeam($season);
 
         return Inertia::render('teams/index', [
-            'standings' => $this->standingsFor($teams, $fixtures),
+            'standings' => $this->standingsFor($teams, $fixtures, $nextByTeam),
         ]);
     }
 
@@ -123,7 +124,9 @@ class TeamsController extends Controller
      * Fixtures relevant to the standings table: finished matches plus any
      * currently live (in-progress) match — a live match counts provisionally
      * with its current score, the same way real LaLiga standings apps show
-     * the table updating live during a jornada.
+     * the table updating live during a jornada. `date` drives recent-form
+     * ordering (not `week_number` — a jornada spans several days, and a
+     * postponed match can be played out of its nominal week order).
      *
      * @return Collection<int, Fixture>
      */
@@ -135,7 +138,41 @@ class TeamsController extends Controller
                 FixtureState::Finished,
                 ...self::LIVE_STATES,
             ])
-            ->get(['team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'week_number']);
+            ->with(['localTeam', 'guestTeam'])
+            ->get(['id', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'date']);
+    }
+
+    /**
+     * Each team's single soonest scheduled fixture — used as the standings
+     * table's "next match" slot for a team that isn't currently live.
+     *
+     * @return array<int, array{fixture_id: int, opponent: Team, is_home: bool}>
+     */
+    private function nextFixtureByTeam(Season $season): array
+    {
+        $nextByTeam = [];
+
+        Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('state', FixtureState::Scheduled)
+            ->with(['localTeam', 'guestTeam'])
+            ->orderBy('date')
+            ->get()
+            ->each(function (Fixture $fixture) use (&$nextByTeam): void {
+                foreach ([$fixture->team_local_id, $fixture->team_guest_id] as $teamId) {
+                    if (isset($nextByTeam[$teamId])) {
+                        continue;
+                    }
+
+                    $nextByTeam[$teamId] = [
+                        'fixture_id' => $fixture->id,
+                        'opponent' => $fixture->team_local_id === $teamId ? $fixture->guestTeam : $fixture->localTeam,
+                        'is_home' => $fixture->team_local_id === $teamId,
+                    ];
+                }
+            });
+
+        return $nextByTeam;
     }
 
     /**
@@ -143,21 +180,27 @@ class TeamsController extends Controller
      * desc, goal difference desc, goals for desc, then team name asc as a
      * stable final tiebreak (no head-to-head rule; good enough for display).
      *
+     * `recent_form` holds up to the last 4 FINISHED results, newest first —
+     * the "what's happening right now" slot (live score, or else the next
+     * scheduled match) is deliberately separate (`live`/`next`) rather than
+     * a 5th form entry, since it isn't a settled result yet.
+     *
      * @param  Collection<int, Team>  $teams
      * @param  Collection<int, Fixture>  $fixtures  from standingsFixtures() — finished + live
-     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<'win'|'draw'|'loss'>, is_live: bool}>
+     * @param  array<int, array{fixture_id: int, opponent: Team, is_home: bool}>  $nextByTeam  from nextFixtureByTeam(), keyed by team id
+     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss'}>, live: array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss'}|null, next: array{fixture_id: int, opponent: Team, is_home: bool}|null}>
      */
-    private function standingsFor(Collection $teams, Collection $fixtures): array
+    private function standingsFor(Collection $teams, Collection $fixtures, array $nextByTeam = []): array
     {
-        $rows = $teams->map(function (Team $team) use ($fixtures): array {
+        $rows = $teams->map(function (Team $team) use ($fixtures, $nextByTeam): array {
             $played = 0;
             $won = 0;
             $drawn = 0;
             $lost = 0;
             $goalsFor = 0;
             $goalsAgainst = 0;
-            $isLive = false;
-            /** @var list<array{week_number: int, result: 'win'|'draw'|'loss'}> $formEntries */
+            $live = null;
+            /** @var list<array{date: \Carbon\CarbonImmutable, fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss'}> $formEntries */
             $formEntries = [];
 
             foreach ($fixtures as $fixture) {
@@ -173,6 +216,7 @@ class TeamsController extends Controller
                 $against = ($isLocal ? $fixture->guest_score : $fixture->local_score) ?? 0;
                 $goalsFor += $for;
                 $goalsAgainst += $against;
+                $opponent = $isLocal ? $fixture->guestTeam : $fixture->localTeam;
 
                 if ($for > $against) {
                     $won++;
@@ -185,17 +229,27 @@ class TeamsController extends Controller
                     $result = 'loss';
                 }
 
+                $entry = [
+                    'fixture_id' => $fixture->id,
+                    'opponent' => $opponent,
+                    'score' => "{$for}-{$against}",
+                    'result' => $result,
+                ];
+
                 if (in_array($fixture->state, self::LIVE_STATES, true)) {
-                    $isLive = true;
+                    $live = $entry;
                 }
 
                 if ($fixture->state === FixtureState::Finished) {
-                    $formEntries[] = ['week_number' => $fixture->week_number, 'result' => $result];
+                    $formEntries[] = ['date' => $fixture->date, ...$entry];
                 }
             }
 
-            usort($formEntries, fn (array $a, array $b): int => $a['week_number'] <=> $b['week_number']);
-            $recentForm = array_column(array_slice($formEntries, -5), 'result');
+            usort($formEntries, fn (array $a, array $b): int => $b['date'] <=> $a['date']);
+            $recentForm = array_map(
+                fn (array $entry): array => collect($entry)->except('date')->all(),
+                array_slice($formEntries, 0, 4),
+            );
 
             return [
                 'team' => $team,
@@ -208,7 +262,8 @@ class TeamsController extends Controller
                 'goal_difference' => $goalsFor - $goalsAgainst,
                 'points' => $won * 3 + $drawn,
                 'recent_form' => $recentForm,
-                'is_live' => $isLive,
+                'live' => $live,
+                'next' => $live === null ? ($nextByTeam[$team->id] ?? null) : null,
             ];
         });
 

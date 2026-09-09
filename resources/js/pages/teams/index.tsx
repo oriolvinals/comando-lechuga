@@ -2,21 +2,125 @@ import { Head, Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { RESULT_BADGE_CLASSES, RESULT_LABEL } from '@/lib/team-fixture-result';
 import { cn } from '@/lib/utils';
+import { show as fixturesShow } from '@/routes/fixtures';
 import { show as teamsShow } from '@/routes/teams';
-import type { StandingsRow } from '@/types/models';
+import type { StandingsFormEntry, StandingsRow } from '@/types/models';
 
 interface TeamsIndexProps {
     standings: StandingsRow[];
     [key: string]: unknown;
 }
 
+function LiveBadge({ live }: { live: StandingsFormEntry }) {
+    return (
+        <HqTooltip
+            label={
+                <>
+                    <span className="font-bold text-hq-live">
+                        EN DIRECTO
+                    </span>{' '}
+                    vs {live.opponent.main_name}
+                </>
+            }
+        >
+            <Link
+                href={fixturesShow(live.fixture_id).url}
+                className={cn(
+                    'rounded px-1.5 py-0.5 font-mono text-[11px] font-bold transition-[filter] hover:brightness-125',
+                    RESULT_BADGE_CLASSES[live.result],
+                )}
+            >
+                {live.score}
+            </Link>
+        </HqTooltip>
+    );
+}
+
+/**
+ * The Forma column's leading slot: this team's live match (if any), else its
+ * next scheduled one, else nothing — followed by up to 4 finished results.
+ */
+function FormaStrip({ row }: { row: StandingsRow }) {
+    if (
+        row.live === null &&
+        row.next === null &&
+        row.recent_form.length === 0
+    ) {
+        return <span className="text-hq-moss-dim">–</span>;
+    }
+
+    return (
+        <div className="flex items-center justify-center gap-1">
+            {row.live && (
+                <HqTooltip
+                    label={
+                        <>
+                            <span className="font-bold text-hq-live">
+                                EN DIRECTO
+                            </span>{' '}
+                            vs {row.live.opponent.main_name}{' '}
+                            <span className="font-bold">
+                                {row.live.score}
+                            </span>
+                        </>
+                    }
+                >
+                    <Link
+                        href={fixturesShow(row.live.fixture_id).url}
+                        className={cn(
+                            'relative flex h-5 w-5 items-center justify-center rounded-[3px] font-mono text-[11px] font-bold transition-[filter] hover:brightness-125',
+                            RESULT_BADGE_CLASSES[row.live.result],
+                        )}
+                    >
+                        {RESULT_LABEL[row.live.result]}
+                        <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live ring-2 ring-hq-panel" />
+                    </Link>
+                </HqTooltip>
+            )}
+            {row.live === null && row.next && (
+                <HqTooltip label={`Próximo: vs ${row.next.opponent.main_name}`}>
+                    <Link
+                        href={fixturesShow(row.next.fixture_id).url}
+                        className="flex h-5 w-5 items-center justify-center overflow-hidden rounded-[3px] transition-[filter] hover:brightness-125"
+                    >
+                        <EntityImage
+                            src={row.next.opponent.logo}
+                            alt={row.next.opponent.main_name}
+                            fallback={Shield}
+                            shape="square"
+                            className="h-full w-full"
+                        />
+                    </Link>
+                </HqTooltip>
+            )}
+            {row.recent_form.map((entry) => (
+                <HqTooltip
+                    key={entry.fixture_id}
+                    label={`vs ${entry.opponent.main_name} · ${entry.score}`}
+                >
+                    <Link
+                        href={fixturesShow(entry.fixture_id).url}
+                        className={cn(
+                            'flex h-5 w-5 items-center justify-center rounded-[3px] font-mono text-[11px] font-bold transition-[filter] hover:brightness-125',
+                            RESULT_BADGE_CLASSES[entry.result],
+                        )}
+                    >
+                        {RESULT_LABEL[entry.result]}
+                    </Link>
+                </HqTooltip>
+            ))}
+        </div>
+    );
+}
+
 export default function TeamsIndex({ standings }: TeamsIndexProps) {
     return (
         <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
-            <div className="mx-auto max-w-5xl px-6 py-9">
+            <div className="mx-auto max-w-7xl px-6 py-9">
                 <Head title="Equipos" />
 
                 <h1 className="mb-6 font-display text-3xl text-hq-paper uppercase">
@@ -50,25 +154,38 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                         {row.position}
                                     </td>
                                     <td className="px-3 py-2">
-                                        <Link
-                                            href={teamsShow(row.team.id).url}
-                                            className="flex items-center gap-2 font-bold text-hq-paper hover:text-hq-lime"
-                                        >
-                                            <EntityImage
-                                                src={row.team.logo}
-                                                alt={row.team.main_name}
-                                                fallback={Shield}
-                                                shape="square"
-                                                className="h-5 w-5 object-contain"
-                                            />
-                                            {row.team.main_name}
-                                            {row.is_live && (
-                                                <span
-                                                    className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-hq-live"
-                                                    title="En directo"
+                                        <div className="flex items-center gap-2 font-bold text-hq-paper">
+                                            <Link
+                                                href={
+                                                    teamsShow(row.team.id).url
+                                                }
+                                                className="flex shrink-0 items-center hover:text-hq-lime"
+                                            >
+                                                <EntityImage
+                                                    src={row.team.logo}
+                                                    alt={row.team.main_name}
+                                                    fallback={Shield}
+                                                    shape="square"
+                                                    className="h-5 w-5 object-contain"
                                                 />
+                                            </Link>
+                                            <Link
+                                                href={
+                                                    teamsShow(row.team.id).url
+                                                }
+                                                className="hover:text-hq-lime"
+                                            >
+                                                {row.team.main_name}
+                                            </Link>
+                                            {row.live && (
+                                                <>
+                                                    <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-hq-live" />
+                                                    <LiveBadge
+                                                        live={row.live}
+                                                    />
+                                                </>
                                             )}
-                                        </Link>
+                                        </div>
                                     </td>
                                     <td className="px-2 py-2 text-center">
                                         {row.played}
@@ -96,33 +213,7 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                         {row.points}
                                     </td>
                                     <td className="px-3 py-2">
-                                        <div className="flex items-center justify-center gap-0.5">
-                                            {row.recent_form.length === 0 ? (
-                                                <span className="text-hq-moss-dim">
-                                                    –
-                                                </span>
-                                            ) : (
-                                                row.recent_form.map(
-                                                    (result, index) => (
-                                                        <span
-                                                            key={index}
-                                                            className={cn(
-                                                                'flex h-4 w-4 items-center justify-center rounded-[2px] text-[8px] font-bold',
-                                                                RESULT_BADGE_CLASSES[
-                                                                    result
-                                                                ],
-                                                            )}
-                                                        >
-                                                            {
-                                                                RESULT_LABEL[
-                                                                    result
-                                                                ]
-                                                            }
-                                                        </span>
-                                                    ),
-                                                )
-                                            )}
-                                        </div>
+                                        <FormaStrip row={row} />
                                     </td>
                                 </tr>
                             ))}
@@ -132,40 +223,61 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
 
                 <div className="xl:hidden">
                     {standings.map((row) => (
-                        <Link
+                        <div
                             key={row.team.id}
-                            href={teamsShow(row.team.id).url}
-                            className="hq-card-cut mb-1.5 flex items-center justify-between px-3.5 py-2.5 transition-[filter] hover:brightness-125"
+                            className="hq-card-cut mb-1.5 px-3.5 py-2.5"
                         >
-                            <div className="flex min-w-0 items-center gap-2.5">
-                                <span className="w-5 shrink-0 text-center font-mono text-[11px] text-hq-moss-dim">
-                                    {row.position}
-                                </span>
-                                <EntityImage
-                                    src={row.team.logo}
-                                    alt={row.team.main_name}
-                                    fallback={Shield}
-                                    shape="square"
-                                    className="h-6 w-6 shrink-0"
-                                />
-                                <div className="min-w-0">
-                                    <p className="flex items-center gap-1.5 truncate text-[13px] font-bold text-hq-paper">
-                                        {row.team.short_name}
-                                        {row.is_live && (
-                                            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-hq-live" />
-                                        )}
-                                    </p>
-                                    <p className="font-mono text-[10px] text-hq-moss-dim">
-                                        PJ {row.played} · DG{' '}
-                                        {row.goal_difference > 0 ? '+' : ''}
-                                        {row.goal_difference}
-                                    </p>
+                            <Link
+                                href={teamsShow(row.team.id).url}
+                                className="flex items-center justify-between transition-[filter] hover:brightness-125"
+                            >
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                    <span className="w-5 shrink-0 text-center font-mono text-[11px] text-hq-moss-dim">
+                                        {row.position}
+                                    </span>
+                                    <EntityImage
+                                        src={row.team.logo}
+                                        alt={row.team.main_name}
+                                        fallback={Shield}
+                                        shape="square"
+                                        className="h-6 w-6 shrink-0"
+                                    />
+                                    <div className="min-w-0">
+                                        <p className="flex items-center gap-1.5 truncate text-[13px] font-bold text-hq-paper">
+                                            {row.team.short_name}
+                                            {row.live && (
+                                                <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-hq-live" />
+                                            )}
+                                        </p>
+                                        <p className="font-mono text-[10px] text-hq-moss-dim">
+                                            PJ {row.played} · DG{' '}
+                                            {row.goal_difference > 0
+                                                ? '+'
+                                                : ''}
+                                            {row.goal_difference}
+                                        </p>
+                                    </div>
                                 </div>
+                                <span className="shrink-0 font-display text-lg text-hq-lime">
+                                    {row.points}
+                                </span>
+                            </Link>
+                            <div className="mt-2 flex items-center justify-between gap-2 border-t border-hq-ink pt-2">
+                                <FormaStrip row={row} />
+                                {row.live && (
+                                    <span
+                                        className={cn(
+                                            'rounded px-1.5 py-0.5 font-mono text-[11px] font-bold',
+                                            RESULT_BADGE_CLASSES[
+                                                row.live.result
+                                            ],
+                                        )}
+                                    >
+                                        {row.live.score}
+                                    </span>
+                                )}
                             </div>
-                            <span className="shrink-0 font-display text-lg text-hq-lime">
-                                {row.points}
-                            </span>
-                        </Link>
+                        </div>
                     ))}
                 </div>
             </div>

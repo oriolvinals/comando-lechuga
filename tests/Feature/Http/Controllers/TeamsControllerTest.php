@@ -116,7 +116,7 @@ test('returns 404 for an unknown team', function (): void {
     $response->assertNotFound();
 });
 
-test('a live match counts toward the table but not toward recent form', function (): void {
+test('a live match counts toward the table, exposes live details, and stays out of recent form', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -124,7 +124,7 @@ test('a live match counts toward the table but not toward recent form', function
     $team = Team::factory()->create();
     $rival = Team::factory()->create();
     $season->teams()->attach([$team->id, $rival->id]);
-    Fixture::factory()->create([
+    $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'week_number' => 1,
         'team_local_id' => $team->id,
@@ -141,9 +141,57 @@ test('a live match counts toward the table but not toward recent form', function
         ->where('standings.0.team.id', $team->id)
         ->where('standings.0.played', 1)
         ->where('standings.0.points', 3)
-        ->where('standings.0.is_live', true)
         ->where('standings.0.recent_form', [])
-        ->where('standings.1.is_live', true)
+        ->where('standings.0.next', null)
+        ->where('standings.0.live.fixture_id', $fixture->id)
+        ->where('standings.0.live.opponent.id', $rival->id)
+        ->where('standings.0.live.score', '1-0')
+        ->where('standings.0.live.result', 'win')
+        // Same fixture, the other side: Barcelona-vs-Madrid style — both
+        // teams see it as live, from their own perspective.
+        ->where('standings.1.live.fixture_id', $fixture->id)
+        ->where('standings.1.live.opponent.id', $team->id)
+        ->where('standings.1.live.score', '0-1')
+        ->where('standings.1.live.result', 'loss')
+    );
+});
+
+test('a team not currently live shows its next scheduled fixture', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    // Explicit name so this team sorts first among three teams tied at
+    // 0 points/0 GD/0 GF (the default tiebreak is team name ascending).
+    $team = Team::factory()->create(['main_name' => 'AAA Test Team']);
+    $rivalA = Team::factory()->create();
+    $rivalB = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rivalA->id, $rivalB->id]);
+    // Further out — must not win over the sooner one below.
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rivalB->id,
+        'state' => FixtureState::Scheduled,
+        'date' => now()->addDays(10),
+    ]);
+    $soon = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $rivalA->id,
+        'team_guest_id' => $team->id,
+        'state' => FixtureState::Scheduled,
+        'date' => now()->addDays(2),
+    ]);
+
+    $response = $this->get(route('teams.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('standings.0.team.id', $team->id)
+        ->where('standings.0.live', null)
+        ->where('standings.0.next.fixture_id', $soon->id)
+        ->where('standings.0.next.opponent.id', $rivalA->id)
+        ->where('standings.0.next.is_home', false)
     );
 });
 
@@ -202,7 +250,7 @@ test('the ficha exposes this team\'s own position in the real standings', functi
     );
 });
 
-test('recent form holds only the last 5 finished results, oldest first', function (): void {
+test('recent form holds only the last 4 finished results, newest first by date (not week_number)', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -211,20 +259,32 @@ test('recent form holds only the last 5 finished results, oldest first', functio
     $rival = Team::factory()->create();
     $season->teams()->attach([$team->id, $rival->id]);
 
-    // 6 finished matches across weeks 1-6: week1 win, week2 loss, week3 draw, week4 win, week5 win, week6 loss.
-    // Only the last 5 (weeks 2-6) should appear, oldest first: loss, draw, win, win, loss.
-    $results = [1 => [2, 0], 2 => [0, 1], 3 => [1, 1], 4 => [3, 0], 5 => [2, 1], 6 => [0, 2]];
+    // 5 finished matches, deliberately out of week_number order by date, to prove
+    // date (not week_number) drives the ordering: a match with a HIGHER week_number
+    // but an EARLIER date must still sort as older.
+    // date-oldest -> date-newest: win, loss, draw, win, win. Only the last 4
+    // by date should appear (dropping the oldest "win"), newest first: win, win, draw, loss.
+    $matches = [
+        ['week_number' => 5, 'date' => now()->subDays(10), 'local' => 2, 'guest' => 0], // oldest by date, dropped
+        ['week_number' => 1, 'date' => now()->subDays(8), 'local' => 0, 'guest' => 1],  // loss
+        ['week_number' => 2, 'date' => now()->subDays(6), 'local' => 1, 'guest' => 1],  // draw
+        ['week_number' => 3, 'date' => now()->subDays(4), 'local' => 3, 'guest' => 0],  // win
+        ['week_number' => 4, 'date' => now()->subDays(2), 'local' => 2, 'guest' => 1],  // win, newest
+    ];
+    $fixtureIds = [];
 
-    foreach ($results as $week => [$local, $guest]) {
-        Fixture::factory()->create([
+    foreach ($matches as $match) {
+        $fixture = Fixture::factory()->create([
             'season_id' => $season->id,
-            'week_number' => $week,
+            'week_number' => $match['week_number'],
             'team_local_id' => $team->id,
             'team_guest_id' => $rival->id,
-            'local_score' => $local,
-            'guest_score' => $guest,
+            'local_score' => $match['local'],
+            'guest_score' => $match['guest'],
             'state' => FixtureState::Finished,
+            'date' => $match['date'],
         ]);
+        $fixtureIds[$match['week_number']] = $fixture->id;
     }
 
     $response = $this->get(route('teams.index'));
@@ -232,7 +292,17 @@ test('recent form holds only the last 5 finished results, oldest first', functio
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): Assert => $page
         ->where('standings.0.team.id', $team->id)
-        ->where('standings.0.recent_form', ['loss', 'draw', 'win', 'win', 'loss'])
+        ->has('standings.0.recent_form', 4)
+        ->where('standings.0.recent_form.0.result', 'win')
+        ->where('standings.0.recent_form.0.fixture_id', $fixtureIds[4])
+        ->where('standings.0.recent_form.0.score', '2-1')
+        ->where('standings.0.recent_form.0.opponent.id', $rival->id)
+        ->where('standings.0.recent_form.1.result', 'win')
+        ->where('standings.0.recent_form.1.fixture_id', $fixtureIds[3])
+        ->where('standings.0.recent_form.2.result', 'draw')
+        ->where('standings.0.recent_form.2.fixture_id', $fixtureIds[2])
+        ->where('standings.0.recent_form.3.result', 'loss')
+        ->where('standings.0.recent_form.3.fixture_id', $fixtureIds[1])
     );
 });
 

@@ -259,6 +259,19 @@ export interface Paginated<T> {
 export type WeekProgress = 'none' | 'partial' | 'all';
 export type WeekProgressMap = Record<string, WeekProgress>;
 
+export interface StandingsFormEntry {
+    fixture_id: number;
+    opponent: Team;
+    score: string;
+    result: 'win' | 'draw' | 'loss';
+}
+
+export interface StandingsNext {
+    fixture_id: number;
+    opponent: Team;
+    is_home: boolean;
+}
+
 export interface StandingsRow {
     position: number;
     team: Team;
@@ -270,6 +283,10 @@ export interface StandingsRow {
     goals_against: number;
     goal_difference: number;
     points: number;
-    recent_form: ('win' | 'draw' | 'loss')[];
-    is_live: boolean;
+    /** Up to the last 4 finished results, newest first. */
+    recent_form: StandingsFormEntry[];
+    /** This team's fixture in progress right now, or null if it isn't playing. */
+    live: StandingsFormEntry | null;
+    /** This team's next scheduled fixture — only set when `live` is null. */
+    next: StandingsNext | null;
 }
