@@ -73,7 +73,7 @@ export default function TeamShow({
             <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-9 lg:flex-row lg:items-start">
                 <Head title={team.main_name} />
 
-                <div className="w-full shrink-0 lg:w-64">
+                <div className="w-full shrink-0 lg:w-1/4">
                     <div className="hq-card-cut p-4 text-center">
                         <EntityImage
                             src={team.logo}
@@ -132,10 +132,8 @@ export default function TeamShow({
                             <HqNextFixtures fixtures={nextFixtures} size="sm" />
                         </div>
                     </div>
-                </div>
 
-                <div className="min-w-0 flex-1 space-y-8">
-                    <div>
+                    <div className="mt-6">
                         <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
                             Alineación de la jornada
                         </h2>
@@ -172,37 +170,31 @@ export default function TeamShow({
                             )}
                         </div>
                     </div>
+                </div>
 
-                    <div>
-                        <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
-                            Plantilla
-                        </h2>
-                        {groups.length === 0 ? (
-                            <p className="font-mono text-[11px] text-hq-moss-dim">
-                                Este equipo no tiene jugadores en la liga.
-                            </p>
-                        ) : (
-                            groups.map((group) => (
-                                <div
-                                    key={group.position}
-                                    className="mt-6 first:mt-0"
-                                >
-                                    <div className="mb-2 flex items-center gap-2">
-                                        <HqPositionTag position={group.position} />
-                                        <span className="font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase">
-                                            {POSITION_GROUP_LABELS[group.position]}
-                                        </span>
-                                    </div>
-                                    {group.players.map((player) => (
-                                        <PlayerRow
-                                            key={player.id}
-                                            player={player}
-                                        />
-                                    ))}
+                <div className="min-w-0 flex-1">
+                    <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
+                        Plantilla
+                    </h2>
+                    {groups.length === 0 ? (
+                        <p className="font-mono text-[11px] text-hq-moss-dim">
+                            Este equipo no tiene jugadores en la liga.
+                        </p>
+                    ) : (
+                        groups.map((group) => (
+                            <div key={group.position} className="mt-6 first:mt-0">
+                                <div className="mb-2 flex items-center gap-2">
+                                    <HqPositionTag position={group.position} />
+                                    <span className="font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase">
+                                        {POSITION_GROUP_LABELS[group.position]}
+                                    </span>
                                 </div>
-                            ))
-                        )}
-                    </div>
+                                {group.players.map((player) => (
+                                    <PlayerRow key={player.id} player={player} />
+                                ))}
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
