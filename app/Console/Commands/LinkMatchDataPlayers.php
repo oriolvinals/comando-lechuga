@@ -95,6 +95,7 @@ class LinkMatchDataPlayers extends Command
         2834 => 396607, // Beitia - RSO
         2414 => 178978, // Bellerín - BET
         3101 => 291281, // Bellingham - RMA
+        3261 => 333927, // Belocian - RAC
         927 => 209579, // Berenguer - ATH
         3116 => 199833, // Bernardo Silva - RMA
         2973 => 414299, // Bil Nsongo - RCD
@@ -189,6 +190,7 @@ class LinkMatchDataPlayers extends Command
         2454 => 254270, // Ejuke - SEV
         1930 => 310682, // El Hilali - ESP
         2654 => 334111, // El-Abdellaoui - CEL
+        3267 => 207834, // Emil Audero - RAY
         3154 => 218122, // Enes Ünal - GET
         2354 => 128714, // Eric - BAR
         3018 => 400222, // Eriksson - RAC
@@ -400,6 +402,7 @@ class LinkMatchDataPlayers extends Command
         2958 => 421310, // Morcillo - ATM
         3127 => 361468, // Moscardo - ESP
         1959 => 318098, // Mouriño - VIL
+        3260 => 265996, // Mujaid Sadick - RAY
         2742 => 409383, // Nacho Perez - LEV
         2543 => 301526, // Natan - BET
         2549 => 276996, // Navarro - ATH
@@ -449,6 +452,7 @@ class LinkMatchDataPlayers extends Command
         2455 => 347359, // Peque - SEV
         2400 => 196914, // Pere Milla - ESP
         1938 => 260242, // Pol Lozano - ESP
+        1787 => 318785, // Prados - ATH
         2342 => 253754, // Protesoni - ALA
         3098 => 346210, // Q. Hartman - ESP
         2963 => 275924, // Quagliata - RCD
@@ -472,6 +476,7 @@ class LinkMatchDataPlayers extends Command
         274 => 217319, // Remiro - RSO
         2728 => 337011, // Renato Veiga - VIL
         3228 => 362752, // Requena - LEV
+        3263 => 323286, // Revivo - ELC
         3241 => 3100794, // Ribes - CEL
         2785 => 323737, // Riedel - ESP
         2977 => 279609, // Riki - RCD
@@ -484,6 +489,7 @@ class LinkMatchDataPlayers extends Command
         3208 => 231828, // Rodri - BAR
         3269 => 3124770, // Rodrigo Gamón - VAL
         652 => 178328, // Rubén García - OSA
+        2529 => 319781, // Rubén S. - ELC
         2755 => 141438, // Ryan - LEV
         2428 => 169438, // Rüdiger - RMA
         3134 => 314403, // Saba Sazonov - GET
