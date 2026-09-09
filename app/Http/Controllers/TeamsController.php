@@ -10,7 +10,9 @@ use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesNextFixtures;
 use App\Http\Controllers\Concerns\AttachesOwnerManager;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
+use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
@@ -24,6 +26,7 @@ class TeamsController extends Controller
     use AttachesNextFixtures;
     use AttachesOwnerManager;
     use AttachesRecentScores;
+    use FiltersSeasonWeeks;
 
     private const array LIVE_STATES = [
         FixtureState::FirstHalf,
@@ -100,12 +103,19 @@ class TeamsController extends Controller
             ->orderBy('week_number')
             ->get();
 
+        $weeklyLineups = $this->weeklyLineupsFor($team, $season, $fixtures);
+        $latestLineupWeek = collect($weeklyLineups)->max('week_number') ?? 0;
+
         return Inertia::render('teams/show', [
             'team' => $team,
             'squad' => $squad,
             'standing' => $standing,
             'nextFixtures' => $nextFixtures,
             'fixtures' => $fixtures,
+            'season' => $season,
+            'currentWeek' => max($season->current_week, $latestLineupWeek),
+            'weekProgress' => (object) $this->weekProgress($season),
+            'weeklyLineups' => $weeklyLineups,
         ]);
     }
 
@@ -210,5 +220,67 @@ class TeamsController extends Controller
             ->values()
             ->map(fn (array $row, int $index): array => ['position' => $index + 1, ...$row])
             ->all();
+    }
+
+    /**
+     * One entry per jornada that already has a synced starting XI for this
+     * team — a jornada with no Fixture yet, or a Fixture with no starters
+     * synced, is simply absent (the frontend shows an empty state for any
+     * selected week that isn't in this list).
+     *
+     * `fixture_lineups.player_id` is nullable (an unresolved worldcup26
+     * roster entry — see the match-data-linking design docs): a starter row
+     * with no resolved `Player` is dropped here rather than crashing on
+     * `$lineup->player->position`, since there's nothing displayable for it
+     * on this pitch (no name/photo) anyway.
+     *
+     * @param  Collection<int, Fixture>  $fixtures  this team's fixtures for the season, with localTeam/guestTeam loaded
+     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: string, player: Player, match_finished: bool, fixture: Fixture}>}>
+     */
+    private function weeklyLineupsFor(Team $team, Season $season, Collection $fixtures): array
+    {
+        $fixturesById = $fixtures->keyBy('id');
+
+        $startersByFixture = FixtureLineup::query()
+            ->whereIn('fixture_id', $fixturesById->keys())
+            ->where('team_id', $team->id)
+            ->where('starter', true)
+            ->whereNotNull('player_id')
+            ->with('player.team')
+            ->get()
+            ->groupBy('fixture_id');
+
+        $this->attachCurrentSeason(
+            $startersByFixture->flatten()->pluck('player')->unique('id'),
+            $season->id,
+        );
+
+        $weeklyLineups = [];
+
+        foreach ($startersByFixture as $fixtureId => $starters) {
+            $fixture = $fixturesById->get($fixtureId);
+
+            if ($fixture === null || $starters->isEmpty()) {
+                continue;
+            }
+
+            $weeklyLineups[] = [
+                'week_number' => $fixture->week_number,
+                'fixture' => $fixture,
+                'players' => $starters->map(fn (FixtureLineup $lineup): array => [
+                    'id' => $lineup->id,
+                    'points' => $lineup->fantasy_points,
+                    'stats' => $lineup->fantasy_stats,
+                    'position' => $lineup->player->position,
+                    'player' => $lineup->player,
+                    'match_finished' => $fixture->state === FixtureState::Finished,
+                    'fixture' => $fixture,
+                ])->values()->all(),
+            ];
+        }
+
+        usort($weeklyLineups, fn (array $a, array $b): int => $a['week_number'] <=> $b['week_number']);
+
+        return $weeklyLineups;
     }
 }

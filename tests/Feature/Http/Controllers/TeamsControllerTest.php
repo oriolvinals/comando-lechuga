@@ -6,6 +6,7 @@ use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
@@ -268,4 +269,106 @@ test('the ficha calendar includes both played and upcoming fixtures, ordered by 
         ->where('fixtures.0.id', $past->id)
         ->where('fixtures.1.id', $future->id)
     );
+});
+
+test('the pitch defaults to the latest jornada with a synced lineup, even ahead of season.current_week', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 2,
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 3,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'local_score' => 2,
+        'guest_score' => 1,
+        'state' => FixtureState::Finished,
+    ]);
+    $starter = Player::factory()->create([
+        'team_id' => $team->id,
+        'position' => PlayerPosition::Striker,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $starter->id,
+        'team_id' => $team->id,
+        'starter' => true,
+        'fantasy_points' => 9,
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('currentWeek', 3)
+        ->has('weeklyLineups', 1)
+        ->where('weeklyLineups.0.week_number', 3)
+        ->has('weeklyLineups.0.players', 1)
+        ->where('weeklyLineups.0.players.0.player.id', $starter->id)
+        ->where('weeklyLineups.0.players.0.points', 9)
+        ->where('weeklyLineups.0.players.0.position', 'striker')
+    );
+});
+
+test('a jornada with no synced starting XI is omitted from weeklyLineups', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->has('weeklyLineups', 0)
+        ->where('currentWeek', 1)
+    );
+});
+
+test('a bench player (starter=false) does not appear on the pitch', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Finished,
+        'local_score' => 1,
+        'guest_score' => 0,
+    ]);
+    $bench = Player::factory()->create(['team_id' => $team->id]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $bench->id,
+        'team_id' => $team->id,
+        'starter' => false,
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page->has('weeklyLineups', 0));
 });
