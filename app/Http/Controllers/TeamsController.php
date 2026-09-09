@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\FixtureState;
+use App\Enums\MatchPositionLine;
+use App\Enums\MatchPositionSide;
 use App\Enums\PlayerStatus;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesNextFixtures;
@@ -31,6 +33,32 @@ class TeamsController extends Controller
         FixtureState::HalfTime,
         FixtureState::SecondHalf,
     ];
+
+    // Vertical anchors (top %) for the ficha's own portrait pitch, matching
+    // HqLineupPitch's ROWS constant. Unlike the fantasy `Player::position`
+    // column (only 4 broad buckets), a real formation can use more than one
+    // midfield line (e.g. 4-2-3-1's double pivot + advanced trio) — any
+    // midfield line beyond a flat single one splits evenly between the
+    // defender and forward anchors, by however many this team's own lineup
+    // actually uses. Keyed by MatchPositionLine value.
+    /** @var array<string, int> */
+    private const array PITCH_ROW_ANCHOR = [
+        'goalkeeper' => 6,
+        'defender' => 28,
+        'forward' => 74,
+    ];
+
+    // Front-to-back order of the possible midfield lines — see PITCH_ROW_ANCHOR.
+    /** @var list<string> */
+    private const array PITCH_MIDFIELD_LINE_ORDER = [
+        'defensive_midfielder',
+        'midfielder',
+        'attacking_midfielder',
+    ];
+
+    // Same per-player horizontal spacing FixturesController's shared match
+    // pitch uses, so a line of starters here spreads the same way.
+    private const float PITCH_LINE_STEP = 76 / 3;
 
     public function index(): Response
     {
@@ -285,7 +313,7 @@ class TeamsController extends Controller
      * on this pitch (no name/photo) anyway.
      *
      * @param  Collection<int, Fixture>  $fixtures  this team's fixtures for the season, with localTeam/guestTeam loaded
-     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: string, player: Player, match_finished: bool}>}>
+     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: string, player: Player, match_finished: bool, pitch_top: float, pitch_left: float}>}>
      */
     private function weeklyLineupsFor(Team $team, Season $season, Collection $fixtures): array
     {
@@ -324,6 +352,8 @@ class TeamsController extends Controller
                     'position' => $lineup->player->position,
                     'player' => $lineup->player,
                     'match_finished' => $fixture->state === FixtureState::Finished,
+                    'pitch_top' => $this->pitchTop($lineup, $starters),
+                    'pitch_left' => $this->pitchLeft($lineup, $starters),
                 ])->values()->all(),
             ];
         }
@@ -331,5 +361,83 @@ class TeamsController extends Controller
         usort($weeklyLineups, fn (array $a, array $b): int => $a['week_number'] <=> $b['week_number']);
 
         return $weeklyLineups;
+    }
+
+    /**
+     * Vertical anchor (top %) for a starter based on their real match role,
+     * parsed from the raw worldcup26 position text — see PITCH_ROW_ANCHOR.
+     *
+     * @param  Collection<int, FixtureLineup>  $teamStarters  this team's own starters for the fixture
+     */
+    private function pitchTop(FixtureLineup $lineup, Collection $teamStarters): float
+    {
+        $line = MatchPositionLine::fromWorldcup26Text($lineup->position);
+
+        if (isset(self::PITCH_ROW_ANCHOR[$line->value])) {
+            return (float) self::PITCH_ROW_ANCHOR[$line->value];
+        }
+
+        $midfieldLines = $teamStarters
+            ->map(fn (FixtureLineup $mate): string => MatchPositionLine::fromWorldcup26Text($mate->position)->value)
+            ->filter(fn (string $value): bool => in_array($value, self::PITCH_MIDFIELD_LINE_ORDER, true))
+            ->unique()
+            ->sort(fn (string $a, string $b): int => array_search($a, self::PITCH_MIDFIELD_LINE_ORDER, true) <=> array_search($b, self::PITCH_MIDFIELD_LINE_ORDER, true))
+            ->values();
+
+        $index = $midfieldLines->search(fn (string $value): bool => $value === $line->value);
+        $count = $midfieldLines->count();
+        $defenderDepth = self::PITCH_ROW_ANCHOR['defender'];
+        $forwardDepth = self::PITCH_ROW_ANCHOR['forward'];
+
+        if ($index === false || $count === 0) {
+            return (float) (($defenderDepth + $forwardDepth) / 2);
+        }
+
+        $step = ($forwardDepth - $defenderDepth) / ($count + 1);
+
+        return (float) ($defenderDepth + ($step * ($index + 1)));
+    }
+
+    /**
+     * Horizontal spread (left %) among starters sharing the same real match
+     * line, ordered left-to-right by side then shirt number — same spacing
+     * FixturesController's shared match pitch uses.
+     *
+     * @param  Collection<int, FixtureLineup>  $teamStarters  this team's own starters for the fixture
+     */
+    private function pitchLeft(FixtureLineup $lineup, Collection $teamStarters): float
+    {
+        $line = MatchPositionLine::fromWorldcup26Text($lineup->position);
+
+        $lineMates = $teamStarters
+            ->filter(fn (FixtureLineup $mate): bool => MatchPositionLine::fromWorldcup26Text($mate->position) === $line)
+            ->sortBy([
+                fn (FixtureLineup $a, FixtureLineup $b): int => $this->pitchSideOrder($a->position) <=> $this->pitchSideOrder($b->position),
+                fn (FixtureLineup $a, FixtureLineup $b): int => $a->jersey <=> $b->jersey,
+            ])
+            ->values();
+
+        $index = $lineMates->search(fn (FixtureLineup $mate): bool => $mate->id === $lineup->id);
+        $count = $lineMates->count();
+
+        if ($count <= 1) {
+            return 50.0;
+        }
+
+        $index = $index === false ? 0 : $index;
+        $step = min(self::PITCH_LINE_STEP, 76 / ($count - 1));
+        $span = $step * ($count - 1);
+        $start = 50 - ($span / 2);
+
+        return round($start + ($index * $step), 1);
+    }
+
+    private function pitchSideOrder(string $position): int
+    {
+        return match (MatchPositionSide::fromWorldcup26Text($position)) {
+            MatchPositionSide::Left => 0,
+            MatchPositionSide::Center => 1,
+            MatchPositionSide::Right => 2,
+        };
     }
 }

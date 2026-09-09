@@ -8,7 +8,9 @@ import type { PlayerPosition, ManagerLineupPlayerEntry } from '@/types/models';
  * the official LaLiga Fantasy app: goalkeeper at the top. Each row sits in
  * its logical zone — keeper inside their own box, defenders just outside it,
  * midfield around the halfway line, attackers in the final third short of
- * the opposite box — with an even ~22-23% rhythm between lines.
+ * the opposite box — with an even ~22-23% rhythm between lines. Only used
+ * for a fantasy manager's lineup — see the module doc comment below for why
+ * a team ficha's real match lineup can't use this same row grouping.
  */
 const ROWS: { position: PlayerPosition; top: string }[] = [
     { position: 'goalkeeper', top: '6%' },
@@ -86,6 +88,68 @@ function nameMaxWidthForRowCount(count: number): string {
     return '';
 }
 
+interface PlayerTokenProps {
+    entry: ManagerLineupPlayerEntry;
+    onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
+    showTeamBadge: boolean;
+    nameMaxWidth: string;
+}
+
+function PlayerToken({
+    entry,
+    onSelectPlayer,
+    showTeamBadge,
+    nameMaxWidth,
+}: PlayerTokenProps) {
+    return (
+        <button
+            type="button"
+            onClick={() => onSelectPlayer(entry)}
+            className="relative shrink-0 cursor-pointer"
+        >
+            <span className="block h-12 w-12 overflow-hidden rounded-[3px] border-2 border-white bg-hq-border">
+                <EntityImage
+                    src={entry.player.image}
+                    alt={entry.player.nickname}
+                    fallback={User}
+                    shape="square"
+                    className="h-full w-full translate-y-[8%] object-cover object-bottom"
+                />
+            </span>
+            {showTeamBadge && (
+                <EntityImage
+                    src={entry.player.team.logo}
+                    alt={entry.player.team.main_name}
+                    fallback={Shield}
+                    shape="square"
+                    className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-[3px] bg-hq-panel p-1"
+                />
+            )}
+            <span
+                className={cn(
+                    'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
+                    pointsBadgeTierClass(
+                        entry.points,
+                        entry.points === null && entry.match_finished,
+                    ),
+                )}
+            >
+                {entry.points ?? (entry.match_finished ? 'NC' : '–')}
+            </span>
+            <span
+                className={cn(
+                    'absolute top-full left-1/2 mt-1 min-w-0 -translate-x-1/2 rounded-[3px] bg-hq-ink/85 px-1.5 py-px text-center',
+                    nameMaxWidth,
+                )}
+            >
+                <span className="block min-w-0 truncate font-mono text-[10px] font-bold text-hq-paper">
+                    {entry.player.nickname}
+                </span>
+            </span>
+        </button>
+    );
+}
+
 interface HqLineupPitchProps {
     players: ManagerLineupPlayerEntry[];
     tacticalFormation?: number[] | null;
@@ -94,17 +158,39 @@ interface HqLineupPitchProps {
     showTeamBadge?: boolean;
 }
 
+/**
+ * A fantasy manager's lineup is always exactly a GK + 3 outfield rows
+ * (defender/midfield/striker — `Player::position`'s only 4 buckets), so
+ * grouping by that broad category and spacing rows evenly always matches
+ * the real shape. A team ficha's lineup is a REAL match XI, which can use
+ * more than 3 outfield lines (e.g. 4-2-3-1's double pivot + advanced trio)
+ * that the same 4-bucket category can't represent, and doesn't preserve
+ * left-to-right order within a line either. When the backend has resolved
+ * each starter's actual match role into `pitch_top`/`pitch_left` (see
+ * TeamsController::pitchTop/pitchLeft), place every player at that exact
+ * spot instead of forcing them into the fantasy row grouping.
+ */
 export function HqLineupPitch({
     players,
     tacticalFormation,
     onSelectPlayer,
     showTeamBadge = true,
 }: HqLineupPitchProps) {
+    const useRealCoordinates =
+        players.length > 0 &&
+        players.every(
+            (entry) =>
+                entry.pitch_top !== undefined && entry.pitch_left !== undefined,
+        );
+
     const expectedCounts: Partial<Record<PlayerPosition, number>> = {
         goalkeeper: 1,
     };
 
-    if (tacticalFormation?.length === FORMATION_ROW_POSITIONS.length) {
+    if (
+        !useRealCoordinates &&
+        tacticalFormation?.length === FORMATION_ROW_POSITIONS.length
+    ) {
         FORMATION_ROW_POSITIONS.forEach((position, index) => {
             expectedCounts[position] = tacticalFormation[index];
         });
@@ -121,6 +207,15 @@ export function HqLineupPitch({
 
         return { ...row, entries, emptySlots };
     }).filter((row) => row.entries.length > 0 || row.emptySlots > 0);
+
+    const lineSizes = new Map<number, number>();
+
+    if (useRealCoordinates) {
+        players.forEach((entry) => {
+            const top = entry.pitch_top as number;
+            lineSizes.set(top, (lineSizes.get(top) ?? 0) + 1);
+        });
+    }
 
     const formationLabel =
         tacticalFormation && tacticalFormation.length > 0
@@ -150,80 +245,60 @@ export function HqLineupPitch({
                     </span>
                 )}
 
-                {rows.map((row) => {
-                    const nameMaxWidth = nameMaxWidthForRowCount(
-                        row.entries.length + row.emptySlots,
-                    );
+                {useRealCoordinates
+                    ? players.map((entry) => (
+                          <div
+                              key={entry.id}
+                              className="absolute z-10 -translate-x-1/2"
+                              style={{
+                                  top: `${entry.pitch_top}%`,
+                                  left: `${entry.pitch_left}%`,
+                              }}
+                          >
+                              <PlayerToken
+                                  entry={entry}
+                                  onSelectPlayer={onSelectPlayer}
+                                  showTeamBadge={showTeamBadge}
+                                  nameMaxWidth={nameMaxWidthForRowCount(
+                                      lineSizes.get(entry.pitch_top as number) ??
+                                          1,
+                                  )}
+                              />
+                          </div>
+                      ))
+                    : rows.map((row) => {
+                          const nameMaxWidth = nameMaxWidthForRowCount(
+                              row.entries.length + row.emptySlots,
+                          );
 
-                    return (
-                        <div
-                            key={row.position}
-                            className="absolute right-2 left-2 z-10 flex justify-evenly"
-                            style={{ top: row.top }}
-                        >
-                            {row.entries.map((entry) => (
-                                <button
-                                    key={entry.id}
-                                    type="button"
-                                    onClick={() => onSelectPlayer(entry)}
-                                    className="relative shrink-0 cursor-pointer"
-                                >
-                                    <span className="block h-12 w-12 overflow-hidden rounded-[3px] border-2 border-white bg-hq-border">
-                                        <EntityImage
-                                            src={entry.player.image}
-                                            alt={entry.player.nickname}
-                                            fallback={User}
-                                            shape="square"
-                                            className="h-full w-full translate-y-[8%] object-cover object-bottom"
-                                        />
-                                    </span>
-                                    {showTeamBadge && (
-                                        <EntityImage
-                                            src={entry.player.team.logo}
-                                            alt={entry.player.team.main_name}
-                                            fallback={Shield}
-                                            shape="square"
-                                            className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-[3px] bg-hq-panel p-1"
-                                        />
-                                    )}
-                                    <span
-                                        className={cn(
-                                            'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
-                                            pointsBadgeTierClass(
-                                                entry.points,
-                                                entry.points === null &&
-                                                    entry.match_finished,
-                                            ),
-                                        )}
-                                    >
-                                        {entry.points ??
-                                            (entry.match_finished ? 'NC' : '–')}
-                                    </span>
-                                    <span
-                                        className={cn(
-                                            'absolute top-full left-1/2 mt-1 min-w-0 -translate-x-1/2 rounded-[3px] bg-hq-ink/85 px-1.5 py-px text-center',
-                                            nameMaxWidth,
-                                        )}
-                                    >
-                                        <span className="block min-w-0 truncate font-mono text-[10px] font-bold text-hq-paper">
-                                            {entry.player.nickname}
-                                        </span>
-                                    </span>
-                                </button>
-                            ))}
-                            {Array.from({ length: row.emptySlots }).map(
-                                (_, index) => (
-                                    <div
-                                        key={`empty-${row.position}-${index}`}
-                                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-white/40"
-                                    >
-                                        <User className="h-5 w-5 text-white/40" />
-                                    </div>
-                                ),
-                            )}
-                        </div>
-                    );
-                })}
+                          return (
+                              <div
+                                  key={row.position}
+                                  className="absolute right-2 left-2 z-10 flex justify-evenly"
+                                  style={{ top: row.top }}
+                              >
+                                  {row.entries.map((entry) => (
+                                      <PlayerToken
+                                          key={entry.id}
+                                          entry={entry}
+                                          onSelectPlayer={onSelectPlayer}
+                                          showTeamBadge={showTeamBadge}
+                                          nameMaxWidth={nameMaxWidth}
+                                      />
+                                  ))}
+                                  {Array.from({ length: row.emptySlots }).map(
+                                      (_, index) => (
+                                          <div
+                                              key={`empty-${row.position}-${index}`}
+                                              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-white/40"
+                                          >
+                                              <User className="h-5 w-5 text-white/40" />
+                                          </div>
+                                      ),
+                                  )}
+                              </div>
+                          );
+                      })}
             </div>
         </div>
     );

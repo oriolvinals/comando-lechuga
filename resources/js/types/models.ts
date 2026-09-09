@@ -179,6 +179,15 @@ export interface ManagerLineupPlayerEntry {
     match_finished: boolean;
     /** The fixture this player's team played that week, resolved by team + week rather than a possibly-unset fixture_id. Null when no fixture exists for that team/week yet. */
     fixture: Fixture | null;
+    /**
+     * Real match-role coordinates (top/left %) for the team ficha's pitch —
+     * present only there, derived from the actual worldcup26 lineup line
+     * (which can have more lines than the fantasy position's 3 buckets).
+     * Absent for a fantasy manager's lineup, which uses the row-based
+     * layout driven by `tacticalFormation` instead.
+     */
+    pitch_top?: number;
+    pitch_left?: number;
 }
 
 export interface ManagerLineup {

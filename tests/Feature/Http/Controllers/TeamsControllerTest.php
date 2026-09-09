@@ -385,6 +385,95 @@ test('the pitch defaults to the latest jornada with a synced lineup, even ahead 
     );
 });
 
+test('the pitch positions starters by their real match line, not the fantasy position bucket', function (): void {
+    // A 4-2-3-1 has 4 outfield lines (defender/DM/AM/forward) — more than
+    // the fantasy position column's 3 buckets (defender/midfield/striker)
+    // can represent, since defensive and attacking midfielders both count
+    // as plain "midfield" there.
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Finished,
+    ]);
+
+    $lineup = [
+        'goalkeeper' => 'Goalkeeper',
+        'defender_left' => 'Left Back',
+        'defender_center_a' => 'Center Back',
+        'defender_center_b' => 'Center Back',
+        'defender_right' => 'Right Back',
+        'dm_left' => 'Defensive Midfielder Left',
+        'dm_right' => 'Defensive Midfielder Right',
+        'am_left' => 'Attacking Midfielder Left',
+        'am_center' => 'Attacking Midfielder Center',
+        'am_right' => 'Attacking Midfielder Right',
+        'forward' => 'Forward',
+    ];
+
+    $players = [];
+
+    foreach ($lineup as $key => $matchPosition) {
+        $player = Player::factory()->create(['team_id' => $team->id]);
+        $players[$key] = $player;
+
+        FixtureLineup::factory()->create([
+            'fixture_id' => $fixture->id,
+            'player_id' => $player->id,
+            'team_id' => $team->id,
+            'starter' => true,
+            'position' => $matchPosition,
+        ]);
+    }
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(function (Assert $page) use ($players): Assert {
+        $entries = collect($page->toArray()['props']['weeklyLineups'][0]['players']);
+        $entryFor = fn (string $key): array => $entries
+            ->firstWhere('player.id', $players[$key]->id);
+
+        // Goalkeeper/defender/forward anchors, unaffected by how many
+        // midfield lines the formation has. (JSON round-trips an integral
+        // float back as a plain int.)
+        expect($entryFor('goalkeeper')['pitch_top'])->toBe(6);
+        expect($entryFor('defender_left')['pitch_top'])->toBe(28);
+        expect($entryFor('forward')['pitch_top'])->toBe(74);
+
+        // Two distinct midfield lines (DM, AM) split evenly between the
+        // defender and forward anchors — DM sits closer to defense, AM
+        // closer to attack, and both are still tagged "midfield" by the
+        // fantasy position column.
+        $dmTop = $entryFor('dm_left')['pitch_top'];
+        $amTop = $entryFor('am_left')['pitch_top'];
+        expect($dmTop)->toBeGreaterThan(28)->toBeLessThan($amTop);
+        expect($amTop)->toBeLessThan(74);
+        expect($entryFor('dm_right')['pitch_top'])->toBe($dmTop);
+        expect($entryFor('am_center')['pitch_top'])->toBe($amTop);
+        expect($entryFor('am_right')['pitch_top'])->toBe($amTop);
+
+        // Left-to-right order within a line is respected.
+        expect($entryFor('defender_left')['pitch_left'])
+            ->toBeLessThan($entryFor('defender_center_a')['pitch_left']);
+        expect($entryFor('am_left')['pitch_left'])
+            ->toBeLessThan($entryFor('am_center')['pitch_left']);
+        expect($entryFor('am_center')['pitch_left'])
+            ->toBeLessThan($entryFor('am_right')['pitch_left']);
+
+        return $page;
+    });
+});
+
 test('a jornada with no synced starting XI is omitted from weeklyLineups', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
