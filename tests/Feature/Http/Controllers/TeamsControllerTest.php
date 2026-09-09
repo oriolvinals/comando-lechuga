@@ -234,3 +234,38 @@ test('recent form holds only the last 5 finished results, oldest first', functio
         ->where('standings.0.recent_form', ['loss', 'draw', 'win', 'win', 'loss'])
     );
 });
+
+test('the ficha calendar includes both played and upcoming fixtures, ordered by week', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    $future = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 5,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+    $past = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $rival->id,
+        'team_guest_id' => $team->id,
+        'local_score' => 1,
+        'guest_score' => 1,
+        'state' => FixtureState::Finished,
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->has('fixtures', 2)
+        ->where('fixtures.0.id', $past->id)
+        ->where('fixtures.1.id', $future->id)
+    );
+});

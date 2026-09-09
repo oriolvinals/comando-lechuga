@@ -91,11 +91,21 @@ class TeamsController extends Controller
             null,
         );
 
+        $fixtures = Fixture::query()
+            ->where('season_id', $season->id)
+            ->where(fn ($query) => $query
+                ->where('team_local_id', $team->id)
+                ->orWhere('team_guest_id', $team->id))
+            ->with(['localTeam', 'guestTeam'])
+            ->orderBy('week_number')
+            ->get();
+
         return Inertia::render('teams/show', [
             'team' => $team,
             'squad' => $squad,
             'standing' => $standing,
             'nextFixtures' => $nextFixtures,
+            'fixtures' => $fixtures,
         ]);
     }
 

@@ -5,9 +5,11 @@ import { EntityImage } from '@/components/entity-image';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { PlayerRow } from '@/components/hq-player-row';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { HqTeamFixtureStrip } from '@/components/hq-team-fixture-strip';
 import AppLayout from '@/layouts/app-layout';
 import { POSITION_GROUP_LABELS } from '@/lib/player-labels';
 import type {
+    Fixture,
     NextFixtureSlot,
     Player,
     PlayerPosition,
@@ -28,6 +30,7 @@ interface TeamShowProps {
     squad: Player[];
     standing: StandingsRow | null;
     nextFixtures: (NextFixtureSlot | null)[];
+    fixtures: Fixture[];
     [key: string]: unknown;
 }
 
@@ -36,6 +39,7 @@ export default function TeamShow({
     squad,
     standing,
     nextFixtures,
+    fixtures,
 }: TeamShowProps) {
     const groups = GROUP_ORDER.map((position) => ({
         position,
@@ -138,6 +142,16 @@ export default function TeamShow({
                                 </div>
                             ))
                         )}
+                    </div>
+
+                    <div>
+                        <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
+                            Calendario
+                        </h2>
+                        <HqTeamFixtureStrip
+                            fixtures={fixtures}
+                            teamId={team.id}
+                        />
                     </div>
                 </div>
             </div>
