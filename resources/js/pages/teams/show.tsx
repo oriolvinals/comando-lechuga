@@ -9,7 +9,6 @@ import { PlayerRow } from '@/components/hq-player-row';
 import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqTeamFixtureStrip } from '@/components/hq-team-fixture-strip';
-import { HqWeekScrollPicker } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
 import { POSITION_GROUP_LABELS } from '@/lib/player-labels';
 import type {
@@ -18,10 +17,8 @@ import type {
     NextFixtureSlot,
     Player,
     PlayerPosition,
-    Season,
     StandingsRow,
     Team,
-    WeekProgressMap,
 } from '@/types/models';
 
 const GROUP_ORDER: PlayerPosition[] = [
@@ -44,9 +41,7 @@ interface TeamShowProps {
     standing: StandingsRow | null;
     nextFixtures: (NextFixtureSlot | null)[];
     fixtures: Fixture[];
-    season: Season;
     currentWeek: number;
-    weekProgress: WeekProgressMap;
     weeklyLineups: TeamWeekLineup[];
     [key: string]: unknown;
 }
@@ -57,9 +52,7 @@ export default function TeamShow({
     standing,
     nextFixtures,
     fixtures,
-    season,
     currentWeek,
-    weekProgress,
     weeklyLineups,
 }: TeamShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(currentWeek);
@@ -147,12 +140,11 @@ export default function TeamShow({
                             Alineación de la jornada
                         </h2>
                         <div className="mb-4 min-w-0">
-                            <HqWeekScrollPicker
-                                week={selectedWeek}
-                                maxWeek={season.total_weeks}
-                                playedThroughWeek={season.current_week}
-                                weekProgress={weekProgress}
-                                onChange={setSelectedWeek}
+                            <HqTeamFixtureStrip
+                                fixtures={fixtures}
+                                teamId={team.id}
+                                selectedWeek={selectedWeek}
+                                onSelectWeek={setSelectedWeek}
                             />
                         </div>
                         <div className="mx-auto max-w-[360px]">
@@ -210,16 +202,6 @@ export default function TeamShow({
                                 </div>
                             ))
                         )}
-                    </div>
-
-                    <div>
-                        <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
-                            Calendario
-                        </h2>
-                        <HqTeamFixtureStrip
-                            fixtures={fixtures}
-                            teamId={team.id}
-                        />
                     </div>
                 </div>
             </div>

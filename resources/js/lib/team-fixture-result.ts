@@ -53,7 +53,7 @@ export const RESULT_LABEL: Record<'win' | 'draw' | 'loss', string> = {
 /** For a bordered badge (e.g. the fixture calendar strip) — includes the live state. */
 export const RESULT_STRIP_CLASSES: Record<'win' | 'draw' | 'loss' | 'live', string> = {
     win: 'border-hq-lime text-hq-lime',
-    draw: 'border-hq-moss text-hq-moss',
+    draw: 'border-hq-gold text-hq-gold',
     loss: 'border-hq-live text-hq-live',
     live: 'border-hq-live text-hq-live animate-pulse',
 };

@@ -10,7 +10,6 @@ use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesNextFixtures;
 use App\Http\Controllers\Concerns\AttachesOwnerManager;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
-use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
 use App\Models\Player;
@@ -26,7 +25,6 @@ class TeamsController extends Controller
     use AttachesNextFixtures;
     use AttachesOwnerManager;
     use AttachesRecentScores;
-    use FiltersSeasonWeeks;
 
     private const array LIVE_STATES = [
         FixtureState::FirstHalf,
@@ -113,9 +111,7 @@ class TeamsController extends Controller
             'standing' => $standing,
             'nextFixtures' => $nextFixtures,
             'fixtures' => $fixtures,
-            'season' => $season,
             'currentWeek' => max($season->current_week, $latestLineupWeek),
-            'weekProgress' => (object) $this->weekProgress($season),
             'weeklyLineups' => $weeklyLineups,
         ]);
     }
