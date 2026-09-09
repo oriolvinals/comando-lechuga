@@ -11,16 +11,8 @@
  * anything sticky inside it, off-screen as one block). html alone still
  * clips horizontal overflow at the viewport with none of that.
  */
-/*
- * background-color here (not just on .hq-texture, which only covers each
- * page's content wrapper) matters specifically for the reserved
- * scrollbar-gutter strip below: that gutter sits outside any content box,
- * so with no color of its own on html it fell through to the browser's
- * default white canvas — a stray pale strip against every dark page.
- */
 html {
     overflow-x: hidden;
-    scrollbar-gutter: stable;
     background-color: var(--color-hq-ink);
 }
 
