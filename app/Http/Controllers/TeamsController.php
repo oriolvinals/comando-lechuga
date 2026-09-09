@@ -14,11 +14,17 @@ use Inertia\Response;
 
 class TeamsController extends Controller
 {
+    private const array LIVE_STATES = [
+        FixtureState::FirstHalf,
+        FixtureState::HalfTime,
+        FixtureState::SecondHalf,
+    ];
+
     public function index(): Response
     {
         $season = Season::current();
         $teams = $season->teams;
-        $fixtures = $this->finishedFixtures($season);
+        $fixtures = $this->standingsFixtures($season);
 
         return Inertia::render('teams/index', [
             'standings' => $this->standingsFor($teams, $fixtures),
@@ -33,24 +39,32 @@ class TeamsController extends Controller
     }
 
     /**
+     * Fixtures relevant to the standings table: finished matches plus any
+     * currently live (in-progress) match — a live match counts provisionally
+     * with its current score, the same way real LaLiga standings apps show
+     * the table updating live during a jornada.
+     *
      * @return Collection<int, Fixture>
      */
-    private function finishedFixtures(Season $season): Collection
+    private function standingsFixtures(Season $season): Collection
     {
         return Fixture::query()
             ->where('season_id', $season->id)
-            ->where('state', FixtureState::Finished)
-            ->get(['team_local_id', 'team_guest_id', 'local_score', 'guest_score']);
+            ->whereIn('state', [
+                FixtureState::Finished,
+                ...self::LIVE_STATES,
+            ])
+            ->get(['team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'week_number']);
     }
 
     /**
-     * Real LaLiga standings computed from finished fixtures — points desc,
-     * goal difference desc, goals for desc, then team name asc as a stable
-     * final tiebreak (no head-to-head rule; good enough for display).
+     * Real LaLiga standings computed from finished + live fixtures — points
+     * desc, goal difference desc, goals for desc, then team name asc as a
+     * stable final tiebreak (no head-to-head rule; good enough for display).
      *
      * @param  Collection<int, Team>  $teams
-     * @param  Collection<int, Fixture>  $fixtures
-     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int}>
+     * @param  Collection<int, Fixture>  $fixtures  from standingsFixtures() — finished + live
+     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<'win'|'draw'|'loss'>, is_live: bool}>
      */
     private function standingsFor(Collection $teams, Collection $fixtures): array
     {
@@ -61,6 +75,9 @@ class TeamsController extends Controller
             $lost = 0;
             $goalsFor = 0;
             $goalsAgainst = 0;
+            $isLive = false;
+            /** @var list<array{week_number: int, result: 'win'|'draw'|'loss'}> $formEntries */
+            $formEntries = [];
 
             foreach ($fixtures as $fixture) {
                 $isLocal = $fixture->team_local_id === $team->id;
@@ -78,12 +95,26 @@ class TeamsController extends Controller
 
                 if ($for > $against) {
                     $won++;
+                    $result = 'win';
                 } elseif ($for === $against) {
                     $drawn++;
+                    $result = 'draw';
                 } else {
                     $lost++;
+                    $result = 'loss';
+                }
+
+                if (in_array($fixture->state, self::LIVE_STATES, true) && $for > $against) {
+                    $isLive = true;
+                }
+
+                if ($fixture->state === FixtureState::Finished) {
+                    $formEntries[] = ['week_number' => $fixture->week_number, 'result' => $result];
                 }
             }
+
+            usort($formEntries, fn (array $a, array $b): int => $a['week_number'] <=> $b['week_number']);
+            $recentForm = array_column(array_slice($formEntries, -5), 'result');
 
             return [
                 'team' => $team,
@@ -95,6 +126,8 @@ class TeamsController extends Controller
                 'goals_against' => $goalsAgainst,
                 'goal_difference' => $goalsFor - $goalsAgainst,
                 'points' => $won * 3 + $drawn,
+                'recent_form' => $recentForm,
+                'is_live' => $isLive,
             ];
         });
 

@@ -103,7 +103,76 @@ test('shows a team by id', function (): void {
 });
 
 test('returns 404 for an unknown team', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
     $response = $this->get('/equipos/999999');
 
     $response->assertNotFound();
+});
+
+test('a live match counts toward the table but not toward recent form', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'local_score' => 1,
+        'guest_score' => 0,
+        'state' => FixtureState::FirstHalf,
+    ]);
+
+    $response = $this->get(route('teams.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('standings.0.team.id', $team->id)
+        ->where('standings.0.played', 1)
+        ->where('standings.0.points', 3)
+        ->where('standings.0.is_live', true)
+        ->where('standings.0.recent_form', [])
+        ->where('standings.1.is_live', false)
+    );
+});
+
+test('recent form holds only the last 5 finished results, oldest first', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+
+    // 6 finished matches across weeks 1-6: week1 win, week2 loss, week3 draw, week4 win, week5 win, week6 loss.
+    // Only the last 5 (weeks 2-6) should appear, oldest first: loss, draw, win, win, loss.
+    $results = [1 => [2, 0], 2 => [0, 1], 3 => [1, 1], 4 => [3, 0], 5 => [2, 1], 6 => [0, 2]];
+
+    foreach ($results as $week => [$local, $guest]) {
+        Fixture::factory()->create([
+            'season_id' => $season->id,
+            'week_number' => $week,
+            'team_local_id' => $team->id,
+            'team_guest_id' => $rival->id,
+            'local_score' => $local,
+            'guest_score' => $guest,
+            'state' => FixtureState::Finished,
+        ]);
+    }
+
+    $response = $this->get(route('teams.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('standings.0.team.id', $team->id)
+        ->where('standings.0.recent_form', ['loss', 'draw', 'win', 'win', 'loss'])
+    );
 });

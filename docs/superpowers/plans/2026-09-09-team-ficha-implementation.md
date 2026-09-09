@@ -148,9 +148,82 @@ test('shows a team by id', function (): void {
 });
 
 test('returns 404 for an unknown team', function (): void {
+    // A Season must exist even though this test never queries one directly —
+    // the shared Inertia middleware's error-page props load Season::current()
+    // for every response, 404s included (see HandleInertiaRequests::share()).
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
     $response = $this->get('/equipos/999999');
 
     $response->assertNotFound();
+});
+
+test('a live match counts toward the table but not toward recent form', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'local_score' => 1,
+        'guest_score' => 0,
+        'state' => FixtureState::FirstHalf,
+    ]);
+
+    $response = $this->get(route('teams.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('standings.0.team.id', $team->id)
+        ->where('standings.0.played', 1)
+        ->where('standings.0.points', 3)
+        ->where('standings.0.is_live', true)
+        ->where('standings.0.recent_form', [])
+        ->where('standings.1.is_live', false)
+    );
+});
+
+test('recent form holds only the last 5 finished results, oldest first', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+
+    // 6 finished matches across weeks 1-6: week1 win, week2 loss, week3 draw, week4 win, week5 win, week6 loss.
+    // Only the last 5 (weeks 2-6) should appear, oldest first: loss, draw, win, win, loss.
+    $results = [1 => [2, 0], 2 => [0, 1], 3 => [1, 1], 4 => [3, 0], 5 => [2, 1], 6 => [0, 2]];
+
+    foreach ($results as $week => [$local, $guest]) {
+        Fixture::factory()->create([
+            'season_id' => $season->id,
+            'week_number' => $week,
+            'team_local_id' => $team->id,
+            'team_guest_id' => $rival->id,
+            'local_score' => $local,
+            'guest_score' => $guest,
+            'state' => FixtureState::Finished,
+        ]);
+    }
+
+    $response = $this->get(route('teams.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('standings.0.team.id', $team->id)
+        ->where('standings.0.recent_form', ['loss', 'draw', 'win', 'win', 'loss'])
+    );
 });
 ```
 
@@ -180,11 +253,17 @@ use Inertia\Response;
 
 class TeamsController extends Controller
 {
+    private const array LIVE_STATES = [
+        FixtureState::FirstHalf,
+        FixtureState::HalfTime,
+        FixtureState::SecondHalf,
+    ];
+
     public function index(): Response
     {
         $season = Season::current();
         $teams = $season->teams;
-        $fixtures = $this->finishedFixtures($season);
+        $fixtures = $this->standingsFixtures($season);
 
         return Inertia::render('teams/index', [
             'standings' => $this->standingsFor($teams, $fixtures),
@@ -199,24 +278,34 @@ class TeamsController extends Controller
     }
 
     /**
+     * Fixtures relevant to the standings table: finished matches plus any
+     * currently live (in-progress) match — a live match counts provisionally
+     * with its current score, the same way real LaLiga standings apps show
+     * the table updating live during a jornada.
+     *
      * @return Collection<int, Fixture>
      */
-    private function finishedFixtures(Season $season): Collection
+    private function standingsFixtures(Season $season): Collection
     {
         return Fixture::query()
             ->where('season_id', $season->id)
-            ->where('state', FixtureState::Finished)
-            ->get(['team_local_id', 'team_guest_id', 'local_score', 'guest_score']);
+            ->whereIn('state', [
+                FixtureState::Finished,
+                ...self::LIVE_STATES,
+            ])
+            ->get(['team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'week_number']);
     }
 
     /**
-     * Real LaLiga standings computed from finished fixtures — points desc,
-     * goal difference desc, goals for desc, then team name asc as a stable
-     * final tiebreak (no head-to-head rule; good enough for display).
+     * Real LaLiga standings computed from finished + live fixtures — points
+     * desc, goal difference desc, goals for desc, then team name asc as a
+     * stable final tiebreak (no head-to-head rule; good enough for display).
+     * `recent_form` counts only finished matches (a live match hasn't been
+     * won/drawn/lost yet); `is_live` flags a team currently mid-match.
      *
      * @param  Collection<int, Team>  $teams
-     * @param  Collection<int, Fixture>  $fixtures
-     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int}>
+     * @param  Collection<int, Fixture>  $fixtures  from standingsFixtures() — finished + live
+     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<'win'|'draw'|'loss'>, is_live: bool}>
      */
     private function standingsFor(Collection $teams, Collection $fixtures): array
     {
@@ -227,6 +316,9 @@ class TeamsController extends Controller
             $lost = 0;
             $goalsFor = 0;
             $goalsAgainst = 0;
+            $isLive = false;
+            /** @var list<array{week_number: int, result: 'win'|'draw'|'loss'}> $formEntries */
+            $formEntries = [];
 
             foreach ($fixtures as $fixture) {
                 $isLocal = $fixture->team_local_id === $team->id;
@@ -234,6 +326,10 @@ class TeamsController extends Controller
 
                 if (!$isLocal && !$isGuest) {
                     continue;
+                }
+
+                if (in_array($fixture->state, self::LIVE_STATES, true)) {
+                    $isLive = true;
                 }
 
                 $played++;
@@ -244,12 +340,22 @@ class TeamsController extends Controller
 
                 if ($for > $against) {
                     $won++;
+                    $result = 'win';
                 } elseif ($for === $against) {
                     $drawn++;
+                    $result = 'draw';
                 } else {
                     $lost++;
+                    $result = 'loss';
+                }
+
+                if ($fixture->state === FixtureState::Finished) {
+                    $formEntries[] = ['week_number' => $fixture->week_number, 'result' => $result];
                 }
             }
+
+            usort($formEntries, fn (array $a, array $b): int => $a['week_number'] <=> $b['week_number']);
+            $recentForm = array_column(array_slice($formEntries, -5), 'result');
 
             return [
                 'team' => $team,
@@ -261,6 +367,8 @@ class TeamsController extends Controller
                 'goals_against' => $goalsAgainst,
                 'goal_difference' => $goalsFor - $goalsAgainst,
                 'points' => $won * 3 + $drawn,
+                'recent_form' => $recentForm,
+                'is_live' => $isLive,
             ];
         });
 
@@ -310,6 +418,8 @@ export interface StandingsRow {
     goals_against: number;
     goal_difference: number;
     points: number;
+    recent_form: ('win' | 'draw' | 'loss')[];
+    is_live: boolean;
 }
 ```
 
@@ -321,6 +431,7 @@ Create `resources/js/pages/teams/index.tsx`:
 import { Head, Link } from '@inertiajs/react';
 import type { ReactElement } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { show as teamsShow } from '@/routes/teams';
 import type { StandingsRow } from '@/types/models';
 
@@ -328,6 +439,18 @@ interface TeamsIndexProps {
     standings: StandingsRow[];
     [key: string]: unknown;
 }
+
+const RESULT_LABEL: Record<'win' | 'draw' | 'loss', string> = {
+    win: 'V',
+    draw: 'E',
+    loss: 'D',
+};
+
+const RESULT_CLASSES: Record<'win' | 'draw' | 'loss', string> = {
+    win: 'bg-hq-lime/20 text-hq-lime',
+    draw: 'bg-hq-moss/20 text-hq-moss',
+    loss: 'bg-hq-live/20 text-hq-live',
+};
 
 export default function TeamsIndex({ standings }: TeamsIndexProps) {
     return (
@@ -340,7 +463,7 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                 </h1>
 
                 <div className="hq-card-cut overflow-x-auto">
-                    <table className="w-full min-w-[560px] border-collapse font-mono text-[12px]">
+                    <table className="w-full min-w-[680px] border-collapse font-mono text-[12px]">
                         <thead>
                             <tr className="border-b border-hq-border text-left text-[10px] text-hq-moss-dim uppercase">
                                 <th className="px-3 py-2 text-center">#</th>
@@ -349,11 +472,13 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                 <th className="px-2 py-2 text-center">PG</th>
                                 <th className="px-2 py-2 text-center">PE</th>
                                 <th className="px-2 py-2 text-center">PP</th>
-                                <th className="px-2 py-2 text-center">
-                                    GF-GC
-                                </th>
+                                <th className="px-2 py-2 text-center">GF</th>
+                                <th className="px-2 py-2 text-center">GC</th>
                                 <th className="px-2 py-2 text-center">DG</th>
                                 <th className="px-3 py-2 text-center">Pts</th>
+                                <th className="px-3 py-2 text-center">
+                                    Forma
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -376,6 +501,12 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                                 className="h-5 w-5 object-contain"
                                             />
                                             {row.team.main_name}
+                                            {row.is_live && (
+                                                <span
+                                                    className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-hq-live"
+                                                    title="En directo"
+                                                />
+                                            )}
                                         </Link>
                                     </td>
                                     <td className="px-2 py-2 text-center">
@@ -391,7 +522,10 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                         {row.lost}
                                     </td>
                                     <td className="px-2 py-2 text-center text-hq-moss">
-                                        {row.goals_for}-{row.goals_against}
+                                        {row.goals_for}
+                                    </td>
+                                    <td className="px-2 py-2 text-center text-hq-moss">
+                                        {row.goals_against}
                                     </td>
                                     <td className="px-2 py-2 text-center">
                                         {row.goal_difference > 0 ? '+' : ''}
@@ -399,6 +533,35 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                     </td>
                                     <td className="px-3 py-2 text-center font-bold text-hq-lime">
                                         {row.points}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <div className="flex items-center justify-center gap-0.5">
+                                            {row.recent_form.length === 0 ? (
+                                                <span className="text-hq-moss-dim">
+                                                    –
+                                                </span>
+                                            ) : (
+                                                row.recent_form.map(
+                                                    (result, index) => (
+                                                        <span
+                                                            key={index}
+                                                            className={cn(
+                                                                'flex h-4 w-4 items-center justify-center rounded-[2px] text-[8px] font-bold',
+                                                                RESULT_CLASSES[
+                                                                    result
+                                                                ],
+                                                            )}
+                                                        >
+                                                            {
+                                                                RESULT_LABEL[
+                                                                    result
+                                                                ]
+                                                            }
+                                                        </span>
+                                                    ),
+                                                )
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -1011,7 +1174,7 @@ Modify `app/Http/Controllers/TeamsController.php`:
 +        $this->attachRecentScores($squad, $season);
 +        $this->attachNextFixtures($squad, $season);
 +
-+        $standing = collect($this->standingsFor($season->teams, $this->finishedFixtures($season)))
++        $standing = collect($this->standingsFor($season->teams, $this->standingsFixtures($season)))
 +            ->first(fn (array $row): bool => $row['team']->id === $team->id);
 +
 +        $nextFixtures = array_pad(

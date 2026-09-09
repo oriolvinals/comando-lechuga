@@ -270,4 +270,6 @@ export interface StandingsRow {
     goals_against: number;
     goal_difference: number;
     points: number;
+    recent_form: ('win' | 'draw' | 'loss')[];
+    is_live: boolean;
 }
