@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\FixtureState;
+use App\Enums\PlayerStatus;
+use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
+use App\Http\Controllers\Concerns\AttachesNextFixtures;
+use App\Http\Controllers\Concerns\AttachesOwnerManager;
+use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Models\Fixture;
+use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
 use Illuminate\Support\Collection;
@@ -14,6 +20,11 @@ use Inertia\Response;
 
 class TeamsController extends Controller
 {
+    use AttachesCurrentPlayerSeason;
+    use AttachesNextFixtures;
+    use AttachesOwnerManager;
+    use AttachesRecentScores;
+
     private const array LIVE_STATES = [
         FixtureState::FirstHalf,
         FixtureState::HalfTime,
@@ -33,8 +44,58 @@ class TeamsController extends Controller
 
     public function show(Team $team): Response
     {
+        $season = Season::current();
+
+        $squad = Player::query()
+            ->select('players.*')
+            ->join('player_seasons', function ($join) use ($season): void {
+                $join->on('player_seasons.player_id', '=', 'players.id')
+                    ->where('player_seasons.season_id', $season->id);
+            })
+            ->where('team_id', $team->id)
+            ->whereNotNull('fantasy_id')
+            ->where('status', '!=', PlayerStatus::OutOfLeague)
+            ->with('team')
+            ->orderByDesc('player_seasons.points')
+            ->get();
+
+        $this->attachOwnerManager($squad, $season->id);
+        $this->attachCurrentSeason($squad, $season->id);
+        $this->attachRecentScores($squad, $season);
+        $this->attachNextFixtures($squad, $season);
+
+        $standing = collect($this->standingsFor($season->teams, $this->standingsFixtures($season)))
+            ->first(fn (array $row): bool => $row['team']->id === $team->id);
+
+        $nextFixtures = array_pad(
+            Fixture::query()
+                ->where('season_id', $season->id)
+                ->where('state', FixtureState::Scheduled)
+                ->where(fn ($query) => $query
+                    ->where('team_local_id', $team->id)
+                    ->orWhere('team_guest_id', $team->id))
+                ->with(['localTeam', 'guestTeam'])
+                ->orderBy('date')
+                ->take(3)
+                ->get()
+                ->map(fn (Fixture $fixture): array => [
+                    'week_number' => $fixture->week_number,
+                    'opponent' => $fixture->team_local_id === $team->id
+                        ? $fixture->guestTeam
+                        : $fixture->localTeam,
+                    'is_home' => $fixture->team_local_id === $team->id,
+                ])
+                ->values()
+                ->all(),
+            3,
+            null,
+        );
+
         return Inertia::render('teams/show', [
             'team' => $team,
+            'squad' => $squad,
+            'standing' => $standing,
+            'nextFixtures' => $nextFixtures,
         ]);
     }
 

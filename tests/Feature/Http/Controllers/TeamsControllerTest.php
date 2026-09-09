@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\FixtureState;
+use App\Enums\PlayerPosition;
+use App\Enums\PlayerStatus;
 use App\Models\Fixture;
+use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -140,6 +143,61 @@ test('a live match counts toward the table but not toward recent form', function
         ->where('standings.0.is_live', true)
         ->where('standings.0.recent_form', [])
         ->where('standings.1.is_live', true)
+    );
+});
+
+test('the ficha squad includes the club players and excludes out-of-league ones', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+    $keeper = Player::factory()->create([
+        'team_id' => $team->id,
+        'status' => PlayerStatus::Ok,
+        'position' => PlayerPosition::Goalkeeper,
+    ]);
+    $outOfLeague = Player::factory()->create([
+        'team_id' => $team->id,
+        'status' => PlayerStatus::OutOfLeague,
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->has('squad', 1)
+        ->where('squad.0.id', $keeper->id)
+    );
+    expect($outOfLeague)->not->toBeNull(); // keeps the variable "used" for readability of intent
+});
+
+test('the ficha exposes this team\'s own position in the real standings', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'local_score' => 2,
+        'guest_score' => 0,
+        'state' => FixtureState::Finished,
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('standing.position', 1)
+        ->where('standing.points', 3)
+        ->where('standing.played', 1)
     );
 });
 
