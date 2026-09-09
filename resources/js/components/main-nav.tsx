@@ -6,9 +6,11 @@ import { index as activityIndex } from '@/routes/activity';
 import { index as fixturesIndex } from '@/routes/fixtures';
 import { index as playersIndex } from '@/routes/players';
 import { index as seasonManagersIndex } from '@/routes/season-managers';
+import { index as teamsIndex } from '@/routes/teams';
 
 const navItems = [
     { label: 'Managers', href: seasonManagersIndex().url },
+    { label: 'Equipos', href: teamsIndex().url },
     { label: 'Jugadores', href: playersIndex().url },
     { label: 'Partidos', href: fixturesIndex().url },
     { label: 'Actividad', href: activityIndex().url },

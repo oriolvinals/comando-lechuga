@@ -258,3 +258,16 @@ export interface Paginated<T> {
 /** How far along a jornada is, keyed by week number as a string. */
 export type WeekProgress = 'none' | 'partial' | 'all';
 export type WeekProgressMap = Record<string, WeekProgress>;
+
+export interface StandingsRow {
+    position: number;
+    team: Team;
+    played: number;
+    won: number;
+    drawn: number;
+    lost: number;
+    goals_for: number;
+    goals_against: number;
+    goal_difference: number;
+    points: number;
+}

@@ -6,12 +6,15 @@ use App\Http\Controllers\FixturesController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PlayersController;
 use App\Http\Controllers\SeasonManagersController;
+use App\Http\Controllers\TeamsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/api-docs', [ApiDocsController::class, 'show'])->name('api-docs');
 Route::get('/managers', [SeasonManagersController::class, 'index'])->name('season-managers.index');
 Route::get('/managers/{seasonManager}', [SeasonManagersController::class, 'show'])->name('season-managers.show');
+Route::get('/equipos', [TeamsController::class, 'index'])->name('teams.index');
+Route::get('/equipos/{team}', [TeamsController::class, 'show'])->name('teams.show');
 Route::get('/jugadores', [PlayersController::class, 'index'])->name('players.index');
 Route::get('/jugadores/{player}', [PlayersController::class, 'show'])->name('players.show');
 Route::get('/actividad', [ActivityController::class, 'index'])->name('activity.index');
