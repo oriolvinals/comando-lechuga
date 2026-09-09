@@ -64,3 +64,10 @@ export const RESULT_BADGE_CLASSES: Record<'win' | 'draw' | 'loss', string> = {
     draw: 'bg-hq-gold/20 text-hq-gold',
     loss: 'bg-hq-live/20 text-hq-live',
 };
+
+/** Border-only variant of RESULT_BADGE_CLASSES's palette — e.g. a match tooltip's border. */
+export const RESULT_BORDER_CLASSES: Record<'win' | 'draw' | 'loss', string> = {
+    win: 'border-hq-lime',
+    draw: 'border-hq-gold',
+    loss: 'border-hq-live',
+};

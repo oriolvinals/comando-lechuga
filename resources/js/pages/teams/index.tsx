@@ -6,7 +6,11 @@ import { EntityImage } from '@/components/entity-image';
 import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { formatMatchDateShort } from '@/lib/format';
-import { RESULT_BADGE_CLASSES, RESULT_LABEL } from '@/lib/team-fixture-result';
+import {
+    RESULT_BADGE_CLASSES,
+    RESULT_BORDER_CLASSES,
+    RESULT_LABEL,
+} from '@/lib/team-fixture-result';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import { show as teamsShow } from '@/routes/teams';
@@ -67,6 +71,7 @@ function LiveBadge({
 
     return (
         <HqTooltip
+            borderClassName={RESULT_BORDER_CLASSES[live.result]}
             label={
                 <MatchTooltip
                     prefix="EN DIRECTO"
@@ -115,6 +120,7 @@ function FormaStrip({
         <div className="flex items-center justify-center gap-1">
             {row.live && (
                 <HqTooltip
+                    borderClassName={RESULT_BORDER_CLASSES[row.live.result]}
                     label={
                         <MatchTooltip
                             prefix="EN DIRECTO"
@@ -173,6 +179,7 @@ function FormaStrip({
             {row.recent_form.map((entry) => (
                 <HqTooltip
                     key={entry.fixture_id}
+                    borderClassName={RESULT_BORDER_CLASSES[entry.result]}
                     label={
                         <MatchTooltip
                             own={row.team}
