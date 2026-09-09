@@ -1,6 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
+import { Shield } from 'lucide-react';
 import type { ReactElement } from 'react';
+import { EntityImage } from '@/components/entity-image';
 import AppLayout from '@/layouts/app-layout';
+import { RESULT_BADGE_CLASSES, RESULT_LABEL } from '@/lib/team-fixture-result';
 import { cn } from '@/lib/utils';
 import { show as teamsShow } from '@/routes/teams';
 import type { StandingsRow } from '@/types/models';
@@ -9,18 +12,6 @@ interface TeamsIndexProps {
     standings: StandingsRow[];
     [key: string]: unknown;
 }
-
-const RESULT_LABEL: Record<'win' | 'draw' | 'loss', string> = {
-    win: 'V',
-    draw: 'E',
-    loss: 'D',
-};
-
-const RESULT_CLASSES: Record<'win' | 'draw' | 'loss', string> = {
-    win: 'bg-hq-lime/20 text-hq-lime',
-    draw: 'bg-hq-moss/20 text-hq-moss',
-    loss: 'bg-hq-live/20 text-hq-live',
-};
 
 export default function TeamsIndex({ standings }: TeamsIndexProps) {
     return (
@@ -32,7 +23,7 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                     Equipos
                 </h1>
 
-                <div className="hq-card-cut overflow-x-auto">
+                <div className="hq-card-cut hidden overflow-x-auto xl:block">
                     <table className="w-full min-w-[680px] border-collapse font-mono text-[12px]">
                         <thead>
                             <tr className="border-b border-hq-border text-left text-[10px] text-hq-moss-dim uppercase">
@@ -63,9 +54,11 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                             href={teamsShow(row.team.id).url}
                                             className="flex items-center gap-2 font-bold text-hq-paper hover:text-hq-lime"
                                         >
-                                            <img
+                                            <EntityImage
                                                 src={row.team.logo}
                                                 alt={row.team.main_name}
+                                                fallback={Shield}
+                                                shape="square"
                                                 className="h-5 w-5 object-contain"
                                             />
                                             {row.team.main_name}
@@ -115,7 +108,7 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                                             key={index}
                                                             className={cn(
                                                                 'flex h-4 w-4 items-center justify-center rounded-[2px] text-[8px] font-bold',
-                                                                RESULT_CLASSES[
+                                                                RESULT_BADGE_CLASSES[
                                                                     result
                                                                 ],
                                                             )}
@@ -135,6 +128,45 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                             ))}
                         </tbody>
                     </table>
+                </div>
+
+                <div className="xl:hidden">
+                    {standings.map((row) => (
+                        <Link
+                            key={row.team.id}
+                            href={teamsShow(row.team.id).url}
+                            className="hq-card-cut mb-1.5 flex items-center justify-between px-3.5 py-2.5 transition-[filter] hover:brightness-125"
+                        >
+                            <div className="flex min-w-0 items-center gap-2.5">
+                                <span className="w-5 shrink-0 text-center font-mono text-[11px] text-hq-moss-dim">
+                                    {row.position}
+                                </span>
+                                <EntityImage
+                                    src={row.team.logo}
+                                    alt={row.team.main_name}
+                                    fallback={Shield}
+                                    shape="square"
+                                    className="h-6 w-6 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                    <p className="flex items-center gap-1.5 truncate text-[13px] font-bold text-hq-paper">
+                                        {row.team.short_name}
+                                        {row.is_live && (
+                                            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-hq-live" />
+                                        )}
+                                    </p>
+                                    <p className="font-mono text-[10px] text-hq-moss-dim">
+                                        PJ {row.played} · DG{' '}
+                                        {row.goal_difference > 0 ? '+' : ''}
+                                        {row.goal_difference}
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="shrink-0 font-display text-lg text-hq-lime">
+                                {row.points}
+                            </span>
+                        </Link>
+                    ))}
                 </div>
             </div>
         </div>

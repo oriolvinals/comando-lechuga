@@ -157,15 +157,23 @@ export default function TeamShow({
                         </div>
                         <div className="mx-auto max-w-[360px]">
                             {lineupForWeek ? (
-                                <HqLineupPitch
-                                    players={lineupForWeek.players}
-                                    tacticalFormation={null}
-                                    onSelectPlayer={setSelectedPlayer}
-                                />
+                                <>
+                                    <HqLineupPitch
+                                        players={lineupForWeek.players}
+                                        tacticalFormation={null}
+                                        onSelectPlayer={setSelectedPlayer}
+                                    />
+                                    {lineupForWeek.players.length < 11 && (
+                                        <p className="mt-2 text-center font-mono text-[10px] text-hq-moss-dim">
+                                            {lineupForWeek.players.length} de
+                                            11 titulares identificados
+                                        </p>
+                                    )}
+                                </>
                             ) : (
                                 <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
                                     <p className="font-mono text-[11px] text-hq-moss-dim">
-                                        Alineación aún no disponible esa
+                                        Alineación aún no disponible en esa
                                         jornada.
                                     </p>
                                 </div>
@@ -223,8 +231,13 @@ export default function TeamShow({
                               player: selectedPlayer.player,
                               team: selectedPlayer.player.team,
                               points: selectedPlayer.points ?? 0,
+                              daznPoints:
+                                  selectedPlayer.stats?.mins_played !==
+                                  undefined
+                                      ? selectedPlayer.stats.marca_points?.[1]
+                                      : undefined,
                               stats: selectedPlayer.stats ?? {},
-                              fixture: selectedPlayer.fixture,
+                              fixture: lineupForWeek?.fixture ?? null,
                           }
                         : null
                 }

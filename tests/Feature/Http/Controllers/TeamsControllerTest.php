@@ -372,3 +372,104 @@ test('a bench player (starter=false) does not appear on the pitch', function ():
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): Assert => $page->has('weeklyLineups', 0));
 });
+
+test('next fixtures are padded to 3, only scheduled, ordered by date, and resolve opponent/is_home correctly', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rivalA = Team::factory()->create();
+    $rivalB = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rivalA->id, $rivalB->id]);
+
+    // Already finished — must NOT appear among next fixtures.
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rivalA->id,
+        'state' => FixtureState::Finished,
+        'local_score' => 1,
+        'guest_score' => 0,
+        'date' => now()->subDays(3),
+    ]);
+    // Scheduled, team away — soonest.
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 2,
+        'team_local_id' => $rivalA->id,
+        'team_guest_id' => $team->id,
+        'state' => FixtureState::Scheduled,
+        'date' => now()->addDays(3),
+    ]);
+    // Scheduled, team home — later.
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 3,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rivalB->id,
+        'state' => FixtureState::Scheduled,
+        'date' => now()->addDays(10),
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('nextFixtures.0.week_number', 2)
+        ->where('nextFixtures.0.opponent.id', $rivalA->id)
+        ->where('nextFixtures.0.is_home', false)
+        ->where('nextFixtures.1.week_number', 3)
+        ->where('nextFixtures.1.opponent.id', $rivalB->id)
+        ->where('nextFixtures.1.is_home', true)
+        ->where('nextFixtures.2', null)
+    );
+});
+
+test('a starter with no resolved player is dropped from the pitch instead of crashing', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Finished,
+        'local_score' => 1,
+        'guest_score' => 0,
+    ]);
+    $resolved = Player::factory()->create([
+        'team_id' => $team->id,
+        'position' => PlayerPosition::Striker,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $resolved->id,
+        'team_id' => $team->id,
+        'starter' => true,
+        'fantasy_points' => 7,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => null,
+        'unresolved_name' => 'Jugador sin vincular',
+        'team_id' => $team->id,
+        'starter' => true,
+        'fantasy_points' => null,
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->has('weeklyLineups.0.players', 1)
+        ->where('weeklyLineups.0.players.0.player.id', $resolved->id)
+    );
+});

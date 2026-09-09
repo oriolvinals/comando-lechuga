@@ -235,7 +235,7 @@ class TeamsController extends Controller
      * on this pitch (no name/photo) anyway.
      *
      * @param  Collection<int, Fixture>  $fixtures  this team's fixtures for the season, with localTeam/guestTeam loaded
-     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: string, player: Player, match_finished: bool, fixture: Fixture}>}>
+     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: string, player: Player, match_finished: bool}>}>
      */
     private function weeklyLineupsFor(Team $team, Season $season, Collection $fixtures): array
     {
@@ -274,7 +274,6 @@ class TeamsController extends Controller
                     'position' => $lineup->player->position,
                     'player' => $lineup->player,
                     'match_finished' => $fixture->state === FixtureState::Finished,
-                    'fixture' => $fixture,
                 ])->values()->all(),
             ];
         }
