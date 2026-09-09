@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { User } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
@@ -17,6 +17,7 @@ import {
 } from '@/lib/player-labels';
 import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
+import { show as teamsShow } from '@/routes/teams';
 import type {
     Fixture,
     OwnershipActivity,
@@ -89,11 +90,13 @@ export default function PlayerShow({
                             </h1>
                             <div className="mb-3 flex items-center justify-center gap-2">
                                 <HqPositionTag position={player.position} />
-                                <img
-                                    src={player.team.logo}
-                                    alt={player.team.main_name}
-                                    className="h-7 w-7 object-contain"
-                                />
+                                <Link href={teamsShow(player.team.id).url}>
+                                    <img
+                                        src={player.team.logo}
+                                        alt={player.team.main_name}
+                                        className="h-7 w-7 object-contain"
+                                    />
+                                </Link>
                             </div>
                             {player.status !== 'ok' && (
                                 <span
