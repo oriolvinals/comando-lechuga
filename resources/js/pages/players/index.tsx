@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowDown, ArrowUp, Shield, User } from 'lucide-react';
 import type { MouseEvent as ReactMouseEvent, ReactElement } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqMultiSelect } from '@/components/hq-multi-select';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
@@ -316,6 +316,26 @@ export default function PlayersIndex({
         );
     };
 
+    // Keep a ref to the latest applyFilters so the debounce effect below
+    // doesn't need it in its dependency array (it's a new closure every
+    // render, which would otherwise reset the pending timer each render).
+    const applyFiltersRef = useRef(applyFilters);
+    useEffect(() => {
+        applyFiltersRef.current = applyFilters;
+    });
+
+    useEffect(() => {
+        if (search === (filters.search ?? '')) {
+            return;
+        }
+
+        const timeout = setTimeout(() => {
+            applyFiltersRef.current({ search });
+        }, 350);
+
+        return () => clearTimeout(timeout);
+    }, [search, filters.search]);
+
     const teamOptions = teams.map((team) => ({
         value: String(team.id),
         label: team.main_name,
@@ -347,11 +367,6 @@ export default function PlayersIndex({
                         type="text"
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                                applyFilters({ search });
-                            }
-                        }}
                         placeholder="Buscar jugador…"
                         className="border border-hq-border bg-hq-panel px-3 py-2 font-mono text-[11px] text-hq-paper placeholder-hq-moss-dim focus:border-hq-lime focus:outline-none"
                     />
