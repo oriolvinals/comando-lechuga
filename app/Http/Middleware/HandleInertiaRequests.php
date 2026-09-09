@@ -46,7 +46,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            'season' => $this->getCurrentSeason(),
+            'season' => Season::current(),
             'liveMatchday' => Fixture::query()
                 ->whereIn('state', [
                     FixtureState::FirstHalf,
@@ -55,14 +55,5 @@ class HandleInertiaRequests extends Middleware
                 ])
                 ->exists(),
         ];
-    }
-
-    private function getCurrentSeason(): ?Season
-    {
-        try {
-            return Season::current();
-        } catch (\Exception) {
-            return null;
-        }
     }
 }

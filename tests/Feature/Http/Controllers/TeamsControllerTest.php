@@ -139,7 +139,7 @@ test('a live match counts toward the table but not toward recent form', function
         ->where('standings.0.points', 3)
         ->where('standings.0.is_live', true)
         ->where('standings.0.recent_form', [])
-        ->where('standings.1.is_live', false)
+        ->where('standings.1.is_live', true)
     );
 });
 

@@ -104,7 +104,7 @@ class TeamsController extends Controller
                     $result = 'loss';
                 }
 
-                if (in_array($fixture->state, self::LIVE_STATES, true) && $for > $against) {
+                if (in_array($fixture->state, self::LIVE_STATES, true)) {
                     $isLive = true;
                 }
 
