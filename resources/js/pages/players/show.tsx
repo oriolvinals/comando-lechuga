@@ -25,12 +25,11 @@ import type {
     PlayerFichaScore,
     PlayerMarketPoint,
     PlayerOwnership,
-    Season,
 } from '@/types/models';
 
 interface PlayerShowProps {
     player: Player;
-    season: Season;
+    currentWeek: number;
     owner: PlayerOwnership | null;
     marketListing: PlayerFichaMarketListing | null;
     marketHistory: PlayerMarketPoint[];
@@ -43,7 +42,7 @@ interface PlayerShowProps {
 
 export default function PlayerShow({
     player,
-    season,
+    currentWeek,
     owner,
     marketListing,
     marketHistory,
@@ -206,7 +205,7 @@ export default function PlayerShow({
                         <HqPlayerMatchTimeline
                             scores={scores}
                             teamFixtures={teamFixtures}
-                            currentWeek={season.current_week}
+                            currentWeek={currentWeek}
                             playerPosition={player.position}
                             teamId={player.team.id}
                         />

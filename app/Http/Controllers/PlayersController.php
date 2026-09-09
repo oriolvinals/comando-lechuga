@@ -214,12 +214,21 @@ class PlayersController extends Controller
                 (string) $activity->source_season_manager_id => $activity->occurred_at,
             ]);
 
-        // Fixtures for the player's current club up to the current week, including weeks
-        // that haven't produced a FixtureLineup yet — lets the match timeline link to a
-        // fixture (e.g. "aún no jugada") before any stats exist for it.
+        // season.current_week (synced periodically from La Liga Fantasy's own
+        // "current gameweek" endpoint) can lag behind the match-data sync, which
+        // populates FixtureLineup rows for a jornada as soon as its games are
+        // played — so a just-finished jornada's scores can exist before the
+        // season record says it's the current week. Use whichever week is
+        // further along so the ficha never hides scores it already has.
+        $latestScoreWeek = (int) $scores->max(fn (array $score): int => $score['fixture']->week_number);
+        $displayWeek = max($season->current_week, $latestScoreWeek);
+
+        // Fixtures for the player's current club up to the display week, including
+        // weeks that haven't produced a FixtureLineup yet — lets the match timeline
+        // link to a fixture (e.g. "aún no jugada") before any stats exist for it.
         $teamFixtures = Fixture::query()
             ->where('season_id', $season->id)
-            ->where('week_number', '<=', $season->current_week)
+            ->where('week_number', '<=', $displayWeek)
             ->where(fn ($query) => $query
                 ->where('team_local_id', $player->team_id)
                 ->orWhere('team_guest_id', $player->team_id))
@@ -229,6 +238,7 @@ class PlayersController extends Controller
         return Inertia::render('players/show', [
             'player' => $player,
             'season' => $season,
+            'currentWeek' => $displayWeek,
             'owner' => $owner,
             'marketListing' => $marketListing,
             'marketHistory' => $marketHistory,

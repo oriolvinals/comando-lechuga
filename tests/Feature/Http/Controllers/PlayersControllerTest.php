@@ -847,6 +847,34 @@ test('includes the player current team fixture for a week with no score yet', fu
     );
 });
 
+test('includes a week already scored via match-data sync even when season.current_week has not caught up', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 2,
+    ]);
+    $player = Player::factory()->create();
+    $futureFixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 3,
+        'team_local_id' => $player->team_id,
+    ]);
+    FixtureLineup::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $futureFixture->id,
+        'fantasy_points' => 8,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('currentWeek', 3)
+        ->has('teamFixtures', 1)
+        ->where('teamFixtures.0.id', $futureFixture->id)
+    );
+});
+
 test('excludes the player current team fixtures beyond the current week', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
