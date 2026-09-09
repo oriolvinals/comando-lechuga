@@ -8,14 +8,23 @@ import { RESULT_BADGE_CLASSES, RESULT_LABEL } from '@/lib/team-fixture-result';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import { show as teamsShow } from '@/routes/teams';
-import type { StandingsFormEntry, StandingsRow } from '@/types/models';
+import type { StandingsRow, Team } from '@/types/models';
 
 interface TeamsIndexProps {
     standings: StandingsRow[];
     [key: string]: unknown;
 }
 
-function LiveBadge({ live }: { live: StandingsFormEntry }) {
+/** "BAR - VAL · 5-0" — own team first (matching `score`'s own-perspective order). */
+function matchupLabel(own: Team, opponent: Team, score: string): string {
+    return `${own.short_name} - ${opponent.short_name} · ${score}`;
+}
+
+function LiveBadge({ team, live }: { team: Team; live: StandingsRow['live'] }) {
+    if (live === null) {
+        return null;
+    }
+
     return (
         <HqTooltip
             label={
@@ -23,7 +32,7 @@ function LiveBadge({ live }: { live: StandingsFormEntry }) {
                     <span className="font-bold text-hq-live">
                         EN DIRECTO
                     </span>{' '}
-                    vs {live.opponent.main_name}
+                    {matchupLabel(team, live.opponent, live.score)}
                 </>
             }
         >
@@ -62,30 +71,41 @@ function FormaStrip({ row }: { row: StandingsRow }) {
                             <span className="font-bold text-hq-live">
                                 EN DIRECTO
                             </span>{' '}
-                            vs {row.live.opponent.main_name}{' '}
-                            <span className="font-bold">
-                                {row.live.score}
-                            </span>
+                            {matchupLabel(
+                                row.team,
+                                row.live.opponent,
+                                row.live.score,
+                            )}
                         </>
                     }
                 >
                     <Link
                         href={fixturesShow(row.live.fixture_id).url}
                         className={cn(
-                            'relative flex h-5 w-5 items-center justify-center rounded-[3px] font-mono text-[11px] font-bold transition-[filter] hover:brightness-125',
+                            'relative flex h-5 w-5 items-center justify-center rounded-[3px] border border-hq-live font-mono text-[11px] font-bold transition-[filter] hover:brightness-125',
                             RESULT_BADGE_CLASSES[row.live.result],
                         )}
                     >
                         {RESULT_LABEL[row.live.result]}
-                        <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live ring-2 ring-hq-panel" />
+                        <span className="absolute -top-1 -right-1 h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live ring-2 ring-hq-panel" />
                     </Link>
                 </HqTooltip>
             )}
             {row.live === null && row.next && (
-                <HqTooltip label={`Próximo: vs ${row.next.opponent.main_name}`}>
+                <HqTooltip
+                    label={
+                        <>
+                            <span className="font-bold text-hq-moss">
+                                PRÓXIMO
+                            </span>{' '}
+                            {row.team.short_name} -{' '}
+                            {row.next.opponent.short_name}
+                        </>
+                    }
+                >
                     <Link
                         href={fixturesShow(row.next.fixture_id).url}
-                        className="flex h-5 w-5 items-center justify-center overflow-hidden rounded-[3px] transition-[filter] hover:brightness-125"
+                        className="flex h-5 w-5 items-center justify-center overflow-hidden rounded-[3px] border border-hq-border-strong bg-hq-panel-alt p-0.5 transition-[filter] hover:brightness-125"
                     >
                         <EntityImage
                             src={row.next.opponent.logo}
@@ -100,7 +120,11 @@ function FormaStrip({ row }: { row: StandingsRow }) {
             {row.recent_form.map((entry) => (
                 <HqTooltip
                     key={entry.fixture_id}
-                    label={`vs ${entry.opponent.main_name} · ${entry.score}`}
+                    label={matchupLabel(
+                        row.team,
+                        entry.opponent,
+                        entry.score,
+                    )}
                 >
                     <Link
                         href={fixturesShow(entry.fixture_id).url}
@@ -181,22 +205,23 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                                 <>
                                                     <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-hq-live" />
                                                     <LiveBadge
+                                                        team={row.team}
                                                         live={row.live}
                                                     />
                                                 </>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-2 py-2 text-center">
+                                    <td className="px-2 py-2 text-center text-hq-paper">
                                         {row.played}
                                     </td>
-                                    <td className="px-2 py-2 text-center">
+                                    <td className="px-2 py-2 text-center text-hq-paper">
                                         {row.won}
                                     </td>
-                                    <td className="px-2 py-2 text-center">
+                                    <td className="px-2 py-2 text-center text-hq-paper">
                                         {row.drawn}
                                     </td>
-                                    <td className="px-2 py-2 text-center">
+                                    <td className="px-2 py-2 text-center text-hq-paper">
                                         {row.lost}
                                     </td>
                                     <td className="px-2 py-2 text-center text-hq-moss">
@@ -205,7 +230,7 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
                                     <td className="px-2 py-2 text-center text-hq-moss">
                                         {row.goals_against}
                                     </td>
-                                    <td className="px-2 py-2 text-center">
+                                    <td className="px-2 py-2 text-center text-hq-paper">
                                         {row.goal_difference > 0 ? '+' : ''}
                                         {row.goal_difference}
                                     </td>

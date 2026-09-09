@@ -61,6 +61,6 @@ export const RESULT_STRIP_CLASSES: Record<'win' | 'draw' | 'loss' | 'live', stri
 /** For a small filled square badge (e.g. the standings "Forma" column) — finished results only. */
 export const RESULT_BADGE_CLASSES: Record<'win' | 'draw' | 'loss', string> = {
     win: 'bg-hq-lime/20 text-hq-lime',
-    draw: 'bg-hq-moss/20 text-hq-moss',
+    draw: 'bg-hq-gold/20 text-hq-gold',
     loss: 'bg-hq-live/20 text-hq-live',
 };
