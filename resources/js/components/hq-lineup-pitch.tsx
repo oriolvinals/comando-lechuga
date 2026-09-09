@@ -90,12 +90,15 @@ interface HqLineupPitchProps {
     players: ManagerLineupPlayerEntry[];
     tacticalFormation?: number[] | null;
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
+    /** Show each player's club crest badge. Off on a team's own ficha, where every player is the same club. */
+    showTeamBadge?: boolean;
 }
 
 export function HqLineupPitch({
     players,
     tacticalFormation,
     onSelectPlayer,
+    showTeamBadge = true,
 }: HqLineupPitchProps) {
     const expectedCounts: Partial<Record<PlayerPosition, number>> = {
         goalkeeper: 1,
@@ -174,13 +177,15 @@ export function HqLineupPitch({
                                             className="h-full w-full translate-y-[8%] object-cover object-bottom"
                                         />
                                     </span>
-                                    <EntityImage
-                                        src={entry.player.team.logo}
-                                        alt={entry.player.team.main_name}
-                                        fallback={Shield}
-                                        shape="square"
-                                        className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-[3px] bg-hq-panel p-1"
-                                    />
+                                    {showTeamBadge && (
+                                        <EntityImage
+                                            src={entry.player.team.logo}
+                                            alt={entry.player.team.main_name}
+                                            fallback={Shield}
+                                            shape="square"
+                                            className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-[3px] bg-hq-panel p-1"
+                                        />
+                                    )}
                                     <span
                                         className={cn(
                                             'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',

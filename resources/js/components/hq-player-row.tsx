@@ -2,7 +2,6 @@ import { Link, router } from '@inertiajs/react';
 import { Shield, User } from 'lucide-react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { EntityImage } from '@/components/entity-image';
-import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { formatCurrency } from '@/lib/format';
@@ -14,7 +13,19 @@ import { show as seasonManagersShow } from '@/routes/season-managers';
 import { show as teamsShow } from '@/routes/teams';
 import type { Player } from '@/types/models';
 
-export function PlayerRow({ player }: { player: Player }) {
+interface PlayerRowProps {
+    player: Player;
+    /** Show the player's club under their name. Off on a team's own ficha, where every row is the same club. */
+    showTeam?: boolean;
+    /** Show the position tag. Off when rows are already grouped under a position heading. */
+    showPosition?: boolean;
+}
+
+export function PlayerRow({
+    player,
+    showTeam = true,
+    showPosition = true,
+}: PlayerRowProps) {
     const ownerManager = player.owner_manager;
     const goToOwnerManager = (event: ReactMouseEvent) => {
         if (!ownerManager) {
@@ -46,46 +57,30 @@ export function PlayerRow({ player }: { player: Player }) {
                         <p className="truncate text-sm font-extrabold text-hq-paper">
                             {player.nickname}
                         </p>
-                        <span
-                            role="link"
-                            tabIndex={0}
-                            onClick={goToTeam}
-                            className="mt-0.5 flex w-fit cursor-pointer items-center gap-1.5 hover:text-hq-paper"
-                        >
-                            <EntityImage
-                                src={player.team.logo}
-                                alt={player.team.main_name}
-                                fallback={Shield}
-                                shape="square"
-                                className="h-3.5 w-3.5"
-                            />
-                            <span className="font-mono text-[10px] text-hq-moss-dim">
-                                {player.team.short_name}
-                            </span>
-                        </span>
-                    </div>
-                    <div className="w-11 shrink-0 text-center">
-                        <HqPositionTag position={player.position} />
-                    </div>
-                    <div className="w-16 shrink-0">
-                        {player.status !== 'ok' && (
+                        {showTeam ? (
                             <span
-                                className={cn(
-                                    'border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
-                                    STATUS_BADGE_CLASS[player.status],
-                                )}
+                                role="link"
+                                tabIndex={0}
+                                onClick={goToTeam}
+                                className="mt-0.5 flex w-fit cursor-pointer items-center gap-1.5 hover:text-hq-paper"
                             >
-                                {STATUS_SHORT_LABELS[player.status]}
+                                <EntityImage
+                                    src={player.team.logo}
+                                    alt={player.team.main_name}
+                                    fallback={Shield}
+                                    shape="square"
+                                    className="h-3.5 w-3.5"
+                                />
+                                <span className="font-mono text-[10px] text-hq-moss-dim">
+                                    {player.team.short_name}
+                                </span>
                             </span>
-                        )}
-                    </div>
-                    <div className="flex w-[150px] shrink-0 items-center gap-1.5 font-mono text-[11px] text-hq-moss">
-                        {ownerManager ? (
+                        ) : ownerManager ? (
                             <span
                                 role="link"
                                 tabIndex={0}
                                 onClick={goToOwnerManager}
-                                className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
+                                className="mt-0.5 flex w-fit min-w-0 cursor-pointer items-center gap-1.5 font-mono text-[10px] text-hq-moss hover:text-hq-paper"
                             >
                                 <span
                                     className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
@@ -100,12 +95,56 @@ export function PlayerRow({ player }: { player: Player }) {
                                 </span>
                             </span>
                         ) : (
-                            <span className="text-hq-moss-dim">Libre</span>
+                            <span className="mt-0.5 block font-mono text-[10px] text-hq-moss-dim">
+                                Libre
+                            </span>
                         )}
                     </div>
+                    {showPosition && (
+                        <div className="w-11 shrink-0 text-center">
+                            <HqPositionTag position={player.position} />
+                        </div>
+                    )}
+                    <div className="w-16 shrink-0">
+                        {player.status !== 'ok' && (
+                            <span
+                                className={cn(
+                                    'border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
+                                    STATUS_BADGE_CLASS[player.status],
+                                )}
+                            >
+                                {STATUS_SHORT_LABELS[player.status]}
+                            </span>
+                        )}
+                    </div>
+                    {showTeam && (
+                        <div className="flex w-[150px] shrink-0 items-center gap-1.5 font-mono text-[11px] text-hq-moss">
+                            {ownerManager ? (
+                                <span
+                                    role="link"
+                                    tabIndex={0}
+                                    onClick={goToOwnerManager}
+                                    className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
+                                >
+                                    <span
+                                        className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
+                                        style={{
+                                            backgroundColor: managerColor(
+                                                ownerManager.primary_color,
+                                            ),
+                                        }}
+                                    />
+                                    <span className="truncate">
+                                        {ownerManager.name}
+                                    </span>
+                                </span>
+                            ) : (
+                                <span className="text-hq-moss-dim">Libre</span>
+                            )}
+                        </div>
+                    )}
                 </div>
                 <div className="flex shrink-0 items-center gap-6">
-                    <HqNextFixtures fixtures={player.next_fixtures} />
                     <HqRecentScores
                         scores={player.recent_scores}
                         finished={player.recent_scores_finished}
@@ -152,24 +191,51 @@ export function PlayerRow({ player }: { player: Player }) {
                             {player.nickname}
                         </p>
                         <div className="mt-0.5 flex items-center gap-1.5">
-                            <span
-                                role="link"
-                                tabIndex={0}
-                                onClick={goToTeam}
-                                className="flex w-fit cursor-pointer items-center gap-1.5 hover:text-hq-paper"
-                            >
-                                <EntityImage
-                                    src={player.team.logo}
-                                    alt={player.team.main_name}
-                                    fallback={Shield}
-                                    shape="square"
-                                    className="h-[10px] w-[10px]"
-                                />
-                                <span className="font-mono text-[9px] text-hq-moss-dim">
-                                    {player.team.short_name}
+                            {showTeam ? (
+                                <span
+                                    role="link"
+                                    tabIndex={0}
+                                    onClick={goToTeam}
+                                    className="flex w-fit cursor-pointer items-center gap-1.5 hover:text-hq-paper"
+                                >
+                                    <EntityImage
+                                        src={player.team.logo}
+                                        alt={player.team.main_name}
+                                        fallback={Shield}
+                                        shape="square"
+                                        className="h-[10px] w-[10px]"
+                                    />
+                                    <span className="font-mono text-[9px] text-hq-moss-dim">
+                                        {player.team.short_name}
+                                    </span>
                                 </span>
-                            </span>
-                            <HqPositionTag position={player.position} />
+                            ) : ownerManager ? (
+                                <span
+                                    role="link"
+                                    tabIndex={0}
+                                    onClick={goToOwnerManager}
+                                    className="flex w-fit min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
+                                >
+                                    <span
+                                        className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
+                                        style={{
+                                            backgroundColor: managerColor(
+                                                ownerManager.primary_color,
+                                            ),
+                                        }}
+                                    />
+                                    <span className="max-w-[90px] truncate font-mono text-[9px] text-hq-moss-dim">
+                                        {ownerManager.name}
+                                    </span>
+                                </span>
+                            ) : (
+                                <span className="font-mono text-[9px] text-hq-moss-dim">
+                                    Libre
+                                </span>
+                            )}
+                            {showPosition && (
+                                <HqPositionTag position={player.position} />
+                            )}
                             {player.status !== 'ok' && (
                                 <span
                                     className={cn(
@@ -205,40 +271,50 @@ export function PlayerRow({ player }: { player: Player }) {
                             </span>
                         )}
                     </p>
-                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-hq-moss">
-                        {ownerManager ? (
-                            <span
-                                role="link"
-                                tabIndex={0}
-                                onClick={goToOwnerManager}
-                                className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
-                            >
+                    {showTeam ? (
+                        <div className="flex items-center gap-1.5 font-mono text-[10px] text-hq-moss">
+                            {ownerManager ? (
                                 <span
-                                    className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
-                                    style={{
-                                        backgroundColor: managerColor(
-                                            ownerManager.primary_color,
-                                        ),
-                                    }}
-                                />
-                                <span className="max-w-[110px] truncate">
-                                    {ownerManager.name}
+                                    role="link"
+                                    tabIndex={0}
+                                    onClick={goToOwnerManager}
+                                    className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
+                                >
+                                    <span
+                                        className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
+                                        style={{
+                                            backgroundColor: managerColor(
+                                                ownerManager.primary_color,
+                                            ),
+                                        }}
+                                    />
+                                    <span className="max-w-[110px] truncate">
+                                        {ownerManager.name}
+                                    </span>
                                 </span>
-                            </span>
-                        ) : (
-                            <span className="text-hq-moss-dim">Libre</span>
-                        )}
+                            ) : (
+                                <span className="text-hq-moss-dim">Libre</span>
+                            )}
+                        </div>
+                    ) : (
+                        <HqRecentScores
+                            scores={player.recent_scores}
+                            finished={player.recent_scores_finished}
+                            opponents={player.recent_scores_opponents}
+                            size="sm"
+                        />
+                    )}
+                </div>
+                {showTeam && (
+                    <div className="mt-2 border-t border-hq-ink pt-2">
+                        <HqRecentScores
+                            scores={player.recent_scores}
+                            finished={player.recent_scores_finished}
+                            opponents={player.recent_scores_opponents}
+                            size="sm"
+                        />
                     </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between border-t border-hq-ink pt-2">
-                    <HqNextFixtures fixtures={player.next_fixtures} size="sm" />
-                    <HqRecentScores
-                        scores={player.recent_scores}
-                        finished={player.recent_scores_finished}
-                        opponents={player.recent_scores_opponents}
-                        size="sm"
-                    />
-                </div>
+                )}
             </div>
         </Link>
     );

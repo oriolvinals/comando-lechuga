@@ -1,5 +1,5 @@
-import { Head } from '@inertiajs/react';
-import { Shield } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { ArrowUpRight, Shield } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
@@ -10,7 +10,10 @@ import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqTeamFixtureStrip } from '@/components/hq-team-fixture-strip';
 import AppLayout from '@/layouts/app-layout';
+import { formatCurrency } from '@/lib/format';
 import { POSITION_GROUP_LABELS } from '@/lib/player-labels';
+import { cn } from '@/lib/utils';
+import { show as fixturesShow } from '@/routes/fixtures';
 import type {
     Fixture,
     ManagerLineupPlayerEntry,
@@ -63,17 +66,43 @@ export default function TeamShow({
         (lineup) => lineup.week_number === selectedWeek,
     );
 
+    const selectedFixture = fixtures.find(
+        (fixture) => fixture.week_number === selectedWeek,
+    );
+
+    const tacticalFormation = (() => {
+        if (!selectedFixture) {
+            return null;
+        }
+
+        const isLocal = selectedFixture.local_team.id === team.id;
+        const formation = isLocal
+            ? selectedFixture.local_formation
+            : selectedFixture.guest_formation;
+
+        return formation ? formation.split('-').map(Number) : null;
+    })();
+
     const groups = GROUP_ORDER.map((position) => ({
         position,
         players: squad.filter((player) => player.position === position),
     })).filter((group) => group.players.length > 0);
+
+    const squadValue = squad.reduce(
+        (sum, player) => sum + player.market_value,
+        0,
+    );
+    const squadValueDifference = squad.reduce(
+        (sum, player) => sum + player.market_value_difference,
+        0,
+    );
 
     return (
         <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
             <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-9 lg:flex-row lg:items-start">
                 <Head title={team.main_name} />
 
-                <div className="w-full shrink-0 lg:w-1/4">
+                <div className="w-full shrink-0 lg:w-[30%]">
                     <div className="hq-card-cut p-4 text-center">
                         <EntityImage
                             src={team.logo}
@@ -127,9 +156,35 @@ export default function TeamShow({
 
                         <div className="flex items-center justify-between border-t border-hq-border py-1.5">
                             <span className="font-mono text-[11px] text-hq-moss">
+                                VALOR PLANTILLA
+                            </span>
+                            <div className="text-right">
+                                <p className="font-mono font-bold text-hq-paper">
+                                    {formatCurrency(squadValue)}
+                                </p>
+                                {squadValueDifference !== 0 && (
+                                    <p
+                                        className={cn(
+                                            'font-mono text-[10px] font-bold',
+                                            squadValueDifference > 0
+                                                ? 'text-hq-lime'
+                                                : 'text-hq-live',
+                                        )}
+                                    >
+                                        {squadValueDifference > 0 ? '▲' : '▼'}{' '}
+                                        {formatCurrency(
+                                            Math.abs(squadValueDifference),
+                                        )}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-hq-border py-1.5">
+                            <span className="font-mono text-[11px] text-hq-moss">
                                 PRÓXIMOS
                             </span>
-                            <HqNextFixtures fixtures={nextFixtures} size="sm" />
+                            <HqNextFixtures fixtures={nextFixtures} />
                         </div>
                     </div>
 
@@ -145,13 +200,25 @@ export default function TeamShow({
                                 onSelectWeek={setSelectedWeek}
                             />
                         </div>
+                        {selectedFixture && (
+                            <div className="mb-3 flex justify-end">
+                                <Link
+                                    href={fixturesShow(selectedFixture.id).url}
+                                    className="inline-flex items-center gap-1 border border-hq-lime px-2 py-1 font-mono text-[11px] font-bold text-hq-lime hover:bg-hq-lime/10"
+                                >
+                                    VER PARTIDO
+                                    <ArrowUpRight className="h-3 w-3" />
+                                </Link>
+                            </div>
+                        )}
                         <div className="mx-auto max-w-[360px]">
                             {lineupForWeek ? (
                                 <>
                                     <HqLineupPitch
                                         players={lineupForWeek.players}
-                                        tacticalFormation={null}
+                                        tacticalFormation={tacticalFormation}
                                         onSelectPlayer={setSelectedPlayer}
+                                        showTeamBadge={false}
                                     />
                                     {lineupForWeek.players.length < 11 && (
                                         <p className="mt-2 text-center font-mono text-[10px] text-hq-moss-dim">
@@ -190,7 +257,12 @@ export default function TeamShow({
                                     </span>
                                 </div>
                                 {group.players.map((player) => (
-                                    <PlayerRow key={player.id} player={player} />
+                                    <PlayerRow
+                                        key={player.id}
+                                        player={player}
+                                        showTeam={false}
+                                        showPosition={false}
+                                    />
                                 ))}
                             </div>
                         ))
