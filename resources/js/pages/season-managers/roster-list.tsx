@@ -1,5 +1,6 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { Lock, Shield, ShieldCheck, User } from 'lucide-react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { ClauseDifference } from '@/components/hq-player-property-card';
@@ -16,6 +17,7 @@ import { useLockCountdown } from '@/lib/use-lock-countdown';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
+import { show as teamsShow } from '@/routes/teams';
 import type { PlayerPosition, ManagerPlayer } from '@/types/models';
 
 const GROUP_ORDER: PlayerPosition[] = [
@@ -116,6 +118,12 @@ function MarketValueDiff({ entry }: { entry: ManagerPlayer }) {
 }
 
 function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
+    const goToTeam = (event: ReactMouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        router.visit(teamsShow(entry.player.team.id).url);
+    };
+
     return (
         <Link href={playersShow(entry.player.id).url} className="block">
             {/* Desktop / tablet row — always two lines: identity + clause + points up top, next fixtures + form + value below at full width, so nothing has to fight the clause block for horizontal room. */}
@@ -131,7 +139,12 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                         <p className="truncate text-sm font-extrabold text-hq-paper">
                             {entry.player.nickname}
                         </p>
-                        <div className="mt-0.5 flex items-center gap-1.5">
+                        <span
+                            role="link"
+                            tabIndex={0}
+                            onClick={goToTeam}
+                            className="mt-0.5 flex w-fit cursor-pointer items-center gap-1.5 hover:text-hq-paper"
+                        >
                             <EntityImage
                                 src={entry.player.team.logo}
                                 alt={entry.player.team.main_name}
@@ -142,7 +155,7 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                             <span className="truncate font-mono text-[10px] text-hq-moss-dim">
                                 {entry.player.team.short_name}
                             </span>
-                        </div>
+                        </span>
                         {entry.player.status !== 'ok' && (
                             <span
                                 className={cn(
@@ -198,7 +211,12 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                         <p className="truncate text-[13px] font-extrabold text-hq-paper">
                             {entry.player.nickname}
                         </p>
-                        <div className="mt-0.5 flex items-center gap-1.5">
+                        <span
+                            role="link"
+                            tabIndex={0}
+                            onClick={goToTeam}
+                            className="mt-0.5 flex w-fit cursor-pointer items-center gap-1.5 hover:text-hq-paper"
+                        >
                             <EntityImage
                                 src={entry.player.team.logo}
                                 alt={entry.player.team.main_name}
@@ -209,7 +227,7 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                             <span className="truncate font-mono text-[9px] text-hq-moss-dim">
                                 {entry.player.team.short_name}
                             </span>
-                        </div>
+                        </span>
                         {entry.player.status !== 'ok' && (
                             <span
                                 className={cn(

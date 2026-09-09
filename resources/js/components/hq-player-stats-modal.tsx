@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import { show as playersShow } from '@/routes/players';
 import { show as seasonManagersShow } from '@/routes/season-managers';
+import { show as teamsShow } from '@/routes/teams';
 import type { Fixture, JornadaStats, Player, SeasonManager, Team } from '@/types/models';
 
 export interface HqPlayerStatsEntry {
@@ -109,7 +110,10 @@ export function HqPlayerStatsModal({
                     <h2 className="font-display text-lg text-hq-paper uppercase">
                         {player.nickname}
                     </h2>
-                    <div className="flex items-center gap-1.5 font-mono text-[11px] text-hq-moss">
+                    <Link
+                        href={teamsShow(team.id).url}
+                        className="flex w-fit items-center gap-1.5 font-mono text-[11px] text-hq-moss hover:text-hq-paper"
+                    >
                         <EntityImage
                             src={team.logo}
                             alt={team.main_name}
@@ -118,7 +122,7 @@ export function HqPlayerStatsModal({
                             className="h-4 w-4 bg-transparent"
                         />
                         {team.main_name}
-                    </div>
+                    </Link>
                     {lineupManager && (
                         <Link
                             href={seasonManagersShow(lineupManager.id).url}

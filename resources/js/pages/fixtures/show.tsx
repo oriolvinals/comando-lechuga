@@ -24,6 +24,7 @@ import { useCountdown } from '@/lib/use-countdown';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
+import { show as teamsShow } from '@/routes/teams';
 import type {
     Fixture,
     FixtureEventEntry,
@@ -242,7 +243,10 @@ export default function FixtureShow({
                                 </button>
                             </div>
                         )}
-                        <div className="flex w-20 min-w-0 flex-col items-center gap-1.5 sm:w-36 sm:gap-2">
+                        <Link
+                            href={teamsShow(fixture.local_team.id).url}
+                            className="flex w-20 min-w-0 flex-col items-center gap-1.5 transition-[filter] hover:brightness-125 sm:w-36 sm:gap-2"
+                        >
                             <EntityImage
                                 src={fixture.local_team.logo}
                                 alt={fixture.local_team.main_name}
@@ -254,7 +258,7 @@ export default function FixtureShow({
                                 {fixture.local_team.main_name}
                             </span>
                             <TeamColorSwatch color={fixture.local_color} alternateColor={fixture.local_alternate_color} />
-                        </div>
+                        </Link>
                         <div className="shrink-0 text-center">
                             <p className="mb-1 font-mono text-[9px] tracking-widest text-hq-moss uppercase sm:mb-1.5 sm:text-[10px]">
                                 Jornada {fixture.week_number}
@@ -296,7 +300,10 @@ export default function FixtureShow({
                                 )}
                             </div>
                         </div>
-                        <div className="flex w-20 min-w-0 flex-col items-center gap-1.5 sm:w-36 sm:gap-2">
+                        <Link
+                            href={teamsShow(fixture.guest_team.id).url}
+                            className="flex w-20 min-w-0 flex-col items-center gap-1.5 transition-[filter] hover:brightness-125 sm:w-36 sm:gap-2"
+                        >
                             <EntityImage
                                 src={fixture.guest_team.logo}
                                 alt={fixture.guest_team.main_name}
@@ -308,7 +315,7 @@ export default function FixtureShow({
                                 {fixture.guest_team.main_name}
                             </span>
                             <TeamColorSwatch color={fixture.guest_color} alternateColor={fixture.guest_alternate_color} />
-                        </div>
+                        </Link>
                     </div>
 
                     {fixture.state === 'scheduled' || lineups.length === 0 ? (
