@@ -231,22 +231,37 @@ export function HqPlayerValueChart({
 
         const slot = width / n;
         const barWidth = Math.min(64, slot * 0.5);
-        const maxPoints = Math.max(
-            ...scores.map((score) => score.points ?? 0),
-            12,
-        );
+        const values = scores.map((score) => score.points ?? 0);
+        const maxPoints = Math.max(...values, 12);
+        const minPoints = Math.min(...values, 0);
+        // Only carve out label space below the baseline when there's a
+        // negative bar to label — keeps the all-positive case identical to
+        // before (baseline pinned to the bottom, full height for bars).
+        const bottomMargin = minPoints < 0 ? BAR_LABEL_SPACE : 0;
+        const plotTop = BAR_LABEL_SPACE;
+        const plotBottom = HEIGHT - bottomMargin;
+        const plotHeight = plotBottom - plotTop;
+        const valueToY = (value: number) =>
+            maxPoints === minPoints
+                ? plotBottom
+                : plotBottom -
+                  ((value - minPoints) / (maxPoints - minPoints)) * plotHeight;
+        const zeroY = valueToY(0);
 
         const bars = scores.map((score, index) => {
             const cx = index * slot + slot / 2;
-            const barHeight =
-                ((score.points ?? 0) / maxPoints) * (HEIGHT - BAR_LABEL_SPACE);
+            const points = score.points ?? 0;
+            const isNegative = points < 0;
+            const valueY = valueToY(points);
 
             return {
                 cx,
-                y: HEIGHT - barHeight,
-                height: barHeight,
+                y: isNegative ? zeroY : valueY,
+                height: Math.abs(zeroY - valueY),
+                valueY,
                 week: score.fixture.week_number,
-                points: score.points ?? 0,
+                points,
+                isNegative,
             };
         });
 
@@ -264,7 +279,15 @@ export function HqPlayerValueChart({
             }
         }
 
-        return { slot, barWidth, bars, bandSegments, boundaries };
+        return {
+            slot,
+            barWidth,
+            bars,
+            bandSegments,
+            boundaries,
+            zeroY,
+            hasNegative: minPoints < 0,
+        };
     }, [scores, width]);
 
     function handleMove(clientX: number) {
@@ -306,10 +329,10 @@ export function HqPlayerValueChart({
             const score = scores[index];
             const bar = puntosGeometry.bars[index];
 
-            setHoverPoint({ x: bar.cx, y: bar.y });
+            setHoverPoint({ x: bar.cx, y: bar.valueY });
             setTooltip({
                 x: rect.left + bar.cx * pxRatio,
-                y: rect.top + bar.y * pxRatio,
+                y: rect.top + bar.valueY * pxRatio,
                 date: `Jornada ${score.fixture.week_number}`,
                 value: `${score.points ?? 0} puntos`,
                 diff: null,
@@ -414,6 +437,18 @@ export function HqPlayerValueChart({
                             ))}
                         {mode === 'puntos' &&
                             puntosGeometry &&
+                            puntosGeometry.hasNegative && (
+                                <line
+                                    x1={0}
+                                    y1={puntosGeometry.zeroY}
+                                    x2={width}
+                                    y2={puntosGeometry.zeroY}
+                                    stroke="var(--color-hq-border-strong)"
+                                    strokeWidth={1}
+                                />
+                            )}
+                        {mode === 'puntos' &&
+                            puntosGeometry &&
                             puntosGeometry.bars.map((bar) => (
                                 <g key={bar.week}>
                                     <rect
@@ -421,16 +456,28 @@ export function HqPlayerValueChart({
                                         y={bar.y}
                                         width={puntosGeometry.barWidth}
                                         height={bar.height}
-                                        fill="var(--color-hq-lime)"
+                                        fill={
+                                            bar.isNegative
+                                                ? 'var(--color-hq-live)'
+                                                : 'var(--color-hq-lime)'
+                                        }
                                         opacity={0.35}
                                     />
                                     <text
                                         x={bar.cx}
-                                        y={bar.y - 8}
+                                        y={
+                                            bar.isNegative
+                                                ? bar.y + bar.height + 14
+                                                : bar.y - 8
+                                        }
                                         textAnchor="middle"
                                         className="font-display"
                                         fontSize={13}
-                                        fill="var(--color-hq-lime)"
+                                        fill={
+                                            bar.isNegative
+                                                ? 'var(--color-hq-live)'
+                                                : 'var(--color-hq-lime)'
+                                        }
                                     >
                                         {bar.points}
                                     </text>
