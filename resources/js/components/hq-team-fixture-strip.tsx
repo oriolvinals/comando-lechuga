@@ -49,7 +49,7 @@ export function HqTeamFixtureStrip({
     }, [selectedWeek]);
 
     return (
-        <HqScrollRow contentClassName="px-1 py-1 pb-3">
+        <HqScrollRow contentClassName="px-1 py-1 pb-3" showProgress={false}>
             {fixtures.map((fixture) => {
                 const opponent = opponentOf(fixture, teamId);
                 const result = resultFor(fixture, teamId);
