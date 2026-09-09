@@ -49,7 +49,7 @@ export function HqTeamFixtureStrip({
     }, [selectedWeek]);
 
     return (
-        <HqScrollRow contentClassName="px-1 py-1 pb-3" showProgress={false}>
+        <HqScrollRow contentClassName="px-1 py-3" showProgress={false}>
             {fixtures.map((fixture) => {
                 const opponent = opponentOf(fixture, teamId);
                 const result = resultFor(fixture, teamId);
@@ -86,7 +86,7 @@ export function HqTeamFixtureStrip({
                         </span>
                         <span
                             title={opponent.main_name}
-                            className="absolute -bottom-2 left-1/2 h-3.5 w-3.5 -translate-x-1/2"
+                            className="absolute -bottom-3.5 left-1/2 h-5 w-5 -translate-x-1/2"
                         >
                             <EntityImage
                                 src={opponent.logo}
