@@ -5,7 +5,7 @@
         "node": "26"
     },
     "steps": {
-        "install": {
+        "install:composer": {
             "commands": [
                 "...",
                 "composer install --no-dev --no-interaction --optimize-autoloader"
