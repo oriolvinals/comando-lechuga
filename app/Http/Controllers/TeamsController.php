@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Enums\FixtureState;
 use App\Enums\MatchPositionLine;
 use App\Enums\MatchPositionSide;
+use App\Enums\MatchResult;
+use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesNextFixtures;
@@ -213,7 +215,7 @@ class TeamsController extends Controller
      * @param  Collection<int, Team>  $teams
      * @param  Collection<int, Fixture>  $fixtures  from standingsFixtures() — finished + live
      * @param  array<int, array{fixture_id: int, opponent: Team, is_home: bool, date: \Carbon\CarbonImmutable}>  $nextByTeam  from nextFixtureByTeam(), keyed by team id
-     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss', date: \Carbon\CarbonImmutable}>, live: array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss', date: \Carbon\CarbonImmutable}|null, next: array{fixture_id: int, opponent: Team, is_home: bool, date: \Carbon\CarbonImmutable}|null}>
+     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: \Carbon\CarbonImmutable}>, live: array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: \Carbon\CarbonImmutable}|null, next: array{fixture_id: int, opponent: Team, is_home: bool, date: \Carbon\CarbonImmutable}|null}>
      */
     private function standingsFor(Collection $teams, Collection $fixtures, array $nextByTeam = []): array
     {
@@ -225,7 +227,7 @@ class TeamsController extends Controller
             $goalsFor = 0;
             $goalsAgainst = 0;
             $live = null;
-            /** @var list<array{fixture_id: int, opponent: Team, score: string, result: 'win'|'draw'|'loss', date: \Carbon\CarbonImmutable}> $formEntries */
+            /** @var list<array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: \Carbon\CarbonImmutable}> $formEntries */
             $formEntries = [];
 
             foreach ($fixtures as $fixture) {
@@ -242,25 +244,17 @@ class TeamsController extends Controller
                 $goalsFor += $for;
                 $goalsAgainst += $against;
                 $opponent = $isLocal ? $fixture->guestTeam : $fixture->localTeam;
+                $result = MatchResult::fromScore($for, $against);
 
-                if ($for > $against) {
+                if ($result === MatchResult::Win) {
                     $won++;
-                    $result = 'win';
-                } elseif ($for === $against) {
+                } elseif ($result === MatchResult::Draw) {
                     $drawn++;
-                    $result = 'draw';
                 } else {
                     $lost++;
-                    $result = 'loss';
                 }
 
-                $entry = [
-                    'fixture_id' => $fixture->id,
-                    'opponent' => $opponent,
-                    'score' => "{$for}-{$against}",
-                    'result' => $result,
-                    'date' => $fixture->date,
-                ];
+                $entry = $this->formEntry($fixture, $opponent, $for, $against);
 
                 if (in_array($fixture->state, self::LIVE_STATES, true)) {
                     $live = $entry;
@@ -290,14 +284,28 @@ class TeamsController extends Controller
             ];
         });
 
-        return $rows
+        return array_values($rows
             ->sort(fn (array $a, array $b): int => $b['points'] <=> $a['points']
                 ?: $b['goal_difference'] <=> $a['goal_difference']
                 ?: $b['goals_for'] <=> $a['goals_for']
                 ?: $a['team']->main_name <=> $b['team']->main_name)
             ->values()
             ->map(fn (array $row, int $index): array => ['position' => $index + 1, ...$row])
-            ->all();
+            ->all());
+    }
+
+    /**
+     * @return array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: \Carbon\CarbonImmutable}
+     */
+    private function formEntry(Fixture $fixture, Team $opponent, int $for, int $against): array
+    {
+        return [
+            'fixture_id' => $fixture->id,
+            'opponent' => $opponent,
+            'score' => "{$for}-{$against}",
+            'result' => MatchResult::fromScore($for, $against),
+            'date' => $fixture->date,
+        ];
     }
 
     /**
@@ -308,12 +316,13 @@ class TeamsController extends Controller
      *
      * `fixture_lineups.player_id` is nullable (an unresolved worldcup26
      * roster entry — see the match-data-linking design docs): a starter row
-     * with no resolved `Player` is dropped here rather than crashing on
-     * `$lineup->player->position`, since there's nothing displayable for it
-     * on this pitch (no name/photo) anyway.
+     * with no resolved `Player`, or whose `Player` has no current-season
+     * `PlayerSeason` (so no known position), is dropped here rather than
+     * crashing on `$lineup->player->position`, since there's nothing
+     * displayable for it on this pitch (no name/photo/position) anyway.
      *
      * @param  Collection<int, Fixture>  $fixtures  this team's fixtures for the season, with localTeam/guestTeam loaded
-     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: string, player: Player, match_finished: bool, pitch_top: float, pitch_left: float}>}>
+     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: PlayerPosition, player: Player, match_finished: bool, pitch_top: float, pitch_left: float}>}>
      */
     private function weeklyLineupsFor(Team $team, Season $season, Collection $fixtures): array
     {
@@ -342,19 +351,35 @@ class TeamsController extends Controller
                 continue;
             }
 
-            $weeklyLineups[] = [
-                'week_number' => $fixture->week_number,
-                'fixture' => $fixture,
-                'players' => $starters->map(fn (FixtureLineup $lineup): array => [
+            $players = [];
+
+            foreach ($starters as $lineup) {
+                $player = $lineup->player;
+
+                if (!$player instanceof Player || !$player->position instanceof PlayerPosition) {
+                    continue;
+                }
+
+                $players[] = [
                     'id' => $lineup->id,
                     'points' => $lineup->fantasy_points,
                     'stats' => $lineup->fantasy_stats,
-                    'position' => $lineup->player->position,
-                    'player' => $lineup->player,
+                    'position' => $player->position,
+                    'player' => $player,
                     'match_finished' => $fixture->state === FixtureState::Finished,
                     'pitch_top' => $this->pitchTop($lineup, $starters),
                     'pitch_left' => $this->pitchLeft($lineup, $starters),
-                ])->values()->all(),
+                ];
+            }
+
+            if ($players === []) {
+                continue;
+            }
+
+            $weeklyLineups[] = [
+                'week_number' => $fixture->week_number,
+                'fixture' => $fixture,
+                'players' => $players,
             ];
         }
 

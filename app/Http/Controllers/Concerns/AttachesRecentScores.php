@@ -123,7 +123,7 @@ trait AttachesRecentScores
             // perspective of their current team_id.
             $opponents = $recentFixtures
                 ->map(function (Fixture $fixture) use ($player, $playerScores) {
-                    $referenceTeamId = $playerScores->get($fixture->id)?->team_id ?? $player->team_id;
+                    $referenceTeamId = $playerScores->get($fixture->id)->team_id ?? $player->team_id;
 
                     return $fixture->team_local_id === $referenceTeamId
                         ? $fixture->guestTeam
