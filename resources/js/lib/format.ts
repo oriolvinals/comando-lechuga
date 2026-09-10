@@ -45,8 +45,11 @@ export function formatTime(isoDate: string): string {
 
 export function formatFullDateTime(isoDate: string): string {
     return new Intl.DateTimeFormat('es-ES', {
-        dateStyle: 'long',
-        timeStyle: 'short',
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
     }).format(new Date(isoDate));
 }
 
