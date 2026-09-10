@@ -1,20 +1,27 @@
 # Deploying to Coolify
 
-No Docker involved — Coolify builds this with **Nixpacks** directly from
-`nixpacks.toml` at the repo root. Nixpacks auto-detects the PHP/Node
-toolchain (from `composer.json` / `package.json`); the toml file only adds
-to that default plan (the `"..."` entries keep everything Nixpacks already
-decided and layer the extra setup on top).
+No Docker involved — Coolify builds this with **Railpack** directly from
+`railpack.json` at the repo root (Railpack auto-detects the PHP/Node
+toolchain from `composer.json` / `package.json`; the config file only pins
+the PHP/Node versions and tightens the composer install). Railpack is
+Railway's build system, the modern replacement for Nixpacks — Coolify
+supports it as an alternative build pack (marked **Beta** there as of this
+writing).
 
-The built image runs exactly two processes under supervisor (auto-restart
-on crash): **nginx** and **php-fpm**. Nothing else — no queue worker
-(nothing in this app dispatches a queued job) and no SSR node process. See
-[SSR](#ssr) below for why.
+Railpack's PHP provider serves the app with **FrankenPHP** (a single Caddy +
+PHP binary), not nginx + php-fpm — there's no supervisor config to write by
+hand here, unlike the old Nixpacks setup. FrankenPHP auto-detects Laravel
+(via the `artisan` file), points its document root at `public/`, and on
+every container start runs `php artisan migrate --force`, then
+`storage:link`, `optimize:clear`, `optimize` before serving traffic — see
+[Migrations & caching](#migrations--caching) below, since this changes how
+deploys are gated compared to the old Nixpacks setup.
 
 ## 1. App resource settings
 
-- **Build Pack**: Nixpacks
-- **Port**: `80` (also set as the container's exposed port)
+- **Build Pack**: Railpack
+- **Port**: whatever Coolify injects via `$PORT` (FrankenPHP's Caddy listens
+  on it automatically) — also set as the container's exposed port
 - **Health check path**: `/up` (Laravel's default health-check route,
   already wired up in `bootstrap/app.php`)
 
@@ -31,7 +38,7 @@ network, not `localhost`.
 |---|---|
 | `APP_ENV` | `production` |
 | `APP_DEBUG` | `false` |
-| `APP_KEY` | generate once with `php artisan key:generate --show`, paste the result — **never regenerate on redeploy**, it invalidates every session/cookie. Mark it **available at buildtime** too (Nixpacks needs a bootable app during `vite build`, for the Wayfinder route-generation step) |
+| `APP_KEY` | generate once with `php artisan key:generate --show`, paste the result — **never regenerate on redeploy**, it invalidates every session/cookie. Mark it **available at buildtime** too (Railpack needs a bootable app during `vite build`, for the Wayfinder route-generation step) |
 | `APP_URL` | your public URL |
 | `APP_TIMEZONE` | `Europe/Madrid` (the scheduler's time-window sync jobs depend on this) |
 | `DB_CONNECTION` | `mysql` |
@@ -43,30 +50,34 @@ network, not `localhost`.
 | `INERTIA_SSR_ENABLED` | `false` — see [SSR](#ssr) |
 | `LA_LIGA_LOGIN_EMAIL` / `LA_LIGA_LOGIN_PASSWORD` | your real La Liga Fantasy account credentials |
 | the other `LA_LIGA_*` vars | copy as-is from `.env.example`, not secrets |
-| `NIXPACKS_PHP_ROOT_DIR` | `/app/public` — the nginx template in `nixpacks.toml` falls back to `/app` without this, which would serve `.env` and the whole app tree as static files |
-| `NIXPACKS_PHP_FALLBACK_PATH` | `/index.php` |
-| `IS_LARAVEL` | `true` |
 
-## 4. Pre-deployment command
+Unlike Nixpacks, there's no `NIXPACKS_PHP_ROOT_DIR` / `NIXPACKS_PHP_FALLBACK_PATH`
+/ `IS_LARAVEL` to set — Railpack's PHP provider detects the `artisan` file
+and points FrankenPHP at `public/` with the right fallback on its own.
 
-Set this in the app's **General → Pre-deployment Command** field. Coolify
-runs it inside the freshly-built container and only routes traffic to it
-if the command exits `0` — if a migration fails, the previous container
-just keeps serving:
+## 4. Migrations & caching
 
-```
-php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache
-```
+**No Pre-deployment Command needed.** FrankenPHP's own startup script (baked
+into the image by Railpack) already runs `php artisan migrate --force`
+followed by `storage:link`, `optimize:clear`, `optimize` every time the
+container boots, before it starts accepting traffic — this replaces the
+Nixpacks setup's manual Coolify **Pre-deployment Command** field entirely.
+If a migration fails, the container never becomes healthy and Coolify's
+health check keeps routing to the previous one, which is the same safety
+property the old manual pre-deploy command gave.
+
+If you ever need to skip the automatic migration for a one-off deploy, set
+`RAILPACK_SKIP_MIGRATIONS=true` for that deploy.
 
 ## 5. Persistent storage
 
 Player photos are synced at runtime (`season:sync-player-photos`, daily)
 into `storage/app/public/images/player/`, symlinked to `public/storage` —
-`nixpacks.toml`'s `start.sh` runs `storage:link` on every boot. That
-directory is **not part of the build**, so without a volume every deploy
-wipes it and photos just re-download on the next daily sync (harmless, but
-avoidable, and means broken images for anyone browsing right after a
-deploy until that sync runs).
+the `storage:link` call above runs on every boot. That directory is **not
+part of the build**, so without a volume every deploy wipes it and photos
+just re-download on the next daily sync (harmless, but avoidable, and means
+broken images for anyone browsing right after a deploy until that sync
+runs).
 
 Add a persistent volume on the app resource:
 
@@ -77,7 +88,7 @@ and ship with every build — no volume needed for those.
 
 ## 6. The scheduler
 
-The container only runs nginx + php-fpm — nothing inside it fires the
+The container only runs the FrankenPHP server — nothing inside it fires the
 `season:sync-*` commands on its own. Add a Coolify **Scheduled Task** on
 this app resource instead (Settings → Scheduled Tasks): it works by
 `docker exec`-ing into the running container, which is exactly what a cron
@@ -105,28 +116,26 @@ in production.
 
 ## Not build-tested
 
-Nixpacks/nix isn't available in the environment this file was written in,
-so this hasn't gone through an actual `nixpacks build` / Coolify deploy —
-it's assembled from Coolify's own documented Laravel/Nixpacks pattern and
-working examples, not verified end-to-end. Test the first deploy for real
-before relying on it, and check the build logs closely — the two most
-likely failure points are the `nginx.template.conf` template syntax
-(Nixpacks' own `$if(...)`/`${VAR}` engine) and the supervisor process
-definitions in `nixpacks.toml`'s `[staticAssets]`.
+Railpack isn't available as a real container build in the environment this
+file was written in (its `plan`/`build` CLI needs `mise` to provision the
+PHP/Node toolchain, which failed to install in that sandbox), so this
+hasn't gone through an actual Railpack build / Coolify deploy — it's
+assembled from Railpack's own documented PHP provider behavior and its
+`start-container.sh` source, not verified end-to-end. Test the first deploy
+for real before relying on it, and check the build logs closely. The two
+likely rough edges:
 
-One real issue already hit and fixed: Nixpacks' *default* install step runs
-`composer install` without `--no-dev`, which pulls in `phpunit/phpunit`.
-That version's `Runner/Version.php` uses PHP 8.4's "call a method directly
-on `new`" syntax (`new VersionId(...)->asString()`), which some PHP
-versions can't even parse — `nunomaduro/collision` (a real, non-dev
-dependency) touches that class at autoload time regardless, so the build
-crashed on `composer install`'s `post-autoload-dump` step. Fixed by
-overriding `[phases.install]` in `nixpacks.toml` to pass `--no-dev` (skips
-installing that tooling at all — it's never needed to build or run the
-app) and by requiring `"php": "^8.4"` in `composer.json`, which is enough
-on its own — 8.4 is one of the versions Nixpacks' PHP provider actually
-recognizes in its version-detection table (unlike 8.5, which an earlier
-attempt at this ran into — Nixpacks didn't pick it up from
-`composer.json` alone, and it's unclear whether the nixpkgs revision
-Nixpacks pins even has a `php85` package yet). Auto-detection is enough
-here; no explicit version pin needed in `nixPkgs`.
+- `railpack.json`'s `steps.install` appends `composer install --no-dev
+  --no-interaction --optimize-autoloader` *after* Railpack's own default
+  install step (via the `"..."` entry), rather than replacing it, since
+  it's undocumented whether a full replacement would also drop the Node
+  `npm install` Railpack normally runs alongside the PHP install. This
+  means composer install effectively runs twice (once with dev deps, once
+  without) — wasteful but should net out to the same `--no-dev` vendor
+  tree. Confirm `vendor/` in the running container doesn't contain
+  `phpunit`, `pest`, etc.
+- The automatic `php artisan migrate --force` on every boot (see
+  [Migrations & caching](#migrations--caching)) is a behavior change from
+  the old Nixpacks setup, where migrations only ran through Coolify's
+  gated Pre-deployment Command. Watch the first deploy's logs to confirm
+  it runs and succeeds before traffic is expected to flow.
