@@ -50,7 +50,7 @@ network, not `localhost`.
 | `INERTIA_SSR_ENABLED` | `false` — see [SSR](#ssr) |
 | `LA_LIGA_LOGIN_EMAIL` / `LA_LIGA_LOGIN_PASSWORD` | your real La Liga Fantasy account credentials |
 | the other `LA_LIGA_*` vars | copy as-is from `.env.example`, not secrets |
-| `RAILPACK_BUILD_APT_PACKAGES` | `bison re2c` — **required on an ARM64 Coolify host** (see below), harmless if unused on x86_64 |
+| `RAILPACK_BUILD_APT_PACKAGES` | `bison re2c libcurl4-openssl-dev libonig-dev libicu-dev libxml2-dev libzip-dev libreadline-dev libpq-dev libgd-dev` — **required on an ARM64 Coolify host** (see below), harmless if unused on x86_64 |
 
 Unlike Nixpacks, there's no `NIXPACKS_PHP_ROOT_DIR` / `NIXPACKS_PHP_FALLBACK_PATH`
 / `IS_LARAVEL` to set — Railpack's PHP provider detects the `artisan` file
