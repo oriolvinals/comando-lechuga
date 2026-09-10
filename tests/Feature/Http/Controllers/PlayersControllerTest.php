@@ -358,10 +358,10 @@ test('only takes the 3 most recent matches, dropping older ones', function (): v
         'end_date' => now()->addDay(),
     ]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
-    $oldest = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(40), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
-    $second = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(30), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
-    $third = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
-    $fourth = Fixture::factory()->create(['season_id' => $season->id, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $oldest = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => now()->subDays(40), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $second = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => now()->subDays(30), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $third = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'date' => now()->subDays(20), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    $fourth = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 4, 'date' => now()->subDays(10), 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
     FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $oldest->id, 'fantasy_points' => 99]);
     FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $second->id, 'fantasy_points' => 3]);
     FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $third->id, 'fantasy_points' => 5]);
@@ -400,12 +400,14 @@ test('marks a recent score slot as not called up when the match finished without
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     $scored = Fixture::factory()->create([
         'season_id' => $season->id,
+        'week_number' => 1,
         'date' => now()->subDays(20),
         'team_local_id' => $player->team_id,
         'state' => FixtureState::Finished,
     ]);
     $notCalledUp = Fixture::factory()->create([
         'season_id' => $season->id,
+        'week_number' => 2,
         'date' => now()->subDays(10),
         'team_local_id' => $player->team_id,
         'state' => FixtureState::Finished,
@@ -435,7 +437,7 @@ test('shows the rival faced in each recent score, not the player\'s own team', f
         'team_guest_id' => $rival->id,
         'state' => FixtureState::Finished,
     ]);
-    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixtureAsLocal->id, 'fantasy_points' => 5]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixtureAsLocal->id, 'team_id' => $player->team_id, 'fantasy_points' => 5]);
 
     $response = $this->get(route('players.index'));
 

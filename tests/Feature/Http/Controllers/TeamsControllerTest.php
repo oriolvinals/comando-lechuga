@@ -222,6 +222,82 @@ test('the ficha squad includes the club players and excludes out-of-league ones'
     expect($outOfLeague)->not->toBeNull(); // keeps the variable "used" for readability of intent
 });
 
+test('a recent score slot shows a match played for the player\'s previous club before a transfer', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $newClub = Team::factory()->create();
+    $oldClub = Team::factory()->create();
+    $season->teams()->attach([$newClub->id, $oldClub->id]);
+    // Currently at $newClub, but their only recent finished match was played for
+    // $oldClub before the transfer — $newClub itself hasn't played since.
+    $player = Player::factory()->create([
+        'team_id' => $newClub->id,
+        'status' => PlayerStatus::Ok,
+    ]);
+    $oldClubMatch = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->subDays(10),
+        'team_local_id' => $oldClub->id,
+        'state' => FixtureState::Finished,
+    ]);
+    FixtureLineup::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $oldClubMatch->id,
+        'team_id' => $oldClub->id,
+        'fantasy_points' => 6,
+    ]);
+
+    $response = $this->get(route('teams.show', $newClub));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('squad.0.recent_scores', [6, null, null])
+        ->where('squad.0.recent_scores_opponents.0.id', $oldClubMatch->team_guest_id)
+    );
+});
+
+test('a jornada the player\'s old club and new club both played in only takes one recent-score slot', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $newClub = Team::factory()->create();
+    $oldClub = Team::factory()->create();
+    $rivalWeek2 = Team::factory()->create();
+    $rivalWeek3 = Team::factory()->create();
+    $rivalNewClubWeek3 = Team::factory()->create();
+    $rivalWeek4 = Team::factory()->create();
+    $season->teams()->attach([$newClub->id, $oldClub->id, $rivalWeek2->id, $rivalWeek3->id, $rivalNewClubWeek3->id, $rivalWeek4->id]);
+
+    $player = Player::factory()->create(['team_id' => $newClub->id, 'status' => PlayerStatus::Ok]);
+
+    // Weeks 2 and 3: played for $oldClub, before the transfer.
+    $week2 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => now()->subDays(20), 'team_local_id' => $oldClub->id, 'team_guest_id' => $rivalWeek2->id, 'state' => FixtureState::Finished]);
+    $week3OldClub = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'date' => now()->subDays(12), 'team_local_id' => $rivalWeek3->id, 'team_guest_id' => $oldClub->id, 'state' => FixtureState::Finished]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $week2->id, 'team_id' => $oldClub->id, 'fantasy_points' => 0]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $week3OldClub->id, 'team_id' => $oldClub->id, 'fantasy_points' => 3]);
+
+    // $newClub also played its own week 3 fixture, without the player (still at $oldClub) —
+    // this must NOT also claim a slot; the player's real week-3 match above already did.
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'date' => now()->subDays(11), 'team_local_id' => $newClub->id, 'team_guest_id' => $rivalNewClubWeek3->id, 'state' => FixtureState::Finished]);
+
+    // Week 4: the transfer has happened, played for $newClub.
+    $week4 = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 4, 'date' => now()->subDays(5), 'team_local_id' => $newClub->id, 'team_guest_id' => $rivalWeek4->id, 'state' => FixtureState::Finished]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $week4->id, 'team_id' => $newClub->id, 'fantasy_points' => 7]);
+
+    $response = $this->get(route('teams.show', $newClub));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('squad.0.recent_scores', [0, 3, 7])
+        ->where('squad.0.recent_scores_opponents.0.id', $rivalWeek2->id)
+        ->where('squad.0.recent_scores_opponents.1.id', $rivalWeek3->id)
+        ->where('squad.0.recent_scores_opponents.2.id', $rivalWeek4->id)
+    );
+});
+
 test('the ficha exposes this team\'s own position in the real standings', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),

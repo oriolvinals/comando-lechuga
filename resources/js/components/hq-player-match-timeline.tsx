@@ -52,10 +52,16 @@ export function HqPlayerMatchTimeline({
                     const score = scoresByWeek.get(week);
                     const fixture = fixturesByWeek.get(week);
                     const notCalledUp = !score && fixture?.state === 'finished';
-                    const opponent = fixture
-                        ? fixture.local_team.id === teamId
-                            ? fixture.guest_team
-                            : fixture.local_team
+                    // A scored week uses the match the player actually appeared in —
+                    // which, around a mid-season transfer, can differ from the current
+                    // team's own fixture for that same week number. Only fall back to
+                    // the current team's fixture when there's no score to go off of.
+                    const matchFixture = score ? score.fixture : fixture;
+                    const matchTeamId = score ? score.team_id : teamId;
+                    const opponent = matchFixture
+                        ? matchFixture.local_team.id === matchTeamId
+                            ? matchFixture.guest_team
+                            : matchFixture.local_team
                         : null;
 
                     return (
