@@ -8,7 +8,7 @@
         "install:composer": {
             "commands": [
                 "...",
-                "composer install --no-dev --no-interaction --optimize-autoloader"
+                "composer install --no-dev --no-interaction --optimize-autoloader --no-scripts"
             ]
         }
     }
