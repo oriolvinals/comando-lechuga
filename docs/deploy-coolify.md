@@ -50,10 +50,22 @@ network, not `localhost`.
 | `INERTIA_SSR_ENABLED` | `false` — see [SSR](#ssr) |
 | `LA_LIGA_LOGIN_EMAIL` / `LA_LIGA_LOGIN_PASSWORD` | your real La Liga Fantasy account credentials |
 | the other `LA_LIGA_*` vars | copy as-is from `.env.example`, not secrets |
+| `RAILPACK_BUILD_APT_PACKAGES` | `bison re2c` — **required on an ARM64 Coolify host** (see below), harmless if unused on x86_64 |
 
 Unlike Nixpacks, there's no `NIXPACKS_PHP_ROOT_DIR` / `NIXPACKS_PHP_FALLBACK_PATH`
 / `IS_LARAVEL` to set — Railpack's PHP provider detects the `artisan` file
 and points FrankenPHP at `public/` with the right fallback on its own.
+
+**ARM64 hosts:** mise (Railpack's toolchain installer) has no precompiled
+PHP 8.5.9 binary for `linux-arm64` yet, so on an ARM64 Coolify host it
+compiles PHP from source, which needs `bison` (and likely `re2c`) present
+in the build container — neither is in Railpack's builder image by
+default. Confirmed on a real deploy attempt: the build failed with
+`configure: error: bison 3.0.0 or newer is required to generate PHP
+parsers` after `checking for bison... no`. Setting
+`RAILPACK_BUILD_APT_PACKAGES=bison re2c` installs them for the build step
+only (not the final runtime image). Node needed no such workaround — a
+precompiled `node-v26.8.2-linux-arm64` binary exists, no compile step.
 
 ## 4. Migrations & caching
 
@@ -114,16 +126,15 @@ that ever changes — the SSR bundle build step and `bootstrap/ssr/` output
 still work locally (`npm run build:ssr`), this only turns off *running* it
 in production.
 
-## Not build-tested
+## Known rough edges
 
-Railpack isn't available as a real container build in the environment this
-file was written in (its `plan`/`build` CLI needs `mise` to provision the
-PHP/Node toolchain, which failed to install in that sandbox), so this
-hasn't gone through an actual Railpack build / Coolify deploy — it's
-assembled from Railpack's own documented PHP provider behavior and its
-`start-container.sh` source, not verified end-to-end. Test the first deploy
-for real before relying on it, and check the build logs closely. The two
-likely rough edges:
+A real Coolify deploy on 2026-09-10 confirmed the ARM64 `bison`/`re2c`
+compile issue above (now fixed via `RAILPACK_BUILD_APT_PACKAGES`) — that
+build got as far as compiling PHP extensions before failing, so the
+Railpack detection, image pulls, and apt/mise setup all work as expected.
+The rest of the pipeline (composer install, npm build, the FrankenPHP
+start-container script, migrations-on-boot) is still unverified end-to-end.
+Keep watching build logs on the next deploy attempt for:
 
 - `railpack.json`'s `steps.install` appends `composer install --no-dev
   --no-interaction --optimize-autoloader` *after* Railpack's own default
