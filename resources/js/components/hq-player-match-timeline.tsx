@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Armchair } from 'lucide-react';
 import { useState } from 'react';
 import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
 import { HqScrollRow } from '@/components/hq-scroll-row';
@@ -102,7 +102,7 @@ export function HqPlayerMatchTimeline({
                             {score && score.sub_minute !== null && (
                                 <span
                                     className={cn(
-                                        'absolute -top-[7px] -right-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-hq-ink font-mono text-[8px] font-bold',
+                                        'absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full border bg-hq-ink font-mono text-[8px] font-bold',
                                         score.subbed_out
                                             ? 'border-hq-live text-hq-live'
                                             : 'border-hq-lime text-hq-lime',
@@ -114,10 +114,18 @@ export function HqPlayerMatchTimeline({
                             )}
                             {score && score.starter && score.sub_minute === null && (
                                 <span
-                                    className="absolute -top-[7px] -right-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full border border-hq-lime bg-hq-ink font-mono text-[8px] font-bold text-hq-lime"
+                                    className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-hq-lime bg-hq-ink font-mono text-[8px] font-bold text-hq-lime"
                                     title="Jugó el partido completo"
                                 >
                                     ✓
+                                </span>
+                            )}
+                            {score && !score.starter && score.sub_minute === null && (
+                                <span
+                                    className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-hq-moss-dim bg-hq-ink text-hq-moss-dim"
+                                    title="Suplente, no llegó a jugar"
+                                >
+                                    <Armchair className="h-3 w-3" />
                                 </span>
                             )}
                         </button>
