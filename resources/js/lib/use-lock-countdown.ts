@@ -1,8 +1,8 @@
 import { formatRelativeTime } from '@/lib/format';
 
 /**
- * Relative day text ("dentro de 8 días") while 24h+ remain, switching to a
- * live-ticking HH:MM:SS countdown once inside the final day. Used for both
+ * Relative day text ("dentro de 8 días") while 72h+ remain, switching to a
+ * live-ticking HH:MM:SS countdown once inside the final 72h. Used for both
  * a locked buyout clause (`buyout_clause_locked_until`) and a shield
  * (`shielded_until`) — pass whichever deadline applies; `null` (e.g. a
  * shielded row synced before `shielded_until` existed) reads as expired.
@@ -21,7 +21,7 @@ export function useLockCountdown(
         return 'Disponible';
     }
 
-    if (diffMs >= 86_400_000) {
+    if (diffMs >= 259_200_000) {
         return formatRelativeTime(targetIso);
     }
 
