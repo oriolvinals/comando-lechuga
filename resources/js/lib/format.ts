@@ -44,13 +44,19 @@ export function formatTime(isoDate: string): string {
 }
 
 export function formatFullDateTime(isoDate: string): string {
-    return new Intl.DateTimeFormat('es-ES', {
-        day: 'numeric',
-        month: 'numeric',
-        year: 'numeric',
+    const date = new Date(isoDate);
+
+    const datePart = new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+    }).format(date);
+    const timePart = new Intl.DateTimeFormat('es-ES', {
         hour: '2-digit',
         minute: '2-digit',
-    }).format(new Date(isoDate));
+    }).format(date);
+
+    return `${datePart} ${timePart}`;
 }
 
 const RELATIVE_TIME_UNITS: { unit: Intl.RelativeTimeFormatUnit; ms: number }[] =
