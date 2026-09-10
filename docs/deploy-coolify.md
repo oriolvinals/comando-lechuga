@@ -50,7 +50,7 @@ network, not `localhost`.
 | `INERTIA_SSR_ENABLED` | `false` — see [SSR](#ssr) |
 | `LA_LIGA_LOGIN_EMAIL` / `LA_LIGA_LOGIN_PASSWORD` | your real La Liga Fantasy account credentials |
 | the other `LA_LIGA_*` vars | copy as-is from `.env.example`, not secrets |
-| `RAILPACK_BUILD_APT_PACKAGES` | `bison re2c libcurl4-openssl-dev libonig-dev libicu-dev libxml2-dev libzip-dev libreadline-dev libpq-dev libgd-dev` — **required on an ARM64 Coolify host** (see below), harmless if unused on x86_64 |
+| `RAILPACK_BUILD_APT_PACKAGES` | `bison re2c libcurl4-openssl-dev libonig-dev libicu-dev libxml2-dev libzip-dev libreadline-dev libpq-dev libgd-dev libjpeg-dev libpng-dev` — **required on an ARM64 Coolify host** (see below), harmless if unused on x86_64 |
 
 Unlike Nixpacks, there's no `NIXPACKS_PHP_ROOT_DIR` / `NIXPACKS_PHP_FALLBACK_PATH`
 / `IS_LARAVEL` to set — Railpack's PHP provider detects the `artisan` file
@@ -58,14 +58,16 @@ and points FrankenPHP at `public/` with the right fallback on its own.
 
 **ARM64 hosts:** mise (Railpack's toolchain installer) has no precompiled
 PHP 8.5.9 binary for `linux-arm64` yet, so on an ARM64 Coolify host it
-compiles PHP from source, which needs `bison` (and likely `re2c`) present
-in the build container — neither is in Railpack's builder image by
-default. Confirmed on a real deploy attempt: the build failed with
-`configure: error: bison 3.0.0 or newer is required to generate PHP
-parsers` after `checking for bison... no`. Setting
-`RAILPACK_BUILD_APT_PACKAGES=bison re2c` installs them for the build step
-only (not the final runtime image). Node needed no such workaround — a
-precompiled `node-v26.8.2-linux-arm64` binary exists, no compile step.
+compiles PHP from source, which needs several `-dev` packages present in
+the build container that aren't in Railpack's builder image by default —
+this is a known mise/asdf-php gap, not specific to this app (see
+[jdx/mise#4720](https://github.com/jdx/mise/discussions/4720)). Confirmed
+across three real deploy attempts, each getting one step further:
+`bison`/`re2c` missing (PHP parser generation), then `libcurl` dev headers,
+then `gdlib` (GD). `RAILPACK_BUILD_APT_PACKAGES` installs them for the
+build step only (not the final runtime image). Node needed no such
+workaround — a precompiled `node-v26.8.2-linux-arm64` binary exists, no
+compile step.
 
 ## 4. Migrations & caching
 
