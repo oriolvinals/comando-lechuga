@@ -238,6 +238,10 @@ export interface PlayerFichaScore {
     stats: JornadaStats | null;
     fixture: Fixture;
     lineup_manager: SeasonManager | null;
+    starter: boolean;
+    subbed_in: boolean;
+    subbed_out: boolean;
+    sub_minute: number | null;
 }
 
 export interface OwnershipActivity {

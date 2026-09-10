@@ -174,6 +174,10 @@ class PlayersController extends Controller
                 'stats' => $lineup->fantasy_stats,
                 'fixture' => $lineup->fixture,
                 'lineup_manager' => null,
+                'starter' => $lineup->starter,
+                'subbed_in' => $lineup->subbed_in,
+                'subbed_out' => $lineup->subbed_out,
+                'sub_minute' => $lineup->sub_minute,
             ]);
 
         // Which manager fielded this player in their lineup each jornada — distinct

@@ -44,7 +44,7 @@ export function HqPlayerMatchTimeline({
                 Partidos
             </h2>
 
-            <HqScrollRow contentClassName="px-1 py-1 pb-3">
+            <HqScrollRow contentClassName="px-2 pt-2.5 pb-3">
                 {Array.from(
                     { length: currentWeek },
                     (_, index) => index + 1,
@@ -92,6 +92,27 @@ export function HqPlayerMatchTimeline({
                                     title={opponent.main_name}
                                     className="absolute -bottom-2 left-1/2 h-3.5 w-3.5 -translate-x-1/2 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
                                 />
+                            )}
+                            {score && score.sub_minute !== null && (
+                                <span
+                                    className={cn(
+                                        'absolute -top-[7px] -right-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-hq-ink font-mono text-[8px] font-bold',
+                                        score.subbed_out
+                                            ? 'border-hq-live text-hq-live'
+                                            : 'border-hq-lime text-hq-lime',
+                                    )}
+                                    title={`Cambio min. ${score.sub_minute}`}
+                                >
+                                    ↳
+                                </span>
+                            )}
+                            {score && score.starter && score.sub_minute === null && (
+                                <span
+                                    className="absolute -top-[7px] -right-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full border border-hq-lime bg-hq-ink font-mono text-[8px] font-bold text-hq-lime"
+                                    title="Jugó el partido completo"
+                                >
+                                    ✓
+                                </span>
                             )}
                         </button>
                     );
@@ -170,6 +191,28 @@ export function HqPlayerMatchTimeline({
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2.5 border-b border-hq-border px-4 py-2.5">
+                                <span
+                                    className={cn(
+                                        'border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase',
+                                        selectedScore.starter
+                                            ? 'border-hq-border-strong text-hq-paper'
+                                            : 'border-hq-khaki text-hq-khaki',
+                                    )}
+                                >
+                                    {selectedScore.starter ? 'Titular' : 'Suplente'}
+                                </span>
+                                {selectedScore.sub_minute !== null && (
+                                    <span
+                                        className={cn(
+                                            'border bg-hq-ink px-1.5 py-0.5 font-mono text-[10px] font-bold',
+                                            selectedScore.subbed_out
+                                                ? 'border-hq-live text-hq-live'
+                                                : 'border-hq-lime text-hq-lime',
+                                        )}
+                                    >
+                                        ↳{selectedScore.sub_minute}'
+                                    </span>
+                                )}
                                 <MatchEventIcons
                                     stats={selectedScore.stats ?? {}}
                                     position={playerPosition}
