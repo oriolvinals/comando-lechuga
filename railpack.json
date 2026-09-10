@@ -1,0 +1,15 @@
+{
+    "$schema": "https://schema.railpack.com",
+    "packages": {
+        "php": "8.5",
+        "node": "26"
+    },
+    "steps": {
+        "install": {
+            "commands": [
+                "...",
+                "composer install --no-dev --no-interaction --optimize-autoloader"
+            ]
+        }
+    }
+}
