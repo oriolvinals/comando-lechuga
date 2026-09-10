@@ -2,8 +2,9 @@ import { Link } from '@inertiajs/react';
 import { Lock, Shield, ShieldCheck, UserX } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqTooltip } from '@/components/hq-tooltip';
 import { resolveClauseStatus } from '@/lib/clause-status';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatFullDateTime } from '@/lib/format';
 import { cardTintStyle } from '@/lib/season-manager-colors';
 import { useCountdown } from '@/lib/use-countdown';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
@@ -239,7 +240,13 @@ function LockStatus({
                 {label}
             </div>
             <p className={cn('mt-0.5 font-mono text-xs', countdownColorClass)}>
-                {countdown}
+                {targetIso !== null ? (
+                    <HqTooltip label={formatFullDateTime(targetIso)}>
+                        {countdown}
+                    </HqTooltip>
+                ) : (
+                    countdown
+                )}
             </p>
             {children}
         </div>

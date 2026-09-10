@@ -5,7 +5,12 @@ import {
     TYPE_COLORS,
     TYPE_LABELS,
 } from '@/components/activity-helpers';
-import { formatCurrency, formatRelativeTime } from '@/lib/format';
+import { HqTooltip } from '@/components/hq-tooltip';
+import {
+    formatCurrency,
+    formatFullDateTime,
+    formatRelativeTime,
+} from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Activity } from '@/types/models';
 
@@ -45,12 +50,14 @@ export function HqActivityTimelineEntry({
             </div>
             {activity.amount !== null ? (
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                    <time
-                        dateTime={activity.occurred_at}
-                        className="font-mono text-[8.5px] text-hq-moss-dim"
-                    >
-                        {formatRelativeTime(activity.occurred_at)}
-                    </time>
+                    <HqTooltip label={formatFullDateTime(activity.occurred_at)}>
+                        <time
+                            dateTime={activity.occurred_at}
+                            className="font-mono text-[8.5px] text-hq-moss-dim"
+                        >
+                            {formatRelativeTime(activity.occurred_at)}
+                        </time>
+                    </HqTooltip>
                     <span className="hq-tag-cut inline-block bg-hq-khaki px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ink">
                         {formatCurrency(activity.amount)}
                     </span>
@@ -69,12 +76,17 @@ export function HqActivityTimelineEntry({
                     )}
                 </div>
             ) : (
-                <time
-                    dateTime={activity.occurred_at}
-                    className="shrink-0 self-start font-mono text-[8.5px] text-hq-moss-dim"
+                <HqTooltip
+                    label={formatFullDateTime(activity.occurred_at)}
+                    className="shrink-0 self-start"
                 >
-                    {formatRelativeTime(activity.occurred_at)}
-                </time>
+                    <time
+                        dateTime={activity.occurred_at}
+                        className="font-mono text-[8.5px] text-hq-moss-dim"
+                    >
+                        {formatRelativeTime(activity.occurred_at)}
+                    </time>
+                </HqTooltip>
             )}
         </div>
     );

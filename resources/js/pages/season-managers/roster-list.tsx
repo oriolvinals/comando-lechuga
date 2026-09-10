@@ -6,8 +6,9 @@ import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { ClauseDifference } from '@/components/hq-player-property-card';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
+import { HqTooltip } from '@/components/hq-tooltip';
 import { resolveClauseStatus } from '@/lib/clause-status';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatFullDateTime } from '@/lib/format';
 import {
     POSITION_GROUP_LABELS,
     STATUS_BADGE_CLASS,
@@ -53,7 +54,16 @@ function RosterClauseStatus({
                     <ShieldCheck className="h-[13px] w-[13px]" />
                     Blindado
                     <span className="text-hq-paper normal-case">
-                        · {shieldCountdown}
+                        ·{' '}
+                        {entry.shielded_until !== null ? (
+                            <HqTooltip
+                                label={formatFullDateTime(entry.shielded_until)}
+                            >
+                                {shieldCountdown}
+                            </HqTooltip>
+                        ) : (
+                            shieldCountdown
+                        )}
                     </span>
                 </div>
                 <ClauseDifference
@@ -71,7 +81,14 @@ function RosterClauseStatus({
                     <Lock className="h-[13px] w-[13px]" />
                     Bloqueado
                     <span className="text-hq-gold normal-case">
-                        · {lockCountdown}
+                        ·{' '}
+                        <HqTooltip
+                            label={formatFullDateTime(
+                                entry.buyout_clause_locked_until,
+                            )}
+                        >
+                            {lockCountdown}
+                        </HqTooltip>
                     </span>
                 </div>
                 <ClauseDifference
