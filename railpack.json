@@ -11,5 +11,11 @@
                 "composer install --no-dev --no-interaction --optimize-autoloader --no-scripts"
             ]
         }
+    },
+    "deploy": {
+        "inputs": [
+            { "step": "prune:node", "include": ["/app/node_modules"] },
+            { "step": "build", "include": ["/"], "exclude": ["node_modules"] }
+        ]
     }
 }
