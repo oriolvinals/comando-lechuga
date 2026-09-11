@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Enums\PlayerStatus;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Player;
 use App\Models\Season;
@@ -44,10 +43,6 @@ class SyncCurrentSeasonPlayerPhotos extends Command
             $this->output->progressAdvance();
 
             if (!$teamFantasyIds->has((int)$playerData['teamId'])) {
-                continue;
-            }
-
-            if (($playerData['playerStatus'] ?? null) === PlayerStatus::OutOfLeague->value) {
                 continue;
             }
 
