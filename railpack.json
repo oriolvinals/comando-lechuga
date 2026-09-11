@@ -13,9 +13,9 @@
         }
     },
     "deploy": {
+        "base": { "step": "build" },
         "inputs": [
-            { "step": "prune:node", "include": ["/app/node_modules"] },
-            { "step": "build", "include": ["/"], "exclude": ["node_modules"] }
+            { "step": "prune:node", "include": ["/app/node_modules"] }
         ]
     }
 }
