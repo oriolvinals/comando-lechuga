@@ -77,6 +77,7 @@ class LinkMatchDataPlayers extends Command
         2846 => 380918, // Arguibide - OSA
         3236 => 308728, // Arnau - VAL
         3194 => 328289, // Arnau Ortiz - ATM
+        2146 => 388338, // Asencio - RMA
         3148 => 384414, // Asp Jensen - RCD
         3108 => 122260, // Aubameyang - RCD
         3246 => 396655, // Axel Tape - LEV
@@ -92,6 +93,7 @@ class LinkMatchDataPlayers extends Command
         3189 => 389448, // Barzic - ELC
         3169 => 383900, // Bauza - ESP
         3196 => 274272, // Bayindir - CEL
+        2679 => 409289, // Becerra - RAY
         2834 => 396607, // Beitia - RSO
         2414 => 178978, // Bellerín - BET
         3101 => 291281, // Bellingham - RMA
@@ -191,6 +193,7 @@ class LinkMatchDataPlayers extends Command
         1930 => 310682, // El Hilali - ESP
         2654 => 334111, // El-Abdellaoui - CEL
         3267 => 207834, // Emil Audero - RAY
+        3112 => 346612, // Endrick - RMA
         3154 => 218122, // Enes Ünal - GET
         2354 => 128714, // Eric - BAR
         3018 => 400222, // Eriksson - RAC
@@ -268,6 +271,7 @@ class LinkMatchDataPlayers extends Command
         3181 => 3124560, // Ibra Drj - GET
         3227 => 407397, // Ifeanyi Ndukwe - LEV
         2651 => 292222, // Iker Losada - BET
+        3247 => 417258, // Iker Luque - RAC
         2876 => 415742, // Iker Muñoz - SEV
         1730 => 359154, // Iker Muñoz - OSA
         2607 => 297829, // Ilaix Moriba - CEL
@@ -330,8 +334,10 @@ class LinkMatchDataPlayers extends Command
         2938 => 149306, // Koski - ALA
         2355 => 231692, // Kounde - BAR
         1197 => 256587, // Kubo - RSO
+        3146 => 261403, // Kumbulla - RAY
         3104 => 362150, // Lamine Yamal - BAR
         3065 => 159317, // Laporte - ATH
+        3029 => 394309, // Laro - RAC
         3072 => 297828, // Larrubia - MGA
         255 => 214888, // Le Normand - ATM
         2836 => 366886, // Lebarbier - RSO
@@ -407,6 +413,7 @@ class LinkMatchDataPlayers extends Command
         2742 => 409383, // Nacho Perez - LEV
         2543 => 301526, // Natan - BET
         2549 => 276996, // Navarro - ATH
+        2501 => 323971, // Nico Serrano - ATH
         3083 => 312146, // Nico Williams - ATH
         3220 => 3101324, // Nizar El Jmili - VIL
         2853 => 368877, // Nordin Al-Lal - ELC
@@ -469,6 +476,7 @@ class LinkMatchDataPlayers extends Command
         2522 => 231050, // Raphinha - BAR
         3081 => 287224, // Ratiu - RAY
         3256 => 342136, // Ratkov - LEV
+        2813 => 377843, // Rayane - RAY
         2339 => 296163, // Raúl - OSA
         2923 => 303906, // Raúl Moro - OSA
         3054 => 319783, // Recio - MGA
@@ -514,8 +522,10 @@ class LinkMatchDataPlayers extends Command
         2783 => 131634, // Szczesny - BAR
         3078 => 181757, // T. Martínez - ALA
         2941 => 259916, // T. Morente - ELC
+        1480 => 265919, // Tchouaméni - RMA
         1337 => 262491, // Tenaglia - ALA
         3230 => 339195, // Thiago - LEV
+        2735 => 409019, // Thiago Pitarch - RMA
         3170 => 420443, // Timera - ESP
         873 => 170154, // Torró - OSA
         2531 => 223532, // Trent - RMA
