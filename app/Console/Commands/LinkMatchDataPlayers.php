@@ -281,12 +281,14 @@ class LinkMatchDataPlayers extends Command
         2382 => 264197, // Isi - RAY
         3254 => 310259, // Iván Azón - GET
         3205 => 330545, // Iván Martín - RAC
+        140 => 242580, // Iván Villar - CEL
         3035 => 371564, // Izan M. - MGA
         2886 => 415206, // Izei - ALA
         91 => 214412, // Iñaki Williams - ATH
         3000 => 279699, // Iñigo - RAC
         3002 => 284699, // Iñigo Vicente - RAC
         3132 => 262061, // J. Berrocal - MGA
+        3255 => 273499, // J. David - ATM
         2699 => 395479, // J. Ives Valou - GET
         2324 => 188398, // J. M. Giménez - ATM
         2321 => 177927, // J. Musso - ATM
@@ -416,6 +418,7 @@ class LinkMatchDataPlayers extends Command
         2501 => 323971, // Nico Serrano - ATH
         3083 => 312146, // Nico Williams - ATH
         3220 => 3101324, // Nizar El Jmili - VIL
+        3045 => 373542, // Niño - MGA
         2853 => 368877, // Nordin Al-Lal - ELC
         2985 => 321112, // Noubi - RCD
         3159 => 305608, // Novoa - ALA
