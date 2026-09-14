@@ -82,6 +82,7 @@ class LinkMatchDataPlayers extends Command
         3108 => 122260, // Aubameyang - RCD
         3246 => 396655, // Axel Tape - LEV
         2504 => 192133, // Ayoze - VIL
+        3270 => 379032, // Aznou - MGA
         3071 => 214995, // B. Iglesias - CEL
         2488 => 218793, // B. Mayoral - GET
         2949 => 371608, // B. Sangare - ELC
@@ -119,6 +120,7 @@ class LinkMatchDataPlayers extends Command
         2772 => 235072, // C. Soler - RSO
         3111 => 381071, // Cabello - LEV
         3068 => 133259, // Cabrera - ESP
+        3274 => 274971, // Cajuste - MGA
         3105 => 355902, // Cala - ESP
         1300 => 285150, // Camavinga - RMA
         2387 => 276652, // Camello - RAY
@@ -135,6 +137,7 @@ class LinkMatchDataPlayers extends Command
         3163 => 3128976, // Caste - RAC
         3201 => 184757, // Castillo - ATM
         1033 => 264175, // Catena - OSA
+        3264 => 202717, // Ceballos - BET
         2933 => 320648, // Cepeda - ELC
         2888 => 415478, // Cestero - RMA
         3173 => 3101325, // Cheikh Thiam - VIL
@@ -197,6 +200,7 @@ class LinkMatchDataPlayers extends Command
         3154 => 218122, // Enes Ünal - GET
         2354 => 128714, // Eric - BAR
         3018 => 400222, // Eriksson - RAC
+        2643 => 405502, // Esquivel - ATM
         2700 => 346676, // Etta Eyong - LEV
         3089 => 300912, // Ez Abde - BET
         3199 => 359912, // F. Bernal - BET
@@ -289,6 +293,7 @@ class LinkMatchDataPlayers extends Command
         3002 => 284699, // Iñigo Vicente - RAC
         3132 => 262061, // J. Berrocal - MGA
         3255 => 273499, // J. David - ATM
+        3273 => 354378, // J. Dominguez - ATM
         2699 => 395479, // J. Ives Valou - GET
         2324 => 188398, // J. M. Giménez - ATM
         2321 => 177927, // J. Musso - ATM
@@ -303,6 +308,7 @@ class LinkMatchDataPlayers extends Command
         2837 => 84349, // Javi Navarro - RMA
         2074 => 376147, // Javi Rodríguez - CEL
         2714 => 331586, // Javi Rueda - CEL
+        3272 => 395579, // Javier Gil - ATM
         2671 => 186024, // Jeremy Toljan - LEV
         2634 => 297362, // Joan García - BAR
         3034 => 180444, // Joaquín - MGA
@@ -350,6 +356,7 @@ class LinkMatchDataPlayers extends Command
         3251 => 187946, // Livakovic - BAR
         3171 => 381681, // Llorenç - ESP
         2415 => 181530, // Llorente - BET
+        2417 => 207343, // Lo Celso - BET
         3049 => 301869, // Lobete - MGA
         3079 => 229645, // Lookman - ATM
         3178 => 268751, // Lozano - RAY
@@ -403,11 +410,14 @@ class LinkMatchDataPlayers extends Command
         2746 => 375514, // Miguel Sierra - SEV
         2771 => 300002, // Mikautadze - VIL
         3144 => 396612, // Mikel Rodriguez - ALA
+        3245 => 375400, // Moha - GET
+        3271 => 3139281, // Moha Achraf - GET
         680 => 169089, // Moi Gómez - OSA
         3150 => 173247, // Mojica - GET
         3086 => 307390, // Moleiro - VIL
         637 => 286176, // Moncayola - OSA
         2827 => 411235, // Monreal - ATH
+        3276 => 411284, // Morante - BET
         2958 => 421310, // Morcillo - ATM
         3127 => 361468, // Moscardo - ESP
         1959 => 318098, // Mouriño - VIL
@@ -426,6 +436,7 @@ class LinkMatchDataPlayers extends Command
         2930 => 260902, // Nuñez - ESP
         2628 => 269339, // O. Rey - LEV
         2318 => 291616, // O. Sancet - ATH
+        2944 => 318554, // Obed Vargas - ATM
         2322 => 149622, // Oblak - ATM
         2955 => 406379, // Ochieng - RSO
         2445 => 317784, // Olasagasti - LEV
@@ -501,6 +512,7 @@ class LinkMatchDataPlayers extends Command
         3208 => 231828, // Rodri - BAR
         3269 => 3124770, // Rodrigo Gamón - VAL
         652 => 178328, // Rubén García - OSA
+        2696 => 343640, // Ruben Gómez - VIL
         2529 => 319781, // Rubén S. - ELC
         2755 => 141438, // Ryan - LEV
         2428 => 169438, // Rüdiger - RMA
