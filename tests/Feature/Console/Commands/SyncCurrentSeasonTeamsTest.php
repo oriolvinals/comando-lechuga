@@ -58,12 +58,12 @@ test('creates teams from worldcup26 fixtures, backfills fantasy_id from the hard
 
     $this->artisan(SyncCurrentSeasonTeams::class)->assertSuccessful();
 
-    $realMadrid = Team::query()->where('match_data_id', 83)->sole();
+    $realMadrid = Team::query()->where('wc26_id', 83)->sole();
     expect($realMadrid->name)->toBe('Real Madrid')
         ->and($realMadrid->short_name)->toBe('RMA')
         ->and($realMadrid->fantasy_id)->toBe(4); // TEAM_MAP: fantasy_id 4 => worldcup26 id 83
 
-    $villarreal = Team::query()->where('match_data_id', 86)->sole();
+    $villarreal = Team::query()->where('wc26_id', 86)->sole();
     expect($villarreal->fantasy_id)->not->toBeNull();
 });
 
@@ -90,7 +90,7 @@ test('filters out events from a different season by match_data_season_slug', fun
 
     $this->artisan(SyncCurrentSeasonTeams::class)->assertSuccessful();
 
-    expect(Team::query()->where('match_data_id', 999)->exists())->toBeFalse();
+    expect(Team::query()->where('wc26_id', 999)->exists())->toBeFalse();
 });
 
 test('enriches an existing team by fantasy_id, never creates a new row', function (): void {
@@ -99,7 +99,7 @@ test('enriches an existing team by fantasy_id, never creates a new row', functio
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $existing = Team::factory()->create(['match_data_id' => 83, 'fantasy_id' => 4, 'main_name' => '', 'slug' => '', 'logo' => '']);
+    $existing = Team::factory()->create(['wc26_id' => 83, 'fantasy_id' => 4, 'main_name' => '', 'slug' => '', 'logo' => '']);
 
     $event = worldcup26FixtureEvent(83, 'Real Madrid', 'RMA', 86, 'Villarreal', 'VIL');
 
@@ -153,9 +153,9 @@ test('skips a team with no TEAM_MAP entry instead of crashing, and still syncs t
         ->expectsOutputToContain('Unmapped Team')
         ->assertSuccessful();
 
-    expect(Team::query()->where('match_data_id', 999999)->exists())->toBeFalse();
+    expect(Team::query()->where('wc26_id', 999999)->exists())->toBeFalse();
 
-    $realMadrid = Team::query()->where('match_data_id', 83)->sole();
+    $realMadrid = Team::query()->where('wc26_id', 83)->sole();
     expect($realMadrid->name)->toBe('Real Madrid')
         ->and($realMadrid->fantasy_id)->toBe(4);
 });
@@ -166,7 +166,7 @@ test('leaves the season_team pivot untouched when nothing matches the current se
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $existingTeam = Team::factory()->create(['match_data_id' => 83, 'fantasy_id' => 4]);
+    $existingTeam = Team::factory()->create(['wc26_id' => 83, 'fantasy_id' => 4]);
     $season->teams()->attach([$existingTeam->id]);
 
     $otherSeasonEvent = worldcup26FixtureEvent(83, 'Real Madrid', 'RMA', 86, 'Villarreal', 'VIL');
@@ -208,8 +208,8 @@ test('syncs the season_team pivot so downstream commands can find the current se
 
     $this->artisan(SyncCurrentSeasonTeams::class)->assertSuccessful();
 
-    $realMadridId = Team::query()->where('match_data_id', 83)->sole()->id;
-    $villarrealId = Team::query()->where('match_data_id', 86)->sole()->id;
+    $realMadridId = Team::query()->where('wc26_id', 83)->sole()->id;
+    $villarrealId = Team::query()->where('wc26_id', 86)->sole()->id;
 
     expect(Season::current()->teams->pluck('id')->all())
         ->toEqualCanonicalizing([$realMadridId, $villarrealId]);

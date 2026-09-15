@@ -20,8 +20,8 @@ class ListUnlinkedMatchDataPlayers extends Command
             ->join('fixtures', 'fixtures.id', '=', 'fixture_lineups.fixture_id')
             ->with('team')
             ->orderByDesc('fixtures.date')
-            ->get(['fixture_lineups.jersey', 'fixture_lineups.unresolved_name', 'fixture_lineups.match_data_id', 'fixture_lineups.team_id'])
-            ->unique('match_data_id')
+            ->get(['fixture_lineups.jersey', 'fixture_lineups.unresolved_name', 'fixture_lineups.wc26_id', 'fixture_lineups.team_id'])
+            ->unique('wc26_id')
             ->sortBy('unresolved_name');
 
         if ($unresolved->isEmpty()) {
@@ -31,12 +31,12 @@ class ListUnlinkedMatchDataPlayers extends Command
         }
 
         $this->table(
-            ['jersey', 'nombre', 'equipo', 'match_data_id'],
+            ['jersey', 'nombre', 'equipo', 'wc26_id'],
             $unresolved->map(fn (FixtureLineup $lineup): array => [
                 $lineup->jersey,
                 $lineup->unresolved_name,
                 $lineup->team?->name,
-                $lineup->match_data_id,
+                $lineup->wc26_id,
             ]),
         );
 

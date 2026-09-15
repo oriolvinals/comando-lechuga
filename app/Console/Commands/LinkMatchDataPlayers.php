@@ -597,7 +597,7 @@ class LinkMatchDataPlayers extends Command
 
         $unlinkedPlayers = Player::query()
             ->whereIn('team_id', $teamIds)
-            ->whereNull('match_data_id')
+            ->whereNull('wc26_id')
             ->whereNotNull('fantasy_id')
             ->whereHas('seasons', fn ($query) => $query
                 ->where('season_id', $season->id)
@@ -609,17 +609,17 @@ class LinkMatchDataPlayers extends Command
         ['linked' => $linked, 'lineupsBackfilled' => $lineupsBackfilled, 'eventsBackfilled' => $eventsBackfilled] = $this->linkFromMap($unlinkedPlayers, self::PLAYER_MAP);
 
         // Also re-sweep players linked in a previous run: fixture_lineups/fixture_events
-        // for their match_data_id can still arrive after that run (e.g. a later matchday),
+        // for their wc26_id can still arrive after that run (e.g. a later matchday),
         // and only this pass — not the one above, which only touches newly-linked players — picks those up.
         $alreadyLinkedPlayers = Player::query()
             ->whereIn('team_id', $teamIds)
-            ->whereNotNull('match_data_id')
+            ->whereNotNull('wc26_id')
             ->get();
 
         $this->info("Re-sweeping {$alreadyLinkedPlayers->count()} already-linked players for late fixture data...");
 
         foreach ($alreadyLinkedPlayers as $player) {
-            ['lineupsBackfilled' => $lineups, 'eventsBackfilled' => $events] = $this->backfillFixtures($player, $player->match_data_id);
+            ['lineupsBackfilled' => $lineups, 'eventsBackfilled' => $events] = $this->backfillFixtures($player, $player->wc26_id);
             $lineupsBackfilled += $lineups;
             $eventsBackfilled += $events;
         }
@@ -647,16 +647,16 @@ class LinkMatchDataPlayers extends Command
         $eventsBackfilled = 0;
 
         foreach ($players as $player) {
-            $matchDataId = $map[$player->fantasy_id] ?? null;
+            $wc26Id = $map[$player->fantasy_id] ?? null;
 
-            if ($matchDataId === null) {
+            if ($wc26Id === null) {
                 continue;
             }
 
-            $player->update(['match_data_id' => $matchDataId]);
+            $player->update(['wc26_id' => $wc26Id]);
             $linked++;
 
-            ['lineupsBackfilled' => $lineups, 'eventsBackfilled' => $events] = $this->backfillFixtures($player, $matchDataId);
+            ['lineupsBackfilled' => $lineups, 'eventsBackfilled' => $events] = $this->backfillFixtures($player, $wc26Id);
             $lineupsBackfilled += $lineups;
             $eventsBackfilled += $events;
         }
@@ -667,15 +667,15 @@ class LinkMatchDataPlayers extends Command
     /**
      * @return array{lineupsBackfilled: int, eventsBackfilled: int}
      */
-    private function backfillFixtures(Player $player, int $matchDataId): array
+    private function backfillFixtures(Player $player, int $wc26Id): array
     {
         $lineupsBackfilled = FixtureLineup::query()
-            ->where('match_data_id', $matchDataId)
+            ->where('wc26_id', $wc26Id)
             ->whereNull('player_id')
             ->update(['player_id' => $player->id, 'unresolved_name' => null]);
 
         $eventsBackfilled = FixtureEvent::query()
-            ->where('match_data_id', $matchDataId)
+            ->where('wc26_id', $wc26Id)
             ->whereNull('player_id')
             ->update(['player_id' => $player->id, 'unresolved_name' => null]);
 

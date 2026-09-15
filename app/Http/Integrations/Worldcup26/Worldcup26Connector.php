@@ -38,8 +38,8 @@ class Worldcup26Connector extends Connector
      * @throws FatalRequestException
      * @throws RequestException
      */
-    public function getEvent(int $matchDataId): Response
+    public function getEvent(int $wc26Id): Response
     {
-        return $this->send(new GetEventRequest($matchDataId));
+        return $this->send(new GetEventRequest($wc26Id));
     }
 }

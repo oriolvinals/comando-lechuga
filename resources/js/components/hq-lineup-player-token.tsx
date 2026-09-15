@@ -193,7 +193,7 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
                 'truncate font-mono text-hq-paper',
                 isPitch ? 'mt-1 text-center text-[11px]' : 'text-[12.5px] font-bold',
             )}
-            title={entry.player ? undefined : `match_data_id: ${entry.match_data_id}`}
+            title={entry.player ? undefined : `wc26_id: ${entry.wc26_id}`}
         >
             <b className="mr-1 text-hq-lime">{entry.jersey}</b>
             {entry.player?.nickname ?? entry.unresolved_name ?? 'No vinculado'}

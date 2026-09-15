@@ -12,14 +12,14 @@ use Saloon\Http\Faking\MockResponse;
 
 test('syncs a fixture finished 10 hours ago, outside the live window but inside 48h', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subHours(10),
     ]);
 
@@ -40,14 +40,14 @@ test('syncs a fixture finished 10 hours ago, outside the live window but inside 
 
 test('ignores a fixture that finished more than 48 hours ago', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDays(5), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subHours(60),
     ]);
 
@@ -61,14 +61,14 @@ test('ignores a fixture that finished more than 48 hours ago', function (): void
 
 test('ignores a fixture still inside the live window', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subHours(1),
     ]);
 

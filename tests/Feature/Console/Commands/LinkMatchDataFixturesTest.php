@@ -14,8 +14,8 @@ test('links a fixture to its worldcup26 match id by team pair and date', functio
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
@@ -50,7 +50,7 @@ test('links a fixture to its worldcup26 match id by team pair and date', functio
         ->expectsOutput('1 fixtures linked.')
         ->assertSuccessful();
 
-    expect($fixture->refresh()->match_data_id)->toBe(401882926);
+    expect($fixture->refresh()->wc26_id)->toBe(401882926);
 });
 
 test('does not link when the same team pair has two same-day candidates', function (): void {
@@ -58,8 +58,8 @@ test('does not link when the same team pair has two same-day candidates', functi
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
     ]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
@@ -100,5 +100,5 @@ test('does not link when the same team pair has two same-day candidates', functi
         ->expectsOutput('0 fixtures linked.')
         ->assertSuccessful();
 
-    expect($fixture->refresh()->match_data_id)->toBeNull();
+    expect($fixture->refresh()->wc26_id)->toBeNull();
 });

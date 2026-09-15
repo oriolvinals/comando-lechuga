@@ -15,7 +15,7 @@ test('lists unresolved fixture_lineups rows', function (): void {
         'team_id' => $team->id,
         'player_id' => null,
         'unresolved_name' => 'Zzyzx',
-        'match_data_id' => 999,
+        'wc26_id' => 999,
         'jersey' => '7',
     ]);
 
@@ -49,14 +49,14 @@ test('dedupes the same unresolved athlete seen across multiple fixtures into a s
         'team_id' => $team->id,
         'player_id' => null,
         'unresolved_name' => 'Zzyzx',
-        'match_data_id' => 999,
+        'wc26_id' => 999,
     ]);
     FixtureLineup::factory()->create([
         'fixture_id' => $secondFixture->id,
         'team_id' => $team->id,
         'player_id' => null,
         'unresolved_name' => 'Zzyzx',
-        'match_data_id' => 999,
+        'wc26_id' => 999,
     ]);
 
     Artisan::call(ListUnlinkedMatchDataPlayers::class);

@@ -30,7 +30,7 @@ class SyncSeasonMatchDataBackfill extends Command
 
         $fixtures = Fixture::query()
             ->where('season_id', $season->id)
-            ->whereNotNull('match_data_id')
+            ->whereNotNull('wc26_id')
             ->where('date', '<=', now())
             ->get();
 

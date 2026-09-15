@@ -49,7 +49,7 @@ class SyncCurrentSeasonPlayers extends Command
             $position = PlayerPosition::fromFantasyId((int)$playerData['positionId']);
 
             // Coaches never appear in a worldcup26 match roster, so their
-            // match_data_id can never be resolved, and we don't have the
+            // wc26_id can never be resolved, and we don't have the
             // Fantasy premium tier that would make their own stats useful.
             if ($position === PlayerPosition::Coach) {
                 continue;

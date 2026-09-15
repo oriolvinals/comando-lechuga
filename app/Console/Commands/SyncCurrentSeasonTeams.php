@@ -51,13 +51,13 @@ class SyncCurrentSeasonTeams extends Command
     ];
 
     /** @var array<int, int> worldcup26 id => fantasy_id, the inverse of TEAM_MAP */
-    private array $matchDataIdToFantasyId;
+    private array $wc26IdToFantasyId;
 
     public function __construct()
     {
         parent::__construct();
 
-        $this->matchDataIdToFantasyId = array_flip(self::TEAM_MAP);
+        $this->wc26IdToFantasyId = array_flip(self::TEAM_MAP);
     }
 
     /**
@@ -117,8 +117,8 @@ class SyncCurrentSeasonTeams extends Command
                         continue;
                     }
 
-                    $matchDataId = (int) $team['id'];
-                    $teamsById[$matchDataId] = [
+                    $wc26Id = (int) $team['id'];
+                    $teamsById[$wc26Id] = [
                         'name' => (string) ($team['name'] ?? ''),
                         'shortName' => (string) ($team['shortDisplayName'] ?? ''),
                     ];
@@ -131,17 +131,17 @@ class SyncCurrentSeasonTeams extends Command
         $teamIds = [];
         $skipped = [];
 
-        foreach ($teamsById as $matchDataId => $teamData) {
-            $fantasyId = $this->matchDataIdToFantasyId[$matchDataId] ?? null;
+        foreach ($teamsById as $wc26Id => $teamData) {
+            $fantasyId = $this->wc26IdToFantasyId[$wc26Id] ?? null;
 
             if ($fantasyId === null) {
-                $skipped[] = $teamData['name'] !== '' ? $teamData['name'] : (string) $matchDataId;
+                $skipped[] = $teamData['name'] !== '' ? $teamData['name'] : (string) $wc26Id;
 
                 continue;
             }
 
             $team = Team::query()->updateOrCreate(
-                ['match_data_id' => $matchDataId],
+                ['wc26_id' => $wc26Id],
                 [
                     'name' => $teamData['name'],
                     'short_name' => $teamData['shortName'],

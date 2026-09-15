@@ -36,14 +36,14 @@ function liveMatchEventPayload(array $overrides = []): array
 
 test('updates the fixture state, score, formation and kit colors from the live event', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
 
@@ -88,14 +88,14 @@ test('updates the fixture state, score, formation and kit colors from the live e
 
 test('stores the worldcup26 displayClock for a fixture in progress', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(45),
     ]);
 
@@ -123,14 +123,14 @@ test('stores the worldcup26 displayClock for a fixture in progress', function ()
 
 test('leaves the fixture untouched when worldcup26 reports an unmapped status name', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(45),
         'state' => FixtureState::FirstHalf,
         'display_clock' => "44'",
@@ -174,31 +174,31 @@ test('leaves the fixture untouched when worldcup26 reports an unmapped status na
         ->and($fixture->fixtureLineups)->toHaveCount(1);
 });
 
-test('ignores fixtures outside the live window or without a match_data_id', function (): void {
+test('ignores fixtures outside the live window or without a wc26_id', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
 
     $tooOld = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 111,
+        'wc26_id' => 111,
         'date' => now()->subHours(5),
     ]);
     $tooFarInFuture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 112,
+        'wc26_id' => 112,
         'date' => now()->addHours(2),
     ]);
     $unlinked = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => null,
+        'wc26_id' => null,
         'date' => now()->subMinutes(10),
     ]);
 
@@ -218,14 +218,14 @@ test('ignores fixtures outside the live window or without a match_data_id', func
 
 test('starts syncing a fixture up to 1 hour before kickoff, to pick up lineups early', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->addMinutes(30),
     ]);
 
@@ -260,19 +260,19 @@ test('starts syncing a fixture up to 1 hour before kickoff, to pick up lineups e
 
 test('upserts fixture_lineups from the rosters, including substitution minute and counterpart', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
-    $starter = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
-    $subOut = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5002]);
-    $subIn = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5003]);
+    $starter = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001]);
+    $subOut = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5002]);
+    $subIn = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5003]);
 
     $payload = liveMatchEventPayload([
         'rosters' => [
@@ -342,21 +342,21 @@ test('upserts fixture_lineups from the rosters, including substitution minute an
         ->and($subInLineup->sub_minute)->toBe(57);
 });
 
-test('resolves a player by match_data_id even when Player.team_id no longer matches the roster team, and writes the roster team onto the lineup', function (): void {
+test('resolves a player by wc26_id even when Player.team_id no longer matches the roster team, and writes the roster team onto the lineup', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
     // Player's *current* club (team_id) differs from the fixture roster's team (home),
     // simulating a transfer/loan since the match — the match-time team is $home.
-    $transferred = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5001]);
+    $transferred = Player::factory()->create(['team_id' => $away->id, 'wc26_id' => 5001]);
 
     $payload = liveMatchEventPayload([
         'rosters' => [
@@ -399,17 +399,17 @@ test('resolves a player by match_data_id even when Player.team_id no longer matc
 
 test('creates a fixture_lineups row with a null player_id for an unresolved athlete, and reports it', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
-    $known = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
+    $known = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001]);
 
     $payload = liveMatchEventPayload([
         'rosters' => [
@@ -480,18 +480,18 @@ test('creates a fixture_lineups row with a null player_id for an unresolved athl
 
 test('prunes a resolved lineup row when worldcup26 corrects the roster and the player is no longer in it', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
-    $current = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
-    $removed = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5002]);
+    $current = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001]);
+    $removed = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5002]);
 
     // A stale resolved lineup row for a player the corrected roster no longer includes —
     // e.g. worldcup26 published a provisional lineup and later swapped this player out
@@ -534,17 +534,17 @@ test('prunes a resolved lineup row when worldcup26 corrects the roster and the p
 
 test('replaces fixture_events from keyEvents on every sync, mapped from the API flags', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
-    $scorer = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
+    $scorer = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001]);
 
     $payload = liveMatchEventPayload([
         'keyEvents' => [
@@ -600,7 +600,7 @@ test('replaces fixture_events from keyEvents on every sync, mapped from the API 
         ->and($goal->team_id)->toBe($home->id)
         ->and($goal->unresolved_name)->toBeNull()
         ->and($redCard->player_id)->toBeNull()
-        ->and($redCard->match_data_id)->toBe(5099)
+        ->and($redCard->wc26_id)->toBe(5099)
         ->and($redCard->unresolved_name)->toBe('Unlinked Player');
 
     // Second sync with a different payload replaces, not appends
@@ -615,20 +615,20 @@ test('replaces fixture_events from keyEvents on every sync, mapped from the API 
 
 test('maps red_card and penalty_missed key events, and persists is_own_goal / is_penalty flags', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
-    $ownGoalScorer = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
-    $penaltyScorer = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5002]);
-    $sentOff = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5003]);
-    $penaltyMisser = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5004]);
+    $ownGoalScorer = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001]);
+    $penaltyScorer = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5002]);
+    $sentOff = Player::factory()->create(['team_id' => $away->id, 'wc26_id' => 5003]);
+    $penaltyMisser = Player::factory()->create(['team_id' => $away->id, 'wc26_id' => 5004]);
 
     $payload = liveMatchEventPayload([
         'keyEvents' => [
@@ -729,19 +729,19 @@ test('maps key events from the in-progress payload shape (participants/type.type
     // participants[].athlete and a type.type slug. Verified against the real
     // API on a live match.
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
-    $scorer = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001]);
-    $ownGoalScorer = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5002]);
-    $carded = Player::factory()->create(['team_id' => $away->id, 'match_data_id' => 5003]);
+    $scorer = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001]);
+    $ownGoalScorer = Player::factory()->create(['team_id' => $away->id, 'wc26_id' => 5002]);
+    $carded = Player::factory()->create(['team_id' => $away->id, 'wc26_id' => 5003]);
 
     $payload = liveMatchEventPayload([
         'keyEvents' => [
@@ -809,21 +809,21 @@ test('maps key events from the in-progress payload shape (participants/type.type
 
 test('skips a fixture whose getEvent call fails, without blocking the rest', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $failing = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 111,
+        'wc26_id' => 111,
         'date' => now()->subMinutes(10),
     ]);
     $ok = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 222,
+        'wc26_id' => 222,
         'date' => now()->subMinutes(20),
     ]);
 
@@ -849,14 +849,14 @@ test('skips a fixture whose getEvent call fails, without blocking the rest', fun
 
 test('stores the worldcup26 display name for an unresolved lineup entry', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subMinutes(30),
     ]);
 
@@ -886,18 +886,18 @@ test('stores the worldcup26 display name for an unresolved lineup entry', functi
 
 test('fills fantasy_points and fantasy_stats for a resolved lineup player from Fantasy live scores', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 3]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'week_number' => 3,
         'date' => now()->subMinutes(30),
     ]);
-    $player = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001, 'fantasy_id' => 2759]);
+    $player = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001, 'fantasy_id' => 2759]);
 
     $payload = liveMatchEventPayload([
         'rosters' => [
@@ -937,14 +937,14 @@ test('fills fantasy_points and fantasy_stats for a resolved lineup player from F
 
 test('leaves fantasy_points/fantasy_stats null for an unresolved lineup entry', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 1]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'week_number' => 1,
         'date' => now()->subMinutes(30),
     ]);

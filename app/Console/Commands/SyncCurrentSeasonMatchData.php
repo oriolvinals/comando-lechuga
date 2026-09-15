@@ -34,7 +34,7 @@ class SyncCurrentSeasonMatchData extends Command
 
         $fixtures = Fixture::query()
             ->where('season_id', $season->id)
-            ->whereNotNull('match_data_id')
+            ->whereNotNull('wc26_id')
             ->where('date', '<', now()->subHours(self::LIVE_WINDOW_HOURS))
             ->where('date', '>=', now()->subHours(self::CATCH_UP_WINDOW_HOURS))
             ->get();

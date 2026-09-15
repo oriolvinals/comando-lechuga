@@ -15,7 +15,7 @@ class DatabaseSeeder extends Seeder
 
         // Dependency order — do not reorder: teams before fixtures/players (both need
         // season_team populated); fixtures+players before link-match-data-fixtures (needs
-        // Fixture rows and Team.match_data_id); link-match-data-players before the
+        // Fixture rows and Team.wc26_id); link-match-data-players before the
         // match-data backfill (so any fantasy_id already in its hardcoded PLAYER_MAP
         // resolves as many lineup entries as possible on the very first pass).
         // The remaining sync commands (photos, markets, manager-players, manager-lineups,

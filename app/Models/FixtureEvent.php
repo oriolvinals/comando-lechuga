@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int $fixture_id
  * @property-read int $team_id
  * @property-read int|null $player_id
- * @property-read int|null $match_data_id
+ * @property-read int|null $wc26_id
  * @property-read string|null $unresolved_name
  * @property-read string $type
  * @property-read int $minute
@@ -26,7 +26,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[UseFactory(FixtureEventFactory::class)]
 #[Table(name: 'fixture_events', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fixture_id', 'team_id', 'player_id', 'match_data_id', 'unresolved_name', 'type', 'minute', 'is_own_goal', 'is_penalty'])]
+#[Fillable(['fixture_id', 'team_id', 'player_id', 'wc26_id', 'unresolved_name', 'type', 'minute', 'is_own_goal', 'is_penalty'])]
 class FixtureEvent extends Model
 {
     /** @use HasFactory<FixtureEventFactory> */
@@ -68,7 +68,7 @@ class FixtureEvent extends Model
             'fixture_id' => 'int',
             'team_id' => 'int',
             'player_id' => 'int',
-            'match_data_id' => 'int',
+            'wc26_id' => 'int',
             'unresolved_name' => 'string',
             'type' => 'string',
             'minute' => 'int',

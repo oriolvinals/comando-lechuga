@@ -11,10 +11,10 @@ class GetEventRequest extends Request
 {
     protected Method $method = Method::GET;
 
-    public function __construct(private readonly int $matchDataId) {}
+    public function __construct(private readonly int $wc26Id) {}
 
     public function resolveEndpoint(): string
     {
-        return "get/soccer/esp.1/events/{$this->matchDataId}";
+        return "get/soccer/esp.1/events/{$this->wc26Id}";
     }
 }

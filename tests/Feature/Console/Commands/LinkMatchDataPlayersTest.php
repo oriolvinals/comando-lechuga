@@ -77,14 +77,14 @@ test('leaves an already-linked player untouched and out of the unresolved count'
     ]);
     $team = Team::factory()->create();
     $season->teams()->attach([$team->id]);
-    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'match_data_id' => 12345]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'wc26_id' => 12345]);
 
     $this->artisan(LinkMatchDataPlayers::class)
         ->expectsOutput('0 players linked, 0 fixture lineups backfilled, 0 fixture events backfilled.')
         ->doesntExpectOutputToContain('unresolved')
         ->assertSuccessful();
 
-    expect($player->refresh()->match_data_id)->toBe(12345);
+    expect($player->refresh()->wc26_id)->toBe(12345);
 });
 
 test('backfills a fixture_lineup that arrives after its player was already linked in a previous run', function (): void {
@@ -94,14 +94,14 @@ test('backfills a fixture_lineup that arrives after its player was already linke
     ]);
     $team = Team::factory()->create();
     $season->teams()->attach([$team->id]);
-    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'match_data_id' => 999]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'wc26_id' => 999]);
     $fixture = Fixture::factory()->create(['team_local_id' => $team->id]);
     $lineup = FixtureLineup::factory()->create([
         'fixture_id' => $fixture->id,
         'team_id' => $team->id,
         'player_id' => null,
         'unresolved_name' => 'Zzyzx',
-        'match_data_id' => 999,
+        'wc26_id' => 999,
     ]);
 
     $this->artisan(LinkMatchDataPlayers::class)
@@ -125,13 +125,13 @@ test('linkFromMap links a player found in the map and backfills its waiting fixt
         'team_id' => $team->id,
         'player_id' => null,
         'unresolved_name' => 'Zzyzx',
-        'match_data_id' => 999,
+        'wc26_id' => 999,
     ]);
     $event = FixtureEvent::factory()->create([
         'fixture_id' => $fixture->id,
         'team_id' => $team->id,
         'player_id' => null,
-        'match_data_id' => 999,
+        'wc26_id' => 999,
         'unresolved_name' => 'Zzyzx',
     ]);
     $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'fantasy_id' => 42]);
@@ -141,7 +141,7 @@ test('linkFromMap links a player found in the map and backfills its waiting fixt
     $result = $linkFromMap->invoke($command, collect([$player]), [42 => 999]);
 
     expect($result)->toBe(['linked' => 1, 'lineupsBackfilled' => 1, 'eventsBackfilled' => 1])
-        ->and($player->refresh()->match_data_id)->toBe(999)
+        ->and($player->refresh()->wc26_id)->toBe(999)
         ->and($lineup->refresh()->player_id)->toBe($player->id)
         ->and($lineup->refresh()->unresolved_name)->toBeNull()
         ->and($event->refresh()->player_id)->toBe($player->id)

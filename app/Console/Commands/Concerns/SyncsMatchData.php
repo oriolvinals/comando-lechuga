@@ -41,7 +41,7 @@ trait SyncsMatchData
             $this->output->progressAdvance();
 
             try {
-                $event = $connector->getEvent($fixture->match_data_id)->throw()->json();
+                $event = $connector->getEvent($fixture->wc26_id)->throw()->json();
             } catch (FatalRequestException|RequestException|JsonException $exception) {
                 Log::warning("Failed to sync match data for fixture {$fixture->id}: {$exception->getMessage()}");
                 $warnings[] = "Skipped fixture #{$fixture->id}: {$exception->getMessage()}";
@@ -214,8 +214,8 @@ trait SyncsMatchData
         FixtureLineup::query()->where('fixture_id', $fixture->id)->whereNull('player_id')->delete();
 
         foreach ($rosters as $rosterEntry) {
-            $teamMatchDataId = (int) ($rosterEntry['team']['id'] ?? 0);
-            $team = Team::query()->where('match_data_id', $teamMatchDataId)->first();
+            $teamWc26Id = (int) ($rosterEntry['team']['id'] ?? 0);
+            $team = Team::query()->where('wc26_id', $teamWc26Id)->first();
 
             if ($team === null) {
                 continue;
@@ -224,19 +224,19 @@ trait SyncsMatchData
             $rosterPlayers = is_array($rosterEntry['roster'] ?? null) ? $rosterEntry['roster'] : [];
 
             foreach ($rosterPlayers as $rosterPlayer) {
-                $athleteMatchDataId = (int) ($rosterPlayer['athlete']['id'] ?? 0);
+                $athleteWc26Id = (int) ($rosterPlayer['athlete']['id'] ?? 0);
                 $player = Player::query()
-                    ->where('match_data_id', $athleteMatchDataId)
+                    ->where('wc26_id', $athleteWc26Id)
                     ->first();
 
                 if ($player === null) {
-                    $unresolved[] = (string) ($rosterPlayer['athlete']['displayName'] ?? $athleteMatchDataId);
-                    $this->createUnresolvedLineup($fixture, $team, $rosterPlayer, $athleteMatchDataId);
+                    $unresolved[] = (string) ($rosterPlayer['athlete']['displayName'] ?? $athleteWc26Id);
+                    $this->createUnresolvedLineup($fixture, $team, $rosterPlayer, $athleteWc26Id);
 
                     continue;
                 }
 
-                $this->upsertLineup($fixture, $team, $player, $rosterPlayer, $athleteMatchDataId);
+                $this->upsertLineup($fixture, $team, $player, $rosterPlayer, $athleteWc26Id);
                 $currentPlayerIds[] = $player->id;
             }
         }
@@ -256,13 +256,13 @@ trait SyncsMatchData
     /**
      * @param  array<string, mixed>  $rosterPlayer
      */
-    private function createUnresolvedLineup(Fixture $fixture, Team $team, array $rosterPlayer, int $athleteMatchDataId): void
+    private function createUnresolvedLineup(Fixture $fixture, Team $team, array $rosterPlayer, int $athleteWc26Id): void
     {
         FixtureLineup::query()->create([
             'fixture_id' => $fixture->id,
             'player_id' => null,
             'unresolved_name' => (string) ($rosterPlayer['athlete']['displayName'] ?? ''),
-            'match_data_id' => $athleteMatchDataId,
+            'wc26_id' => $athleteWc26Id,
             'team_id' => $team->id,
             'starter' => (bool) ($rosterPlayer['starter'] ?? false),
             'position' => (string) ($rosterPlayer['position']['displayName'] ?? ''),
@@ -278,25 +278,25 @@ trait SyncsMatchData
     /**
      * @param  array<string, mixed>  $rosterPlayer
      */
-    private function upsertLineup(Fixture $fixture, Team $team, Player $player, array $rosterPlayer, int $athleteMatchDataId): void
+    private function upsertLineup(Fixture $fixture, Team $team, Player $player, array $rosterPlayer, int $athleteWc26Id): void
     {
         $subbedIn = (bool) ($rosterPlayer['subbedIn'] ?? false);
         $subbedOut = (bool) ($rosterPlayer['subbedOut'] ?? false);
 
-        $counterpartMatchDataId = match (true) {
+        $counterpartWc26Id = match (true) {
             $subbedIn => $rosterPlayer['subbedInFor']['athlete']['id'] ?? null,
             $subbedOut => $rosterPlayer['subbedOutFor']['athlete']['id'] ?? null,
             default => null,
         };
 
-        $counterpartPlayer = $counterpartMatchDataId !== null
-            ? Player::query()->where('match_data_id', (int) $counterpartMatchDataId)->first()
+        $counterpartPlayer = $counterpartWc26Id !== null
+            ? Player::query()->where('wc26_id', (int) $counterpartWc26Id)->first()
             : null;
 
         FixtureLineup::query()->updateOrCreate(
             ['fixture_id' => $fixture->id, 'player_id' => $player->id],
             [
-                'match_data_id' => $athleteMatchDataId,
+                'wc26_id' => $athleteWc26Id,
                 'team_id' => $team->id,
                 'starter' => (bool) ($rosterPlayer['starter'] ?? false),
                 'position' => (string) ($rosterPlayer['position']['displayName'] ?? ''),
@@ -349,11 +349,11 @@ trait SyncsMatchData
                 continue;
             }
 
-            $teamMatchDataId = (int) ($keyEvent['team']['id'] ?? 0);
-            $team = Team::query()->where('match_data_id', $teamMatchDataId)->first();
+            $teamWc26Id = (int) ($keyEvent['team']['id'] ?? 0);
+            $team = Team::query()->where('wc26_id', $teamWc26Id)->first();
 
             if ($team === null) {
-                Log::warning("Unmapped worldcup26 team match_data_id {$teamMatchDataId} for fixture {$fixture->id}: dropping event");
+                Log::warning("Unmapped worldcup26 team wc26_id {$teamWc26Id} for fixture {$fixture->id}: dropping event");
 
                 continue;
             }
@@ -367,9 +367,9 @@ trait SyncsMatchData
                 continue;
             }
 
-            $athleteMatchDataId = isset($athletes[0]['id']) ? (int) $athletes[0]['id'] : null;
-            $player = $athleteMatchDataId !== null
-                ? Player::query()->where('match_data_id', $athleteMatchDataId)->first()
+            $athleteWc26Id = isset($athletes[0]['id']) ? (int) $athletes[0]['id'] : null;
+            $player = $athleteWc26Id !== null
+                ? Player::query()->where('wc26_id', $athleteWc26Id)->first()
                 : null;
 
             $typeSlug = (string) ($keyEvent['type']['type'] ?? '');
@@ -378,7 +378,7 @@ trait SyncsMatchData
                 'fixture_id' => $fixture->id,
                 'team_id' => $team->id,
                 'player_id' => $player?->id,
-                'match_data_id' => $athleteMatchDataId,
+                'wc26_id' => $athleteWc26Id,
                 'unresolved_name' => $player === null ? (isset($athletes[0]['displayName']) ? (string) $athletes[0]['displayName'] : null) : null,
                 'type' => $type,
                 'minute' => $this->minuteFromClock((string) ($keyEvent['clock']['displayValue'] ?? '')) ?? 0,

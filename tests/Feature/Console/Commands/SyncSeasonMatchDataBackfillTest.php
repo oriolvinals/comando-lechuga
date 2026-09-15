@@ -15,14 +15,14 @@ use Saloon\Http\Faking\MockResponse;
 
 test('syncs a fixture from 3 weeks ago', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDays(30), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subDays(21),
     ]);
 
@@ -41,14 +41,14 @@ test('syncs a fixture from 3 weeks ago', function (): void {
 
 test('fetches a player Fantasy stats only once per run even when they appear in multiple fixtures', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDays(30), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     $firstFixture = Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 111,
+        'wc26_id' => 111,
         'week_number' => 1,
         'date' => now()->subDays(21),
     ]);
@@ -56,11 +56,11 @@ test('fetches a player Fantasy stats only once per run even when they appear in 
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 222,
+        'wc26_id' => 222,
         'week_number' => 2,
         'date' => now()->subDays(14),
     ]);
-    $player = Player::factory()->create(['team_id' => $home->id, 'match_data_id' => 5001, 'fantasy_id' => 7777]);
+    $player = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001, 'fantasy_id' => 7777]);
 
     $roster = [
         [
@@ -106,16 +106,16 @@ test('fetches a player Fantasy stats only once per run even when they appear in 
         ->and($secondLineup->fantasy_stats)->toBe(['mins_played' => [90, 2], 'goals' => [1, 5]]);
 });
 
-test('ignores a fixture with no match_data_id linked yet', function (): void {
+test('ignores a fixture with no wc26_id linked yet', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDays(30), 'end_date' => now()->addDay()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     $season->teams()->attach([$home->id, $away->id]);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => null,
+        'wc26_id' => null,
         'date' => now()->subDays(21),
     ]);
 
@@ -130,13 +130,13 @@ test('ignores a fixture with no match_data_id linked yet', function (): void {
 test('ignores a fixture from a different season', function (): void {
     $currentSeason = Season::factory()->create(['start_date' => now()->subDays(30), 'end_date' => now()->addDay()]);
     $otherSeason = Season::factory()->create(['start_date' => now()->subYears(2), 'end_date' => now()->subYear()]);
-    $home = Team::factory()->create(['match_data_id' => 83]);
-    $away = Team::factory()->create(['match_data_id' => 86]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
     Fixture::factory()->create([
         'season_id' => $otherSeason->id,
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
-        'match_data_id' => 401882926,
+        'wc26_id' => 401882926,
         'date' => now()->subYear(),
     ]);
 

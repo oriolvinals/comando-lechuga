@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 /**
  * @property-read int $id
  * @property-read int|null $fantasy_id
- * @property-read int|null $match_data_id
+ * @property-read int|null $wc26_id
  * @property-read string $nickname
  * @property-read PlayerStatus $status
  * @property-read string $image
@@ -47,7 +47,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 #[UseFactory(PlayerFactory::class)]
 #[Table(name: 'players', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
-#[Fillable(['fantasy_id', 'match_data_id', 'nickname', 'status', 'image', 'team_id'])]
+#[Fillable(['fantasy_id', 'wc26_id', 'nickname', 'status', 'image', 'team_id'])]
 class Player extends Model
 {
     /** @use HasFactory<PlayerFactory> */
@@ -121,7 +121,7 @@ class Player extends Model
         return [
             'id' => 'int',
             'fantasy_id' => 'int',
-            'match_data_id' => 'int',
+            'wc26_id' => 'int',
             'nickname' => 'string',
             'status' => PlayerStatus::class,
             'image' => 'string',
