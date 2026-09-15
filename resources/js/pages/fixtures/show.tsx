@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqFixtureBench } from '@/components/hq-fixture-bench';
 import { HqFixtureLineupList } from '@/components/hq-fixture-lineup-list';
+import { HqFixtureRefreshButton } from '@/components/hq-fixture-refresh-button';
 import { HqFixtureTeamStats } from '@/components/hq-fixture-team-stats';
 import { HqFixtureTimeline } from '@/components/hq-fixture-timeline';
 import { HqMatchPitch } from '@/components/hq-match-pitch';
@@ -18,9 +19,13 @@ import {
     formatFixtureSecondaryText,
     isLiveFixtureState,
 } from '@/lib/fixture-state';
-import { getStoredFixtureViewMode, setStoredFixtureViewMode } from '@/lib/fixture-view-mode';
+import {
+    getStoredFixtureViewMode,
+    setStoredFixtureViewMode,
+} from '@/lib/fixture-view-mode';
 import { formatMatchDateTime } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
+import { useLiveFixtureRefresh } from '@/lib/use-live-fixture-refresh';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
@@ -32,6 +37,8 @@ import type {
     FixtureTeamStat,
     JornadaStats,
 } from '@/types/models';
+
+const LIVE_REFRESH_PROPS = ['fixture', 'lineups', 'events', 'team_stats'];
 
 interface FixtureShowProps {
     fixture: Fixture;
@@ -45,7 +52,13 @@ interface FixtureShowProps {
 // This match's kit colors — left half primary, right half alternate — not the
 // club's default palette, since a team can play in a different kit from
 // match to match (e.g. an away kit to avoid a color clash).
-function TeamColorSwatch({ color, alternateColor }: { color: string | null; alternateColor: string | null }) {
+function TeamColorSwatch({
+    color,
+    alternateColor,
+}: {
+    color: string | null;
+    alternateColor: string | null;
+}) {
     if (!color || !alternateColor) {
         return null;
     }
@@ -53,7 +66,10 @@ function TeamColorSwatch({ color, alternateColor }: { color: string | null; alte
     return (
         <div className="flex h-2 w-20 overflow-hidden rounded-[1px]">
             <span className="flex-1" style={{ backgroundColor: `#${color}` }} />
-            <span className="flex-1" style={{ backgroundColor: `#${alternateColor}` }} />
+            <span
+                className="flex-1"
+                style={{ backgroundColor: `#${alternateColor}` }}
+            />
         </div>
     );
 }
@@ -162,12 +178,12 @@ export default function FixtureShow({
         setViewModeState(mode);
         setStoredFixtureViewMode(mode);
     };
-    const [selectedEntry, setSelectedEntry] = useState<FixtureLineupEntry | null>(
-        null,
-    );
+    const [selectedEntry, setSelectedEntry] =
+        useState<FixtureLineupEntry | null>(null);
     const isLive = isLiveFixtureState(fixture.state);
     const hasScore = isLive || fixture.state === 'finished';
     const isScheduled = fixture.state === 'scheduled';
+    useLiveFixtureRefresh(isLive, LIVE_REFRESH_PROPS);
     const countdown = useCountdown(fixture.date);
     const now = useNow();
     const remainingMs = new Date(fixture.date).getTime() - now;
@@ -191,7 +207,11 @@ export default function FixtureShow({
     return (
         <>
             <Head
-                title={`${fixture.local_team.main_name} vs ${fixture.guest_team.main_name}`}
+                title={
+                    hasScore
+                        ? `${fixture.local_team.main_name} ${fixture.local_score} - ${fixture.guest_score} ${fixture.guest_team.main_name}`
+                        : `${fixture.local_team.main_name} vs ${fixture.guest_team.main_name}`
+                }
             />
             <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
                 <div className="mx-auto max-w-7xl px-6 py-9">
@@ -213,36 +233,44 @@ export default function FixtureShow({
                                 : 'border-hq-border-strong',
                         )}
                     >
-                        {fixture.state !== 'scheduled' && lineups.length > 0 && (
-                            <div className="absolute top-2 right-2 z-10 hidden overflow-hidden border border-hq-border-strong bg-hq-panel xl:flex">
-                                <button
-                                    type="button"
-                                    onClick={() => setViewMode('pitch')}
-                                    aria-label="Vista de campo"
-                                    className={cn(
-                                        'flex h-6 w-7 items-center justify-center transition-colors',
-                                        viewMode === 'pitch'
-                                            ? 'bg-hq-lime text-hq-ink'
-                                            : 'text-hq-moss hover:text-hq-paper',
-                                    )}
-                                >
-                                    <LayoutGrid className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setViewMode('list')}
-                                    aria-label="Vista de lista"
-                                    className={cn(
-                                        'flex h-6 w-7 items-center justify-center transition-colors',
-                                        viewMode === 'list'
-                                            ? 'bg-hq-lime text-hq-ink'
-                                            : 'text-hq-moss hover:text-hq-paper',
-                                    )}
-                                >
-                                    <List className="h-3.5 w-3.5" />
-                                </button>
-                            </div>
-                        )}
+                        <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+                            {isLive && (
+                                <HqFixtureRefreshButton
+                                    only={LIVE_REFRESH_PROPS}
+                                />
+                            )}
+                            {fixture.state !== 'scheduled' &&
+                                lineups.length > 0 && (
+                                    <div className="hidden overflow-hidden border border-hq-border-strong bg-hq-panel xl:flex">
+                                        <button
+                                            type="button"
+                                            onClick={() => setViewMode('pitch')}
+                                            aria-label="Vista de campo"
+                                            className={cn(
+                                                'flex h-6 w-7 items-center justify-center transition-colors',
+                                                viewMode === 'pitch'
+                                                    ? 'bg-hq-lime text-hq-ink'
+                                                    : 'text-hq-moss hover:text-hq-paper',
+                                            )}
+                                        >
+                                            <LayoutGrid className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setViewMode('list')}
+                                            aria-label="Vista de lista"
+                                            className={cn(
+                                                'flex h-6 w-7 items-center justify-center transition-colors',
+                                                viewMode === 'list'
+                                                    ? 'bg-hq-lime text-hq-ink'
+                                                    : 'text-hq-moss hover:text-hq-paper',
+                                            )}
+                                        >
+                                            <List className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                )}
+                        </div>
                         <Link
                             href={teamsShow(fixture.local_team.id).url}
                             className="flex w-20 min-w-0 flex-col items-center gap-1.5 transition-[filter] hover:brightness-125 sm:w-36 sm:gap-2"
@@ -257,7 +285,10 @@ export default function FixtureShow({
                             <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
                                 {fixture.local_team.main_name}
                             </span>
-                            <TeamColorSwatch color={fixture.local_color} alternateColor={fixture.local_alternate_color} />
+                            <TeamColorSwatch
+                                color={fixture.local_color}
+                                alternateColor={fixture.local_alternate_color}
+                            />
                         </Link>
                         <div className="shrink-0 text-center">
                             <p className="mb-1 font-mono text-[9px] tracking-widest text-hq-moss uppercase sm:mb-1.5 sm:text-[10px]">
@@ -274,7 +305,9 @@ export default function FixtureShow({
                                         'flex items-center justify-center gap-1.5 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:text-[10px]',
                                         isLive && 'text-hq-live',
                                         startsSoon && 'font-bold text-hq-gold',
-                                        !isLive && !startsSoon && 'text-hq-lime',
+                                        !isLive &&
+                                            !startsSoon &&
+                                            'text-hq-lime',
                                     )}
                                 >
                                     {isLive && (
@@ -314,7 +347,10 @@ export default function FixtureShow({
                             <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
                                 {fixture.guest_team.main_name}
                             </span>
-                            <TeamColorSwatch color={fixture.guest_color} alternateColor={fixture.guest_alternate_color} />
+                            <TeamColorSwatch
+                                color={fixture.guest_color}
+                                alternateColor={fixture.guest_alternate_color}
+                            />
                         </Link>
                     </div>
 
@@ -331,7 +367,14 @@ export default function FixtureShow({
                         </div>
                     ) : (
                         <>
-                            <div className={cn('mt-6', viewMode === 'pitch' ? 'hidden xl:block' : 'hidden')}>
+                            <div
+                                className={cn(
+                                    'mt-6',
+                                    viewMode === 'pitch'
+                                        ? 'hidden xl:block'
+                                        : 'hidden',
+                                )}
+                            >
                                 <HqMatchPitch
                                     lineups={lineups}
                                     localFormation={fixture.local_formation}
@@ -339,7 +382,14 @@ export default function FixtureShow({
                                     onSelect={handleSelectLineupEntry}
                                 />
                             </div>
-                            <div className={cn('mt-6', viewMode === 'list' ? 'block' : 'block xl:hidden')}>
+                            <div
+                                className={cn(
+                                    'mt-6',
+                                    viewMode === 'list'
+                                        ? 'block'
+                                        : 'block xl:hidden',
+                                )}
+                            >
                                 <HqFixtureLineupList
                                     lineups={lineups}
                                     localTeam={fixture.local_team}
@@ -401,7 +451,8 @@ export default function FixtureShow({
                         ? ({
                               player: selectedEntry.player,
                               team:
-                                  selectedEntry.team_id === fixture.local_team.id
+                                  selectedEntry.team_id ===
+                                  fixture.local_team.id
                                       ? fixture.local_team
                                       : fixture.guest_team,
                               points: selectedEntry.points ?? 0,
@@ -409,7 +460,8 @@ export default function FixtureShow({
                                   fixture.state === 'finished'
                                       ? (selectedEntry.dazn_points ?? undefined)
                                       : undefined,
-                              stats: selectedEntry.stats ?? ({} as JornadaStats),
+                              stats:
+                                  selectedEntry.stats ?? ({} as JornadaStats),
                               lineupManager: selectedEntry.lineup_manager,
                               subMinute:
                                   selectedEntry.sub_minute === null
