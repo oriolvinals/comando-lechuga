@@ -26,6 +26,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read PlayerPosition $position
  * @property bool $match_finished Computed at query time by SeasonManagersController; not a database column.
  * @property array<string, mixed>|null $stats Computed at query time by SeasonManagersController from the linked FixtureLineup; not a database column.
+ * @property bool|null $starter Computed at query time by AttachesLineupPlayerScores from the linked FixtureLineup; not a database column.
+ * @property bool|null $subbed_out Computed at query time by AttachesLineupPlayerScores from the linked FixtureLineup; not a database column.
+ * @property int|null $sub_minute Computed at query time by AttachesLineupPlayerScores from the linked FixtureLineup; not a database column.
  * @property Fixture|null $fixture Computed at query time by SeasonManagersController's AttachesLineupFixtures, resolved by
  *                                 player team + lineup week (like `match_finished`) rather than via `fixture_id`, which isn't
  *                                 always set — see `AttachesLineupPlayerScores`. Shadows the lazy `fixture()` relation below.
