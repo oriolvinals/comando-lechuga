@@ -19,13 +19,19 @@ RUN install-php-extensions \
 # runs against the same PHP build the app will actually run on.
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Node isn't in the base image — copy the prebuilt binaries from the
-# official Node image instead of an apt/NodeSource setup, cheaper and no
-# extra package sources to maintain.
-COPY --from=node:26-bookworm /usr/local/bin/node /usr/local/bin/node
-COPY --from=node:26-bookworm /usr/local/bin/npm /usr/local/bin/npm
-COPY --from=node:26-bookworm /usr/local/bin/npx /usr/local/bin/npx
-COPY --from=node:26-bookworm /usr/local/lib/node_modules /usr/local/lib/node_modules
+# Node isn't in the base image. Cherry-picking binaries from the official
+# node image (COPY --from=node:26-bookworm /usr/local/bin/npm ...) looks
+# cheaper but breaks `npm` itself — its bin script assumes files it doesn't
+# find at the copied paths ("Cannot find module '../lib/cli.js'", confirmed
+# against a real build). The NodeSource apt repo is the supported way to add
+# Node to a Debian image and doesn't have that problem.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_26.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
