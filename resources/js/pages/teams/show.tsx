@@ -222,6 +222,7 @@ export default function TeamShow({
                                         onSelectPlayer={setSelectedPlayer}
                                         showTeamBadge={false}
                                         showStarterBadge={false}
+                                        showLiveIndicator={false}
                                     />
                                     {lineupForWeek.players.length < 11 && (
                                         <p className="mt-2 text-center font-mono text-[10px] text-hq-moss-dim">

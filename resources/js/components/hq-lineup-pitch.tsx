@@ -173,6 +173,8 @@ interface PlayerTokenProps {
     showTeamBadge: boolean;
     /** Off on a team's own ficha — every starter there played the full match by definition (there's no fantasy pick to second-guess), so the checkmark is redundant. Subs/bench/not-called-up badges still show. */
     showStarterBadge: boolean;
+    /** Off on a team's own ficha — the pitch there already only shows that team's real XI for a match already known to be live from the scoreline above, so a per-player glow adds noise instead of signal. Still on for a fantasy manager's lineup, where it's the only cue for which picks are live right now. */
+    showLiveIndicator: boolean;
     nameMaxWidth: string;
 }
 
@@ -181,10 +183,11 @@ function PlayerToken({
     onSelectPlayer,
     showTeamBadge,
     showStarterBadge,
+    showLiveIndicator,
     nameMaxWidth,
 }: PlayerTokenProps) {
     const badgeState = lineupBadgeState(entry);
-    const liveNow = isPlayerLiveNow(entry, badgeState);
+    const liveNow = showLiveIndicator && isPlayerLiveNow(entry, badgeState);
     const showBadge = badgeState !== 'starter' || showStarterBadge;
 
     return (
@@ -278,6 +281,8 @@ interface HqLineupPitchProps {
     showTeamBadge?: boolean;
     /** Show the starter checkmark badge. Off on a team's own ficha, where it's redundant with just being placed on the pitch. */
     showStarterBadge?: boolean;
+    /** Show the pulsing live-match glow. Off on a team's own ficha, where it's redundant with the match state already shown above the pitch. */
+    showLiveIndicator?: boolean;
 }
 
 /**
@@ -299,6 +304,7 @@ export function HqLineupPitch({
     onSelectPlayer,
     showTeamBadge = true,
     showStarterBadge = true,
+    showLiveIndicator = true,
 }: HqLineupPitchProps) {
     const useRealCoordinates =
         players.length > 0 &&
@@ -384,6 +390,7 @@ export function HqLineupPitch({
                                   onSelectPlayer={onSelectPlayer}
                                   showTeamBadge={showTeamBadge}
                                   showStarterBadge={showStarterBadge}
+                                  showLiveIndicator={showLiveIndicator}
                                   nameMaxWidth={nameMaxWidthForRowCount(
                                       lineSizes.get(
                                           entry.pitch_top as number,
@@ -410,6 +417,7 @@ export function HqLineupPitch({
                                           onSelectPlayer={onSelectPlayer}
                                           showTeamBadge={showTeamBadge}
                                           showStarterBadge={showStarterBadge}
+                                          showLiveIndicator={showLiveIndicator}
                                           nameMaxWidth={nameMaxWidth}
                                       />
                                   ))}
@@ -441,6 +449,7 @@ export function HqLineupPitch({
                                 onSelectPlayer={onSelectPlayer}
                                 showTeamBadge={showTeamBadge}
                                 showStarterBadge={showStarterBadge}
+                                showLiveIndicator={showLiveIndicator}
                                 nameMaxWidth=""
                             />
                         ))}
