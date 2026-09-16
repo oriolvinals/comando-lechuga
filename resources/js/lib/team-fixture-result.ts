@@ -1,6 +1,6 @@
 import type { Fixture, Team } from '@/types/models';
 
-export type TeamFixtureResult = 'win' | 'draw' | 'loss' | 'live' | null;
+export type TeamFixtureResult = 'win' | 'draw' | 'loss' | null;
 
 /** The rival club for a fixture, from `teamId`'s perspective. */
 export function opponentOf(fixture: Fixture, teamId: number): Team {
@@ -10,11 +10,12 @@ export function opponentOf(fixture: Fixture, teamId: number): Team {
 }
 
 /**
- * A fixture's result from `teamId`'s perspective. A live (in-progress) match
- * returns 'live' rather than a real result — its score is provisional, the
- * same way the standings table counts it (see TeamsController::standingsFor()),
- * but the UI marks it as still-in-progress instead of presenting a score that
- * could still change as final.
+ * A fixture's result from `teamId`'s perspective, computed from the
+ * scoreline as it stands right now — provisional (and still able to change)
+ * while the match is live, final once it's `finished`. Callers that need to
+ * tell those two apart (e.g. to blink a live indicator) combine this with
+ * `isLiveFixtureState(fixture.state)` themselves; this never returns a
+ * separate "live" tone; a live loss still reads as a loss, just pulsing.
  */
 export function resultFor(fixture: Fixture, teamId: number): TeamFixtureResult {
     if (
@@ -23,10 +24,6 @@ export function resultFor(fixture: Fixture, teamId: number): TeamFixtureResult {
         fixture.guest_score === null
     ) {
         return null;
-    }
-
-    if (fixture.state !== 'finished') {
-        return 'live';
     }
 
     const isLocal = fixture.local_team.id === teamId;
@@ -50,12 +47,11 @@ export const RESULT_LABEL: Record<'win' | 'draw' | 'loss', string> = {
     loss: 'D',
 };
 
-/** For a bordered badge (e.g. the fixture calendar strip) — includes the live state. */
-export const RESULT_STRIP_CLASSES: Record<'win' | 'draw' | 'loss' | 'live', string> = {
+/** For a bordered badge (e.g. the fixture calendar strip) — pair with `animate-pulse` while the match is live, its own concern per `resultFor`'s doc comment. */
+export const RESULT_STRIP_CLASSES: Record<'win' | 'draw' | 'loss', string> = {
     win: 'border-hq-lime text-hq-lime',
     draw: 'border-hq-gold text-hq-gold',
     loss: 'border-hq-live text-hq-live',
-    live: 'border-hq-live text-hq-live animate-pulse',
 };
 
 /** For a small filled square badge (e.g. the standings "Forma" column) — finished results only. */

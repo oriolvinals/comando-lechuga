@@ -2,6 +2,7 @@ import { Shield } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqScrollRow } from '@/components/hq-scroll-row';
+import { isLiveFixtureState } from '@/lib/fixture-state';
 import { opponentOf, resultFor, RESULT_STRIP_CLASSES } from '@/lib/team-fixture-result';
 import { cn } from '@/lib/utils';
 import type { Fixture } from '@/types/models';
@@ -62,6 +63,7 @@ export function HqTeamFixtureStrip({
                     ? fixture.guest_score
                     : fixture.local_score;
                 const hasScore = ownScore !== null && rivalScore !== null;
+                const isLive = isLiveFixtureState(fixture.state);
 
                 return (
                     <button
@@ -74,6 +76,7 @@ export function HqTeamFixtureStrip({
                             result
                                 ? RESULT_STRIP_CLASSES[result]
                                 : 'border-dashed border-hq-border-strong text-hq-moss-dim',
+                            isLive && 'animate-pulse',
                             isSelected &&
                                 'border-hq-paper ring-2 ring-hq-paper',
                         )}

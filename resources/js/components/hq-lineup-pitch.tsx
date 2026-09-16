@@ -1,8 +1,13 @@
 import { Armchair, Clock, Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { isLiveFixtureState } from '@/lib/fixture-state';
+import { RESULT_STRIP_CLASSES, resultFor } from '@/lib/team-fixture-result';
 import { cn } from '@/lib/utils';
-import type { PlayerPosition, ManagerLineupPlayerEntry } from '@/types/models';
+import type {
+    PlayerPosition,
+    ManagerLineupPlayerEntry,
+    Fixture,
+} from '@/types/models';
 
 /**
  * Top-to-bottom row order and vertical anchor (% of pitch height), matching
@@ -283,6 +288,10 @@ interface HqLineupPitchProps {
     showStarterBadge?: boolean;
     /** Show the pulsing live-match glow. Off on a team's own ficha, where it's redundant with the match state already shown above the pitch. */
     showLiveIndicator?: boolean;
+    /** The match this pitch belongs to, to show its scoreline. Only set on a team's own ficha — a fantasy manager's lineup spans one player per real fixture, so there's no single match result to show. */
+    fixture?: Fixture;
+    /** Whose perspective to show `fixture`'s score from (own score first). Required together with `fixture`. */
+    teamId?: number;
 }
 
 /**
@@ -305,7 +314,30 @@ export function HqLineupPitch({
     showTeamBadge = true,
     showStarterBadge = true,
     showLiveIndicator = true,
+    fixture,
+    teamId,
 }: HqLineupPitchProps) {
+    const scoreboard = (() => {
+        if (!fixture || teamId === undefined) {
+            return null;
+        }
+
+        const result = resultFor(fixture, teamId);
+
+        if (!result) {
+            return null;
+        }
+
+        const isLocal = fixture.local_team.id === teamId;
+
+        return {
+            result,
+            isLive: isLiveFixtureState(fixture.state),
+            ownScore: isLocal ? fixture.local_score : fixture.guest_score,
+            rivalScore: isLocal ? fixture.guest_score : fixture.local_score,
+        };
+    })();
+
     const useRealCoordinates =
         players.length > 0 &&
         players.every(
@@ -372,6 +404,20 @@ export function HqLineupPitch({
                 {formationLabel && (
                     <span className="absolute top-2 left-2 z-20 border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-hq-moss uppercase">
                         {formationLabel}
+                    </span>
+                )}
+
+                {scoreboard && (
+                    <span
+                        className={cn(
+                            'absolute top-2 right-2 z-20 flex items-center gap-1 border bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider uppercase',
+                            RESULT_STRIP_CLASSES[scoreboard.result],
+                        )}
+                    >
+                        {scoreboard.isLive && (
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
+                        )}
+                        {scoreboard.ownScore}-{scoreboard.rivalScore}
                     </span>
                 )}
 
