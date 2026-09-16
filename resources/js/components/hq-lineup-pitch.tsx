@@ -1,7 +1,13 @@
-import { Armchair, Shield, User } from 'lucide-react';
+import { Armchair, Clock, Home, Plane, Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
+import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
+import { RESULT_STRIP_CLASSES, resultFor } from '@/lib/team-fixture-result';
 import { cn } from '@/lib/utils';
-import type { PlayerPosition, ManagerLineupPlayerEntry } from '@/types/models';
+import type {
+    PlayerPosition,
+    ManagerLineupPlayerEntry,
+    Fixture,
+} from '@/types/models';
 
 /**
  * Top-to-bottom row order and vertical anchor (% of pitch height), matching
@@ -66,17 +72,20 @@ function pointsBadgeTierClass(points: number | null): string {
  * The player's REAL match role that week, derived from `starter` +
  * `sub_minute` + `subbed_out` (see `ManagerLineupPlayerEntry`). `starter`
  * being null means no `FixtureLineup` ever resolved for this pick — once
- * the match has finished that means "not called up" at all; before that, it
- * just means "not played yet", which gets no badge (returns null).
+ * the match has finished that means "not called up" at all; before that,
+ * their team just hasn't played yet.
  */
 type LineupBadgeState =
-    'starter' | 'subbed_out' | 'subbed_in' | 'bench' | 'not_called_up';
+    | 'starter'
+    | 'subbed_out'
+    | 'subbed_in'
+    | 'bench'
+    | 'not_called_up'
+    | 'not_played_yet';
 
-function lineupBadgeState(
-    entry: ManagerLineupPlayerEntry,
-): LineupBadgeState | null {
+function lineupBadgeState(entry: ManagerLineupPlayerEntry): LineupBadgeState {
     if (entry.starter === null) {
-        return entry.match_finished ? 'not_called_up' : null;
+        return entry.match_finished ? 'not_called_up' : 'not_played_yet';
     }
 
     if (entry.sub_minute !== null) {
@@ -91,7 +100,7 @@ function statusBadgeTierClass(state: LineupBadgeState): string {
         return 'border-hq-lime text-hq-lime';
     }
 
-    if (state === 'bench') {
+    if (state === 'bench' || state === 'not_played_yet') {
         return 'border-hq-moss-dim text-hq-moss-dim';
     }
 
@@ -117,7 +126,28 @@ function StatusBadgeContent({
         return '✕';
     }
 
+    if (state === 'not_played_yet') {
+        return <Clock className="h-2.5 w-2.5" />;
+    }
+
     return <Armchair className="h-2.5 w-2.5" />;
+}
+
+/**
+ * True only while this player is actually out on the pitch (starter or
+ * subbed in, never subbed out or benched) AND their team's fixture that
+ * week is live right now — same live-state check as the fixture card's own
+ * pulse dot, so both use one definition of "live".
+ */
+function isPlayerLiveNow(
+    entry: ManagerLineupPlayerEntry,
+    badgeState: LineupBadgeState,
+): boolean {
+    return (
+        (badgeState === 'starter' || badgeState === 'subbed_in') &&
+        entry.fixture !== null &&
+        isLiveFixtureState(entry.fixture.state)
+    );
 }
 
 /**
@@ -146,6 +176,10 @@ interface PlayerTokenProps {
     entry: ManagerLineupPlayerEntry;
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
     showTeamBadge: boolean;
+    /** Off on a team's own ficha — every starter there played the full match by definition (there's no fantasy pick to second-guess), so the checkmark is redundant. Subs/bench/not-called-up badges still show. */
+    showStarterBadge: boolean;
+    /** Off on a team's own ficha — the pitch there already only shows that team's real XI for a match already known to be live from the scoreline above, so a per-player glow adds noise instead of signal. Still on for a fantasy manager's lineup, where it's the only cue for which picks are live right now. */
+    showLiveIndicator: boolean;
     nameMaxWidth: string;
 }
 
@@ -153,9 +187,13 @@ function PlayerToken({
     entry,
     onSelectPlayer,
     showTeamBadge,
+    showStarterBadge,
+    showLiveIndicator,
     nameMaxWidth,
 }: PlayerTokenProps) {
     const badgeState = lineupBadgeState(entry);
+    const liveNow = showLiveIndicator && isPlayerLiveNow(entry, badgeState);
+    const showBadge = badgeState !== 'starter' || showStarterBadge;
 
     return (
         <button
@@ -167,7 +205,12 @@ function PlayerToken({
                 {/* Clipped separately from the status/points badges below — those
                     need to poke out past this box's own border, which a shared
                     overflow:hidden would cut off. */}
-                <span className="absolute inset-0 overflow-hidden rounded-[3px] border-2 border-white bg-hq-ink">
+                <span
+                    className={cn(
+                        'absolute inset-0 overflow-hidden rounded-[3px] border-2 bg-hq-ink',
+                        liveNow ? 'border-transparent' : 'border-white',
+                    )}
+                >
                     {/* Sits behind the photo — the photo is a cutout with
                         transparent padding around the player, so the crest reads
                         through it instead of needing its own reserved corner. */}
@@ -189,7 +232,15 @@ function PlayerToken({
                         style={{ objectPosition: 'center calc(45% + 6px)' }}
                     />
                 </span>
-                {badgeState && (
+                {/* Drawn as its own layer instead of animating the photo box's
+                    border directly — that box's opacity would also fade the
+                    photo underneath, when only the border should pulse. The
+                    glow (not just the border color) is what keeps this
+                    legible against a bright/busy player photo. */}
+                {liveNow && (
+                    <span className="pointer-events-none absolute inset-0 animate-pulse rounded-[3px] border-2 border-hq-live shadow-[0_0_8px_2px_rgba(255,61,90,0.65)]" />
+                )}
+                {showBadge && (
                     <span
                         className={cn(
                             'absolute -top-2 left-1/2 z-10 flex h-4 -translate-x-1/2 items-center justify-center gap-0.5 rounded-[3px] border bg-hq-ink px-1 font-mono text-[9px] leading-none font-bold whitespace-nowrap',
@@ -233,6 +284,14 @@ interface HqLineupPitchProps {
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
     /** Show each player's club crest badge. Off on a team's own ficha, where every player is the same club. */
     showTeamBadge?: boolean;
+    /** Show the starter checkmark badge. Off on a team's own ficha, where it's redundant with just being placed on the pitch. */
+    showStarterBadge?: boolean;
+    /** Show the pulsing live-match glow. Off on a team's own ficha, where it's redundant with the match state already shown above the pitch. */
+    showLiveIndicator?: boolean;
+    /** The match this pitch belongs to, to show its scoreline. Only set on a team's own ficha — a fantasy manager's lineup spans one player per real fixture, so there's no single match result to show. */
+    fixture?: Fixture;
+    /** Whose perspective to show `fixture`'s score from (own score first). Required together with `fixture`. */
+    teamId?: number;
 }
 
 /**
@@ -253,7 +312,62 @@ export function HqLineupPitch({
     tacticalFormation,
     onSelectPlayer,
     showTeamBadge = true,
+    showStarterBadge = true,
+    showLiveIndicator = true,
+    fixture,
+    teamId,
 }: HqLineupPitchProps) {
+    const scoreboard = (() => {
+        if (!fixture || teamId === undefined) {
+            return null;
+        }
+
+        const result = resultFor(fixture, teamId);
+
+        if (!result) {
+            return null;
+        }
+
+        const isLocal = fixture.local_team.id === teamId;
+
+        return {
+            result,
+            isLive: isLiveFixtureState(fixture.state),
+            ownScore: isLocal ? fixture.local_score : fixture.guest_score,
+            rivalScore: isLocal ? fixture.guest_score : fixture.local_score,
+        };
+    })();
+
+    const matchStateLabel = (() => {
+        if (!fixture) {
+            return null;
+        }
+
+        const label = FIXTURE_STATE_LABELS[fixture.state];
+
+        if (!label) {
+            return null;
+        }
+
+        const isLive = isLiveFixtureState(fixture.state);
+
+        return {
+            text:
+                isLive && fixture.display_clock
+                    ? `${label} · ${fixture.display_clock}`
+                    : label,
+            isLive,
+        };
+    })();
+
+    const venue =
+        fixture && teamId !== undefined
+            ? {
+                  isHome: fixture.local_team.id === teamId,
+                  Icon: fixture.local_team.id === teamId ? Home : Plane,
+              }
+            : null;
+
     const useRealCoordinates =
         players.length > 0 &&
         players.every(
@@ -323,6 +437,42 @@ export function HqLineupPitch({
                     </span>
                 )}
 
+                {matchStateLabel && (
+                    <span
+                        className={cn(
+                            'absolute top-2 left-1/2 z-20 -translate-x-1/2 border bg-hq-panel px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider whitespace-nowrap uppercase',
+                            matchStateLabel.isLive
+                                ? 'border-hq-live text-hq-live'
+                                : 'border-hq-border-strong text-hq-moss',
+                        )}
+                    >
+                        {matchStateLabel.text}
+                    </span>
+                )}
+
+                {scoreboard && (
+                    <span
+                        className={cn(
+                            'absolute top-2 right-2 z-20 flex items-center gap-1 border bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider uppercase',
+                            RESULT_STRIP_CLASSES[scoreboard.result],
+                        )}
+                    >
+                        {scoreboard.isLive && (
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
+                        )}
+                        {scoreboard.ownScore}-{scoreboard.rivalScore}
+                    </span>
+                )}
+
+                {venue && (
+                    <span
+                        title={venue.isHome ? 'Casa' : 'Fuera'}
+                        className="absolute right-2 bottom-2 z-20 flex h-6 w-6 items-center justify-center border border-hq-border-strong bg-hq-panel text-hq-moss"
+                    >
+                        <venue.Icon className="h-3.5 w-3.5" />
+                    </span>
+                )}
+
                 {useRealCoordinates
                     ? players.map((entry) => (
                           <div
@@ -337,6 +487,8 @@ export function HqLineupPitch({
                                   entry={entry}
                                   onSelectPlayer={onSelectPlayer}
                                   showTeamBadge={showTeamBadge}
+                                  showStarterBadge={showStarterBadge}
+                                  showLiveIndicator={showLiveIndicator}
                                   nameMaxWidth={nameMaxWidthForRowCount(
                                       lineSizes.get(
                                           entry.pitch_top as number,
@@ -362,6 +514,8 @@ export function HqLineupPitch({
                                           entry={entry}
                                           onSelectPlayer={onSelectPlayer}
                                           showTeamBadge={showTeamBadge}
+                                          showStarterBadge={showStarterBadge}
+                                          showLiveIndicator={showLiveIndicator}
                                           nameMaxWidth={nameMaxWidth}
                                       />
                                   ))}
@@ -392,6 +546,8 @@ export function HqLineupPitch({
                                 entry={entry}
                                 onSelectPlayer={onSelectPlayer}
                                 showTeamBadge={showTeamBadge}
+                                showStarterBadge={showStarterBadge}
+                                showLiveIndicator={showLiveIndicator}
                                 nameMaxWidth=""
                             />
                         ))}

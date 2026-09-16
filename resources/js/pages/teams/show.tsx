@@ -221,6 +221,10 @@ export default function TeamShow({
                                         tacticalFormation={tacticalFormation}
                                         onSelectPlayer={setSelectedPlayer}
                                         showTeamBadge={false}
+                                        showStarterBadge={false}
+                                        showLiveIndicator={false}
+                                        fixture={lineupForWeek.fixture}
+                                        teamId={team.id}
                                     />
                                     {lineupForWeek.players.length < 11 && (
                                         <p className="mt-2 text-center font-mono text-[10px] text-hq-moss-dim">

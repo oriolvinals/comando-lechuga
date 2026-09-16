@@ -375,6 +375,7 @@ class TeamsController extends Controller
                     'position' => $player->position,
                     'player' => $player,
                     'match_finished' => $fixture->state === FixtureState::Finished,
+                    'fixture' => $fixture,
                     'starter' => $lineup->starter,
                     'subbed_out' => $lineup->subbed_out,
                     'sub_minute' => $lineup->sub_minute,
