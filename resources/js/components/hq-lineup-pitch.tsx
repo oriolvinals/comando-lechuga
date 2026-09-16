@@ -1,5 +1,6 @@
 import { Armchair, Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
+import { isLiveFixtureState } from '@/lib/fixture-state';
 import { cn } from '@/lib/utils';
 import type { PlayerPosition, ManagerLineupPlayerEntry } from '@/types/models';
 
@@ -121,6 +122,23 @@ function StatusBadgeContent({
 }
 
 /**
+ * True only while this player is actually out on the pitch (starter or
+ * subbed in, never subbed out or benched) AND their team's fixture that
+ * week is live right now — same live-state check as the fixture card's own
+ * pulse dot, so both use one definition of "live".
+ */
+function isPlayerLiveNow(
+    entry: ManagerLineupPlayerEntry,
+    badgeState: LineupBadgeState | null,
+): boolean {
+    return (
+        (badgeState === 'starter' || badgeState === 'subbed_in') &&
+        entry.fixture !== null &&
+        isLiveFixtureState(entry.fixture.state)
+    );
+}
+
+/**
  * The name pill's max-width, tuned per row density: 60px is the floor for a
  * full 5-player row, and it only needs to grow from there as a row has more
  * room to spare. A 1-2 player row has none of that pressure, so it's left
@@ -156,6 +174,7 @@ function PlayerToken({
     nameMaxWidth,
 }: PlayerTokenProps) {
     const badgeState = lineupBadgeState(entry);
+    const liveNow = isPlayerLiveNow(entry, badgeState);
 
     return (
         <button
@@ -189,6 +208,9 @@ function PlayerToken({
                         style={{ objectPosition: 'center calc(45% + 6px)' }}
                     />
                 </span>
+                {liveNow && (
+                    <span className="absolute -top-1 -right-1 z-20 h-2 w-2 animate-pulse rounded-full bg-hq-live" />
+                )}
                 {badgeState && (
                     <span
                         className={cn(
