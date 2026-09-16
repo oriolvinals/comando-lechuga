@@ -1,4 +1,4 @@
-import { Shield, User } from 'lucide-react';
+import { Armchair, Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { cn } from '@/lib/utils';
 import type { PlayerPosition, ManagerLineupPlayerEntry } from '@/types/models';
@@ -33,18 +33,14 @@ const FORMATION_ROW_POSITIONS: PlayerPosition[] = [
  * Same tiers as `matchPointsBadgeClass`, but opaque — the badge sits on
  * grass, not a dark panel, so the translucent tints used elsewhere lose
  * contrast here. Every tier (including "no data") gets a real color, never
- * black, so the badge is always legible against the pitch. A player whose
- * team's match already finished but who has no score wasn't called up —
- * that's a distinct tier from simply "not played yet".
+ * black, so the badge is always legible against the pitch. "Not called up"
+ * used to get its own dashed tier here — that distinction now lives in the
+ * status badge instead (see `lineupBadgeState`), so a null score is always
+ * just the plain "no data" tier.
  */
-function pointsBadgeTierClass(
-    points: number | null,
-    notCalledUp: boolean,
-): string {
+function pointsBadgeTierClass(points: number | null): string {
     if (points === null) {
-        return notCalledUp
-            ? 'border-dashed border-hq-live bg-hq-border-strong text-hq-live'
-            : 'border-hq-border-strong bg-hq-border-strong text-hq-moss';
+        return 'border-hq-border-strong bg-hq-border-strong text-hq-moss';
     }
 
     if (points < 0) {
@@ -64,6 +60,64 @@ function pointsBadgeTierClass(
     }
 
     return 'border-hq-violet bg-hq-violet text-white';
+}
+
+/**
+ * The player's REAL match role that week, derived from `starter` +
+ * `sub_minute` + `subbed_out` (see `ManagerLineupPlayerEntry`). `starter`
+ * being null means no `FixtureLineup` ever resolved for this pick — once
+ * the match has finished that means "not called up" at all; before that, it
+ * just means "not played yet", which gets no badge (returns null).
+ */
+type LineupBadgeState =
+    'starter' | 'subbed_out' | 'subbed_in' | 'bench' | 'not_called_up';
+
+function lineupBadgeState(
+    entry: ManagerLineupPlayerEntry,
+): LineupBadgeState | null {
+    if (entry.starter === null) {
+        return entry.match_finished ? 'not_called_up' : null;
+    }
+
+    if (entry.sub_minute !== null) {
+        return entry.subbed_out ? 'subbed_out' : 'subbed_in';
+    }
+
+    return entry.starter ? 'starter' : 'bench';
+}
+
+function statusBadgeTierClass(state: LineupBadgeState): string {
+    if (state === 'starter' || state === 'subbed_in') {
+        return 'border-hq-lime text-hq-lime';
+    }
+
+    if (state === 'bench') {
+        return 'border-hq-moss-dim text-hq-moss-dim';
+    }
+
+    return 'border-hq-live text-hq-live';
+}
+
+function StatusBadgeContent({
+    state,
+    subMinute,
+}: {
+    state: LineupBadgeState;
+    subMinute: number | null;
+}) {
+    if (state === 'starter') {
+        return '✓';
+    }
+
+    if (state === 'subbed_out' || state === 'subbed_in') {
+        return <>↳{subMinute}'</>;
+    }
+
+    if (state === 'not_called_up') {
+        return '✕';
+    }
+
+    return <Armchair className="h-2.5 w-2.5" />;
 }
 
 /**
@@ -101,40 +155,61 @@ function PlayerToken({
     showTeamBadge,
     nameMaxWidth,
 }: PlayerTokenProps) {
+    const badgeState = lineupBadgeState(entry);
+
     return (
         <button
             type="button"
             onClick={() => onSelectPlayer(entry)}
             className="relative shrink-0 cursor-pointer"
         >
-            <span className="block h-12 w-12 overflow-hidden rounded-[3px] border-2 border-white bg-hq-border">
-                <EntityImage
-                    src={entry.player.image}
-                    alt={entry.player.nickname}
-                    fallback={User}
-                    shape="square"
-                    className="h-full w-full translate-y-[8%] object-cover object-bottom"
-                />
-            </span>
-            {showTeamBadge && (
-                <EntityImage
-                    src={entry.player.team.logo}
-                    alt={entry.player.team.main_name}
-                    fallback={Shield}
-                    shape="square"
-                    className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-[3px] bg-hq-panel p-1"
-                />
-            )}
-            <span
-                className={cn(
-                    'absolute -right-1.5 -bottom-1 flex h-[18px] w-6 items-center justify-center rounded-[3px] border font-mono text-[11px] leading-none font-bold',
-                    pointsBadgeTierClass(
-                        entry.points,
-                        entry.points === null && entry.match_finished,
-                    ),
+            <span className="relative block h-14 w-14">
+                {/* Clipped separately from the status/points badges below — those
+                    need to poke out past this box's own border, which a shared
+                    overflow:hidden would cut off. */}
+                <span className="absolute inset-0 overflow-hidden rounded-[3px] border-2 border-white bg-hq-ink">
+                    {/* Sits behind the photo — the photo is a cutout with
+                        transparent padding around the player, so the crest reads
+                        through it instead of needing its own reserved corner. */}
+                    {showTeamBadge && (
+                        <EntityImage
+                            src={entry.player.team.logo}
+                            alt={entry.player.team.main_name}
+                            fallback={Shield}
+                            shape="square"
+                            className="absolute top-[38%] -left-1.5 h-7 w-7 -translate-y-1/2"
+                        />
+                    )}
+                    <EntityImage
+                        src={entry.player.image}
+                        alt={entry.player.nickname}
+                        fallback={User}
+                        shape="square"
+                        className="absolute inset-0 h-full w-full rounded-none border-0 object-cover"
+                        style={{ objectPosition: 'center calc(45% + 6px)' }}
+                    />
+                </span>
+                {badgeState && (
+                    <span
+                        className={cn(
+                            'absolute -top-2 left-1/2 z-10 flex h-4 -translate-x-1/2 items-center justify-center gap-0.5 rounded-[3px] border bg-hq-ink px-1 font-mono text-[9px] leading-none font-bold whitespace-nowrap',
+                            statusBadgeTierClass(badgeState),
+                        )}
+                    >
+                        <StatusBadgeContent
+                            state={badgeState}
+                            subMinute={entry.sub_minute}
+                        />
+                    </span>
                 )}
-            >
-                {entry.points ?? (entry.match_finished ? 'NC' : '–')}
+                <span
+                    className={cn(
+                        'absolute right-0 bottom-0 z-10 flex h-3.5 min-w-[17px] items-center justify-center rounded-[2px] border px-0.5 font-mono text-[9px] leading-none font-bold',
+                        pointsBadgeTierClass(entry.points),
+                    )}
+                >
+                    {entry.points ?? '–'}
+                </span>
             </span>
             <span
                 className={cn(
@@ -152,6 +227,8 @@ function PlayerToken({
 
 interface HqLineupPitchProps {
     players: ManagerLineupPlayerEntry[];
+    /** Bench players for the same week, listed below the pitch in the same token style. Only populated for a team's own ficha — a fantasy manager's lineup has no bench concept. */
+    substitutes?: ManagerLineupPlayerEntry[];
     tacticalFormation?: number[] | null;
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
     /** Show each player's club crest badge. Off on a team's own ficha, where every player is the same club. */
@@ -172,6 +249,7 @@ interface HqLineupPitchProps {
  */
 export function HqLineupPitch({
     players,
+    substitutes = [],
     tacticalFormation,
     onSelectPlayer,
     showTeamBadge = true,
@@ -260,8 +338,9 @@ export function HqLineupPitch({
                                   onSelectPlayer={onSelectPlayer}
                                   showTeamBadge={showTeamBadge}
                                   nameMaxWidth={nameMaxWidthForRowCount(
-                                      lineSizes.get(entry.pitch_top as number) ??
-                                          1,
+                                      lineSizes.get(
+                                          entry.pitch_top as number,
+                                      ) ?? 1,
                                   )}
                               />
                           </div>
@@ -290,7 +369,7 @@ export function HqLineupPitch({
                                       (_, index) => (
                                           <div
                                               key={`empty-${row.position}-${index}`}
-                                              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-white/40"
+                                              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-white/40"
                                           >
                                               <User className="h-5 w-5 text-white/40" />
                                           </div>
@@ -300,6 +379,25 @@ export function HqLineupPitch({
                           );
                       })}
             </div>
+
+            {substitutes.length > 0 && (
+                <div className="mt-4">
+                    <p className="mb-2.5 text-center font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase">
+                        Suplentes
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-x-3 gap-y-7">
+                        {substitutes.map((entry) => (
+                            <PlayerToken
+                                key={entry.id}
+                                entry={entry}
+                                onSelectPlayer={onSelectPlayer}
+                                showTeamBadge={showTeamBadge}
+                                nameMaxWidth=""
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

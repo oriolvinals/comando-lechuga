@@ -17,9 +17,14 @@ trait AttachesLineupPlayerScores
      * same row's `fantasy_points` but falls back to the raw `points` column
      * already loaded on the entry (set by SyncCurrentSeasonManagerLineups
      * from the Fantasy API directly) for a player who never resolves a
-     * `fixture_id` — see `ManagerLineupPlayer::$points`. Both are attached as
-     * virtual properties, the same way `attachMatchFinished` already does for
-     * `match_finished`.
+     * `fixture_id` — see `ManagerLineupPlayer::$points`. `starter`/
+     * `subbed_out`/`sub_minute` ride along from that same row so the
+     * frontend can badge a fantasy pick with their REAL match status
+     * (titular/sustituido/suplente/banquillo) — null on all three when no
+     * `FixtureLineup` resolves, which the frontend reads as "not called up"
+     * once the match has finished, or simply "not played yet" otherwise.
+     * All are attached as virtual properties, the same way
+     * `attachMatchFinished` already does for `match_finished`.
      *
      * This is a manual bulk lookup, not `ManagerLineupPlayer::fixtureLineup()`
      * eager-loaded via `->with()` — that relation is deliberately lazy-only
@@ -47,6 +52,9 @@ trait AttachesLineupPlayerScores
 
             $entry->points = $fixtureLineup->fantasy_points ?? $entry->points;
             $entry->stats = $fixtureLineup?->fantasy_stats;
+            $entry->starter = $fixtureLineup?->starter;
+            $entry->subbed_out = $fixtureLineup?->subbed_out;
+            $entry->sub_minute = $fixtureLineup?->sub_minute;
         });
     }
 }

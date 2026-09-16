@@ -36,6 +36,7 @@ interface TeamWeekLineup {
     week_number: number;
     fixture: Fixture;
     players: ManagerLineupPlayerEntry[];
+    substitutes: ManagerLineupPlayerEntry[];
 }
 
 interface TeamShowProps {
@@ -216,14 +217,15 @@ export default function TeamShow({
                                 <>
                                     <HqLineupPitch
                                         players={lineupForWeek.players}
+                                        substitutes={lineupForWeek.substitutes}
                                         tacticalFormation={tacticalFormation}
                                         onSelectPlayer={setSelectedPlayer}
                                         showTeamBadge={false}
                                     />
                                     {lineupForWeek.players.length < 11 && (
                                         <p className="mt-2 text-center font-mono text-[10px] text-hq-moss-dim">
-                                            {lineupForWeek.players.length} de
-                                            11 titulares identificados
+                                            {lineupForWeek.players.length} de 11
+                                            titulares identificados
                                         </p>
                                     )}
                                 </>
@@ -249,7 +251,10 @@ export default function TeamShow({
                         </p>
                     ) : (
                         groups.map((group) => (
-                            <div key={group.position} className="mt-6 first:mt-0">
+                            <div
+                                key={group.position}
+                                className="mt-6 first:mt-0"
+                            >
                                 <div className="mb-2 flex items-center gap-2">
                                     <HqPositionTag position={group.position} />
                                     <span className="font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase">
