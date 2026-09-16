@@ -11,6 +11,7 @@ enum FixtureState: string
     case HalfTime = 'half_time';
     case SecondHalf = 'second_half';
     case Finished = 'finished';
+    case Postponed = 'postponed';
 
     public static function fromFantasyId(int $stateId): self
     {
@@ -19,6 +20,7 @@ enum FixtureState: string
             3 => self::HalfTime,
             4 => self::SecondHalf,
             7 => self::Finished,
+            11 => self::Postponed,
             default => self::Scheduled,
         };
     }
@@ -56,6 +58,7 @@ enum FixtureState: string
             self::HalfTime => 'Descanso',
             self::SecondHalf => '2ª parte',
             self::Finished => 'Finalizado',
+            self::Postponed => 'Aplazado',
         };
     }
 }

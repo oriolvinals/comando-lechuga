@@ -50,7 +50,12 @@ export interface Player {
 }
 
 export type FixtureState =
-    'scheduled' | 'first_half' | 'half_time' | 'second_half' | 'finished';
+    | 'scheduled'
+    | 'first_half'
+    | 'half_time'
+    | 'second_half'
+    | 'finished'
+    | 'postponed';
 
 export interface Fixture {
     id: number;

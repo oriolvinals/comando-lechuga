@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\FixtureState;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Fixture;
 use App\Models\Season;
@@ -58,6 +59,7 @@ class SyncCurrentSeasonFixtures extends Command
                         ->setTimezone((string) config('app.timezone')),
                     'team_local_id' => $localTeam->id,
                     'team_guest_id' => $guestTeam->id,
+                    'postponed' => FixtureState::fromFantasyId((int) ($fixtureData['matchState'] ?? 0)) === FixtureState::Postponed,
                 ];
             }
         }
@@ -66,8 +68,22 @@ class SyncCurrentSeasonFixtures extends Command
 
         $fixtureIds = DB::transaction(function () use ($season, $fixtures): array {
             $fixtureIds = [];
+            $currentStates = Fixture::query()
+                ->where('season_id', $season->id)
+                ->pluck('state', 'fantasy_id');
 
             foreach ($fixtures as $fixtureData) {
+                $postponed = $fixtureData['postponed'];
+                unset($fixtureData['postponed']);
+
+                $currentState = $currentStates->get($fixtureData['fantasy_id']);
+
+                if ($postponed) {
+                    $fixtureData['state'] = FixtureState::Postponed;
+                } elseif ($currentState === FixtureState::Postponed) {
+                    $fixtureData['state'] = FixtureState::Scheduled;
+                }
+
                 $fixtureIds[] = Fixture::query()
                     ->updateOrCreate([
                         'fantasy_id' => $fixtureData['fantasy_id'],

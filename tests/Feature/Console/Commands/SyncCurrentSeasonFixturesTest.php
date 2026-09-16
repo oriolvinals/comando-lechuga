@@ -63,3 +63,89 @@ test('replaces the active season fixtures from every week, without touching stat
         ->and($fixture->local_score)->toBe(5)
         ->and($fixture->guest_score)->toBe(5);
 });
+
+test('marks a fixture postponed when La Liga Fantasy reports matchState 11', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $localTeam = Team::factory()->create(['fantasy_id' => 18]);
+    $guestTeam = Team::factory()->create(['fantasy_id' => 6]);
+    $season->teams()->attach([$localTeam->id, $guestTeam->id]);
+    Fixture::factory()->create([
+        'fantasy_id' => 11,
+        'season_id' => $season->id,
+        'team_local_id' => $localTeam->id,
+        'team_guest_id' => $guestTeam->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+
+    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetFixturesRequest::class => function ($pendingRequest): MockResponse {
+            if ($pendingRequest->getRequest()->query()->get('weekNumber') !== 1) {
+                return MockResponse::make([]);
+            }
+
+            return MockResponse::make([
+                [
+                    'id' => '11',
+                    'matchDate' => '2026-08-22T19:30:00+02:00',
+                    'localId' => 18,
+                    'visitorId' => 6,
+                    'matchState' => 11,
+                    'localScore' => null,
+                    'visitorScore' => null,
+                ],
+            ]);
+        },
+    ]));
+
+    app()->instance(LaLigaFantasyConnector::class, $connector);
+
+    $this->artisan(SyncCurrentSeasonFixtures::class)->assertSuccessful();
+
+    expect(Fixture::query()->sole()->state)->toBe(FixtureState::Postponed);
+});
+
+test('reverts a postponed fixture back to scheduled once it is no longer reported as postponed', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $localTeam = Team::factory()->create(['fantasy_id' => 18]);
+    $guestTeam = Team::factory()->create(['fantasy_id' => 6]);
+    $season->teams()->attach([$localTeam->id, $guestTeam->id]);
+    Fixture::factory()->create([
+        'fantasy_id' => 11,
+        'season_id' => $season->id,
+        'team_local_id' => $localTeam->id,
+        'team_guest_id' => $guestTeam->id,
+        'state' => FixtureState::Postponed,
+    ]);
+
+    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetFixturesRequest::class => function ($pendingRequest): MockResponse {
+            if ($pendingRequest->getRequest()->query()->get('weekNumber') !== 1) {
+                return MockResponse::make([]);
+            }
+
+            return MockResponse::make([
+                [
+                    'id' => '11',
+                    'matchDate' => '2026-08-29T19:30:00+02:00',
+                    'localId' => 18,
+                    'visitorId' => 6,
+                    'matchState' => 1,
+                    'localScore' => null,
+                    'visitorScore' => null,
+                ],
+            ]);
+        },
+    ]));
+
+    app()->instance(LaLigaFantasyConnector::class, $connector);
+
+    $this->artisan(SyncCurrentSeasonFixtures::class)->assertSuccessful();
+
+    expect(Fixture::query()->sole()->state)->toBe(FixtureState::Scheduled);
+});

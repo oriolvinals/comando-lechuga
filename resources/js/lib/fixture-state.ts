@@ -14,6 +14,7 @@ export const FIXTURE_STATE_LABELS: Record<FixtureState, string> = {
     half_time: 'DESCANSO',
     second_half: '2ª PARTE',
     finished: 'FINALIZADO',
+    postponed: 'APLAZADO',
 };
 
 /**
@@ -42,6 +43,7 @@ export function formatFixtureSecondaryText(
             return displayClock;
         case 'scheduled':
         case 'half_time':
+        case 'postponed':
             return null;
     }
 }

@@ -30,6 +30,7 @@ test('maps Liga Fantasy state IDs to fixture states', function (int $stateId, Fi
 })->with([
     [1, FixtureState::Scheduled],
     [7, FixtureState::Finished],
+    [11, FixtureState::Postponed],
 ]);
 
 test('casts and fills its formation columns', function (): void {
