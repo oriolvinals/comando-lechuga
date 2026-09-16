@@ -222,9 +222,11 @@ function PlayerToken({
                 </span>
                 {/* Drawn as its own layer instead of animating the photo box's
                     border directly — that box's opacity would also fade the
-                    photo underneath, when only the border should pulse. */}
+                    photo underneath, when only the border should pulse. The
+                    glow (not just the border color) is what keeps this
+                    legible against a bright/busy player photo. */}
                 {liveNow && (
-                    <span className="pointer-events-none absolute inset-0 animate-pulse rounded-[3px] border-2 border-white" />
+                    <span className="pointer-events-none absolute inset-0 animate-pulse rounded-[3px] border-2 border-hq-live shadow-[0_0_8px_2px_rgba(255,61,90,0.65)]" />
                 )}
                 {badgeState && (
                     <span
