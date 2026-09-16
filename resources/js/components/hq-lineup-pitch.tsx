@@ -171,6 +171,8 @@ interface PlayerTokenProps {
     entry: ManagerLineupPlayerEntry;
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
     showTeamBadge: boolean;
+    /** Off on a team's own ficha — every starter there played the full match by definition (there's no fantasy pick to second-guess), so the checkmark is redundant. Subs/bench/not-called-up badges still show. */
+    showStarterBadge: boolean;
     nameMaxWidth: string;
 }
 
@@ -178,10 +180,12 @@ function PlayerToken({
     entry,
     onSelectPlayer,
     showTeamBadge,
+    showStarterBadge,
     nameMaxWidth,
 }: PlayerTokenProps) {
     const badgeState = lineupBadgeState(entry);
     const liveNow = isPlayerLiveNow(entry, badgeState);
+    const showBadge = badgeState !== 'starter' || showStarterBadge;
 
     return (
         <button
@@ -228,7 +232,7 @@ function PlayerToken({
                 {liveNow && (
                     <span className="pointer-events-none absolute inset-0 animate-pulse rounded-[3px] border-2 border-hq-live shadow-[0_0_8px_2px_rgba(255,61,90,0.65)]" />
                 )}
-                {badgeState && (
+                {showBadge && (
                     <span
                         className={cn(
                             'absolute -top-2 left-1/2 z-10 flex h-4 -translate-x-1/2 items-center justify-center gap-0.5 rounded-[3px] border bg-hq-ink px-1 font-mono text-[9px] leading-none font-bold whitespace-nowrap',
@@ -272,6 +276,8 @@ interface HqLineupPitchProps {
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
     /** Show each player's club crest badge. Off on a team's own ficha, where every player is the same club. */
     showTeamBadge?: boolean;
+    /** Show the starter checkmark badge. Off on a team's own ficha, where it's redundant with just being placed on the pitch. */
+    showStarterBadge?: boolean;
 }
 
 /**
@@ -292,6 +298,7 @@ export function HqLineupPitch({
     tacticalFormation,
     onSelectPlayer,
     showTeamBadge = true,
+    showStarterBadge = true,
 }: HqLineupPitchProps) {
     const useRealCoordinates =
         players.length > 0 &&
@@ -376,6 +383,7 @@ export function HqLineupPitch({
                                   entry={entry}
                                   onSelectPlayer={onSelectPlayer}
                                   showTeamBadge={showTeamBadge}
+                                  showStarterBadge={showStarterBadge}
                                   nameMaxWidth={nameMaxWidthForRowCount(
                                       lineSizes.get(
                                           entry.pitch_top as number,
@@ -401,6 +409,7 @@ export function HqLineupPitch({
                                           entry={entry}
                                           onSelectPlayer={onSelectPlayer}
                                           showTeamBadge={showTeamBadge}
+                                          showStarterBadge={showStarterBadge}
                                           nameMaxWidth={nameMaxWidth}
                                       />
                                   ))}
@@ -431,6 +440,7 @@ export function HqLineupPitch({
                                 entry={entry}
                                 onSelectPlayer={onSelectPlayer}
                                 showTeamBadge={showTeamBadge}
+                                showStarterBadge={showStarterBadge}
                                 nameMaxWidth=""
                             />
                         ))}
