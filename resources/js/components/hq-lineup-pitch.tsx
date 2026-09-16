@@ -1,6 +1,6 @@
 import { Armchair, Clock, Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
-import { isLiveFixtureState } from '@/lib/fixture-state';
+import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { RESULT_STRIP_CLASSES, resultFor } from '@/lib/team-fixture-result';
 import { cn } from '@/lib/utils';
 import type {
@@ -338,6 +338,28 @@ export function HqLineupPitch({
         };
     })();
 
+    const matchStateLabel = (() => {
+        if (!fixture) {
+            return null;
+        }
+
+        const label = FIXTURE_STATE_LABELS[fixture.state];
+
+        if (!label) {
+            return null;
+        }
+
+        const isLive = isLiveFixtureState(fixture.state);
+
+        return {
+            text:
+                isLive && fixture.display_clock
+                    ? `${label} · ${fixture.display_clock}`
+                    : label,
+            isLive,
+        };
+    })();
+
     const useRealCoordinates =
         players.length > 0 &&
         players.every(
@@ -404,6 +426,19 @@ export function HqLineupPitch({
                 {formationLabel && (
                     <span className="absolute top-2 left-2 z-20 border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-hq-moss uppercase">
                         {formationLabel}
+                    </span>
+                )}
+
+                {matchStateLabel && (
+                    <span
+                        className={cn(
+                            'absolute top-2 left-1/2 z-20 -translate-x-1/2 border bg-hq-panel px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider whitespace-nowrap uppercase',
+                            matchStateLabel.isLive
+                                ? 'border-hq-live text-hq-live'
+                                : 'border-hq-border-strong text-hq-moss',
+                        )}
+                    >
+                        {matchStateLabel.text}
                     </span>
                 )}
 
