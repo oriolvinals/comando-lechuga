@@ -1,4 +1,4 @@
-import { Armchair, Shield, User } from 'lucide-react';
+import { Armchair, Clock, Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { isLiveFixtureState } from '@/lib/fixture-state';
 import { cn } from '@/lib/utils';
@@ -67,17 +67,20 @@ function pointsBadgeTierClass(points: number | null): string {
  * The player's REAL match role that week, derived from `starter` +
  * `sub_minute` + `subbed_out` (see `ManagerLineupPlayerEntry`). `starter`
  * being null means no `FixtureLineup` ever resolved for this pick — once
- * the match has finished that means "not called up" at all; before that, it
- * just means "not played yet", which gets no badge (returns null).
+ * the match has finished that means "not called up" at all; before that,
+ * their team just hasn't played yet.
  */
 type LineupBadgeState =
-    'starter' | 'subbed_out' | 'subbed_in' | 'bench' | 'not_called_up';
+    | 'starter'
+    | 'subbed_out'
+    | 'subbed_in'
+    | 'bench'
+    | 'not_called_up'
+    | 'not_played_yet';
 
-function lineupBadgeState(
-    entry: ManagerLineupPlayerEntry,
-): LineupBadgeState | null {
+function lineupBadgeState(entry: ManagerLineupPlayerEntry): LineupBadgeState {
     if (entry.starter === null) {
-        return entry.match_finished ? 'not_called_up' : null;
+        return entry.match_finished ? 'not_called_up' : 'not_played_yet';
     }
 
     if (entry.sub_minute !== null) {
@@ -92,7 +95,7 @@ function statusBadgeTierClass(state: LineupBadgeState): string {
         return 'border-hq-lime text-hq-lime';
     }
 
-    if (state === 'bench') {
+    if (state === 'bench' || state === 'not_played_yet') {
         return 'border-hq-moss-dim text-hq-moss-dim';
     }
 
@@ -118,6 +121,10 @@ function StatusBadgeContent({
         return '✕';
     }
 
+    if (state === 'not_played_yet') {
+        return <Clock className="h-2.5 w-2.5" />;
+    }
+
     return <Armchair className="h-2.5 w-2.5" />;
 }
 
@@ -129,7 +136,7 @@ function StatusBadgeContent({
  */
 function isPlayerLiveNow(
     entry: ManagerLineupPlayerEntry,
-    badgeState: LineupBadgeState | null,
+    badgeState: LineupBadgeState,
 ): boolean {
     return (
         (badgeState === 'starter' || badgeState === 'subbed_in') &&
@@ -186,7 +193,12 @@ function PlayerToken({
                 {/* Clipped separately from the status/points badges below — those
                     need to poke out past this box's own border, which a shared
                     overflow:hidden would cut off. */}
-                <span className="absolute inset-0 overflow-hidden rounded-[3px] border-2 border-white bg-hq-ink">
+                <span
+                    className={cn(
+                        'absolute inset-0 overflow-hidden rounded-[3px] border-2 bg-hq-ink',
+                        liveNow ? 'border-transparent' : 'border-white',
+                    )}
+                >
                     {/* Sits behind the photo — the photo is a cutout with
                         transparent padding around the player, so the crest reads
                         through it instead of needing its own reserved corner. */}
@@ -208,8 +220,11 @@ function PlayerToken({
                         style={{ objectPosition: 'center calc(45% + 6px)' }}
                     />
                 </span>
+                {/* Drawn as its own layer instead of animating the photo box's
+                    border directly — that box's opacity would also fade the
+                    photo underneath, when only the border should pulse. */}
                 {liveNow && (
-                    <span className="absolute -top-1 -right-1 z-20 h-2 w-2 animate-pulse rounded-full bg-hq-live" />
+                    <span className="pointer-events-none absolute inset-0 animate-pulse rounded-[3px] border-2 border-white" />
                 )}
                 {badgeState && (
                     <span
