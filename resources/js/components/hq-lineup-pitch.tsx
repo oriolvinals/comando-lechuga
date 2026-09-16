@@ -1,4 +1,4 @@
-import { Armchair, Clock, Shield, User } from 'lucide-react';
+import { Armchair, Clock, Home, Plane, Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { RESULT_STRIP_CLASSES, resultFor } from '@/lib/team-fixture-result';
@@ -360,6 +360,14 @@ export function HqLineupPitch({
         };
     })();
 
+    const venue =
+        fixture && teamId !== undefined
+            ? {
+                  isHome: fixture.local_team.id === teamId,
+                  Icon: fixture.local_team.id === teamId ? Home : Plane,
+              }
+            : null;
+
     const useRealCoordinates =
         players.length > 0 &&
         players.every(
@@ -453,6 +461,15 @@ export function HqLineupPitch({
                             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
                         )}
                         {scoreboard.ownScore}-{scoreboard.rivalScore}
+                    </span>
+                )}
+
+                {venue && (
+                    <span
+                        title={venue.isHome ? 'Casa' : 'Fuera'}
+                        className="absolute right-2 bottom-2 z-20 flex h-6 w-6 items-center justify-center border border-hq-border-strong bg-hq-panel text-hq-moss"
+                    >
+                        <venue.Icon className="h-3.5 w-3.5" />
                     </span>
                 )}
 
