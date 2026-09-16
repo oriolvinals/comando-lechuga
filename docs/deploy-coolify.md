@@ -1,27 +1,22 @@
 # Deploying to Coolify
 
-No Docker involved — Coolify builds this with **Railpack** directly from
-`railpack.json` at the repo root (Railpack auto-detects the PHP/Node
-toolchain from `composer.json` / `package.json`; the config file only pins
-the PHP/Node versions and tightens the composer install). Railpack is
-Railway's build system, the modern replacement for Nixpacks — Coolify
-supports it as an alternative build pack (marked **Beta** there as of this
-writing).
+Coolify builds this from the `Dockerfile` at the repo root, with
+`docker/Caddyfile` and `docker/entrypoint.sh` alongside it. This replaced
+Railpack (see [Why not Railpack](#why-not-railpack) below) — the Dockerfile
+is a two-stage build (`build`, then a slim runtime stage) based on
+`dunglas/frankenphp` (a single Caddy + PHP binary), so there's still no
+nginx + php-fpm + supervisor stack to hand-roll.
 
-Railpack's PHP provider serves the app with **FrankenPHP** (a single Caddy +
-PHP binary), not nginx + php-fpm — there's no supervisor config to write by
-hand here, unlike the old Nixpacks setup. FrankenPHP auto-detects Laravel
-(via the `artisan` file), points its document root at `public/`, and on
-every container start runs `php artisan migrate --force`, then
-`storage:link`, `optimize:clear`, `optimize` before serving traffic — see
-[Migrations & caching](#migrations--caching) below, since this changes how
-deploys are gated compared to the old Nixpacks setup.
+`docker/entrypoint.sh` runs on every container start: `php artisan migrate
+--force`, then `storage:link`, `optimize:clear`, `optimize`, before handing
+off to `frankenphp run`. See [Migrations & caching](#migrations--caching)
+below for what that means for how deploys are gated.
 
 ## 1. App resource settings
 
-- **Build Pack**: Railpack
-- **Port**: whatever Coolify injects via `$PORT` (FrankenPHP's Caddy listens
-  on it automatically) — also set as the container's exposed port
+- **Build Pack**: Dockerfile
+- **Port**: whatever Coolify injects via `$PORT` — `docker/Caddyfile` listens
+  on `:{$PORT}` — also set as the container's exposed port
 - **Health check path**: `/up` (Laravel's default health-check route,
   already wired up in `bootstrap/app.php`)
 
@@ -38,7 +33,7 @@ network, not `localhost`.
 |---|---|
 | `APP_ENV` | `production` |
 | `APP_DEBUG` | `false` |
-| `APP_KEY` | generate once with `php artisan key:generate --show`, paste the result — **never regenerate on redeploy**, it invalidates every session/cookie. Mark it **available at buildtime** too (Railpack needs a bootable app during `vite build`, for the Wayfinder route-generation step) |
+| `APP_KEY` | generate once with `php artisan key:generate --show`, paste the result — **never regenerate on redeploy**, it invalidates every session/cookie. Mark it **available at buildtime** too — the `Dockerfile`'s `build` stage declares `ARG APP_KEY` because `vite build` needs a bootable app for the Wayfinder route-generation step, and Coolify passes buildtime-flagged variables through as `--build-arg` |
 | `APP_URL` | your public URL |
 | `APP_TIMEZONE` | `Europe/Madrid` (the scheduler's time-window sync jobs depend on this) |
 | `DB_CONNECTION` | `mysql` |
@@ -50,38 +45,29 @@ network, not `localhost`.
 | `INERTIA_SSR_ENABLED` | `false` — see [SSR](#ssr) |
 | `LA_LIGA_LOGIN_EMAIL` / `LA_LIGA_LOGIN_PASSWORD` | your real La Liga Fantasy account credentials |
 | the other `LA_LIGA_*` vars | copy as-is from `.env.example`, not secrets |
-| `RAILPACK_BUILD_APT_PACKAGES` | `bison re2c libcurl4-openssl-dev libonig-dev libicu-dev libxml2-dev libzip-dev libreadline-dev libpq-dev libgd-dev libjpeg-dev libpng-dev` — **required on an ARM64 Coolify host** (see below), harmless if unused on x86_64 |
 
-Unlike Nixpacks, there's no `NIXPACKS_PHP_ROOT_DIR` / `NIXPACKS_PHP_FALLBACK_PATH`
-/ `IS_LARAVEL` to set — Railpack's PHP provider detects the `artisan` file
-and points FrankenPHP at `public/` with the right fallback on its own.
+No `RAILPACK_*` variables, `NIXPACKS_PHP_ROOT_DIR` / `NIXPACKS_PHP_FALLBACK_PATH`
+/ `IS_LARAVEL` to set — remove any of those left over from a previous setup.
+If you need to skip the migration step on the container's first boot for a
+one-off deploy, set `SKIP_MIGRATIONS=true` for that deploy (read by
+`docker/entrypoint.sh`, not a build-pack feature).
 
-**ARM64 hosts:** mise (Railpack's toolchain installer) has no precompiled
-PHP 8.5.9 binary for `linux-arm64` yet, so on an ARM64 Coolify host it
-compiles PHP from source, which needs several `-dev` packages present in
-the build container that aren't in Railpack's builder image by default —
-this is a known mise/asdf-php gap, not specific to this app (see
-[jdx/mise#4720](https://github.com/jdx/mise/discussions/4720)). Confirmed
-across three real deploy attempts, each getting one step further:
-`bison`/`re2c` missing (PHP parser generation), then `libcurl` dev headers,
-then `gdlib` (GD). `RAILPACK_BUILD_APT_PACKAGES` installs them for the
-build step only (not the final runtime image). Node needed no such
-workaround — a precompiled `node-v26.8.2-linux-arm64` binary exists, no
-compile step.
+**ARM64 hosts just work here** — `dunglas/frankenphp` ships precompiled
+multi-arch images (amd64/arm64), so there's no PHP-from-source compile step
+regardless of host architecture. That's the whole reason this replaced
+Railpack; see [Why not Railpack](#why-not-railpack).
 
 ## 4. Migrations & caching
 
-**No Pre-deployment Command needed.** FrankenPHP's own startup script (baked
-into the image by Railpack) already runs `php artisan migrate --force`
-followed by `storage:link`, `optimize:clear`, `optimize` every time the
-container boots, before it starts accepting traffic — this replaces the
-Nixpacks setup's manual Coolify **Pre-deployment Command** field entirely.
+**No Pre-deployment Command needed.** `docker/entrypoint.sh` already runs
+`php artisan migrate --force` followed by `storage:link`, `optimize:clear`,
+`optimize` every time the container boots, before it starts accepting
+traffic — there's no Coolify **Pre-deployment Command** field to fill in.
 If a migration fails, the container never becomes healthy and Coolify's
-health check keeps routing to the previous one, which is the same safety
-property the old manual pre-deploy command gave.
+health check keeps routing to the previous one.
 
 If you ever need to skip the automatic migration for a one-off deploy, set
-`RAILPACK_SKIP_MIGRATIONS=true` for that deploy.
+`SKIP_MIGRATIONS=true` for that deploy.
 
 ## 5. Persistent storage
 
@@ -128,27 +114,44 @@ that ever changes — the SSR bundle build step and `bootstrap/ssr/` output
 still work locally (`npm run build:ssr`), this only turns off *running* it
 in production.
 
+## Why not Railpack
+
+This app was briefly deployed via Railpack (Railway's build system, which
+Coolify supports as an alternative build pack) instead of a hand-written
+Dockerfile. It was dropped because Railpack's PHP provider installs PHP
+through `mise`, which has no precompiled PHP binary for `linux-arm64` — on
+an ARM64 Coolify host it compiled PHP from source on every build with a cold
+cache, taking ~20 minutes and occasionally failing outright (a known
+mise/asdf-php gap, not specific to this app — see
+[jdx/mise#4720](https://github.com/jdx/mise/discussions/4720)). Three real
+deploy attempts each got one step further through that compile — missing
+`bison`/`re2c`, then `libcurl` dev headers, then `gdlib` — before the
+underlying slowness/fragility made the whole approach not worth it.
+`dunglas/frankenphp`'s own images ship precompiled multi-arch (amd64/arm64)
+PHP builds, which is the whole point of switching to a Dockerfile: no
+from-source PHP compile on any host architecture.
+
+If Railpack is ever reconsidered, the `RAILPACK_BUILD_APT_PACKAGES`
+workaround (installing `bison re2c libcurl4-openssl-dev libonig-dev
+libicu-dev libxml2-dev libzip-dev libreadline-dev libpq-dev libgd-dev
+libjpeg-dev libpng-dev` for the build step) is what got furthest before this
+was abandoned in favor of the Dockerfile.
+
 ## Known rough edges
 
-A real Coolify deploy on 2026-09-10 confirmed the ARM64 `bison`/`re2c`
-compile issue above (now fixed via `RAILPACK_BUILD_APT_PACKAGES`) — that
-build got as far as compiling PHP extensions before failing, so the
-Railpack detection, image pulls, and apt/mise setup all work as expected.
-The rest of the pipeline (composer install, npm build, the FrankenPHP
-start-container script, migrations-on-boot) is still unverified end-to-end.
-Keep watching build logs on the next deploy attempt for:
+**Not build-tested end-to-end.** The Dockerfile/Caddyfile/entrypoint were
+written and reviewed but never run through a real `docker build` (no local
+Docker available in the environment they were written in) or a real Coolify
+deploy. Watch the first real deploy's logs closely for:
 
-- `railpack.json`'s `steps.install` appends `composer install --no-dev
-  --no-interaction --optimize-autoloader` *after* Railpack's own default
-  install step (via the `"..."` entry), rather than replacing it, since
-  it's undocumented whether a full replacement would also drop the Node
-  `npm install` Railpack normally runs alongside the PHP install. This
-  means composer install effectively runs twice (once with dev deps, once
-  without) — wasteful but should net out to the same `--no-dev` vendor
-  tree. Confirm `vendor/` in the running container doesn't contain
-  `phpunit`, `pest`, etc.
-- The automatic `php artisan migrate --force` on every boot (see
-  [Migrations & caching](#migrations--caching)) is a behavior change from
-  the old Nixpacks setup, where migrations only ran through Coolify's
-  gated Pre-deployment Command. Watch the first deploy's logs to confirm
-  it runs and succeeds before traffic is expected to flow.
+- The two-stage image build succeeding at all — base image pulls,
+  `install-php-extensions`, copying the Node binaries from the `node`
+  image into the `dunglas/frankenphp` stage, `composer install`, `npm ci`
+  and `npm run build` (including the Wayfinder route-generation step,
+  which needs `APP_KEY` set as a build arg — see the env var table above).
+- `docker/entrypoint.sh` actually running on container start: `php artisan
+  migrate --force`, `storage:link`, `optimize:clear`, `optimize`, then
+  `frankenphp run`. Confirm migrations apply and the container becomes
+  healthy before traffic is expected to flow.
+- `docker/Caddyfile` listening on Coolify's injected `$PORT` and serving
+  `/up` successfully.
