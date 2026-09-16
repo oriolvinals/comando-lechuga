@@ -188,6 +188,19 @@ export interface ManagerLineupPlayerEntry {
      */
     pitch_top?: number;
     pitch_left?: number;
+    /**
+     * This player's REAL match role that week, from `fixture_lineups` —
+     * `starter` combined with `sub_minute`/`subbed_out` gives one of four
+     * states (titular / titular sustituido / suplente que entró / banquillo).
+     * All three are null when no `FixtureLineup` resolves for this player
+     * that week: on a fantasy manager's pick, that means "not called up"
+     * once the match has finished, or just "not played yet" otherwise — the
+     * team ficha's own `players`/`substitutes` always resolve one, since
+     * every entry there already comes from a real `FixtureLineup` row.
+     */
+    starter: boolean | null;
+    subbed_out: boolean | null;
+    sub_minute: number | null;
 }
 
 export interface ManagerLineup {

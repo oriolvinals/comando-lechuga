@@ -19,6 +19,7 @@ use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -172,7 +173,7 @@ class TeamsController extends Controller
      * Each team's single soonest scheduled fixture — used as the standings
      * table's "next match" slot for a team that isn't currently live.
      *
-     * @return array<int, array{fixture_id: int, opponent: Team, is_home: bool, date: \Carbon\CarbonImmutable}>
+     * @return array<int, array{fixture_id: int, opponent: Team, is_home: bool, date: CarbonImmutable}>
      */
     private function nextFixtureByTeam(Season $season): array
     {
@@ -214,8 +215,8 @@ class TeamsController extends Controller
      *
      * @param  Collection<int, Team>  $teams
      * @param  Collection<int, Fixture>  $fixtures  from standingsFixtures() — finished + live
-     * @param  array<int, array{fixture_id: int, opponent: Team, is_home: bool, date: \Carbon\CarbonImmutable}>  $nextByTeam  from nextFixtureByTeam(), keyed by team id
-     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: \Carbon\CarbonImmutable}>, live: array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: \Carbon\CarbonImmutable}|null, next: array{fixture_id: int, opponent: Team, is_home: bool, date: \Carbon\CarbonImmutable}|null}>
+     * @param  array<int, array{fixture_id: int, opponent: Team, is_home: bool, date: CarbonImmutable}>  $nextByTeam  from nextFixtureByTeam(), keyed by team id
+     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: CarbonImmutable}>, live: array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: CarbonImmutable}|null, next: array{fixture_id: int, opponent: Team, is_home: bool, date: CarbonImmutable}|null}>
      */
     private function standingsFor(Collection $teams, Collection $fixtures, array $nextByTeam = []): array
     {
@@ -227,7 +228,8 @@ class TeamsController extends Controller
             $goalsFor = 0;
             $goalsAgainst = 0;
             $live = null;
-            /** @var list<array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: \Carbon\CarbonImmutable}> $formEntries */
+
+            /** @var list<array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: CarbonImmutable}> $formEntries */
             $formEntries = [];
 
             foreach ($fixtures as $fixture) {
@@ -295,7 +297,7 @@ class TeamsController extends Controller
     }
 
     /**
-     * @return array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: \Carbon\CarbonImmutable}
+     * @return array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: CarbonImmutable}
      */
     private function formEntry(Fixture $fixture, Team $opponent, int $for, int $against): array
     {
@@ -312,74 +314,94 @@ class TeamsController extends Controller
      * One entry per jornada that already has a synced starting XI for this
      * team — a jornada with no Fixture yet, or a Fixture with no starters
      * synced, is simply absent (the frontend shows an empty state for any
-     * selected week that isn't in this list).
+     * selected week that isn't in this list). Bench players for that same
+     * jornada ride along under `substitutes` — they never get pitch
+     * coordinates (those only make sense for a real match line), but still
+     * carry `starter`/`subbed_out`/`sub_minute` so the frontend can badge
+     * them the same way as the starters.
      *
      * `fixture_lineups.player_id` is nullable (an unresolved worldcup26
-     * roster entry — see the match-data-linking design docs): a starter row
+     * roster entry — see the match-data-linking design docs): a lineup row
      * with no resolved `Player`, or whose `Player` has no current-season
      * `PlayerSeason` (so no known position), is dropped here rather than
      * crashing on `$lineup->player->position`, since there's nothing
      * displayable for it on this pitch (no name/photo/position) anyway.
      *
      * @param  Collection<int, Fixture>  $fixtures  this team's fixtures for the season, with localTeam/guestTeam loaded
-     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: PlayerPosition, player: Player, match_finished: bool, pitch_top: float, pitch_left: float}>}>
+     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: PlayerPosition, player: Player, match_finished: bool, starter: bool, subbed_out: bool, sub_minute: int|null, pitch_top: float, pitch_left: float}>, substitutes: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: PlayerPosition, player: Player, match_finished: bool, starter: bool, subbed_out: bool, sub_minute: int|null}>}>
      */
     private function weeklyLineupsFor(Team $team, Season $season, Collection $fixtures): array
     {
         $fixturesById = $fixtures->keyBy('id');
 
-        $startersByFixture = FixtureLineup::query()
+        $lineupsByFixture = FixtureLineup::query()
             ->whereIn('fixture_id', $fixturesById->keys())
             ->where('team_id', $team->id)
-            ->where('starter', true)
             ->whereNotNull('player_id')
             ->with('player.team')
             ->get()
             ->groupBy('fixture_id');
 
         $this->attachCurrentSeason(
-            $startersByFixture->flatten()->pluck('player')->unique('id'),
+            $lineupsByFixture->flatten()->pluck('player')->unique('id'),
             $season->id,
         );
 
         $weeklyLineups = [];
 
-        foreach ($startersByFixture as $fixtureId => $starters) {
+        foreach ($lineupsByFixture as $fixtureId => $lineupRows) {
             $fixture = $fixturesById->get($fixtureId);
 
-            if ($fixture === null || $starters->isEmpty()) {
+            if ($fixture === null || $lineupRows->isEmpty()) {
                 continue;
             }
 
-            $players = [];
+            $starters = $lineupRows->where('starter', true)->values();
 
-            foreach ($starters as $lineup) {
+            $players = [];
+            $substitutes = [];
+
+            foreach ($lineupRows as $lineup) {
                 $player = $lineup->player;
 
                 if (!$player instanceof Player || !$player->position instanceof PlayerPosition) {
                     continue;
                 }
 
-                $players[] = [
+                $entry = [
                     'id' => $lineup->id,
                     'points' => $lineup->fantasy_points,
                     'stats' => $lineup->fantasy_stats,
                     'position' => $player->position,
                     'player' => $player,
                     'match_finished' => $fixture->state === FixtureState::Finished,
-                    'pitch_top' => $this->pitchTop($lineup, $starters),
-                    'pitch_left' => $this->pitchLeft($lineup, $starters),
+                    'starter' => $lineup->starter,
+                    'subbed_out' => $lineup->subbed_out,
+                    'sub_minute' => $lineup->sub_minute,
                 ];
+
+                if ($lineup->starter) {
+                    $entry['pitch_top'] = $this->pitchTop($lineup, $starters);
+                    $entry['pitch_left'] = $this->pitchLeft($lineup, $starters);
+                    $players[] = $entry;
+                } else {
+                    $substitutes[] = $entry;
+                }
             }
 
             if ($players === []) {
                 continue;
             }
 
+            // Played subs first, then unused bench — same convention as
+            // HqFixtureBench on the match ficha.
+            usort($substitutes, fn (array $a, array $b): int => (int) ($b['sub_minute'] !== null) <=> (int) ($a['sub_minute'] !== null));
+
             $weeklyLineups[] = [
                 'week_number' => $fixture->week_number,
                 'fixture' => $fixture,
                 'players' => $players,
+                'substitutes' => $substitutes,
             ];
         }
 

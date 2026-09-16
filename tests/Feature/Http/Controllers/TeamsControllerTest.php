@@ -608,6 +608,79 @@ test('a bench player (starter=false) does not appear on the pitch', function ():
     $response->assertInertia(fn (Assert $page): Assert => $page->has('weeklyLineups', 0));
 });
 
+test('bench players ride along under substitutes, played subs before unused bench, each with its own match status', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 1,
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Finished,
+        'local_score' => 1,
+        'guest_score' => 0,
+    ]);
+    $starter = Player::factory()->create([
+        'team_id' => $team->id,
+        'position' => PlayerPosition::Striker,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $starter->id,
+        'team_id' => $team->id,
+        'starter' => true,
+        'subbed_out' => true,
+        'sub_minute' => 70,
+    ]);
+    $unusedBench = Player::factory()->create([
+        'team_id' => $team->id,
+        'position' => PlayerPosition::Midfield,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $unusedBench->id,
+        'team_id' => $team->id,
+        'starter' => false,
+        'subbed_in' => false,
+        'sub_minute' => null,
+    ]);
+    $playedSub = Player::factory()->create([
+        'team_id' => $team->id,
+        'position' => PlayerPosition::Defender,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $playedSub->id,
+        'team_id' => $team->id,
+        'starter' => false,
+        'subbed_in' => true,
+        'sub_minute' => 70,
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->has('weeklyLineups.0.players', 1)
+        ->where('weeklyLineups.0.players.0.starter', true)
+        ->where('weeklyLineups.0.players.0.subbed_out', true)
+        ->where('weeklyLineups.0.players.0.sub_minute', 70)
+        ->has('weeklyLineups.0.substitutes', 2)
+        ->where('weeklyLineups.0.substitutes.0.player.id', $playedSub->id)
+        ->where('weeklyLineups.0.substitutes.0.starter', false)
+        ->where('weeklyLineups.0.substitutes.0.sub_minute', 70)
+        ->where('weeklyLineups.0.substitutes.1.player.id', $unusedBench->id)
+        ->where('weeklyLineups.0.substitutes.1.starter', false)
+        ->where('weeklyLineups.0.substitutes.1.sub_minute', null)
+    );
+});
+
 test('next fixtures are padded to 3, only scheduled, ordered by date, and resolve opponent/is_home correctly', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
