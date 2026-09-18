@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TYPE_LABELS } from '@/components/activity-helpers';
 import { formatCurrency } from '@/lib/format';
@@ -28,6 +28,8 @@ const VIEW_HEIGHT = 302;
 const HIT_HEIGHT = 246;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SNAP_RADIUS = 12;
+const TOOLTIP_VIEWPORT_MARGIN = 8;
+const TOOLTIP_BELOW_OFFSET = 14;
 
 type Range = 10 | 30 | 'all';
 
@@ -94,6 +96,7 @@ export function HqPlayerValueChart({
     const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number } | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
     // The viewBox width tracks the container's real pixel width so SVG text/strokes
     // render at true size on any screen — a fixed viewBox scaled down for a narrow
     // mobile container shrinks everything (including text) proportionally, making
@@ -118,6 +121,25 @@ export function HqPlayerValueChart({
 
         return () => observer.disconnect();
     }, []);
+
+    // The tooltip sits above the hovered point; when it wouldn't fit there
+    // (chart near the top of the viewport) it flips below instead. Its height
+    // is only known once rendered, so the placement is applied to the element
+    // before paint rather than through state.
+    useLayoutEffect(() => {
+        const el = tooltipRef.current;
+
+        if (!el || !tooltip) {
+            return;
+        }
+
+        const fitsAbove =
+            tooltip.y - el.offsetHeight * 1.15 >= TOOLTIP_VIEWPORT_MARGIN;
+
+        el.style.transform = fitsAbove
+            ? 'translate(-50%, -115%)'
+            : `translate(-50%, ${TOOLTIP_BELOW_OFFSET}px)`;
+    }, [tooltip]);
 
     const visibleHistory = useMemo(() => {
         if (range === 'all') {
@@ -591,7 +613,8 @@ export function HqPlayerValueChart({
             {tooltip &&
                 createPortal(
                     <div
-                        className="pointer-events-none fixed z-[999] -translate-x-1/2 -translate-y-[115%] border border-hq-lime bg-hq-panel-alt px-3 py-2 font-mono text-xs whitespace-nowrap"
+                        ref={tooltipRef}
+                        className="pointer-events-none fixed z-[999] border border-hq-lime bg-hq-panel-alt px-3 py-2 font-mono text-xs whitespace-nowrap"
                         style={{ left: tooltip.x, top: tooltip.y }}
                     >
                         <div className="text-[10px] tracking-wide text-hq-moss uppercase">
@@ -634,20 +657,34 @@ export function HqPlayerValueChart({
                                 </div>
                             </div>
                         )}
-                        {showOwnerRow && (
-                            <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
-                                <span
-                                    className="h-2 w-2 shrink-0 rounded-[1px]"
-                                    style={{ backgroundColor: tooltip.ownerColor }}
-                                />
-                                {tooltip.jornada
-                                    ? `Dueño · ${tooltip.ownerName}`
-                                    : tooltip.ownerName}
-                            </div>
-                        )}
-                        {tooltip.action && (
-                            <div className="mt-0.5 text-[10px] text-hq-moss">
-                                {tooltip.action}
+                        {(showOwnerRow || tooltip.action) && (
+                            <div
+                                className={cn(
+                                    tooltip.jornada &&
+                                        'mt-1.5 border-t border-hq-border-strong pt-1.5',
+                                )}
+                            >
+                                {showOwnerRow && (
+                                    <div
+                                        className={cn(
+                                            'flex items-center gap-1.5 text-hq-khaki',
+                                            !tooltip.jornada && 'mt-1',
+                                        )}
+                                    >
+                                        <span
+                                            className="h-2 w-2 shrink-0 rounded-[1px]"
+                                            style={{ backgroundColor: tooltip.ownerColor }}
+                                        />
+                                        {tooltip.jornada
+                                            ? `Dueño · ${tooltip.ownerName}`
+                                            : tooltip.ownerName}
+                                    </div>
+                                )}
+                                {tooltip.action && (
+                                    <div className="mt-0.5 text-[10px] text-hq-moss">
+                                        {tooltip.action}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>,
