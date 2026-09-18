@@ -43,7 +43,12 @@ function describeOrigin(
     segment: OwnershipSegment | null,
     dateIso: string,
 ): string | null {
-    if (!segment?.startedBy || !isSegmentStart(segment, dateIso)) {
+    // A player sold to the market just reads "Libre" — no sale line under it.
+    if (
+        !segment?.startedBy ||
+        segment.seasonManager === null ||
+        !isSegmentStart(segment, dateIso)
+    ) {
         return null;
     }
 
@@ -81,7 +86,7 @@ interface TooltipState {
         week: number;
         points: number;
         managerId: number | null;
-        managerName: string;
+        managerName: string | null;
         managerColor: string;
     } | null;
 }
@@ -279,7 +284,7 @@ export function HqPlayerValueChart({
                 points,
                 isNegative,
                 managerId: manager?.id ?? null,
-                managerName: manager?.name ?? 'No alineado',
+                managerName: manager?.name ?? null,
                 managerColor: manager
                     ? managerColor(manager.primary_color)
                     : 'var(--color-hq-moss-dim)',
@@ -306,7 +311,11 @@ export function HqPlayerValueChart({
         }
 
         for (const bar of geometry?.bars ?? []) {
-            const key = bar.managerId === null ? 'no-alineado' : `team-${bar.managerId}`;
+            if (bar.managerName === null) {
+                continue;
+            }
+
+            const key = `team-${bar.managerId}`;
 
             if (!seen.has(key)) {
                 seen.set(key, { label: bar.managerName, color: bar.managerColor });
@@ -374,10 +383,11 @@ export function HqPlayerValueChart({
     // On a jornada day the tooltip leads with who the points belonged to; the
     // day's owner row is only kept when it adds something (a different owner,
     // or the deal that started their ownership).
+    const hasManagerRow = tooltip?.jornada?.managerName != null;
     const showOwnerRow =
         tooltip !== null &&
-        (tooltip.jornada === null ||
-            tooltip.jornada.managerId !== tooltip.ownerId ||
+        (!hasManagerRow ||
+            tooltip.jornada?.managerId !== tooltip.ownerId ||
             tooltip.action !== null);
 
     return (
@@ -646,15 +656,17 @@ export function HqPlayerValueChart({
                                 >
                                     J{tooltip.jornada.week} · {tooltip.jornada.points} PTS
                                 </div>
-                                <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
-                                    <span
-                                        className="h-2 w-2 shrink-0 rounded-[1px]"
-                                        style={{
-                                            backgroundColor: tooltip.jornada.managerColor,
-                                        }}
-                                    />
-                                    {tooltip.jornada.managerName}
-                                </div>
+                                {tooltip.jornada.managerName !== null && (
+                                    <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
+                                        <span
+                                            className="h-2 w-2 shrink-0 rounded-[1px]"
+                                            style={{
+                                                backgroundColor: tooltip.jornada.managerColor,
+                                            }}
+                                        />
+                                        {tooltip.jornada.managerName}
+                                    </div>
+                                )}
                             </div>
                         )}
                         {(showOwnerRow || tooltip.action) && (
@@ -675,7 +687,7 @@ export function HqPlayerValueChart({
                                             className="h-2 w-2 shrink-0 rounded-[1px]"
                                             style={{ backgroundColor: tooltip.ownerColor }}
                                         />
-                                        {tooltip.jornada
+                                        {hasManagerRow
                                             ? `Dueño · ${tooltip.ownerName}`
                                             : tooltip.ownerName}
                                     </div>
