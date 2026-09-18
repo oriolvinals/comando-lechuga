@@ -690,7 +690,7 @@ export function HqPlayerValueChart({
                                             className="h-2 w-2 shrink-0 rounded-[1px]"
                                             style={{ backgroundColor: tooltip.ownerColor }}
                                         />
-                                        {hasManagerRow
+                                        {hasManagerRow && tooltip.ownerId !== null
                                             ? `Dueño · ${tooltip.ownerName}`
                                             : tooltip.ownerName}
                                     </div>
