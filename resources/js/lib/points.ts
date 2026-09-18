@@ -51,6 +51,30 @@ export function matchPointsBadgeClassOnPhoto(points: number): string {
 }
 
 /**
+ * Same six tiers as {@link matchPointsBadgeClass}, as a CSS color value for
+ * SVG `fill`/`stroke` (which can't take Tailwind classes).
+ */
+export function matchPointsColor(points: number): string {
+    if (points < 0) {
+        return 'var(--color-hq-live)';
+    }
+
+    if (points < 5) {
+        return 'var(--color-hq-gold)';
+    }
+
+    if (points < 9) {
+        return 'var(--color-hq-lime)';
+    }
+
+    if (points < 14) {
+        return 'var(--color-hq-azure)';
+    }
+
+    return 'var(--color-hq-violet)';
+}
+
+/**
  * Formats a points total with an explicit sign — `+12` for zero or positive,
  * `-5` for negative (the number's own minus, not a doubled `+-5`).
  */

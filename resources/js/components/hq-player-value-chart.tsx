@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TYPE_LABELS } from '@/components/activity-helpers';
 import { formatCurrency } from '@/lib/format';
@@ -8,17 +8,29 @@ import {
     ownerAtDate,
     segmentAtDate,
 } from '@/lib/ownership-timeline';
+import { matchPointsColor } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import type { PlayerFichaScore, PlayerMarketPoint } from '@/types/models';
 
 const DEFAULT_WIDTH = 900;
-const HEIGHT = 160;
-const BAND_Y = 176;
+const VALUE_TOP = 26;
+const VALUE_BOTTOM = 150;
+const POINTS_CAPTION_Y = 176;
+const POINTS_TOP = 184;
+const POINTS_BOTTOM = 238;
+const BAR_LABEL_SPACE = 16;
+const JORNADA_LABEL_Y = 254;
+const BAND_Y = 262;
 const BAND_HEIGHT = 14;
-const BAR_LABEL_SPACE = 20;
+const DATE_Y = 294;
+const VIEW_HEIGHT = 302;
+const HIT_HEIGHT = 246;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SNAP_RADIUS = 12;
+const TOOLTIP_VIEWPORT_MARGIN = 8;
+const TOOLTIP_BELOW_OFFSET = 14;
 
-type Mode = 'valor' | 'puntos';
 type Range = 10 | 30 | 'all';
 
 interface HqPlayerValueChartProps {
@@ -33,6 +45,14 @@ function describeOrigin(
 ): string | null {
     if (!segment?.startedBy || !isSegmentStart(segment, dateIso)) {
         return null;
+    }
+
+    // A player sold to the market reads "Libre" with just the price it went
+    // for, no "Venta" label.
+    if (segment.seasonManager === null) {
+        return segment.startedBy.amount === null
+            ? null
+            : formatCurrency(segment.startedBy.amount);
     }
 
     if (segment.startedBy.type === 'joined_league') {
@@ -63,7 +83,15 @@ interface TooltipState {
     diff: number | null;
     ownerName: string;
     ownerColor: string;
+    ownerId: number | null;
     action: string | null;
+    jornada: {
+        week: number;
+        points: number;
+        managerId: number | null;
+        managerName: string | null;
+        managerColor: string;
+    } | null;
 }
 
 export function HqPlayerValueChart({
@@ -71,12 +99,12 @@ export function HqPlayerValueChart({
     scores,
     ownershipSegments,
 }: HqPlayerValueChartProps) {
-    const [mode, setMode] = useState<Mode>('valor');
     const [range, setRange] = useState<Range>(30);
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
     const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number } | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
     // The viewBox width tracks the container's real pixel width so SVG text/strokes
     // render at true size on any screen — a fixed viewBox scaled down for a narrow
     // mobile container shrinks everything (including text) proportionally, making
@@ -102,52 +130,34 @@ export function HqPlayerValueChart({
         return () => observer.disconnect();
     }, []);
 
-    const legend = useMemo(() => {
-        const seen = new Map<string, { label: string; color: string }>();
+    // The tooltip sits above the hovered point; when it wouldn't fit there
+    // (chart near the top of the viewport) it flips below instead. Its height
+    // is only known once rendered, so the placement is applied to the element
+    // before paint rather than through state.
+    useLayoutEffect(() => {
+        const el = tooltipRef.current;
 
-        if (mode === 'puntos') {
-            for (const score of scores) {
-                const manager = score.lineup_manager;
-                const key = manager ? `team-${manager.id}` : 'libre';
-
-                if (!seen.has(key)) {
-                    seen.set(key, {
-                        label: manager?.name ?? 'No alineado',
-                        color: manager
-                            ? managerColor(manager.primary_color)
-                            : 'var(--color-hq-moss-dim)',
-                    });
-                }
-            }
-
-            return [...seen.values()];
+        if (!el || !tooltip) {
+            return;
         }
 
-        for (const segment of ownershipSegments) {
-            const key = segment.seasonManager ? `team-${segment.seasonManager.id}` : 'libre';
+        const fitsAbove =
+            tooltip.y - el.offsetHeight * 1.15 >= TOOLTIP_VIEWPORT_MARGIN;
 
-            if (!seen.has(key)) {
-                seen.set(key, {
-                    label: segment.seasonManager?.name ?? 'Libre',
-                    color: segment.seasonManager
-                        ? managerColor(segment.seasonManager.primary_color)
-                        : 'var(--color-hq-moss-dim)',
-                });
-            }
-        }
-
-        return [...seen.values()];
-    }, [mode, scores, ownershipSegments]);
+        el.style.transform = fitsAbove
+            ? 'translate(-50%, -115%)'
+            : `translate(-50%, ${TOOLTIP_BELOW_OFFSET}px)`;
+    }, [tooltip]);
 
     const visibleHistory = useMemo(() => {
-        if (mode !== 'valor' || range === 'all') {
+        if (range === 'all') {
             return marketHistory;
         }
 
         return marketHistory.slice(Math.max(0, marketHistory.length - range));
-    }, [marketHistory, mode, range]);
+    }, [marketHistory, range]);
 
-    const valorGeometry = useMemo(() => {
+    const geometry = useMemo(() => {
         const n = visibleHistory.length;
 
         if (n === 0) {
@@ -159,7 +169,9 @@ export function HqPlayerValueChart({
         const max = Math.max(...values);
         const xAt = (index: number) => (n === 1 ? width / 2 : (index / (n - 1)) * width);
         const yAt = (value: number) =>
-            max === min ? HEIGHT / 2 : HEIGHT - ((value - min) / (max - min)) * HEIGHT;
+            max === min
+                ? (VALUE_TOP + VALUE_BOTTOM) / 2
+                : VALUE_BOTTOM - ((value - min) / (max - min)) * (VALUE_BOTTOM - VALUE_TOP);
 
         // Catmull-Rom-to-Bezier: each segment's control points lean on the
         // neighboring points (clamped at the ends), so the curve passes
@@ -219,133 +231,171 @@ export function HqPlayerValueChart({
             color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : managerColor(segmentOwner.primary_color),
         });
 
-        return { xAt, yAt, lineSegments, bandSegments, boundaries };
-    }, [visibleHistory, ownershipSegments, width]);
+        // Each jornada's bar sits on the market-history day closest to its
+        // fixture date, so both panels share one time axis. Jornadas outside
+        // the visible range are dropped.
+        const times = visibleHistory.map((point) => new Date(point.date).getTime());
+        const placed = scores.flatMap((score) => {
+            const time = new Date(score.fixture.date).getTime();
 
-    const puntosGeometry = useMemo(() => {
-        const n = scores.length;
+            if (time < times[0] - DAY_MS || time > times[n - 1] + DAY_MS) {
+                return [];
+            }
 
-        if (n === 0) {
-            return null;
-        }
+            let index = 0;
+            let closest = Infinity;
 
-        const slot = width / n;
-        const barWidth = Math.min(64, slot * 0.5);
-        const values = scores.map((score) => score.points ?? 0);
-        const maxPoints = Math.max(...values, 12);
-        const minPoints = Math.min(...values, 0);
+            times.forEach((candidate, candidateIndex) => {
+                const distance = Math.abs(candidate - time);
+
+                if (distance < closest) {
+                    closest = distance;
+                    index = candidateIndex;
+                }
+            });
+
+            return [{ score, index }];
+        });
+
+        const spacing = n > 1 ? width / (n - 1) : width;
+        const barWidth = Math.min(26, Math.max(8, spacing * 1.6));
+        const pointValues = placed.map(({ score }) => score.points ?? 0);
+        const maxPoints = Math.max(...pointValues, 12);
+        const minPoints = Math.min(...pointValues, 0);
         // Only carve out label space below the baseline when there's a
-        // negative bar to label — keeps the all-positive case identical to
-        // before (baseline pinned to the bottom, full height for bars).
-        const bottomMargin = minPoints < 0 ? BAR_LABEL_SPACE : 0;
-        const plotTop = BAR_LABEL_SPACE;
-        const plotBottom = HEIGHT - bottomMargin;
-        const plotHeight = plotBottom - plotTop;
-        const valueToY = (value: number) =>
-            maxPoints === minPoints
-                ? plotBottom
-                : plotBottom -
-                  ((value - minPoints) / (maxPoints - minPoints)) * plotHeight;
-        const zeroY = valueToY(0);
+        // negative bar to label.
+        const plotTop = POINTS_TOP + BAR_LABEL_SPACE;
+        const plotBottom = POINTS_BOTTOM - (minPoints < 0 ? BAR_LABEL_SPACE : 0);
+        const pointsToY = (points: number) =>
+            plotBottom - ((points - minPoints) / (maxPoints - minPoints)) * (plotBottom - plotTop);
+        const zeroY = pointsToY(0);
 
-        const bars = scores.map((score, index) => {
-            const cx = index * slot + slot / 2;
+        const bars = placed.map(({ score, index }) => {
             const points = score.points ?? 0;
+            const valueY = pointsToY(points);
             const isNegative = points < 0;
-            const valueY = valueToY(points);
+            const manager = score.lineup_manager;
 
             return {
-                cx,
+                key: score.id,
+                index,
+                cx: xAt(index),
                 y: isNegative ? zeroY : valueY,
-                height: Math.abs(zeroY - valueY),
+                height: Math.max(1.5, Math.abs(zeroY - valueY)),
                 valueY,
                 week: score.fixture.week_number,
                 points,
                 isNegative,
+                managerId: manager?.id ?? null,
+                managerName: manager?.name ?? null,
+                managerColor: manager
+                    ? managerColor(manager.primary_color)
+                    : 'var(--color-hq-moss-dim)',
             };
         });
 
-        const owners = scores.map((score) => score.lineup_manager);
-        const bandSegments = owners.map((owner, index) => ({
-            x: index * slot,
-            width: slot,
-            color: owner === null ? 'var(--color-hq-moss-dim)' : managerColor(owner.primary_color),
-        }));
-        const boundaries: number[] = [];
+        return { xAt, yAt, lineSegments, bandSegments, boundaries, bars, barWidth, zeroY };
+    }, [visibleHistory, scores, ownershipSegments, width]);
 
-        for (let index = 1; index < n; index++) {
-            if (owners[index]?.id !== owners[index - 1]?.id) {
-                boundaries.push(index * slot);
+    const legend = useMemo(() => {
+        const seen = new Map<string, { label: string; color: string }>();
+
+        for (const segment of ownershipSegments) {
+            const key = segment.seasonManager ? `team-${segment.seasonManager.id}` : 'libre';
+
+            if (!seen.has(key)) {
+                seen.set(key, {
+                    label: segment.seasonManager?.name ?? 'Libre',
+                    color: segment.seasonManager
+                        ? managerColor(segment.seasonManager.primary_color)
+                        : 'var(--color-hq-moss-dim)',
+                });
             }
         }
 
-        return {
-            slot,
-            barWidth,
-            bars,
-            bandSegments,
-            boundaries,
-            zeroY,
-            hasNegative: minPoints < 0,
-        };
-    }, [scores, width]);
+        for (const bar of geometry?.bars ?? []) {
+            if (bar.managerName === null) {
+                continue;
+            }
+
+            const key = `team-${bar.managerId}`;
+
+            if (!seen.has(key)) {
+                seen.set(key, { label: bar.managerName, color: bar.managerColor });
+            }
+        }
+
+        return [...seen.values()];
+    }, [ownershipSegments, geometry]);
 
     function handleMove(clientX: number) {
         const svg = svgRef.current;
 
-        if (!svg) {
+        if (!svg || !geometry) {
             return;
         }
 
         const rect = svg.getBoundingClientRect();
         const relX = ((clientX - rect.left) / rect.width) * width;
         const pxRatio = rect.width / width;
+        const n = visibleHistory.length;
+        // Hovering near a jornada's bar snaps to that day, so its points and
+        // the manager they belonged to are easy to hit.
+        const snapped = geometry.bars.find(
+            (bar) => Math.abs(bar.cx - relX) <= Math.max(SNAP_RADIUS, geometry.barWidth / 2),
+        );
+        const index = snapped
+            ? snapped.index
+            : Math.max(0, Math.min(n - 1, Math.round((relX / width) * (n - 1))));
+        const point = visibleHistory[index];
+        const previous = index > 0 ? visibleHistory[index - 1] : null;
+        const segment = segmentAtDate(ownershipSegments, point.date);
+        const x = geometry.xAt(index);
+        const y = geometry.yAt(point.value);
 
-        if (mode === 'valor' && valorGeometry) {
-            const n = visibleHistory.length;
-            const index = Math.max(0, Math.min(n - 1, Math.round((relX / width) * (n - 1))));
-            const point = visibleHistory[index];
-            const previous = index > 0 ? visibleHistory[index - 1] : null;
-            const segment = segmentAtDate(ownershipSegments, point.date);
-            const x = valorGeometry.xAt(index);
-            const y = valorGeometry.yAt(point.value);
-
-            setHoverPoint({ x, y });
-            setTooltip({
-                x: rect.left + x * pxRatio,
-                y: rect.top + y * pxRatio,
-                date: formatDateLabel(point.date),
-                value: formatCurrency(point.value),
-                diff: previous ? point.value - previous.value : null,
-                ownerName: segment?.seasonManager?.name ?? 'Libre',
-                ownerColor: segment?.seasonManager
-                    ? managerColor(segment.seasonManager.primary_color)
-                    : 'var(--color-hq-moss-dim)',
-                action: describeOrigin(segment, point.date),
-            });
-        } else if (mode === 'puntos' && puntosGeometry) {
-            const n = scores.length;
-            const index = Math.max(0, Math.min(n - 1, Math.floor(relX / puntosGeometry.slot)));
-            const score = scores[index];
-            const bar = puntosGeometry.bars[index];
-
-            setHoverPoint({ x: bar.cx, y: bar.valueY });
-            setTooltip({
-                x: rect.left + bar.cx * pxRatio,
-                y: rect.top + bar.valueY * pxRatio,
-                date: `Jornada ${score.fixture.week_number}`,
-                value: `${score.points ?? 0} puntos`,
-                diff: null,
-                ownerName: score.lineup_manager?.name ?? 'No alineado',
-                ownerColor: score.lineup_manager
-                    ? managerColor(score.lineup_manager.primary_color)
-                    : 'var(--color-hq-moss-dim)',
-                action: null,
-            });
-        }
+        setHoverPoint({ x, y });
+        setTooltip({
+            x: rect.left + x * pxRatio,
+            y: rect.top + y * pxRatio,
+            date: formatDateLabel(point.date),
+            value: formatCurrency(point.value),
+            diff: previous ? point.value - previous.value : null,
+            ownerName: segment?.seasonManager?.name ?? 'Libre',
+            ownerColor: segment?.seasonManager
+                ? managerColor(segment.seasonManager.primary_color)
+                : 'var(--color-hq-moss-dim)',
+            ownerId: segment?.seasonManager?.id ?? null,
+            action: describeOrigin(segment, point.date),
+            jornada: snapped
+                ? {
+                      week: snapped.week,
+                      points: snapped.points,
+                      managerId: snapped.managerId,
+                      managerName: snapped.managerName,
+                      managerColor: snapped.managerColor,
+                  }
+                : null,
+        });
     }
 
-    const geometry = mode === 'valor' ? valorGeometry : puntosGeometry;
+    function clearHover() {
+        setTooltip(null);
+        setHoverPoint(null);
+    }
+
+    // On a jornada day the tooltip leads with who the points belonged to; the
+    // day's owner row is only kept when it adds something (a different owner,
+    // or the deal that started their ownership).
+    const hasManagerRow = tooltip?.jornada?.managerName != null;
+    // Owner/deal rows get a divider whenever there's something above them to
+    // set apart from: a jornada block, or a purchase/sale that day.
+    const hasSeparator =
+        tooltip !== null && (tooltip.jornada !== null || tooltip.action !== null);
+    const showOwnerRow =
+        tooltip !== null &&
+        (!hasManagerRow ||
+            tooltip.jornada?.managerId !== tooltip.ownerId ||
+            tooltip.action !== null);
 
     return (
         <div>
@@ -355,144 +405,126 @@ export function HqPlayerValueChart({
                         Evolución
                     </h2>
                     <div className="inline-flex shrink-0 border border-hq-border-strong">
-                        <button
-                            type="button"
-                            onClick={() => setMode('valor')}
-                            className={cn(
-                                'px-3 py-1.5 font-mono text-[11px] font-bold',
-                                mode === 'valor'
-                                    ? 'bg-hq-lime text-hq-ink'
-                                    : 'text-hq-moss',
-                            )}
-                        >
-                            VALOR
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setMode('puntos')}
-                            className={cn(
-                                'px-3 py-1.5 font-mono text-[11px] font-bold',
-                                mode === 'puntos'
-                                    ? 'bg-hq-lime text-hq-ink'
-                                    : 'text-hq-moss',
-                            )}
-                        >
-                            PUNTOS
-                        </button>
+                        {([10, 30, 'all'] as const).map((option) => (
+                            <button
+                                key={option}
+                                type="button"
+                                onClick={() => setRange(option)}
+                                className={cn(
+                                    'px-3 py-1.5 font-mono text-[11px] font-bold',
+                                    range === option
+                                        ? 'bg-hq-lime text-hq-ink'
+                                        : 'text-hq-moss',
+                                )}
+                            >
+                                {option === 'all' ? 'TODO' : `${option}D`}
+                            </button>
+                        ))}
                     </div>
                 </div>
-                {mode === 'valor' && (
-                    <div className="mt-2 flex justify-end">
-                        <div className="inline-flex border border-hq-border-strong">
-                            {([10, 30, 'all'] as const).map((option) => (
-                                <button
-                                    key={option}
-                                    type="button"
-                                    onClick={() => setRange(option)}
-                                    className={cn(
-                                        'px-3 py-1.5 font-mono text-[11px] font-bold',
-                                        range === option
-                                            ? 'bg-hq-lime text-hq-ink'
-                                            : 'text-hq-moss',
-                                    )}
-                                >
-                                    {option === 'all' ? 'TODO' : `${option}D`}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
 
             <div ref={containerRef} className="hq-card-cut p-4">
                 {geometry === null ? (
                     <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
                         <p className="font-mono text-[11px] text-hq-moss-dim">
-                            {mode === 'valor'
-                                ? 'Todavía no hay histórico de valor.'
-                                : 'Todavía no ha jugado ninguna jornada.'}
+                            Todavía no hay histórico de valor.
                         </p>
                     </div>
                 ) : (
                     <svg
                         ref={svgRef}
-                        viewBox={`0 0 ${width} 220`}
+                        viewBox={`0 0 ${width} ${VIEW_HEIGHT}`}
                         className="w-full cursor-crosshair overflow-visible touch-none"
-                        onMouseLeave={() => {
-                            setTooltip(null);
-                            setHoverPoint(null);
-                        }}
+                        onMouseLeave={clearHover}
                     >
-                        {mode === 'valor' &&
-                            valorGeometry &&
-                            valorGeometry.lineSegments.map((segment, index) => (
-                                <path
-                                    key={index}
-                                    d={segment.d}
-                                    stroke={segment.color}
-                                    strokeWidth={2.5}
-                                    fill="none"
-                                    strokeLinecap="round"
+                        <text
+                            x={4}
+                            y={12}
+                            className="font-mono"
+                            fontSize={9}
+                            letterSpacing={1.5}
+                            fill="var(--color-hq-moss-dim)"
+                        >
+                            VALOR
+                        </text>
+                        <text
+                            x={4}
+                            y={POINTS_CAPTION_Y}
+                            className="font-mono"
+                            fontSize={9}
+                            letterSpacing={1.5}
+                            fill="var(--color-hq-moss-dim)"
+                        >
+                            PUNTOS
+                        </text>
+
+                        {geometry.lineSegments.map((segment, index) => (
+                            <path
+                                key={index}
+                                d={segment.d}
+                                stroke={segment.color}
+                                strokeWidth={2.5}
+                                fill="none"
+                                strokeLinecap="round"
+                            />
+                        ))}
+
+                        <line
+                            x1={0}
+                            y1={geometry.zeroY}
+                            x2={width}
+                            y2={geometry.zeroY}
+                            stroke="var(--color-hq-border-strong)"
+                            strokeWidth={1}
+                        />
+                        {geometry.bars.map((bar) => (
+                            <g key={bar.key}>
+                                <rect
+                                    x={bar.cx - geometry.barWidth / 2}
+                                    y={bar.y}
+                                    width={geometry.barWidth}
+                                    height={bar.height}
+                                    fill={matchPointsColor(bar.points)}
+                                    opacity={0.55}
                                 />
-                            ))}
-                        {mode === 'puntos' &&
-                            puntosGeometry &&
-                            puntosGeometry.hasNegative && (
-                                <line
-                                    x1={0}
-                                    y1={puntosGeometry.zeroY}
-                                    x2={width}
-                                    y2={puntosGeometry.zeroY}
-                                    stroke="var(--color-hq-border-strong)"
-                                    strokeWidth={1}
-                                />
-                            )}
-                        {mode === 'puntos' &&
-                            puntosGeometry &&
-                            puntosGeometry.bars.map((bar) => (
-                                <g key={bar.week}>
-                                    <rect
-                                        x={bar.cx - puntosGeometry.barWidth / 2}
-                                        y={bar.y}
-                                        width={puntosGeometry.barWidth}
-                                        height={bar.height}
-                                        fill={
-                                            bar.isNegative
-                                                ? 'var(--color-hq-live)'
-                                                : 'var(--color-hq-lime)'
-                                        }
-                                        opacity={0.35}
-                                    />
-                                    <text
-                                        x={bar.cx}
-                                        y={
-                                            bar.isNegative
-                                                ? bar.y + bar.height + 14
-                                                : bar.y - 8
-                                        }
-                                        textAnchor="middle"
-                                        className="font-display"
-                                        fontSize={13}
-                                        fill={
-                                            bar.isNegative
-                                                ? 'var(--color-hq-live)'
-                                                : 'var(--color-hq-lime)'
-                                        }
-                                    >
-                                        {bar.points}
-                                    </text>
-                                    <text
-                                        x={bar.cx}
-                                        y={HEIGHT + 14}
-                                        textAnchor="middle"
-                                        className="font-mono"
-                                        fontSize={9}
-                                        fill="var(--color-hq-moss)"
-                                    >
-                                        J{bar.week}
-                                    </text>
-                                </g>
-                            ))}
+                                <text
+                                    x={bar.cx}
+                                    y={bar.isNegative ? bar.y + bar.height + 14 : bar.y - 5}
+                                    textAnchor="middle"
+                                    className="font-display"
+                                    fontSize={13}
+                                    fill={matchPointsColor(bar.points)}
+                                    stroke="var(--color-hq-panel)"
+                                    strokeWidth={3}
+                                    paintOrder="stroke"
+                                >
+                                    {bar.points}
+                                </text>
+                                <text
+                                    x={bar.cx}
+                                    y={JORNADA_LABEL_Y}
+                                    textAnchor="middle"
+                                    className="font-mono"
+                                    fontSize={9}
+                                    fill="var(--color-hq-moss)"
+                                >
+                                    J{bar.week}
+                                </text>
+                            </g>
+                        ))}
+                        {geometry.bars.length === 0 && (
+                            <text
+                                x={width / 2}
+                                y={(POINTS_TOP + POINTS_BOTTOM) / 2}
+                                textAnchor="middle"
+                                className="font-mono"
+                                fontSize={10}
+                                fill="var(--color-hq-moss-dim)"
+                            >
+                                Sin jornadas jugadas en este rango
+                            </text>
+                        )}
 
                         {geometry.bandSegments.map((segment, index) => (
                             <rect
@@ -510,9 +542,9 @@ export function HqPlayerValueChart({
                             <line
                                 key={index}
                                 x1={x}
-                                y1={0}
+                                y1={16}
                                 x2={x}
-                                y2={HEIGHT}
+                                y2={POINTS_BOTTOM}
                                 stroke="var(--color-hq-ember)"
                                 strokeWidth={1}
                                 strokeDasharray="3,3"
@@ -523,9 +555,9 @@ export function HqPlayerValueChart({
                             <g pointerEvents="none">
                                 <line
                                     x1={hoverPoint.x}
-                                    y1={0}
+                                    y1={VALUE_TOP - 8}
                                     x2={hoverPoint.x}
-                                    y2={HEIGHT}
+                                    y2={POINTS_BOTTOM}
                                     stroke="var(--color-hq-paper)"
                                     strokeWidth={1}
                                     opacity={0.35}
@@ -541,45 +573,38 @@ export function HqPlayerValueChart({
                             </g>
                         )}
 
-                        {mode === 'valor' && (
-                            <>
-                                <text
-                                    x={4}
-                                    y={205}
-                                    className="font-mono"
-                                    fontSize={10}
-                                    fill="var(--color-hq-moss)"
-                                >
-                                    {formatDateLabel(visibleHistory[0].date)}
-                                </text>
-                                <text
-                                    x={width - 4}
-                                    y={205}
-                                    textAnchor="end"
-                                    className="font-mono"
-                                    fontSize={10}
-                                    fill="var(--color-hq-moss)"
-                                >
-                                    {formatDateLabel(
-                                        visibleHistory[visibleHistory.length - 1].date,
-                                    )}
-                                </text>
-                            </>
-                        )}
+                        <text
+                            x={4}
+                            y={DATE_Y}
+                            className="font-mono"
+                            fontSize={10}
+                            fill="var(--color-hq-moss)"
+                        >
+                            {formatDateLabel(visibleHistory[0].date)}
+                        </text>
+                        <text
+                            x={width - 4}
+                            y={DATE_Y}
+                            textAnchor="end"
+                            className="font-mono"
+                            fontSize={10}
+                            fill="var(--color-hq-moss)"
+                        >
+                            {formatDateLabel(
+                                visibleHistory[visibleHistory.length - 1].date,
+                            )}
+                        </text>
 
                         <rect
                             x={0}
                             y={0}
                             width={width}
-                            height={190}
+                            height={HIT_HEIGHT}
                             fill="transparent"
                             onMouseMove={(event) => handleMove(event.clientX)}
                             onTouchStart={(event) => handleMove(event.touches[0].clientX)}
                             onTouchMove={(event) => handleMove(event.touches[0].clientX)}
-                            onTouchEnd={() => {
-                                setTooltip(null);
-                                setHoverPoint(null);
-                            }}
+                            onTouchEnd={clearHover}
                         />
                     </svg>
                 )}
@@ -605,7 +630,8 @@ export function HqPlayerValueChart({
             {tooltip &&
                 createPortal(
                     <div
-                        className="pointer-events-none fixed z-[999] -translate-x-1/2 -translate-y-[115%] border border-hq-lime bg-hq-panel-alt px-3 py-2 font-mono text-xs whitespace-nowrap"
+                        ref={tooltipRef}
+                        className="pointer-events-none fixed z-[999] border border-hq-lime bg-hq-panel-alt px-3 py-2 font-mono text-xs whitespace-nowrap"
                         style={{ left: tooltip.x, top: tooltip.y }}
                     >
                         <div className="text-[10px] tracking-wide text-hq-moss uppercase">
@@ -627,16 +653,57 @@ export function HqPlayerValueChart({
                                 {formatCurrency(Math.abs(tooltip.diff))}
                             </div>
                         )}
-                        <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
-                            <span
-                                className="h-2 w-2 shrink-0 rounded-[1px]"
-                                style={{ backgroundColor: tooltip.ownerColor }}
-                            />
-                            {tooltip.ownerName}
-                        </div>
-                        {tooltip.action && (
-                            <div className="mt-0.5 text-[10px] text-hq-moss">
-                                {tooltip.action}
+                        {tooltip.jornada && (
+                            <div className="mt-1.5 border-t border-hq-border-strong pt-1.5">
+                                <div
+                                    className="font-bold tracking-wide"
+                                    style={{
+                                        color: matchPointsColor(tooltip.jornada.points),
+                                    }}
+                                >
+                                    J{tooltip.jornada.week} · {tooltip.jornada.points} PTS
+                                </div>
+                                {tooltip.jornada.managerName !== null && (
+                                    <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
+                                        <span
+                                            className="h-2 w-2 shrink-0 rounded-[1px]"
+                                            style={{
+                                                backgroundColor: tooltip.jornada.managerColor,
+                                            }}
+                                        />
+                                        {tooltip.jornada.managerName}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {(showOwnerRow || tooltip.action) && (
+                            <div
+                                className={cn(
+                                    hasSeparator &&
+                                        'mt-1.5 border-t border-hq-border-strong pt-1.5',
+                                )}
+                            >
+                                {showOwnerRow && (
+                                    <div
+                                        className={cn(
+                                            'flex items-center gap-1.5 text-hq-khaki',
+                                            !hasSeparator && 'mt-1',
+                                        )}
+                                    >
+                                        <span
+                                            className="h-2 w-2 shrink-0 rounded-[1px]"
+                                            style={{ backgroundColor: tooltip.ownerColor }}
+                                        />
+                                        {hasManagerRow && tooltip.ownerId !== null
+                                            ? `Dueño · ${tooltip.ownerName}`
+                                            : tooltip.ownerName}
+                                    </div>
+                                )}
+                                {tooltip.action && (
+                                    <div className="mt-0.5 text-[10px] text-hq-moss">
+                                        {tooltip.action}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>,
