@@ -61,6 +61,15 @@ RUN install-php-extensions \
     opcache \
     zip
 
+# FrankenPHP runs as PID 1 here and doesn't reap orphaned zombie processes
+# (e.g. subprocesses left behind by Laravel's scheduler running every-10-
+# seconds jobs). Over hours those pile up until Docker can no longer exec
+# new processes into the container at all — including its own healthcheck —
+# which Docker then reports as unhealthy and Traefik stops routing to.
+# `tini` as the real PID 1 reaps them. See docs/deploy-coolify.md.
+RUN apt-get update && apt-get install -y --no-install-recommends tini \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY --from=build /app /app
@@ -69,5 +78,5 @@ COPY docker/Caddyfile /etc/caddy/Caddyfile
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]

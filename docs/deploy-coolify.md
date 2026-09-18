@@ -137,6 +137,23 @@ libicu-dev libxml2-dev libzip-dev libreadline-dev libpq-dev libgd-dev
 libjpeg-dev libpng-dev` for the build step) is what got furthest before this
 was abandoned in favor of the Dockerfile.
 
+## Zombie processes and the healthcheck
+
+FrankenPHP runs as PID 1 in the container and does not reap orphaned zombie
+processes — e.g. subprocesses left behind by Laravel's scheduler (the
+every-10-seconds market sync, or the Coolify Scheduled Task's per-minute
+`docker exec ... php artisan schedule:run`, see below). Over several hours
+these accumulate (confirmed via `ps` on a real deploy: hundreds of `[php]
+<defunct>` / `[sh] <defunct>` entries parented to PID 1) until Docker can no
+longer exec **any** new process into the container — including the
+`curl -f http://localhost:2019/metrics` healthcheck Coolify injects
+automatically, which then fails with `OCI runtime exec failed: ... procReady
+not received`. Docker marks the container unhealthy, Traefik stops routing
+to it, and the public site returns "no available server" until the next
+redeploy resets the process table. The `Dockerfile` installs `tini` and uses
+it as the real PID 1 (`ENTRYPOINT ["/usr/bin/tini", "--",
+"/usr/local/bin/entrypoint.sh"]`) specifically to reap these.
+
 ## Known rough edges
 
 **Not build-tested end-to-end.** The Dockerfile/Caddyfile/entrypoint were
