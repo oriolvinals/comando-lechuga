@@ -100,8 +100,8 @@ function statusBadgeTierClass(state: LineupBadgeState): string {
         return 'border-hq-lime text-hq-lime';
     }
 
-    if (state === 'bench' || state === 'not_played_yet') {
-        return 'border-hq-moss-dim text-hq-moss-dim';
+    if (state === 'not_played_yet') {
+        return 'border-hq-azure text-hq-azure';
     }
 
     return 'border-hq-live text-hq-live';
@@ -134,17 +134,19 @@ function StatusBadgeContent({
 }
 
 /**
- * True only while this player is actually out on the pitch (starter or
- * subbed in, never subbed out or benched) AND their team's fixture that
- * week is live right now — same live-state check as the fixture card's own
- * pulse dot, so both use one definition of "live".
+ * True while this player's real-life match is live right now and they're
+ * still in play or available to come on — starter, subbed in, or still on
+ * the bench (never once subbed out) — same live-state check as the fixture
+ * card's own pulse dot, so both use one definition of "live".
  */
 function isPlayerLiveNow(
     entry: ManagerLineupPlayerEntry,
     badgeState: LineupBadgeState,
 ): boolean {
     return (
-        (badgeState === 'starter' || badgeState === 'subbed_in') &&
+        (badgeState === 'starter' ||
+            badgeState === 'subbed_in' ||
+            badgeState === 'bench') &&
         entry.fixture !== null &&
         isLiveFixtureState(entry.fixture.state)
     );
