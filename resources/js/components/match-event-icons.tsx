@@ -70,7 +70,7 @@ export function MatchEventIcons({ stats, position }: MatchEventIconsProps) {
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
             {goals > 0 && (
                 <EventGlyph count={goals} title="Gol">
                     <span className="text-[13px] leading-none">⚽</span>
