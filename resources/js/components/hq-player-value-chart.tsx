@@ -43,13 +43,16 @@ function describeOrigin(
     segment: OwnershipSegment | null,
     dateIso: string,
 ): string | null {
-    // A player sold to the market just reads "Libre" — no sale line under it.
-    if (
-        !segment?.startedBy ||
-        segment.seasonManager === null ||
-        !isSegmentStart(segment, dateIso)
-    ) {
+    if (!segment?.startedBy || !isSegmentStart(segment, dateIso)) {
         return null;
+    }
+
+    // A player sold to the market reads "Libre" with just the price it went
+    // for, no "Venta" label.
+    if (segment.seasonManager === null) {
+        return segment.startedBy.amount === null
+            ? null
+            : formatCurrency(segment.startedBy.amount);
     }
 
     if (segment.startedBy.type === 'joined_league') {
