@@ -387,6 +387,10 @@ export function HqPlayerValueChart({
     // day's owner row is only kept when it adds something (a different owner,
     // or the deal that started their ownership).
     const hasManagerRow = tooltip?.jornada?.managerName != null;
+    // Owner/deal rows get a divider whenever there's something above them to
+    // set apart from: a jornada block, or a purchase/sale that day.
+    const hasSeparator =
+        tooltip !== null && (tooltip.jornada !== null || tooltip.action !== null);
     const showOwnerRow =
         tooltip !== null &&
         (!hasManagerRow ||
@@ -675,7 +679,7 @@ export function HqPlayerValueChart({
                         {(showOwnerRow || tooltip.action) && (
                             <div
                                 className={cn(
-                                    tooltip.jornada &&
+                                    hasSeparator &&
                                         'mt-1.5 border-t border-hq-border-strong pt-1.5',
                                 )}
                             >
@@ -683,7 +687,7 @@ export function HqPlayerValueChart({
                                     <div
                                         className={cn(
                                             'flex items-center gap-1.5 text-hq-khaki',
-                                            !tooltip.jornada && 'mt-1',
+                                            !hasSeparator && 'mt-1',
                                         )}
                                     >
                                         <span
