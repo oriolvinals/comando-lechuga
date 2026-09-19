@@ -976,3 +976,105 @@ test('leaves fantasy_points/fantasy_stats null for an unresolved lineup entry', 
     expect($lineup->fantasy_points)->toBeNull()
         ->and($lineup->fantasy_stats)->toBeNull();
 });
+
+function liveFixtureForMatchDetails(array $attributes = []): Fixture
+{
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+
+    return Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'wc26_id' => 401882926,
+        'date' => now()->subMinutes(30),
+        ...$attributes,
+    ]);
+}
+
+function fakeWorldcup26Event(array $payload): void
+{
+    app()->instance(Worldcup26Connector::class, (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ])));
+}
+
+test('stores the venue, city, attendance and referee from the event', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'attendance' => 13923,
+                    'venue' => ['fullName' => 'Mendizorrotza', 'address' => ['city' => 'Vitoria-Gasteiz']],
+                ],
+            ],
+        ],
+        'gameInfo' => [
+            'officials' => [
+                ['fullName' => 'Manuel Jesús Orellana Cid', 'position' => ['name' => 'Referee']],
+            ],
+        ],
+    ]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->venue)->toBe('Mendizorrotza')
+        ->and($fixture->venue_city)->toBe('Vitoria-Gasteiz')
+        ->and($fixture->attendance)->toBe(13923)
+        ->and($fixture->referee)->toBe('Manuel Jesús Orellana Cid');
+});
+
+test('picks the main referee among the match officials', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload([
+        'gameInfo' => [
+            'officials' => [
+                ['fullName' => 'A. Assistant', 'position' => ['name' => 'Assistant Referee']],
+                ['fullName' => 'M. Main', 'position' => ['name' => 'Referee']],
+            ],
+        ],
+    ]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect($fixture->refresh()->referee)->toBe('M. Main');
+});
+
+test('keeps the stored venue details when a later payload no longer carries them', function (): void {
+    $fixture = liveFixtureForMatchDetails([
+        'venue' => 'Mendizorrotza',
+        'venue_city' => 'Vitoria-Gasteiz',
+        'attendance' => 13923,
+        'referee' => 'Manuel Jesús Orellana Cid',
+    ]);
+
+    fakeWorldcup26Event(liveMatchEventPayload());
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->venue)->toBe('Mendizorrotza')
+        ->and($fixture->venue_city)->toBe('Vitoria-Gasteiz')
+        ->and($fixture->attendance)->toBe(13923)
+        ->and($fixture->referee)->toBe('Manuel Jesús Orellana Cid');
+});
+
+test('leaves the venue details empty when the event never carried them', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload());
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->venue)->toBe('')
+        ->and($fixture->venue_city)->toBe('')
+        ->and($fixture->attendance)->toBeNull()
+        ->and($fixture->referee)->toBe('');
+});

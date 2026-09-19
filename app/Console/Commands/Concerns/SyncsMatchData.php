@@ -148,7 +148,48 @@ trait SyncsMatchData
             'local_alternate_color' => $this->colorFor($competitors, 'home', 'alternateColor'),
             'guest_color' => $this->colorFor($competitors, 'away', 'color'),
             'guest_alternate_color' => $this->colorFor($competitors, 'away', 'alternateColor'),
+            ...$this->matchDetailsFor($fixture, $event, $competition),
         ]);
+    }
+
+    /**
+     * Venue, attendance and referee only exist on the payload once worldcup26
+     * has them, so a sync that finds them missing keeps whatever an earlier
+     * one already stored instead of blanking it.
+     *
+     * @param  array<string, mixed>  $event
+     * @param  array<string, mixed>  $competition
+     * @return array{venue: string, venue_city: string, attendance: int|null, referee: string}
+     */
+    private function matchDetailsFor(Fixture $fixture, array $event, array $competition): array
+    {
+        $venue = is_array($competition['venue'] ?? null) ? $competition['venue'] : [];
+        $venueName = (string) ($venue['fullName'] ?? '');
+        $venueCity = (string) ($venue['address']['city'] ?? '');
+        $referee = $this->refereeName($event);
+
+        return [
+            'venue' => $venueName !== '' ? $venueName : $fixture->venue,
+            'venue_city' => $venueCity !== '' ? $venueCity : $fixture->venue_city,
+            'attendance' => isset($competition['attendance']) ? (int) $competition['attendance'] : $fixture->attendance,
+            'referee' => $referee !== '' ? $referee : $fixture->referee,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function refereeName(array $event): string
+    {
+        $officials = is_array($event['gameInfo']['officials'] ?? null) ? $event['gameInfo']['officials'] : [];
+
+        foreach ($officials as $official) {
+            if (($official['position']['name'] ?? null) === 'Referee') {
+                return (string) ($official['fullName'] ?? '');
+            }
+        }
+
+        return '';
     }
 
     /**

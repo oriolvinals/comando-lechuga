@@ -167,3 +167,21 @@ test('sums fixture_lineups stats into team_stats by team', function (): void {
     $response->assertJsonPath('data.team_stats.1.local', 4);
     $response->assertJsonPath('data.team_stats.1.guest', 9);
 });
+
+test('returns the venue, attendance and referee', function (): void {
+    $fixture = Fixture::factory()->create([
+        'season_id' => Season::factory(),
+        'venue' => 'Mendizorrotza',
+        'venue_city' => 'Vitoria-Gasteiz',
+        'attendance' => 13923,
+        'referee' => 'Manuel Jesús Orellana Cid',
+    ]);
+
+    $response = $this->getJson("/api/fixtures/{$fixture->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.venue', 'Mendizorrotza');
+    $response->assertJsonPath('data.venue_city', 'Vitoria-Gasteiz');
+    $response->assertJsonPath('data.attendance', 13923);
+    $response->assertJsonPath('data.referee', 'Manuel Jesús Orellana Cid');
+});

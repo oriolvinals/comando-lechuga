@@ -71,6 +71,10 @@ export interface Fixture {
     local_alternate_color: string | null;
     guest_color: string | null;
     guest_alternate_color: string | null;
+    venue: string;
+    venue_city: string;
+    attendance: number | null;
+    referee: string;
     local_team: Team;
     guest_team: Team;
 }

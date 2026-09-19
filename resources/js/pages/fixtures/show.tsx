@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqFixtureBench } from '@/components/hq-fixture-bench';
 import { HqFixtureLineupList } from '@/components/hq-fixture-lineup-list';
+import { HqFixtureMatchDetails } from '@/components/hq-fixture-match-details';
 import { HqFixtureRefreshButton } from '@/components/hq-fixture-refresh-button';
 import { HqFixtureTeamStats } from '@/components/hq-fixture-team-stats';
 import { HqFixtureTimeline } from '@/components/hq-fixture-timeline';
@@ -187,9 +188,7 @@ export default function FixtureShow({
     // Stored as an id, not the entry itself, so the modal re-renders with
     // fresh points/stats whenever `lineups` refreshes while it's open — see
     // useLiveFixtureRefresh below.
-    const [selectedEntryId, setSelectedEntryId] = useState<number | null>(
-        null,
-    );
+    const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
     const selectedEntry =
         lineups.find((entry) => entry.id === selectedEntryId) ?? null;
     const isLive = isLiveFixtureState(fixture.state);
@@ -239,131 +238,147 @@ export default function FixtureShow({
 
                     <div
                         className={cn(
-                            'relative flex items-center justify-between gap-2 border bg-gradient-to-br from-hq-panel-alt to-hq-panel px-4 py-4 sm:justify-center sm:gap-7 sm:px-6 sm:py-6',
+                            'relative border bg-gradient-to-br from-hq-panel-alt to-hq-panel',
                             isLive
                                 ? 'border-hq-live'
                                 : 'border-hq-border-strong',
                         )}
                     >
-                        <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
-                            {isLive && (
-                                <HqFixtureRefreshButton
-                                    only={LIVE_REFRESH_PROPS}
-                                />
-                            )}
-                            {fixture.state !== 'scheduled' &&
-                                lineups.length > 0 && (
-                                    <div className="hidden overflow-hidden border border-hq-border-strong bg-hq-panel xl:flex">
-                                        <button
-                                            type="button"
-                                            onClick={() => setViewMode('pitch')}
-                                            aria-label="Vista de campo"
-                                            className={cn(
-                                                'flex h-6 w-7 items-center justify-center transition-colors',
-                                                viewMode === 'pitch'
-                                                    ? 'bg-hq-lime text-hq-ink'
-                                                    : 'text-hq-moss hover:text-hq-paper',
-                                            )}
-                                        >
-                                            <LayoutGrid className="h-3.5 w-3.5" />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setViewMode('list')}
-                                            aria-label="Vista de lista"
-                                            className={cn(
-                                                'flex h-6 w-7 items-center justify-center transition-colors',
-                                                viewMode === 'list'
-                                                    ? 'bg-hq-lime text-hq-ink'
-                                                    : 'text-hq-moss hover:text-hq-paper',
-                                            )}
-                                        >
-                                            <List className="h-3.5 w-3.5" />
-                                        </button>
-                                    </div>
+                        <div className="flex items-center justify-between gap-2 px-4 py-4 sm:justify-center sm:gap-7 sm:px-6 sm:py-6">
+                            <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+                                {isLive && (
+                                    <HqFixtureRefreshButton
+                                        only={LIVE_REFRESH_PROPS}
+                                    />
                                 )}
-                        </div>
-                        <Link
-                            href={teamsShow(fixture.local_team.id).url}
-                            className="flex w-20 min-w-0 flex-col items-center gap-1.5 transition-[filter] hover:brightness-125 sm:w-36 sm:gap-2"
-                        >
-                            <EntityImage
-                                src={fixture.local_team.logo}
-                                alt={fixture.local_team.main_name}
-                                fallback={Shield}
-                                shape="square"
-                                className="h-9 w-9 bg-transparent sm:h-14 sm:w-14"
-                            />
-                            <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
-                                {fixture.local_team.main_name}
-                            </span>
-                            <TeamColorSwatch
-                                color={fixture.local_color}
-                                alternateColor={fixture.local_alternate_color}
-                            />
-                        </Link>
-                        <div className="shrink-0 text-center">
-                            <p className="mb-1 font-mono text-[9px] tracking-widest text-hq-moss uppercase sm:mb-1.5 sm:text-[10px]">
-                                Jornada {fixture.week_number}
-                            </p>
-                            <div className="font-display text-2xl whitespace-nowrap text-hq-paper sm:text-4xl">
-                                {hasScore
-                                    ? `${fixture.local_score} – ${fixture.guest_score}`
-                                    : 'VS'}
+                                {fixture.state !== 'scheduled' &&
+                                    lineups.length > 0 && (
+                                        <div className="hidden overflow-hidden border border-hq-border-strong bg-hq-panel xl:flex">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setViewMode('pitch')
+                                                }
+                                                aria-label="Vista de campo"
+                                                className={cn(
+                                                    'flex h-6 w-7 items-center justify-center transition-colors',
+                                                    viewMode === 'pitch'
+                                                        ? 'bg-hq-lime text-hq-ink'
+                                                        : 'text-hq-moss hover:text-hq-paper',
+                                                )}
+                                            >
+                                                <LayoutGrid className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setViewMode('list')
+                                                }
+                                                aria-label="Vista de lista"
+                                                className={cn(
+                                                    'flex h-6 w-7 items-center justify-center transition-colors',
+                                                    viewMode === 'list'
+                                                        ? 'bg-hq-lime text-hq-ink'
+                                                        : 'text-hq-moss hover:text-hq-paper',
+                                                )}
+                                            >
+                                                <List className="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    )}
                             </div>
-                            <div className="mt-1 sm:mt-1.5">
-                                <p
-                                    className={cn(
-                                        'flex items-center justify-center gap-1.5 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:text-[10px]',
-                                        isLive && 'text-hq-live',
-                                        startsSoon && 'font-bold text-hq-gold',
-                                        !isLive &&
-                                            !startsSoon &&
-                                            'text-hq-lime',
-                                    )}
-                                >
-                                    {isLive && (
-                                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
-                                    )}
-                                    {isScheduled
-                                        ? startsSoon
-                                            ? countdown
-                                            : formatMatchDateTime(fixture.date)
-                                        : FIXTURE_STATE_LABELS[fixture.state]}
+                            <Link
+                                href={teamsShow(fixture.local_team.id).url}
+                                className="flex w-20 min-w-0 flex-col items-center gap-1.5 transition-[filter] hover:brightness-125 sm:w-36 sm:gap-2"
+                            >
+                                <EntityImage
+                                    src={fixture.local_team.logo}
+                                    alt={fixture.local_team.main_name}
+                                    fallback={Shield}
+                                    shape="square"
+                                    className="h-9 w-9 bg-transparent sm:h-14 sm:w-14"
+                                />
+                                <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
+                                    {fixture.local_team.main_name}
+                                </span>
+                                <TeamColorSwatch
+                                    color={fixture.local_color}
+                                    alternateColor={
+                                        fixture.local_alternate_color
+                                    }
+                                />
+                            </Link>
+                            <div className="shrink-0 text-center">
+                                <p className="mb-1 font-mono text-[9px] tracking-widest text-hq-moss uppercase sm:mb-1.5 sm:text-[10px]">
+                                    Jornada {fixture.week_number}
                                 </p>
-                                {fixtureSecondaryText && (
+                                <div className="font-display text-2xl whitespace-nowrap text-hq-paper sm:text-4xl">
+                                    {hasScore
+                                        ? `${fixture.local_score} – ${fixture.guest_score}`
+                                        : 'VS'}
+                                </div>
+                                <div className="mt-1 sm:mt-1.5">
                                     <p
                                         className={cn(
-                                            'mt-1 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:text-[9px]',
-                                            isLive
-                                                ? 'text-hq-live'
-                                                : 'text-hq-moss-dim',
+                                            'flex items-center justify-center gap-1.5 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:text-[10px]',
+                                            isLive && 'text-hq-live',
+                                            startsSoon &&
+                                                'font-bold text-hq-gold',
+                                            !isLive &&
+                                                !startsSoon &&
+                                                'text-hq-lime',
                                         )}
                                     >
-                                        {fixtureSecondaryText}
+                                        {isLive && (
+                                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
+                                        )}
+                                        {isScheduled
+                                            ? startsSoon
+                                                ? countdown
+                                                : formatMatchDateTime(
+                                                      fixture.date,
+                                                  )
+                                            : FIXTURE_STATE_LABELS[
+                                                  fixture.state
+                                              ]}
                                     </p>
-                                )}
+                                    {fixtureSecondaryText && (
+                                        <p
+                                            className={cn(
+                                                'mt-1 font-mono text-[8px] tracking-widest whitespace-nowrap uppercase sm:text-[9px]',
+                                                isLive
+                                                    ? 'text-hq-live'
+                                                    : 'text-hq-moss-dim',
+                                            )}
+                                        >
+                                            {fixtureSecondaryText}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
+                            <Link
+                                href={teamsShow(fixture.guest_team.id).url}
+                                className="flex w-20 min-w-0 flex-col items-center gap-1.5 transition-[filter] hover:brightness-125 sm:w-36 sm:gap-2"
+                            >
+                                <EntityImage
+                                    src={fixture.guest_team.logo}
+                                    alt={fixture.guest_team.main_name}
+                                    fallback={Shield}
+                                    shape="square"
+                                    className="h-9 w-9 bg-transparent sm:h-14 sm:w-14"
+                                />
+                                <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
+                                    {fixture.guest_team.main_name}
+                                </span>
+                                <TeamColorSwatch
+                                    color={fixture.guest_color}
+                                    alternateColor={
+                                        fixture.guest_alternate_color
+                                    }
+                                />
+                            </Link>
                         </div>
-                        <Link
-                            href={teamsShow(fixture.guest_team.id).url}
-                            className="flex w-20 min-w-0 flex-col items-center gap-1.5 transition-[filter] hover:brightness-125 sm:w-36 sm:gap-2"
-                        >
-                            <EntityImage
-                                src={fixture.guest_team.logo}
-                                alt={fixture.guest_team.main_name}
-                                fallback={Shield}
-                                shape="square"
-                                className="h-9 w-9 bg-transparent sm:h-14 sm:w-14"
-                            />
-                            <span className="text-center font-display text-[10px] text-hq-paper uppercase sm:text-sm">
-                                {fixture.guest_team.main_name}
-                            </span>
-                            <TeamColorSwatch
-                                color={fixture.guest_color}
-                                alternateColor={fixture.guest_alternate_color}
-                            />
-                        </Link>
+                        <HqFixtureMatchDetails fixture={fixture} />
                     </div>
 
                     {fixture.state === 'scheduled' || lineups.length === 0 ? (
