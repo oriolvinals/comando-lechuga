@@ -54,15 +54,9 @@ export function HqFixtureBench({ lineups, localTeam, guestTeam, onSelect }: HqFi
 
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <div className={cn(selectedTeamId === localTeam.id ? 'block' : 'hidden', 'sm:block')}>
-                    <p className="mb-1.5 hidden font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase sm:block">
-                        {localTeam.main_name}
-                    </p>
                     <BenchColumn entries={bench.filter((entry) => entry.team_id === localTeam.id)} onSelect={onSelect} />
                 </div>
                 <div className={cn(selectedTeamId === guestTeam.id ? 'block' : 'hidden', 'sm:block')}>
-                    <p className="mb-1.5 hidden font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase sm:block">
-                        {guestTeam.main_name}
-                    </p>
                     <BenchColumn entries={bench.filter((entry) => entry.team_id === guestTeam.id)} onSelect={onSelect} />
                 </div>
             </div>
