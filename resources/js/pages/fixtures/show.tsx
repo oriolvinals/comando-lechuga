@@ -178,8 +178,14 @@ export default function FixtureShow({
         setViewModeState(mode);
         setStoredFixtureViewMode(mode);
     };
-    const [selectedEntry, setSelectedEntry] =
-        useState<FixtureLineupEntry | null>(null);
+    // Stored as an id, not the entry itself, so the modal re-renders with
+    // fresh points/stats whenever `lineups` refreshes while it's open — see
+    // useLiveFixtureRefresh below.
+    const [selectedEntryId, setSelectedEntryId] = useState<number | null>(
+        null,
+    );
+    const selectedEntry =
+        lineups.find((entry) => entry.id === selectedEntryId) ?? null;
     const isLive = isLiveFixtureState(fixture.state);
     const hasScore = isLive || fixture.state === 'finished';
     const isScheduled = fixture.state === 'scheduled';
@@ -200,7 +206,7 @@ export default function FixtureShow({
 
     const handleSelectLineupEntry = (entry: FixtureLineupEntry) => {
         if (entry.player) {
-            setSelectedEntry(entry);
+            setSelectedEntryId(entry.id);
         }
     };
 
@@ -475,7 +481,7 @@ export default function FixtureShow({
                           } satisfies HqPlayerStatsEntry)
                         : null
                 }
-                onClose={() => setSelectedEntry(null)}
+                onClose={() => setSelectedEntryId(null)}
             />
         </>
     );
