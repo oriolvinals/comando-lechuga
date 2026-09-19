@@ -148,7 +148,95 @@ trait SyncsMatchData
             'local_alternate_color' => $this->colorFor($competitors, 'home', 'alternateColor'),
             'guest_color' => $this->colorFor($competitors, 'away', 'color'),
             'guest_alternate_color' => $this->colorFor($competitors, 'away', 'alternateColor'),
+            ...$this->matchDetailsFor($fixture, $event, $competition),
+            ...$this->boxscoreStatsFor($fixture, $event),
         ]);
+    }
+
+    /**
+     * Venue, attendance and referee only exist on the payload once worldcup26
+     * has them, so a sync that finds them missing keeps whatever an earlier
+     * one already stored instead of blanking it.
+     *
+     * @param  array<string, mixed>  $event
+     * @param  array<string, mixed>  $competition
+     * @return array{venue: string, venue_city: string, attendance: int|null, referee: string}
+     */
+    private function matchDetailsFor(Fixture $fixture, array $event, array $competition): array
+    {
+        $venue = is_array($competition['venue'] ?? null) ? $competition['venue'] : [];
+        $venueName = (string) ($venue['fullName'] ?? '');
+        $venueCity = (string) ($venue['address']['city'] ?? '');
+        $referee = $this->refereeName($event);
+
+        return [
+            'venue' => $venueName !== '' ? $venueName : $fixture->venue,
+            'venue_city' => $venueCity !== '' ? $venueCity : $fixture->venue_city,
+            'attendance' => isset($competition['attendance']) ? (int) $competition['attendance'] : $fixture->attendance,
+            'referee' => $referee !== '' ? $referee : $fixture->referee,
+        ];
+    }
+
+    /**
+     * The boxscore only reports the stats worldcup26 tracks at team level;
+     * like the venue details, a sync that finds it missing keeps what an
+     * earlier one already stored.
+     *
+     * @param  array<string, mixed>  $event
+     * @return array{local_possession: float|null, guest_possession: float|null, local_corners: int|null, guest_corners: int|null, local_key_passes: int|null, guest_key_passes: int|null}
+     */
+    private function boxscoreStatsFor(Fixture $fixture, array $event): array
+    {
+        $int = fn (?float $value, ?int $current): ?int => $value === null ? $current : (int) $value;
+
+        return [
+            'local_possession' => $this->boxscoreStat($event, 'home', 'possessionPct') ?? $fixture->local_possession,
+            'guest_possession' => $this->boxscoreStat($event, 'away', 'possessionPct') ?? $fixture->guest_possession,
+            'local_corners' => $int($this->boxscoreStat($event, 'home', 'wonCorners'), $fixture->local_corners),
+            'guest_corners' => $int($this->boxscoreStat($event, 'away', 'wonCorners'), $fixture->guest_corners),
+            'local_key_passes' => $int($this->boxscoreStat($event, 'home', 'shotAssists'), $fixture->local_key_passes),
+            'guest_key_passes' => $int($this->boxscoreStat($event, 'away', 'shotAssists'), $fixture->guest_key_passes),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function boxscoreStat(array $event, string $homeAway, string $name): ?float
+    {
+        $teams = is_array($event['boxscore']['teams'] ?? null) ? $event['boxscore']['teams'] : [];
+
+        foreach ($teams as $team) {
+            if (($team['homeAway'] ?? null) !== $homeAway) {
+                continue;
+            }
+
+            foreach (is_array($team['statistics'] ?? null) ? $team['statistics'] : [] as $stat) {
+                $value = $stat['displayValue'] ?? null;
+
+                if (($stat['name'] ?? null) === $name && is_numeric($value)) {
+                    return (float) $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function refereeName(array $event): string
+    {
+        $officials = is_array($event['gameInfo']['officials'] ?? null) ? $event['gameInfo']['officials'] : [];
+
+        foreach ($officials as $official) {
+            if (($official['position']['name'] ?? null) === 'Referee') {
+                return (string) ($official['fullName'] ?? '');
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -384,6 +472,62 @@ trait SyncsMatchData
                 'minute' => $this->minuteFromClock((string) ($keyEvent['clock']['displayValue'] ?? '')) ?? 0,
                 'is_own_goal' => (bool) ($keyEvent['ownGoal'] ?? $typeSlug === 'own-goal'),
                 'is_penalty' => (bool) ($keyEvent['penaltyKick'] ?? str_contains($typeSlug, 'penalty')),
+            ]);
+        }
+
+        $this->syncVarDecisions($fixture, $event);
+    }
+
+    /**
+     * VAR reviews aren't part of keyEvents — worldcup26 only reports them in
+     * the play-by-play commentary, naming the team by display name rather
+     * than id, so it's resolved through the match's own competitors.
+     *
+     * @param  array<string, mixed>  $event
+     */
+    private function syncVarDecisions(Fixture $fixture, array $event): void
+    {
+        $commentary = is_array($event['commentary'] ?? null) ? $event['commentary'] : [];
+        $competitors = is_array($event['header']['competitions'][0]['competitors'] ?? null) ? $event['header']['competitions'][0]['competitors'] : [];
+        $teamWc26IdsByName = [];
+
+        foreach ($competitors as $competitor) {
+            if (isset($competitor['team']['displayName'], $competitor['team']['id'])) {
+                $teamWc26IdsByName[(string) $competitor['team']['displayName']] = (int) $competitor['team']['id'];
+            }
+        }
+
+        foreach ($commentary as $entry) {
+            $play = is_array($entry['play'] ?? null) ? $entry['play'] : [];
+
+            if (!str_starts_with((string) ($play['type']['text'] ?? ''), 'VAR')) {
+                continue;
+            }
+
+            $teamName = (string) ($play['team']['displayName'] ?? '');
+            $team = isset($teamWc26IdsByName[$teamName])
+                ? Team::query()->where('wc26_id', $teamWc26IdsByName[$teamName])->first()
+                : null;
+
+            if ($team === null) {
+                Log::warning("Unmapped worldcup26 team \"{$teamName}\" for a VAR decision in fixture {$fixture->id}: dropping event");
+
+                continue;
+            }
+
+            $athleteName = $play['participants'][0]['athlete']['displayName'] ?? null;
+
+            FixtureEvent::query()->create([
+                'fixture_id' => $fixture->id,
+                'team_id' => $team->id,
+                'player_id' => null,
+                'wc26_id' => null,
+                'unresolved_name' => $athleteName !== null ? (string) $athleteName : null,
+                'type' => 'var',
+                'minute' => $this->minuteFromClock((string) ($entry['time']['displayValue'] ?? '')) ?? 0,
+                'is_own_goal' => false,
+                'is_penalty' => false,
+                'detail' => (string) ($play['text'] ?? $entry['text'] ?? ''),
             ]);
         }
     }

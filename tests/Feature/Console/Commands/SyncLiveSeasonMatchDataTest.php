@@ -976,3 +976,256 @@ test('leaves fantasy_points/fantasy_stats null for an unresolved lineup entry', 
     expect($lineup->fantasy_points)->toBeNull()
         ->and($lineup->fantasy_stats)->toBeNull();
 });
+
+function liveFixtureForMatchDetails(array $attributes = []): Fixture
+{
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+
+    return Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'wc26_id' => 401882926,
+        'date' => now()->subMinutes(30),
+        ...$attributes,
+    ]);
+}
+
+function fakeWorldcup26Event(array $payload): void
+{
+    app()->instance(Worldcup26Connector::class, (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ])));
+}
+
+test('stores the venue, city, attendance and referee from the event', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'attendance' => 13923,
+                    'venue' => ['fullName' => 'Mendizorrotza', 'address' => ['city' => 'Vitoria-Gasteiz']],
+                ],
+            ],
+        ],
+        'gameInfo' => [
+            'officials' => [
+                ['fullName' => 'Manuel Jesús Orellana Cid', 'position' => ['name' => 'Referee']],
+            ],
+        ],
+    ]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->venue)->toBe('Mendizorrotza')
+        ->and($fixture->venue_city)->toBe('Vitoria-Gasteiz')
+        ->and($fixture->attendance)->toBe(13923)
+        ->and($fixture->referee)->toBe('Manuel Jesús Orellana Cid');
+});
+
+test('picks the main referee among the match officials', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload([
+        'gameInfo' => [
+            'officials' => [
+                ['fullName' => 'A. Assistant', 'position' => ['name' => 'Assistant Referee']],
+                ['fullName' => 'M. Main', 'position' => ['name' => 'Referee']],
+            ],
+        ],
+    ]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect($fixture->refresh()->referee)->toBe('M. Main');
+});
+
+test('keeps the stored venue details when a later payload no longer carries them', function (): void {
+    $fixture = liveFixtureForMatchDetails([
+        'venue' => 'Mendizorrotza',
+        'venue_city' => 'Vitoria-Gasteiz',
+        'attendance' => 13923,
+        'referee' => 'Manuel Jesús Orellana Cid',
+    ]);
+
+    fakeWorldcup26Event(liveMatchEventPayload());
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->venue)->toBe('Mendizorrotza')
+        ->and($fixture->venue_city)->toBe('Vitoria-Gasteiz')
+        ->and($fixture->attendance)->toBe(13923)
+        ->and($fixture->referee)->toBe('Manuel Jesús Orellana Cid');
+});
+
+test('leaves the venue details empty when the event never carried them', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload());
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->venue)->toBe('')
+        ->and($fixture->venue_city)->toBe('')
+        ->and($fixture->attendance)->toBeNull()
+        ->and($fixture->referee)->toBe('');
+});
+
+test('stores possession, corners and key passes for each side from the boxscore', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload([
+        'boxscore' => [
+            'teams' => [
+                ['homeAway' => 'home', 'statistics' => [
+                    ['name' => 'possessionPct', 'displayValue' => '51.8'],
+                    ['name' => 'wonCorners', 'displayValue' => '5'],
+                    ['name' => 'shotAssists', 'displayValue' => '12'],
+                ]],
+                ['homeAway' => 'away', 'statistics' => [
+                    ['name' => 'possessionPct', 'displayValue' => '48.2'],
+                    ['name' => 'wonCorners', 'displayValue' => '3'],
+                    ['name' => 'shotAssists', 'displayValue' => '3'],
+                ]],
+            ],
+        ],
+    ]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->local_possession)->toBe(51.8)
+        ->and($fixture->guest_possession)->toBe(48.2)
+        ->and($fixture->local_corners)->toBe(5)
+        ->and($fixture->guest_corners)->toBe(3)
+        ->and($fixture->local_key_passes)->toBe(12)
+        ->and($fixture->guest_key_passes)->toBe(3);
+});
+
+test('keeps the stored boxscore stats when a later payload has no boxscore', function (): void {
+    $fixture = liveFixtureForMatchDetails([
+        'local_possession' => 51.8,
+        'guest_possession' => 48.2,
+        'local_corners' => 5,
+        'guest_corners' => 3,
+        'local_key_passes' => 12,
+        'guest_key_passes' => 3,
+    ]);
+
+    fakeWorldcup26Event(liveMatchEventPayload());
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->local_possession)->toBe(51.8)
+        ->and($fixture->guest_corners)->toBe(3)
+        ->and($fixture->local_key_passes)->toBe(12);
+});
+
+test('leaves the boxscore stats null when the event never carried a boxscore', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload());
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->local_possession)->toBeNull()
+        ->and($fixture->guest_corners)->toBeNull()
+        ->and($fixture->local_key_passes)->toBeNull();
+});
+
+function varCommentaryPlay(string $text = 'VAR Decision: Card upgraded Kiko Femenía (Getafe).', string $teamName = 'Getafe', string $minute = "41'"): array
+{
+    return [
+        'sequence' => 40,
+        'time' => ['displayValue' => $minute],
+        'text' => $text,
+        'play' => [
+            'type' => ['text' => 'VAR - Referee decision cancelled'],
+            'text' => $text,
+            'team' => ['displayName' => $teamName],
+            'participants' => [['athlete' => ['displayName' => 'Kiko Femenía']]],
+        ],
+    ];
+}
+
+function varMatchEventPayload(array $commentary): array
+{
+    return liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'competitors' => [
+                        ['homeAway' => 'home', 'team' => ['id' => 83, 'displayName' => 'Alavés']],
+                        ['homeAway' => 'away', 'team' => ['id' => 86, 'displayName' => 'Getafe']],
+                    ],
+                ],
+            ],
+        ],
+        'commentary' => $commentary,
+    ]);
+}
+
+test('stores a VAR decision from the commentary as a var event for the team it names', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(varMatchEventPayload([varCommentaryPlay()]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $event = FixtureEvent::query()->where('fixture_id', $fixture->id)->sole();
+    expect($event->type)->toBe('var')
+        ->and($event->team_id)->toBe($fixture->team_guest_id)
+        ->and($event->minute)->toBe(41)
+        ->and($event->player_id)->toBeNull()
+        ->and($event->unresolved_name)->toBe('Kiko Femenía')
+        ->and($event->detail)->toBe('VAR Decision: Card upgraded Kiko Femenía (Getafe).');
+});
+
+test('ignores commentary plays that are not VAR decisions', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(varMatchEventPayload([
+        [
+            'sequence' => 2,
+            'time' => ['displayValue' => "1'"],
+            'text' => 'Foul by Mario Martín (Getafe).',
+            'play' => ['type' => ['text' => 'Foul'], 'team' => ['displayName' => 'Getafe'], 'participants' => []],
+        ],
+        ['sequence' => 0, 'time' => ['displayValue' => ''], 'text' => 'Lineups are announced and players are warming up.'],
+    ]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->count())->toBe(0);
+});
+
+test('does not duplicate VAR events across repeated syncs', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(varMatchEventPayload([varCommentaryPlay()]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->where('type', 'var')->count())->toBe(1);
+});
+
+test('drops a VAR decision whose team cannot be matched to the fixture', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(varMatchEventPayload([varCommentaryPlay(teamName: 'Nobody FC')]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->count())->toBe(0);
+});

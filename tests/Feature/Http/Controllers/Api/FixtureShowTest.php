@@ -167,3 +167,54 @@ test('sums fixture_lineups stats into team_stats by team', function (): void {
     $response->assertJsonPath('data.team_stats.1.local', 4);
     $response->assertJsonPath('data.team_stats.1.guest', 9);
 });
+
+test('returns the venue, attendance and referee', function (): void {
+    $fixture = Fixture::factory()->create([
+        'season_id' => Season::factory(),
+        'venue' => 'Mendizorrotza',
+        'venue_city' => 'Vitoria-Gasteiz',
+        'attendance' => 13923,
+        'referee' => 'Manuel Jesús Orellana Cid',
+    ]);
+
+    $response = $this->getJson("/api/fixtures/{$fixture->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.venue', 'Mendizorrotza');
+    $response->assertJsonPath('data.venue_city', 'Vitoria-Gasteiz');
+    $response->assertJsonPath('data.attendance', 13923);
+    $response->assertJsonPath('data.referee', 'Manuel Jesús Orellana Cid');
+});
+
+test('returns the possession, corners and key passes of each side', function (): void {
+    $fixture = Fixture::factory()->create([
+        'season_id' => Season::factory(),
+        'local_possession' => 51.8,
+        'guest_possession' => 48.2,
+        'local_corners' => 5,
+        'guest_corners' => 3,
+        'local_key_passes' => 12,
+        'guest_key_passes' => 4,
+    ]);
+
+    $response = $this->getJson("/api/fixtures/{$fixture->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.local_possession', 51.8);
+    $response->assertJsonPath('data.guest_possession', 48.2);
+    $response->assertJsonPath('data.team_stats.2.stat', 'wonCorners');
+    $response->assertJsonPath('data.team_stats.2.local', 5);
+    $response->assertJsonPath('data.team_stats.3.stat', 'keyPasses');
+    $response->assertJsonPath('data.team_stats.3.guest', 4);
+});
+
+test('returns the VAR decision label on a var event', function (): void {
+    $fixture = Fixture::factory()->create(['season_id' => Season::factory()]);
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->guestTeam->id, 'type' => 'var', 'minute' => 41, 'detail' => 'VAR Decision: Card upgraded Kiko Femenía (Getafe).']);
+
+    $response = $this->getJson("/api/fixtures/{$fixture->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.events.0.type', 'var');
+    $response->assertJsonPath('data.events.0.label', 'Tarjeta ascendida');
+});

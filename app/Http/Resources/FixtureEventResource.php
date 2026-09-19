@@ -28,6 +28,7 @@ class FixtureEventResource extends JsonResource
             'unresolved_name' => $this->unresolved_name,
             'is_own_goal' => $this->is_own_goal,
             'is_penalty' => $this->is_penalty,
+            'label' => $this->varDecisionLabel(),
         ];
     }
 }

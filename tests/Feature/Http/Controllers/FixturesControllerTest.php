@@ -801,3 +801,121 @@ test('does not resolve lineup_manager for a ManagerLineupPlayer whose fixture_id
         ->where('lineups.0.lineup_manager', null)
     );
 });
+
+test('lists corners and key passes from the fixture between the shots and the fouls', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'local_corners' => 5,
+        'guest_corners' => 3,
+        'local_key_passes' => 12,
+        'guest_key_passes' => 4,
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('team_stats', fn ($stats): bool => collect($stats)->pluck('label')->all() === [
+            'Tiros a puerta',
+            'Tiros totales',
+            'Córners',
+            'Pases clave',
+            'Faltas cometidas',
+            'Fueras de juego',
+            'Paradas',
+            'Asistencias',
+            'Tarjetas amarillas',
+            'Tarjetas rojas',
+        ])
+        ->where('team_stats.2.local', 5)
+        ->where('team_stats.2.guest', 3)
+        ->where('team_stats.3.local', 12)
+        ->where('team_stats.3.guest', 4)
+    );
+});
+
+test('omits corners and key passes while the fixture has no boxscore data', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('team_stats', fn ($stats): bool => !collect($stats)->pluck('label')->contains('Córners')
+            && !collect($stats)->pluck('label')->contains('Pases clave'))
+    );
+});
+
+test('sums offsides and red cards from the lineup stats into team_stats', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $fixture->localTeam->id]),
+        'team_id' => $fixture->localTeam->id,
+        'stats' => [['name' => 'offsides', 'value' => 3]],
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $fixture->guestTeam->id]),
+        'team_id' => $fixture->guestTeam->id,
+        'stats' => [['name' => 'redCards', 'value' => 1]],
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('team_stats', function ($stats): bool {
+            $byStat = collect($stats)->keyBy('stat');
+
+            return $byStat['offsides']['label'] === 'Fueras de juego'
+                && $byStat['offsides']['local'] === 3
+                && $byStat['offsides']['guest'] === 0
+                && $byStat['redCards']['label'] === 'Tarjetas rojas'
+                && $byStat['redCards']['local'] === 0
+                && $byStat['redCards']['guest'] === 1;
+        })
+    );
+});
+
+test('exposes the possession of each side on the fixture', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'local_possession' => 51.8,
+        'guest_possession' => 48.2,
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('fixture.local_possession', 51.8)
+        ->where('fixture.guest_possession', 48.2)
+    );
+});
+
+test('labels a VAR event by the decision it records, defaulting to a generic label', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->guestTeam->id, 'type' => 'var', 'minute' => 41, 'unresolved_name' => 'Kiko Femenía', 'detail' => 'VAR Decision: Card upgraded Kiko Femenía (Getafe).']);
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->localTeam->id, 'type' => 'var', 'minute' => 60, 'detail' => 'VAR Decision: something unforeseen.']);
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->localTeam->id, 'type' => 'goal', 'minute' => 73]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('events.0.type', 'var')
+        ->where('events.0.label', 'Tarjeta ascendida')
+        ->where('events.0.unresolved_name', 'Kiko Femenía')
+        ->where('events.1.label', 'Decisión del VAR')
+        ->where('events.2.type', 'goal')
+        ->where('events.2.label', null)
+    );
+});

@@ -15,9 +15,11 @@ trait SummarizesFixtureStats
         'shotsOnTarget' => 'Tiros a puerta',
         'totalShots' => 'Tiros totales',
         'foulsCommitted' => 'Faltas cometidas',
+        'offsides' => 'Fueras de juego',
         'saves' => 'Paradas',
         'goalAssists' => 'Asistencias',
         'yellowCards' => 'Tarjetas amarillas',
+        'redCards' => 'Tarjetas rojas',
     ];
 
     /**
@@ -73,15 +75,45 @@ trait SummarizesFixtureStats
      */
     private function teamStats(Collection $fixtureLineups, Fixture $fixture): array
     {
-        return array_values(collect(self::$teamStatLabels)
-            ->map(function (string $label, string $key) use ($fixtureLineups, $fixture): array {
-                $local = $fixtureLineups->where('team_id', $fixture->team_local_id)
-                    ->sum(fn (FixtureLineup $lineup): int => $this->statValue($lineup->stats, $key));
-                $guest = $fixtureLineups->where('team_id', $fixture->team_guest_id)
-                    ->sum(fn (FixtureLineup $lineup): int => $this->statValue($lineup->stats, $key));
+        $rows = [];
 
-                return ['stat' => $key, 'label' => $label, 'local' => $local, 'guest' => $guest];
-            })
-            ->all());
+        foreach (self::$teamStatLabels as $key => $label) {
+            $rows[] = [
+                'stat' => $key,
+                'label' => $label,
+                'local' => $fixtureLineups->where('team_id', $fixture->team_local_id)
+                    ->sum(fn (FixtureLineup $lineup): int => $this->statValue($lineup->stats, $key)),
+                'guest' => $fixtureLineups->where('team_id', $fixture->team_guest_id)
+                    ->sum(fn (FixtureLineup $lineup): int => $this->statValue($lineup->stats, $key)),
+            ];
+
+            if ($key === 'totalShots') {
+                array_push($rows, ...$this->boxscoreTeamStats($fixture));
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Corners and key passes only come from worldcup26's team-level boxscore,
+     * not from any player's stats, so they're skipped while the fixture hasn't
+     * had one synced yet.
+     *
+     * @return list<array{stat: string, label: string, local: int, guest: int}>
+     */
+    private function boxscoreTeamStats(Fixture $fixture): array
+    {
+        $rows = [];
+
+        if ($fixture->local_corners !== null && $fixture->guest_corners !== null) {
+            $rows[] = ['stat' => 'wonCorners', 'label' => 'Córners', 'local' => $fixture->local_corners, 'guest' => $fixture->guest_corners];
+        }
+
+        if ($fixture->local_key_passes !== null && $fixture->guest_key_passes !== null) {
+            $rows[] = ['stat' => 'keyPasses', 'label' => 'Pases clave', 'local' => $fixture->local_key_passes, 'guest' => $fixture->guest_key_passes];
+        }
+
+        return $rows;
     }
 }
