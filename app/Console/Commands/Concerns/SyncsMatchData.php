@@ -474,6 +474,62 @@ trait SyncsMatchData
                 'is_penalty' => (bool) ($keyEvent['penaltyKick'] ?? str_contains($typeSlug, 'penalty')),
             ]);
         }
+
+        $this->syncVarDecisions($fixture, $event);
+    }
+
+    /**
+     * VAR reviews aren't part of keyEvents — worldcup26 only reports them in
+     * the play-by-play commentary, naming the team by display name rather
+     * than id, so it's resolved through the match's own competitors.
+     *
+     * @param  array<string, mixed>  $event
+     */
+    private function syncVarDecisions(Fixture $fixture, array $event): void
+    {
+        $commentary = is_array($event['commentary'] ?? null) ? $event['commentary'] : [];
+        $competitors = is_array($event['header']['competitions'][0]['competitors'] ?? null) ? $event['header']['competitions'][0]['competitors'] : [];
+        $teamWc26IdsByName = [];
+
+        foreach ($competitors as $competitor) {
+            if (isset($competitor['team']['displayName'], $competitor['team']['id'])) {
+                $teamWc26IdsByName[(string) $competitor['team']['displayName']] = (int) $competitor['team']['id'];
+            }
+        }
+
+        foreach ($commentary as $entry) {
+            $play = is_array($entry['play'] ?? null) ? $entry['play'] : [];
+
+            if (!str_starts_with((string) ($play['type']['text'] ?? ''), 'VAR')) {
+                continue;
+            }
+
+            $teamName = (string) ($play['team']['displayName'] ?? '');
+            $team = isset($teamWc26IdsByName[$teamName])
+                ? Team::query()->where('wc26_id', $teamWc26IdsByName[$teamName])->first()
+                : null;
+
+            if ($team === null) {
+                Log::warning("Unmapped worldcup26 team \"{$teamName}\" for a VAR decision in fixture {$fixture->id}: dropping event");
+
+                continue;
+            }
+
+            $athleteName = $play['participants'][0]['athlete']['displayName'] ?? null;
+
+            FixtureEvent::query()->create([
+                'fixture_id' => $fixture->id,
+                'team_id' => $team->id,
+                'player_id' => null,
+                'wc26_id' => null,
+                'unresolved_name' => $athleteName !== null ? (string) $athleteName : null,
+                'type' => 'var',
+                'minute' => $this->minuteFromClock((string) ($entry['time']['displayValue'] ?? '')) ?? 0,
+                'is_own_goal' => false,
+                'is_penalty' => false,
+                'detail' => (string) ($play['text'] ?? $entry['text'] ?? ''),
+            ]);
+        }
     }
 
     /**

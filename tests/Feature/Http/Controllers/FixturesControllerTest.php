@@ -898,3 +898,24 @@ test('exposes the possession of each side on the fixture', function (): void {
         ->where('fixture.guest_possession', 48.2)
     );
 });
+
+test('labels a VAR event by the decision it records, defaulting to a generic label', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->guestTeam->id, 'type' => 'var', 'minute' => 41, 'unresolved_name' => 'Kiko Femenía', 'detail' => 'VAR Decision: Card upgraded Kiko Femenía (Getafe).']);
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->localTeam->id, 'type' => 'var', 'minute' => 60, 'detail' => 'VAR Decision: something unforeseen.']);
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->localTeam->id, 'type' => 'goal', 'minute' => 73]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('events.0.type', 'var')
+        ->where('events.0.label', 'Tarjeta ascendida')
+        ->where('events.0.unresolved_name', 'Kiko Femenía')
+        ->where('events.1.label', 'Decisión del VAR')
+        ->where('events.2.type', 'goal')
+        ->where('events.2.label', null)
+    );
+});

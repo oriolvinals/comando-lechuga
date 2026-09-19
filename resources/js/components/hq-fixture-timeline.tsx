@@ -1,7 +1,9 @@
 import { cn } from '@/lib/utils';
-import type { FixtureEventEntry } from '@/types/models';
+import type { FixtureEventEntry, Team } from '@/types/models';
 
-const EVENT_ICON: Record<FixtureEventEntry['type'], string> = {
+// A VAR review has no icon of its own: it renders as a full-width band, not
+// on either side of the minute (see VarDecisionRow).
+const EVENT_ICON: Record<Exclude<FixtureEventEntry['type'], 'var'>, string> = {
     goal: '⚽',
     yellow_card: '',
     red_card: '',
@@ -31,17 +33,58 @@ function EventIcon({ event }: { event: FixtureEventEntry }) {
         );
     }
 
+    if (event.type === 'var') {
+        return null;
+    }
+
     return <span className="text-xs">{EVENT_ICON[event.type]}</span>;
+}
+
+function VarDecisionRow({
+    event,
+    team,
+}: {
+    event: FixtureEventEntry;
+    team: Team;
+}) {
+    const subject = event.player?.nickname ?? event.unresolved_name;
+
+    return (
+        <div className="flex items-center justify-center gap-3 border-b border-l-2 border-hq-border border-l-hq-azure bg-hq-azure/10 px-3 py-2 text-[12.5px] last:border-b-0">
+            <span className="border border-hq-azure px-1.5 py-px font-mono text-[10px] font-bold tracking-widest text-hq-azure">
+                VAR
+            </span>
+            <span className="font-mono text-[11px] text-hq-moss">
+                {event.minute}'
+            </span>
+            <span className="flex items-center gap-1.5 text-hq-paper">
+                <img
+                    src={team.logo}
+                    alt={team.main_name}
+                    className="h-4 w-4 object-contain"
+                />
+                {event.label}
+                {subject && (
+                    <>
+                        <span className="text-hq-moss">·</span>
+                        {subject}
+                    </>
+                )}
+            </span>
+        </div>
+    );
 }
 
 interface HqFixtureTimelineProps {
     events: FixtureEventEntry[];
-    localTeamId: number;
+    localTeam: Team;
+    guestTeam: Team;
 }
 
 export function HqFixtureTimeline({
     events,
-    localTeamId,
+    localTeam,
+    guestTeam,
 }: HqFixtureTimelineProps) {
     if (events.length === 0) {
         return (
@@ -54,6 +97,20 @@ export function HqFixtureTimeline({
     return (
         <div className="border border-hq-border bg-hq-panel">
             {events.map((event) => {
+                if (event.type === 'var') {
+                    return (
+                        <VarDecisionRow
+                            key={event.id}
+                            event={event}
+                            team={
+                                event.team_id === localTeam.id
+                                    ? localTeam
+                                    : guestTeam
+                            }
+                        />
+                    );
+                }
+
                 const label =
                     event.player?.nickname ??
                     event.unresolved_name ??
@@ -64,8 +121,8 @@ export function HqFixtureTimeline({
                 // the scorer's own side.
                 const isLocal =
                     event.type === 'goal' && event.is_own_goal
-                        ? event.team_id !== localTeamId
-                        : event.team_id === localTeamId;
+                        ? event.team_id !== localTeam.id
+                        : event.team_id === localTeam.id;
 
                 return (
                     <div

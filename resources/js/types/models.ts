@@ -103,7 +103,7 @@ export interface FixtureLineupEntry {
 }
 
 export type FixtureEventType =
-    'goal' | 'yellow_card' | 'red_card' | 'penalty_missed';
+    'goal' | 'yellow_card' | 'red_card' | 'penalty_missed' | 'var';
 
 export interface FixtureEventEntry {
     id: number;
@@ -114,6 +114,8 @@ export interface FixtureEventEntry {
     is_penalty: boolean;
     player: Player | null;
     unresolved_name: string | null;
+    /** What a VAR review decided — null for every other event type. */
+    label: string | null;
 }
 
 export interface FixtureTeamStat {

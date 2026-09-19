@@ -1142,3 +1142,90 @@ test('leaves the boxscore stats null when the event never carried a boxscore', f
         ->and($fixture->guest_corners)->toBeNull()
         ->and($fixture->local_key_passes)->toBeNull();
 });
+
+function varCommentaryPlay(string $text = 'VAR Decision: Card upgraded Kiko Femenía (Getafe).', string $teamName = 'Getafe', string $minute = "41'"): array
+{
+    return [
+        'sequence' => 40,
+        'time' => ['displayValue' => $minute],
+        'text' => $text,
+        'play' => [
+            'type' => ['text' => 'VAR - Referee decision cancelled'],
+            'text' => $text,
+            'team' => ['displayName' => $teamName],
+            'participants' => [['athlete' => ['displayName' => 'Kiko Femenía']]],
+        ],
+    ];
+}
+
+function varMatchEventPayload(array $commentary): array
+{
+    return liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'competitors' => [
+                        ['homeAway' => 'home', 'team' => ['id' => 83, 'displayName' => 'Alavés']],
+                        ['homeAway' => 'away', 'team' => ['id' => 86, 'displayName' => 'Getafe']],
+                    ],
+                ],
+            ],
+        ],
+        'commentary' => $commentary,
+    ]);
+}
+
+test('stores a VAR decision from the commentary as a var event for the team it names', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(varMatchEventPayload([varCommentaryPlay()]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $event = FixtureEvent::query()->where('fixture_id', $fixture->id)->sole();
+    expect($event->type)->toBe('var')
+        ->and($event->team_id)->toBe($fixture->team_guest_id)
+        ->and($event->minute)->toBe(41)
+        ->and($event->player_id)->toBeNull()
+        ->and($event->unresolved_name)->toBe('Kiko Femenía')
+        ->and($event->detail)->toBe('VAR Decision: Card upgraded Kiko Femenía (Getafe).');
+});
+
+test('ignores commentary plays that are not VAR decisions', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(varMatchEventPayload([
+        [
+            'sequence' => 2,
+            'time' => ['displayValue' => "1'"],
+            'text' => 'Foul by Mario Martín (Getafe).',
+            'play' => ['type' => ['text' => 'Foul'], 'team' => ['displayName' => 'Getafe'], 'participants' => []],
+        ],
+        ['sequence' => 0, 'time' => ['displayValue' => ''], 'text' => 'Lineups are announced and players are warming up.'],
+    ]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->count())->toBe(0);
+});
+
+test('does not duplicate VAR events across repeated syncs', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(varMatchEventPayload([varCommentaryPlay()]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->where('type', 'var')->count())->toBe(1);
+});
+
+test('drops a VAR decision whose team cannot be matched to the fixture', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(varMatchEventPayload([varCommentaryPlay(teamName: 'Nobody FC')]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->count())->toBe(0);
+});

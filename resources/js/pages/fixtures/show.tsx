@@ -475,7 +475,8 @@ export default function FixtureShow({
                                 {activeTab === 'timeline' && (
                                     <HqFixtureTimeline
                                         events={events}
-                                        localTeamId={fixture.local_team.id}
+                                        localTeam={fixture.local_team}
+                                        guestTeam={fixture.guest_team}
                                     />
                                 )}
                             </div>

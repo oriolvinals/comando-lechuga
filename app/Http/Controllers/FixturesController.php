@@ -121,6 +121,7 @@ class FixturesController extends Controller
                 'is_penalty' => $event->is_penalty,
                 'player' => $event->player,
                 'unresolved_name' => $event->unresolved_name,
+                'label' => $event->varDecisionLabel(),
             ]);
 
         return Inertia::render('fixtures/show', [

@@ -207,3 +207,14 @@ test('returns the possession, corners and key passes of each side', function ():
     $response->assertJsonPath('data.team_stats.3.stat', 'keyPasses');
     $response->assertJsonPath('data.team_stats.3.guest', 4);
 });
+
+test('returns the VAR decision label on a var event', function (): void {
+    $fixture = Fixture::factory()->create(['season_id' => Season::factory()]);
+    FixtureEvent::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->guestTeam->id, 'type' => 'var', 'minute' => 41, 'detail' => 'VAR Decision: Card upgraded Kiko Femenía (Getafe).']);
+
+    $response = $this->getJson("/api/fixtures/{$fixture->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.events.0.type', 'var');
+    $response->assertJsonPath('data.events.0.label', 'Tarjeta ascendida');
+});

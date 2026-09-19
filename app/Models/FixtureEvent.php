@@ -23,10 +23,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int $minute
  * @property-read bool $is_own_goal
  * @property-read bool $is_penalty
+ * @property-read string $detail The raw worldcup26 description, only kept for VAR decisions.
  */
 #[UseFactory(FixtureEventFactory::class)]
 #[Table(name: 'fixture_events', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fixture_id', 'team_id', 'player_id', 'wc26_id', 'unresolved_name', 'type', 'minute', 'is_own_goal', 'is_penalty'])]
+#[Fillable(['fixture_id', 'team_id', 'player_id', 'wc26_id', 'unresolved_name', 'type', 'minute', 'is_own_goal', 'is_penalty', 'detail'])]
 class FixtureEvent extends Model
 {
     /** @use HasFactory<FixtureEventFactory> */
@@ -50,12 +51,30 @@ class FixtureEvent extends Model
         return $this->belongsTo(Player::class);
     }
 
+    /**
+     * What a VAR event decided, in the app's own words — null for any other
+     * event type. worldcup26 only sends a free-text description, so anything
+     * we can't tell apart yet falls back to a generic label.
+     */
+    public function varDecisionLabel(): ?string
+    {
+        if ($this->type !== 'var') {
+            return null;
+        }
+
+        return match (true) {
+            str_contains(strtolower($this->detail), 'card upgraded') => 'Tarjeta ascendida',
+            default => 'Decisión del VAR',
+        };
+    }
+
     /** @var array<string, mixed> */
     protected $attributes = [
         'type' => '',
         'minute' => 0,
         'is_own_goal' => false,
         'is_penalty' => false,
+        'detail' => '',
     ];
 
     /**
@@ -74,6 +93,7 @@ class FixtureEvent extends Model
             'minute' => 'int',
             'is_own_goal' => 'bool',
             'is_penalty' => 'bool',
+            'detail' => 'string',
         ];
     }
 }
