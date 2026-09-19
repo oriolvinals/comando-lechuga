@@ -8,7 +8,7 @@ is a two-stage build (`build`, then a slim runtime stage) based on
 nginx + php-fpm + supervisor stack to hand-roll.
 
 `docker/entrypoint.sh` runs on every container start: `php artisan migrate
---force`, then `storage:link`, `optimize:clear`, `optimize`, before handing
+--force`, then `storage:link`, `optimize:clear`, `optimize`, `schedule:clear-cache`, before handing
 off to `frankenphp run`. See [Migrations & caching](#migrations--caching)
 below for what that means for how deploys are gated.
 
@@ -61,7 +61,7 @@ Railpack; see [Why not Railpack](#why-not-railpack).
 
 **No Pre-deployment Command needed.** `docker/entrypoint.sh` already runs
 `php artisan migrate --force` followed by `storage:link`, `optimize:clear`,
-`optimize` every time the container boots, before it starts accepting
+`optimize`, `schedule:clear-cache` every time the container boots, before it starts accepting
 traffic — there's no Coolify **Pre-deployment Command** field to fill in.
 If a migration fails, the container never becomes healthy and Coolify's
 health check keeps routing to the previous one.
@@ -167,7 +167,7 @@ deploy. Watch the first real deploy's logs closely for:
   and `npm run build` (including the Wayfinder route-generation step,
   which needs `APP_KEY` set as a build arg — see the env var table above).
 - `docker/entrypoint.sh` actually running on container start: `php artisan
-  migrate --force`, `storage:link`, `optimize:clear`, `optimize`, then
+  migrate --force`, `storage:link`, `optimize:clear`, `optimize`, `schedule:clear-cache`, then
   `frankenphp run`. Confirm migrations apply and the container becomes
   healthy before traffic is expected to flow.
 - `docker/Caddyfile` listening on Coolify's injected `$PORT` and serving

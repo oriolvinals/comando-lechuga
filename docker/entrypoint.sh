@@ -13,4 +13,8 @@ php artisan storage:link
 php artisan optimize:clear
 php artisan optimize
 
+# Drops the scheduler's overlap mutexes so a job whose lock was left behind by
+# the previous container (killed mid-run) doesn't stay blocked after a deploy.
+php artisan schedule:clear-cache
+
 exec "$@"
