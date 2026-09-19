@@ -262,6 +262,12 @@ export interface PlayerFichaScore {
     sub_minute: number | null;
 }
 
+/** A finished fixture of the player's club they have no lineup row for, with the manager who fielded them that week (if any). */
+export interface PlayerMissedFixture {
+    fixture: Fixture;
+    lineup_manager: SeasonManager | null;
+}
+
 export interface OwnershipActivity {
     id: number;
     type: SeasonActivityType;
