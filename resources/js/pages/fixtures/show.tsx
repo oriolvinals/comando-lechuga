@@ -38,7 +38,13 @@ import type {
     JornadaStats,
 } from '@/types/models';
 
-const LIVE_REFRESH_PROPS = ['fixture', 'lineups', 'events', 'team_stats'];
+const LIVE_REFRESH_PROPS = [
+    'fixture',
+    'weekFixtures',
+    'lineups',
+    'events',
+    'team_stats',
+];
 
 interface FixtureShowProps {
     fixture: Fixture;
