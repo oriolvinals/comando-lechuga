@@ -149,6 +149,7 @@ trait SyncsMatchData
             'guest_color' => $this->colorFor($competitors, 'away', 'color'),
             'guest_alternate_color' => $this->colorFor($competitors, 'away', 'alternateColor'),
             ...$this->matchDetailsFor($fixture, $event, $competition),
+            ...$this->boxscoreStatsFor($fixture, $event),
         ]);
     }
 
@@ -174,6 +175,52 @@ trait SyncsMatchData
             'attendance' => isset($competition['attendance']) ? (int) $competition['attendance'] : $fixture->attendance,
             'referee' => $referee !== '' ? $referee : $fixture->referee,
         ];
+    }
+
+    /**
+     * The boxscore only reports the stats worldcup26 tracks at team level;
+     * like the venue details, a sync that finds it missing keeps what an
+     * earlier one already stored.
+     *
+     * @param  array<string, mixed>  $event
+     * @return array{local_possession: float|null, guest_possession: float|null, local_corners: int|null, guest_corners: int|null, local_key_passes: int|null, guest_key_passes: int|null}
+     */
+    private function boxscoreStatsFor(Fixture $fixture, array $event): array
+    {
+        $int = fn (?float $value, ?int $current): ?int => $value === null ? $current : (int) $value;
+
+        return [
+            'local_possession' => $this->boxscoreStat($event, 'home', 'possessionPct') ?? $fixture->local_possession,
+            'guest_possession' => $this->boxscoreStat($event, 'away', 'possessionPct') ?? $fixture->guest_possession,
+            'local_corners' => $int($this->boxscoreStat($event, 'home', 'wonCorners'), $fixture->local_corners),
+            'guest_corners' => $int($this->boxscoreStat($event, 'away', 'wonCorners'), $fixture->guest_corners),
+            'local_key_passes' => $int($this->boxscoreStat($event, 'home', 'shotAssists'), $fixture->local_key_passes),
+            'guest_key_passes' => $int($this->boxscoreStat($event, 'away', 'shotAssists'), $fixture->guest_key_passes),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function boxscoreStat(array $event, string $homeAway, string $name): ?float
+    {
+        $teams = is_array($event['boxscore']['teams'] ?? null) ? $event['boxscore']['teams'] : [];
+
+        foreach ($teams as $team) {
+            if (($team['homeAway'] ?? null) !== $homeAway) {
+                continue;
+            }
+
+            foreach (is_array($team['statistics'] ?? null) ? $team['statistics'] : [] as $stat) {
+                $value = $stat['displayValue'] ?? null;
+
+                if (($stat['name'] ?? null) === $name && is_numeric($value)) {
+                    return (float) $value;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

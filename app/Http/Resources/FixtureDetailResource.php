@@ -34,6 +34,8 @@ class FixtureDetailResource extends JsonResource
             'venue_city' => $this->venue_city,
             'attendance' => $this->attendance,
             'referee' => $this->referee,
+            'local_possession' => $this->local_possession,
+            'guest_possession' => $this->guest_possession,
             'lineups' => FixtureLineupResource::collection($this->api_lineups),
             'events' => FixtureEventResource::collection($this->api_events),
             'team_stats' => $this->api_team_stats,

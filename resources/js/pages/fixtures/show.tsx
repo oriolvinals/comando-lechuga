@@ -459,7 +459,18 @@ export default function FixtureShow({
                                     />
                                 )}
                                 {activeTab === 'stats' && (
-                                    <HqFixtureTeamStats stats={team_stats} />
+                                    <HqFixtureTeamStats
+                                        stats={team_stats}
+                                        possession={
+                                            fixture.local_possession !== null &&
+                                            fixture.guest_possession !== null
+                                                ? {
+                                                      local: fixture.local_possession,
+                                                      guest: fixture.guest_possession,
+                                                  }
+                                                : null
+                                        }
+                                    />
                                 )}
                                 {activeTab === 'timeline' && (
                                     <HqFixtureTimeline

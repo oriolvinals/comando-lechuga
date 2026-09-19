@@ -39,13 +39,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read string $venue_city
  * @property-read int|null $attendance
  * @property-read string $referee
+ * @property-read float|null $local_possession
+ * @property-read float|null $guest_possession
+ * @property-read int|null $local_corners
+ * @property-read int|null $guest_corners
+ * @property-read int|null $local_key_passes
+ * @property-read int|null $guest_key_passes
  * @property Collection<int, FixtureLineup> $api_lineups Computed at query time by Api\FixturesController; not a database relation.
  * @property Collection<int, FixtureEvent> $api_events Computed at query time by Api\FixturesController; not a database relation.
  * @property array<int, array{stat: string, label: string, local: int, guest: int}> $api_team_stats Computed at query time by Api\FixturesController; not a database column.
  */
 #[UseFactory(FixtureFactory::class)]
 #[Table(name: 'fixtures', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fantasy_id', 'wc26_id', 'season_id', 'week_number', 'date', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'display_clock', 'local_formation', 'guest_formation', 'local_color', 'local_alternate_color', 'guest_color', 'guest_alternate_color', 'venue', 'venue_city', 'attendance', 'referee'])]
+#[Fillable(['fantasy_id', 'wc26_id', 'season_id', 'week_number', 'date', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'display_clock', 'local_formation', 'guest_formation', 'local_color', 'local_alternate_color', 'guest_color', 'guest_alternate_color', 'venue', 'venue_city', 'attendance', 'referee', 'local_possession', 'guest_possession', 'local_corners', 'guest_corners', 'local_key_passes', 'guest_key_passes'])]
 class Fixture extends Model
 {
     /** @use HasFactory<FixtureFactory> */
@@ -114,6 +120,12 @@ class Fixture extends Model
             'venue_city' => 'string',
             'attendance' => 'int',
             'referee' => 'string',
+            'local_possession' => 'float',
+            'guest_possession' => 'float',
+            'local_corners' => 'int',
+            'guest_corners' => 'int',
+            'local_key_passes' => 'int',
+            'guest_key_passes' => 'int',
         ];
     }
 }

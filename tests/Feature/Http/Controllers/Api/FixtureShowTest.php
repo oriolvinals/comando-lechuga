@@ -185,3 +185,25 @@ test('returns the venue, attendance and referee', function (): void {
     $response->assertJsonPath('data.attendance', 13923);
     $response->assertJsonPath('data.referee', 'Manuel Jesús Orellana Cid');
 });
+
+test('returns the possession, corners and key passes of each side', function (): void {
+    $fixture = Fixture::factory()->create([
+        'season_id' => Season::factory(),
+        'local_possession' => 51.8,
+        'guest_possession' => 48.2,
+        'local_corners' => 5,
+        'guest_corners' => 3,
+        'local_key_passes' => 12,
+        'guest_key_passes' => 4,
+    ]);
+
+    $response = $this->getJson("/api/fixtures/{$fixture->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.local_possession', 51.8);
+    $response->assertJsonPath('data.guest_possession', 48.2);
+    $response->assertJsonPath('data.team_stats.2.stat', 'wonCorners');
+    $response->assertJsonPath('data.team_stats.2.local', 5);
+    $response->assertJsonPath('data.team_stats.3.stat', 'keyPasses');
+    $response->assertJsonPath('data.team_stats.3.guest', 4);
+});

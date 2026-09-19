@@ -75,6 +75,8 @@ export interface Fixture {
     venue_city: string;
     attendance: number | null;
     referee: string;
+    local_possession: number | null;
+    guest_possession: number | null;
     local_team: Team;
     guest_team: Team;
 }

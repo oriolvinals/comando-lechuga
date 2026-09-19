@@ -1078,3 +1078,67 @@ test('leaves the venue details empty when the event never carried them', functio
         ->and($fixture->attendance)->toBeNull()
         ->and($fixture->referee)->toBe('');
 });
+
+test('stores possession, corners and key passes for each side from the boxscore', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload([
+        'boxscore' => [
+            'teams' => [
+                ['homeAway' => 'home', 'statistics' => [
+                    ['name' => 'possessionPct', 'displayValue' => '51.8'],
+                    ['name' => 'wonCorners', 'displayValue' => '5'],
+                    ['name' => 'shotAssists', 'displayValue' => '12'],
+                ]],
+                ['homeAway' => 'away', 'statistics' => [
+                    ['name' => 'possessionPct', 'displayValue' => '48.2'],
+                    ['name' => 'wonCorners', 'displayValue' => '3'],
+                    ['name' => 'shotAssists', 'displayValue' => '3'],
+                ]],
+            ],
+        ],
+    ]));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->local_possession)->toBe(51.8)
+        ->and($fixture->guest_possession)->toBe(48.2)
+        ->and($fixture->local_corners)->toBe(5)
+        ->and($fixture->guest_corners)->toBe(3)
+        ->and($fixture->local_key_passes)->toBe(12)
+        ->and($fixture->guest_key_passes)->toBe(3);
+});
+
+test('keeps the stored boxscore stats when a later payload has no boxscore', function (): void {
+    $fixture = liveFixtureForMatchDetails([
+        'local_possession' => 51.8,
+        'guest_possession' => 48.2,
+        'local_corners' => 5,
+        'guest_corners' => 3,
+        'local_key_passes' => 12,
+        'guest_key_passes' => 3,
+    ]);
+
+    fakeWorldcup26Event(liveMatchEventPayload());
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->local_possession)->toBe(51.8)
+        ->and($fixture->guest_corners)->toBe(3)
+        ->and($fixture->local_key_passes)->toBe(12);
+});
+
+test('leaves the boxscore stats null when the event never carried a boxscore', function (): void {
+    $fixture = liveFixtureForMatchDetails();
+
+    fakeWorldcup26Event(liveMatchEventPayload());
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $fixture->refresh();
+    expect($fixture->local_possession)->toBeNull()
+        ->and($fixture->guest_corners)->toBeNull()
+        ->and($fixture->local_key_passes)->toBeNull();
+});
