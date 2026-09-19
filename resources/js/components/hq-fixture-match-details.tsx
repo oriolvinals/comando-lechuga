@@ -11,7 +11,9 @@ const attendanceFormat = new Intl.NumberFormat('es-ES');
  */
 export function HqFixtureMatchDetails({ fixture }: { fixture: Fixture }) {
     const hasVenue = fixture.venue !== '';
-    const hasAttendance = fixture.attendance !== null;
+    // An attendance of 0 is no figure worth showing, same as a missing one.
+    const attendance = fixture.attendance ?? 0;
+    const hasAttendance = attendance > 0;
     const hasReferee = fixture.referee !== '';
 
     if (!hasVenue && !hasAttendance && !hasReferee) {
@@ -35,7 +37,7 @@ export function HqFixtureMatchDetails({ fixture }: { fixture: Fixture }) {
                 <span className="inline-flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5 text-hq-khaki" />
                     <b className="font-medium text-hq-paper">
-                        {attendanceFormat.format(fixture.attendance ?? 0)}
+                        {attendanceFormat.format(attendance)}
                     </b>
                     <span className="text-hq-moss-dim">espectadores</span>
                 </span>
