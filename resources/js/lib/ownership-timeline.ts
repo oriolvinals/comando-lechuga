@@ -3,6 +3,8 @@ import type { OwnershipActivity, SeasonActivityType, SeasonManager } from '@/typ
 export interface OwnershipSegmentOrigin {
     type: SeasonActivityType;
     amount: number | null;
+    /** Who gave the player up in this deal — the buyout's target or the selling manager; `null` when the player came from the free market. */
+    seller: SeasonManager | null;
 }
 
 export interface OwnershipSegment {
@@ -11,6 +13,15 @@ export interface OwnershipSegment {
     seasonManager: SeasonManager | null;
     /** The signing/sale/buyout that put the player in this state — `null` for the opening segment, which predates any captured activity. */
     startedBy: OwnershipSegmentOrigin | null;
+}
+
+/** The manager who gave the player up in a deal: a sale's source, a buyout's target, and nobody for a market signing. */
+function sellerOf(activity: OwnershipActivity): SeasonManager | null {
+    if (activity.type === 'sale') {
+        return activity.source_season_manager;
+    }
+
+    return activity.type === 'buyout' ? activity.target_season_manager : null;
 }
 
 /**
@@ -64,7 +75,7 @@ export function buildOwnershipTimeline(
                 from: joinedAt,
                 to: leadingEnd,
                 seasonManager: leadingOwner,
-                startedBy: { type: 'joined_league', amount: null },
+                startedBy: { type: 'joined_league', amount: null, seller: null },
             });
         } else {
             segments.push({ from: null, to: leadingEnd, seasonManager: leadingOwner, startedBy: null });
@@ -80,7 +91,11 @@ export function buildOwnershipTimeline(
             from: activity.occurred_at,
             to: activities[index + 1]?.occurred_at ?? null,
             seasonManager: owner,
-            startedBy: { type: activity.type, amount: activity.amount },
+            startedBy: {
+                type: activity.type,
+                amount: activity.amount,
+                seller: sellerOf(activity),
+            },
         });
     }
 

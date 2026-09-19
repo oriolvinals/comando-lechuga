@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { TYPE_LABELS } from '@/components/activity-helpers';
+import { TYPE_COLORS, TYPE_LABELS } from '@/components/activity-helpers';
 import { formatCurrency } from '@/lib/format';
 import type { OwnershipSegment } from '@/lib/ownership-timeline';
 import {
@@ -11,7 +11,12 @@ import {
 import { matchPointsColor } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
-import type { PlayerFichaScore, PlayerMarketPoint } from '@/types/models';
+import type {
+    PlayerFichaScore,
+    PlayerMarketPoint,
+    SeasonActivityType,
+    SeasonManager,
+} from '@/types/models';
 
 const DEFAULT_WIDTH = 900;
 const VALUE_TOP = 26;
@@ -39,31 +44,68 @@ interface HqPlayerValueChartProps {
     ownershipSegments: OwnershipSegment[];
 }
 
-function describeOrigin(
+interface TooltipParty {
+    id: number | null;
+    name: string;
+    color: string;
+}
+
+interface TooltipDeal {
+    type: SeasonActivityType;
+    label: string;
+    seller: TooltipParty;
+    buyer: TooltipParty;
+    amount: number | null;
+    /** The deal's amount minus the player's value that day; `null` when the deal has no amount. */
+    difference: number | null;
+}
+
+function describeParty(manager: SeasonManager | null): TooltipParty {
+    return manager === null
+        ? { id: null, name: 'Libre', color: 'var(--color-hq-moss-dim)' }
+        : {
+              id: manager.id,
+              name: manager.name,
+              color: managerColor(manager.primary_color),
+          };
+}
+
+/**
+ * The signing/sale/buyout that started the segment, when the hovered day is
+ * the day it happened — who gave the player up, who got them, and how the
+ * amount compares to the player's value that day.
+ */
+function describeDeal(
     segment: OwnershipSegment | null,
     dateIso: string,
-): string | null {
+    dayValue: number,
+): TooltipDeal | null {
     if (!segment?.startedBy || !isSegmentStart(segment, dateIso)) {
         return null;
     }
 
-    // A player sold to the market reads "Libre" with just the price it went
-    // for, no "Venta" label.
-    if (segment.seasonManager === null) {
-        return segment.startedBy.amount === null
-            ? null
-            : formatCurrency(segment.startedBy.amount);
-    }
+    const { type, amount, seller } = segment.startedBy;
 
-    if (segment.startedBy.type === 'joined_league') {
-        return 'Se unió a la liga';
-    }
+    return {
+        type,
+        label: type === 'joined_league' ? 'Se unió a la liga' : TYPE_LABELS[type],
+        seller: describeParty(seller),
+        buyer: describeParty(segment.seasonManager),
+        amount,
+        difference: amount === null ? null : amount - dayValue,
+    };
+}
 
-    const label = TYPE_LABELS[segment.startedBy.type];
-
-    return segment.startedBy.amount === null
-        ? label
-        : `${label} · ${formatCurrency(segment.startedBy.amount)}`;
+function TooltipPartyLabel({ party }: { party: TooltipParty }) {
+    return (
+        <span className="flex items-center gap-1.5">
+            <span
+                className="h-2 w-2 shrink-0 rounded-[1px]"
+                style={{ backgroundColor: party.color }}
+            />
+            {party.name}
+        </span>
+    );
 }
 
 function formatDateLabel(dateIso: string): string {
@@ -81,10 +123,8 @@ interface TooltipState {
     date: string;
     value: string;
     diff: number | null;
-    ownerName: string;
-    ownerColor: string;
-    ownerId: number | null;
-    action: string | null;
+    owner: TooltipParty;
+    deal: TooltipDeal | null;
     jornada: {
         week: number;
         points: number;
@@ -360,12 +400,8 @@ export function HqPlayerValueChart({
             date: formatDateLabel(point.date),
             value: formatCurrency(point.value),
             diff: previous ? point.value - previous.value : null,
-            ownerName: segment?.seasonManager?.name ?? 'Libre',
-            ownerColor: segment?.seasonManager
-                ? managerColor(segment.seasonManager.primary_color)
-                : 'var(--color-hq-moss-dim)',
-            ownerId: segment?.seasonManager?.id ?? null,
-            action: describeOrigin(segment, point.date),
+            owner: describeParty(segment?.seasonManager ?? null),
+            deal: describeDeal(segment, point.date, point.value),
             jornada: snapped
                 ? {
                       week: snapped.week,
@@ -383,19 +419,10 @@ export function HqPlayerValueChart({
         setHoverPoint(null);
     }
 
-    // On a jornada day the tooltip leads with who the points belonged to; the
-    // day's owner row is only kept when it adds something (a different owner,
-    // or the deal that started their ownership).
-    const hasManagerRow = tooltip?.jornada?.managerName != null;
-    // Owner/deal rows get a divider whenever there's something above them to
-    // set apart from: a jornada block, or a purchase/sale that day.
-    const hasSeparator =
-        tooltip !== null && (tooltip.jornada !== null || tooltip.action !== null);
-    const showOwnerRow =
-        tooltip !== null &&
-        (!hasManagerRow ||
-            tooltip.jornada?.managerId !== tooltip.ownerId ||
-            tooltip.action !== null);
+    // The day's owner rides along the date, except on a deal day where the
+    // seller → buyer row already says who ends up with the player. The manager
+    // a jornada's points belonged to always gets its own row under the points.
+    const showJornadaManager = tooltip?.jornada?.managerName != null;
 
     return (
         <div>
@@ -631,11 +658,16 @@ export function HqPlayerValueChart({
                 createPortal(
                     <div
                         ref={tooltipRef}
-                        className="pointer-events-none fixed z-[999] border border-hq-lime bg-hq-panel-alt px-3 py-2 font-mono text-xs whitespace-nowrap"
+                        className="pointer-events-none fixed z-[999] min-w-[210px] border border-hq-lime bg-hq-panel-alt px-3 py-2 font-mono text-xs whitespace-nowrap"
                         style={{ left: tooltip.x, top: tooltip.y }}
                     >
-                        <div className="text-[10px] tracking-wide text-hq-moss uppercase">
-                            {tooltip.date}
+                        <div className="flex items-center justify-between gap-4 text-[10px] tracking-wide text-hq-moss uppercase">
+                            <span>{tooltip.date}</span>
+                            {tooltip.deal === null && (
+                                <span className="text-hq-khaki normal-case">
+                                    <TooltipPartyLabel party={tooltip.owner} />
+                                </span>
+                            )}
                         </div>
                         <div className="mt-0.5 text-sm font-bold text-hq-paper">
                             {tooltip.value}
@@ -654,7 +686,7 @@ export function HqPlayerValueChart({
                             </div>
                         )}
                         {tooltip.jornada && (
-                            <div className="mt-1.5 border-t border-hq-border-strong pt-1.5">
+                            <div className="mt-2 border-t border-hq-border-strong pt-2">
                                 <div
                                     className="font-bold tracking-wide"
                                     style={{
@@ -663,7 +695,7 @@ export function HqPlayerValueChart({
                                 >
                                     J{tooltip.jornada.week} · {tooltip.jornada.points} PTS
                                 </div>
-                                {tooltip.jornada.managerName !== null && (
+                                {showJornadaManager && (
                                     <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
                                         <span
                                             className="h-2 w-2 shrink-0 rounded-[1px]"
@@ -676,34 +708,49 @@ export function HqPlayerValueChart({
                                 )}
                             </div>
                         )}
-                        {(showOwnerRow || tooltip.action) && (
-                            <div
-                                className={cn(
-                                    hasSeparator &&
-                                        'mt-1.5 border-t border-hq-border-strong pt-1.5',
-                                )}
-                            >
-                                {showOwnerRow && (
-                                    <div
-                                        className={cn(
-                                            'flex items-center gap-1.5 text-hq-khaki',
-                                            !hasSeparator && 'mt-1',
-                                        )}
-                                    >
-                                        <span
-                                            className="h-2 w-2 shrink-0 rounded-[1px]"
-                                            style={{ backgroundColor: tooltip.ownerColor }}
-                                        />
-                                        {hasManagerRow && tooltip.ownerId !== null
-                                            ? `Dueño · ${tooltip.ownerName}`
-                                            : tooltip.ownerName}
+                        {tooltip.deal && (
+                            <div className="mt-2 border-t border-hq-border-strong pt-2">
+                                <div
+                                    className={cn(
+                                        'text-[10px] font-bold tracking-wide uppercase',
+                                        TYPE_COLORS[tooltip.deal.type],
+                                    )}
+                                >
+                                    {tooltip.deal.label}
+                                </div>
+                                <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
+                                    {tooltip.deal.type !== 'joined_league' && (
+                                        <>
+                                            <TooltipPartyLabel party={tooltip.deal.seller} />
+                                            <span className="text-hq-moss-dim">→</span>
+                                        </>
+                                    )}
+                                    <TooltipPartyLabel party={tooltip.deal.buyer} />
+                                </div>
+                                {tooltip.deal.amount !== null && (
+                                    <div className="mt-1 text-sm font-bold text-hq-paper">
+                                        {formatCurrency(tooltip.deal.amount)}
                                     </div>
                                 )}
-                                {tooltip.action && (
-                                    <div className="mt-0.5 text-[10px] text-hq-moss">
-                                        {tooltip.action}
-                                    </div>
-                                )}
+                                {tooltip.deal.difference !== null &&
+                                    tooltip.deal.difference !== 0 && (
+                                        <div
+                                            className={cn(
+                                                'font-bold',
+                                                tooltip.deal.difference > 0
+                                                    ? 'text-hq-lime'
+                                                    : 'text-hq-live',
+                                            )}
+                                        >
+                                            {tooltip.deal.difference > 0 ? '▲' : '▼'}{' '}
+                                            {formatCurrency(Math.abs(tooltip.deal.difference))}{' '}
+                                            <span className="font-normal text-hq-moss">
+                                                {tooltip.deal.difference > 0
+                                                    ? 'sobre su valor'
+                                                    : 'bajo su valor'}
+                                            </span>
+                                        </div>
+                                    )}
                             </div>
                         )}
                     </div>,
