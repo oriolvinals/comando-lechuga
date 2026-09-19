@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
@@ -250,6 +251,54 @@ class PlayersController extends Controller
             'ownershipActivity' => $ownershipActivity,
             'teamJoinedAt' => $teamJoinedAt,
             'teamFixtures' => $teamFixtures,
+            'missedFixtures' => $this->missedFixtures(
+                $player,
+                $season,
+                $scores->map(fn (array $score): int => $score['fixture']->id)->all(),
+            ),
         ]);
+    }
+
+    /**
+     * Finished fixtures of the player's club they have no lineup row for — the
+     * chart marks those jornadas as "no puntuó". Each one carries the manager
+     * who fielded the player that week anyway: such lineup entries never get a
+     * fixture_id (it is only resolved from a FixtureLineup), so they are matched
+     * by the lineup's week. A fixture is left out when the Fantasy API still
+     * gave the fielded player points for it.
+     *
+     * @param  array<int, int>  $scoredFixtureIds
+     * @return array<int, array{fixture: Fixture, lineup_manager: SeasonManager|null}>
+     */
+    private function missedFixtures(Player $player, Season $season, array $scoredFixtureIds): array
+    {
+        $fixtures = Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('state', FixtureState::Finished)
+            ->where(fn ($query) => $query
+                ->where('team_local_id', $player->team_id)
+                ->orWhere('team_guest_id', $player->team_id))
+            ->whereNotIn('id', $scoredFixtureIds)
+            ->with(['localTeam', 'guestTeam'])
+            ->orderBy('week_number')
+            ->get();
+
+        $fieldedByWeek = ManagerLineupPlayer::query()
+            ->where('player_id', $player->id)
+            ->whereHas('lineup', fn ($query) => $query
+                ->whereIn('week_number', $fixtures->pluck('week_number'))
+                ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id)))
+            ->with('lineup.seasonManager')
+            ->get()
+            ->keyBy(fn (ManagerLineupPlayer $entry): int => $entry->lineup->week_number);
+
+        return $fixtures
+            ->reject(fn (Fixture $fixture): bool => $fieldedByWeek->get($fixture->week_number)?->points !== null)
+            ->map(fn (Fixture $fixture): array => [
+                'fixture' => $fixture,
+                'lineup_manager' => $fieldedByWeek->get($fixture->week_number)?->lineup->seasonManager,
+            ])
+            ->values()
+            ->all();
     }
 }

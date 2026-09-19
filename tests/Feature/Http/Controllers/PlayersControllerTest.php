@@ -1025,6 +1025,93 @@ test('player ficha lineup_manager is resolved via ManagerLineupPlayer.fixture_id
     );
 });
 
+test('lists the finished fixtures of the player team the player has no lineup row in as missed', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create();
+    $played = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $played->id, 'team_id' => $player->team_id]);
+    $missed = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'team_guest_id' => $player->team_id, 'state' => FixtureState::Finished]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('missedFixtures', 1)
+        ->where('missedFixtures.0.fixture.id', $missed->id)
+        ->where('missedFixtures.0.fixture.week_number', 2)
+        ->where('missedFixtures.0.lineup_manager', null)
+    );
+});
+
+test('does not list unfinished fixtures, other teams fixtures or other seasons as missed', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $otherSeason = Season::factory()->create(['start_date' => now()->subYear(), 'end_date' => now()->subMonths(6)]);
+    $player = Player::factory()->create();
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'team_local_id' => $player->team_id, 'state' => FixtureState::Scheduled]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'team_local_id' => $player->team_id, 'state' => FixtureState::Postponed]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'state' => FixtureState::Finished]);
+    Fixture::factory()->create(['season_id' => $otherSeason->id, 'week_number' => 4, 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('missedFixtures', 0));
+});
+
+test('resolves the manager who fielded the player in a missed fixture by lineup week', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create();
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id, 'fixture_id' => null, 'points' => null]);
+
+    $otherWeekLineup = ManagerLineup::factory()->create(['season_manager_id' => SeasonManager::factory()->create(['season_id' => $season->id])->id, 'week_number' => 3]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $otherWeekLineup->id, 'player_id' => $player->id, 'fixture_id' => null, 'points' => null]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('missedFixtures', 1)
+        ->where('missedFixtures.0.lineup_manager.id', $seasonManager->id)
+    );
+});
+
+test('does not list a fixture as missed when the fantasy API still gave the fielded player points for it', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create();
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id, 'fixture_id' => null, 'points' => 6]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->has('missedFixtures', 0));
+});
+
+test('ignores lineup managers from a different season for a missed fixture', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create();
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'team_local_id' => $player->team_id, 'state' => FixtureState::Finished]);
+
+    $otherSeasonManager = SeasonManager::factory()->create();
+    $otherLineup = ManagerLineup::factory()->create(['season_manager_id' => $otherSeasonManager->id, 'week_number' => 2]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $otherLineup->id, 'player_id' => $player->id, 'fixture_id' => null, 'points' => null]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('missedFixtures', 1)
+        ->where('missedFixtures.0.lineup_manager', null)
+    );
+});
+
 test('excludes players with no fantasy_id from the index listing', function (): void {
     Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $linkedPlayer = Player::factory()->create(['fantasy_id' => 12345, 'status' => PlayerStatus::Ok]);

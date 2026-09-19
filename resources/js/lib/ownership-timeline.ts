@@ -113,7 +113,7 @@ const LOCAL_DATE_FORMATTER = new Intl.DateTimeFormat('sv-SE', {
  * player sold at 01:39 on the 22nd already reads as free for the 22nd's
  * data point, not still owned until that precise timestamp.
  */
-function localDateKey(isoString: string): string {
+export function localDateKey(isoString: string): string {
     return LOCAL_DATE_FORMATTER.format(new Date(isoString));
 }
 

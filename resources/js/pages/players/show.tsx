@@ -25,6 +25,7 @@ import type {
     PlayerFichaMarketListing,
     PlayerFichaScore,
     PlayerMarketPoint,
+    PlayerMissedFixture,
     PlayerOwnership,
 } from '@/types/models';
 
@@ -38,6 +39,7 @@ interface PlayerShowProps {
     ownershipActivity: OwnershipActivity[];
     teamJoinedAt: Record<string, string>;
     teamFixtures: Fixture[];
+    missedFixtures: PlayerMissedFixture[];
     [key: string]: unknown;
 }
 
@@ -51,6 +53,7 @@ export default function PlayerShow({
     ownershipActivity,
     teamJoinedAt,
     teamFixtures,
+    missedFixtures,
 }: PlayerShowProps) {
     const ownershipSegments = buildOwnershipTimeline(
         ownershipActivity,
@@ -203,6 +206,7 @@ export default function PlayerShow({
                         <HqPlayerValueChart
                             marketHistory={marketHistory}
                             scores={scores}
+                            missedFixtures={missedFixtures}
                             ownershipSegments={ownershipSegments}
                         />
                         <HqPlayerMatchTimeline

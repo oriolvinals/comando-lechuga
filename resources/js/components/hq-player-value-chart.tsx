@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/format';
 import type { OwnershipSegment } from '@/lib/ownership-timeline';
 import {
     isSegmentStart,
+    localDateKey,
     ownerAtDate,
     segmentAtDate,
 } from '@/lib/ownership-timeline';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 import type {
     PlayerFichaScore,
     PlayerMarketPoint,
+    PlayerMissedFixture,
     SeasonActivityType,
     SeasonManager,
 } from '@/types/models';
@@ -41,6 +43,7 @@ type Range = 10 | 30 | 'all';
 interface HqPlayerValueChartProps {
     marketHistory: PlayerMarketPoint[];
     scores: PlayerFichaScore[];
+    missedFixtures: PlayerMissedFixture[];
     ownershipSegments: OwnershipSegment[];
 }
 
@@ -112,6 +115,7 @@ function formatDateLabel(dateIso: string): string {
     return new Intl.DateTimeFormat('es-ES', {
         day: 'numeric',
         month: 'short',
+        timeZone: 'Europe/Madrid',
     })
         .format(new Date(dateIso))
         .toUpperCase();
@@ -127,7 +131,7 @@ interface TooltipState {
     deal: TooltipDeal | null;
     jornada: {
         week: number;
-        points: number;
+        points: number | null;
         managerId: number | null;
         managerName: string | null;
         managerColor: string;
@@ -137,6 +141,7 @@ interface TooltipState {
 export function HqPlayerValueChart({
     marketHistory,
     scores,
+    missedFixtures,
     ownershipSegments,
 }: HqPlayerValueChartProps) {
     const [range, setRange] = useState<Range>(30);
@@ -271,22 +276,41 @@ export function HqPlayerValueChart({
             color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : managerColor(segmentOwner.primary_color),
         });
 
-        // Each jornada's bar sits on the market-history day closest to its
-        // fixture date, so both panels share one time axis. Jornadas outside
-        // the visible range are dropped.
-        const times = visibleHistory.map((point) => new Date(point.date).getTime());
-        const placed = scores.flatMap((score) => {
-            const time = new Date(score.fixture.date).getTime();
+        // Each jornada's bar sits on the market-history day its fixture was
+        // played, so both panels share one time axis. Days are compared as
+        // league-local calendar days: the history's dates are local midnights,
+        // so matching the nearest instant would push an evening kick-off onto
+        // the next day. Jornadas outside the visible range are dropped.
+        // A jornada the player has no points for — no lineup row for the
+        // finished fixture, or a row without points — is marked "-" instead of
+        // a bar, so it stays distinct from a real 0.
+        const days = visibleHistory.map((point) => Date.parse(localDateKey(point.date)));
+        const jornadas = [
+            ...scores.map((score) => ({
+                key: `score-${score.id}`,
+                fixture: score.fixture,
+                points: score.points,
+                manager: score.lineup_manager,
+            })),
+            ...missedFixtures.map((missed) => ({
+                key: `missed-${missed.fixture.id}`,
+                fixture: missed.fixture,
+                points: null,
+                manager: missed.lineup_manager,
+            })),
+        ];
+        const placed = jornadas.flatMap((jornada) => {
+            const day = Date.parse(localDateKey(jornada.fixture.date));
 
-            if (time < times[0] - DAY_MS || time > times[n - 1] + DAY_MS) {
+            if (day < days[0] - DAY_MS || day > days[n - 1] + DAY_MS) {
                 return [];
             }
 
             let index = 0;
             let closest = Infinity;
 
-            times.forEach((candidate, candidateIndex) => {
-                const distance = Math.abs(candidate - time);
+            days.forEach((candidate, candidateIndex) => {
+                const distance = Math.abs(candidate - day);
 
                 if (distance < closest) {
                     closest = distance;
@@ -294,12 +318,12 @@ export function HqPlayerValueChart({
                 }
             });
 
-            return [{ score, index }];
+            return [{ jornada, index }];
         });
 
         const spacing = n > 1 ? width / (n - 1) : width;
         const barWidth = Math.min(26, Math.max(8, spacing * 1.6));
-        const pointValues = placed.map(({ score }) => score.points ?? 0);
+        const pointValues = placed.map(({ jornada }) => jornada.points ?? 0);
         const maxPoints = Math.max(...pointValues, 12);
         const minPoints = Math.min(...pointValues, 0);
         // Only carve out label space below the baseline when there's a
@@ -310,20 +334,19 @@ export function HqPlayerValueChart({
             plotBottom - ((points - minPoints) / (maxPoints - minPoints)) * (plotBottom - plotTop);
         const zeroY = pointsToY(0);
 
-        const bars = placed.map(({ score, index }) => {
-            const points = score.points ?? 0;
-            const valueY = pointsToY(points);
-            const isNegative = points < 0;
-            const manager = score.lineup_manager;
+        const marks = placed.map(({ jornada, index }) => {
+            const points = jornada.points;
+            const valueY = pointsToY(points ?? 0);
+            const isNegative = points !== null && points < 0;
+            const manager = jornada.manager;
 
             return {
-                key: score.id,
+                key: jornada.key,
                 index,
                 cx: xAt(index),
                 y: isNegative ? zeroY : valueY,
                 height: Math.max(1.5, Math.abs(zeroY - valueY)),
-                valueY,
-                week: score.fixture.week_number,
+                week: jornada.fixture.week_number,
                 points,
                 isNegative,
                 managerId: manager?.id ?? null,
@@ -334,8 +357,8 @@ export function HqPlayerValueChart({
             };
         });
 
-        return { xAt, yAt, lineSegments, bandSegments, boundaries, bars, barWidth, zeroY };
-    }, [visibleHistory, scores, ownershipSegments, width]);
+        return { xAt, yAt, lineSegments, bandSegments, boundaries, marks, barWidth, zeroY };
+    }, [visibleHistory, scores, missedFixtures, ownershipSegments, width]);
 
     const legend = useMemo(() => {
         const seen = new Map<string, { label: string; color: string }>();
@@ -353,15 +376,15 @@ export function HqPlayerValueChart({
             }
         }
 
-        for (const bar of geometry?.bars ?? []) {
-            if (bar.managerName === null) {
+        for (const mark of geometry?.marks ?? []) {
+            if (mark.managerName === null) {
                 continue;
             }
 
-            const key = `team-${bar.managerId}`;
+            const key = `team-${mark.managerId}`;
 
             if (!seen.has(key)) {
-                seen.set(key, { label: bar.managerName, color: bar.managerColor });
+                seen.set(key, { label: mark.managerName, color: mark.managerColor });
             }
         }
 
@@ -379,10 +402,10 @@ export function HqPlayerValueChart({
         const relX = ((clientX - rect.left) / rect.width) * width;
         const pxRatio = rect.width / width;
         const n = visibleHistory.length;
-        // Hovering near a jornada's bar snaps to that day, so its points and
-        // the manager they belonged to are easy to hit.
-        const snapped = geometry.bars.find(
-            (bar) => Math.abs(bar.cx - relX) <= Math.max(SNAP_RADIUS, geometry.barWidth / 2),
+        // Hovering near a jornada's bar (or its "-") snaps to that day, so its
+        // points and the manager they belonged to are easy to hit.
+        const snapped = geometry.marks.find(
+            (mark) => Math.abs(mark.cx - relX) <= Math.max(SNAP_RADIUS, geometry.barWidth / 2),
         );
         const index = snapped
             ? snapped.index
@@ -505,42 +528,57 @@ export function HqPlayerValueChart({
                             stroke="var(--color-hq-border-strong)"
                             strokeWidth={1}
                         />
-                        {geometry.bars.map((bar) => (
-                            <g key={bar.key}>
-                                <rect
-                                    x={bar.cx - geometry.barWidth / 2}
-                                    y={bar.y}
-                                    width={geometry.barWidth}
-                                    height={bar.height}
-                                    fill={matchPointsColor(bar.points)}
-                                    opacity={0.55}
-                                />
+                        {geometry.marks.map((mark) => (
+                            <g key={mark.key}>
+                                {mark.points === null ? (
+                                    <text
+                                        x={mark.cx}
+                                        y={mark.y - 5}
+                                        textAnchor="middle"
+                                        className="font-display"
+                                        fontSize={13}
+                                        fill="var(--color-hq-moss-dim)"
+                                    >
+                                        -
+                                    </text>
+                                ) : (
+                                    <>
+                                        <rect
+                                            x={mark.cx - geometry.barWidth / 2}
+                                            y={mark.y}
+                                            width={geometry.barWidth}
+                                            height={mark.height}
+                                            fill={matchPointsColor(mark.points)}
+                                            opacity={0.55}
+                                        />
+                                        <text
+                                            x={mark.cx}
+                                            y={mark.isNegative ? mark.y + mark.height + 14 : mark.y - 5}
+                                            textAnchor="middle"
+                                            className="font-display"
+                                            fontSize={13}
+                                            fill={matchPointsColor(mark.points)}
+                                            stroke="var(--color-hq-panel)"
+                                            strokeWidth={3}
+                                            paintOrder="stroke"
+                                        >
+                                            {mark.points}
+                                        </text>
+                                    </>
+                                )}
                                 <text
-                                    x={bar.cx}
-                                    y={bar.isNegative ? bar.y + bar.height + 14 : bar.y - 5}
-                                    textAnchor="middle"
-                                    className="font-display"
-                                    fontSize={13}
-                                    fill={matchPointsColor(bar.points)}
-                                    stroke="var(--color-hq-panel)"
-                                    strokeWidth={3}
-                                    paintOrder="stroke"
-                                >
-                                    {bar.points}
-                                </text>
-                                <text
-                                    x={bar.cx}
+                                    x={mark.cx}
                                     y={JORNADA_LABEL_Y}
                                     textAnchor="middle"
                                     className="font-mono"
                                     fontSize={9}
                                     fill="var(--color-hq-moss)"
                                 >
-                                    J{bar.week}
+                                    J{mark.week}
                                 </text>
                             </g>
                         ))}
-                        {geometry.bars.length === 0 && (
+                        {geometry.marks.length === 0 && (
                             <text
                                 x={width / 2}
                                 y={(POINTS_TOP + POINTS_BOTTOM) / 2}
@@ -690,10 +728,15 @@ export function HqPlayerValueChart({
                                 <div
                                     className="font-bold tracking-wide"
                                     style={{
-                                        color: matchPointsColor(tooltip.jornada.points),
+                                        color:
+                                            tooltip.jornada.points === null
+                                                ? 'var(--color-hq-moss)'
+                                                : matchPointsColor(tooltip.jornada.points),
                                     }}
                                 >
-                                    J{tooltip.jornada.week} · {tooltip.jornada.points} PTS
+                                    {tooltip.jornada.points === null
+                                        ? `J${tooltip.jornada.week} · -`
+                                        : `J${tooltip.jornada.week} · ${tooltip.jornada.points} PTS`}
                                 </div>
                                 {showJornadaManager && (
                                     <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
