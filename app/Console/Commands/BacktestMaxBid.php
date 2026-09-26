@@ -68,16 +68,22 @@ class BacktestMaxBid extends Command
                 ->get();
         }
 
+        // Read as plain stdClass rows via a cursor (never hydrating a PlayerMarket model or a Carbon
+        // date), so this stays a handful of compact scalars per row instead of ~35k Eloquent models —
+        // the dominant cost of the whole replay before this fix (see task-6-report.md, fix round 2).
         /** @var array<int, array<string, int>> $valuesByPlayer player id → date → value, oldest first */
-        $valuesByPlayer = PlayerMarket::query()
-            ->whereIn('player_id', $players->pluck('id'))
-            ->orderBy('date')
-            ->get(['player_id', 'date', 'value'])
-            ->groupBy('player_id')
-            ->map(fn ($markets) => $markets->mapWithKeys(fn (PlayerMarket $market): array => [
-                $market->date->toDateString() => $market->value,
-            ])->all())
-            ->all();
+        $valuesByPlayer = [];
+
+        foreach (
+            PlayerMarket::query()
+                ->whereIn('player_id', $players->pluck('id'))
+                ->orderBy('date')
+                ->select(['player_id', 'date', 'value'])
+                ->toBase()
+                ->cursor() as $row
+        ) {
+            $valuesByPlayer[(int) $row->player_id][substr((string) $row->date, 0, 10)] = (int) $row->value;
+        }
 
         /** @var array<string, array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}> $groups */
         $groups = [];
