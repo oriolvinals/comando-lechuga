@@ -39,6 +39,8 @@ final readonly class MaxBidInputs
         public int $teamCount = 2,
         public bool $doubtful = false,
         public array $recentTeamPoints = [],
+        /** The market day the values come from (Y-m-d): the latest published day up to the requested date. */
+        public ?string $referenceDate = null,
     ) {}
 
     /** Fantasy points of the most recent finished lineup, null when he has none. */

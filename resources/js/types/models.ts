@@ -394,4 +394,6 @@ export interface MaxBidEstimate {
     rivals_effect: number | null;
     /** Next 3 fixtures, soonest first. */
     upcoming_rivals: MaxBidRival[];
+    /** The market day the values come from (Y-m-d): the latest published day, null without market data. */
+    reference_date: string | null;
 }

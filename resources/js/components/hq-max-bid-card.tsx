@@ -40,6 +40,13 @@ function formatDaily(amount: number): string {
     return `${sign}${text}/día`;
 }
 
+/** `2026-09-26` → `26/09`, straight from the string so no timezone can shift the day. */
+function formatReferenceDate(isoDate: string): string {
+    const [, month, day] = isoDate.split('-');
+
+    return `${day}/${month}`;
+}
+
 function formatSigned(value: number): string {
     return value.toLocaleString('es-ES', {
         minimumFractionDigits: 2,
@@ -759,6 +766,8 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                 Mejor oferta esperada durante los {estimate.lock_days} días de
                 blindaje · {Math.round(estimate.confidence * 100)} % de
                 confianza
+                {estimate.reference_date !== null &&
+                    ` · Datos del ${formatReferenceDate(estimate.reference_date)}`}
             </p>
         </div>
     );

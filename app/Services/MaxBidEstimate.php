@@ -38,6 +38,8 @@ final readonly class MaxBidEstimate
         public array $recentParticipation = [],
         public ?float $rivalsEffect = null,
         public array $upcomingRivals = [],
+        /** The market day the values come from (Y-m-d), null without any market data. */
+        public ?string $referenceDate = null,
     ) {}
 
     /**
@@ -65,6 +67,7 @@ final readonly class MaxBidEstimate
             'recent_participation' => $this->recentParticipation,
             'rivals_effect' => $this->rivalsEffect,
             'upcoming_rivals' => $this->upcomingRivals,
+            'reference_date' => $this->referenceDate,
         ];
     }
 }

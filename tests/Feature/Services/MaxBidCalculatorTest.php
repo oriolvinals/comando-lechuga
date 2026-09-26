@@ -405,3 +405,25 @@ test('gathering the inputs records the team\'s points in its last three matches,
     expect($inputs->recentTeamPoints)->toBe([0, 3, 1])
         ->and($inputs->recentParticipation)->toHaveCount(3);
 });
+
+test('without market rows for the reference day yet, the estimate uses the latest published day for both the player and the market', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    // The next morning, before that day's market values are published.
+    $this->travelTo('2026-09-27 08:00:00');
+
+    $estimate = app(MaxBidCalculator::class)->estimate($player, $this->season);
+
+    expect($estimate->referenceDate)->toBe('2026-09-26')
+        ->and($estimate->toArray()['reference_date'])->toBe('2026-09-26')
+        ->and($estimate->value)->toBe(10_300_000)
+        ->and($estimate->momentumIncrement)->toEqualWithDelta(100_000, 0.01)
+        // The player's own rise moved the market index over 23/09–26/09.
+        ->and($estimate->marketAdjustment)->toBeLessThan(0.0);
+});
+
+test('the reference date is the latest published market day up to the requested date', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+
+    expect(app(MaxBidCalculator::class)->estimate($player, $this->season)->referenceDate)->toBe('2026-09-26')
+        ->and(app(MaxBidCalculator::class)->estimate($player, $this->season, now()->subDay())->referenceDate)->toBe('2026-09-25');
+});

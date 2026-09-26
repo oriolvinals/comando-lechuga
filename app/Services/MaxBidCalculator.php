@@ -55,6 +55,9 @@ class MaxBidCalculator
     /** @var array<string, array<int, int>> Standings positions, cached per reference date for the backtest. */
     private array $positionsByDate = [];
 
+    /** @var array<string, string|null> Latest published market day (Y-m-d) up to a date, cached per season + date. */
+    private array $referenceDateByDate = [];
+
     /** @var array<int, Team> Rival teams, shared across estimates so a backtest holds one instance per team. */
     private array $teamsById = [];
 
@@ -80,14 +83,19 @@ class MaxBidCalculator
      * Every database read the formula needs, for the player at the end of
      * `$at`'s day. An unavailable player or one with too little market
      * history gets a status-only result.
+     *
+     * Market values are published some time after midnight, so the market
+     * data (the player's values and the market index) comes from one
+     * reference day: the latest published day up to `$at`.
      */
     public function gatherInputs(Player $player, Season $season, ?CarbonInterface $at = null): MaxBidInputs
     {
         $at = CarbonImmutable::parse($at ?? now())->endOfDay();
+        $referenceDate = $this->referenceDate($season, $at);
 
-        $values = PlayerMarket::query()
+        $values = $referenceDate === null ? [] : PlayerMarket::query()
             ->where('player_id', $player->id)
-            ->whereDate('date', '<=', $at)
+            ->whereDate('date', '<=', $referenceDate)
             ->orderByDesc('date')
             ->limit(self::MOMENTUM_DAYS + 1)
             ->pluck('value')
@@ -98,11 +106,11 @@ class MaxBidCalculator
         $value = $values === [] ? 0 : end($values);
 
         if (in_array($player->status, self::UNAVAILABLE_STATUSES, true)) {
-            return new MaxBidInputs($value, MaxBidStatus::Unavailable);
+            return new MaxBidInputs($value, MaxBidStatus::Unavailable, referenceDate: $referenceDate);
         }
 
-        if (count($values) < self::MOMENTUM_DAYS + 1) {
-            return new MaxBidInputs($value, MaxBidStatus::NoData);
+        if ($referenceDate === null || count($values) < self::MOMENTUM_DAYS + 1) {
+            return new MaxBidInputs($value, MaxBidStatus::NoData, referenceDate: $referenceDate);
         }
 
         [$lastPoints, $seasonPointsAverage] = $this->points($player, $season, $at);
@@ -113,7 +121,7 @@ class MaxBidCalculator
         return new MaxBidInputs(
             value: $value,
             momentum: ($values[self::MOMENTUM_DAYS] - $values[0]) / self::MOMENTUM_DAYS,
-            marketPace: $this->marketPace($season, $at),
+            marketPace: $this->marketPace($season, CarbonImmutable::parse($referenceDate)->endOfDay()),
             lastPoints: $lastPoints,
             seasonPointsAverage: $seasonPointsAverage,
             recentParticipation: $recentParticipation,
@@ -121,6 +129,7 @@ class MaxBidCalculator
             teamCount: $teamCount,
             doubtful: $player->status === PlayerStatus::Doubtful,
             recentTeamPoints: $recentTeamPoints,
+            referenceDate: $referenceDate,
         );
     }
 
@@ -131,7 +140,7 @@ class MaxBidCalculator
     public static function estimateFromInputs(MaxBidInputs $inputs, MaxBidParameters $parameters, float $confidence = self::CONFIDENCE): MaxBidEstimate
     {
         if ($inputs->presetStatus !== null) {
-            return new MaxBidEstimate($inputs->presetStatus, $inputs->value, $confidence, self::LOCK_DAYS);
+            return new MaxBidEstimate($inputs->presetStatus, $inputs->value, $confidence, self::LOCK_DAYS, referenceDate: $inputs->referenceDate);
         }
 
         $value = $inputs->value;
@@ -171,6 +180,7 @@ class MaxBidCalculator
             recentParticipation: $inputs->recentParticipation,
             rivalsEffect: $sport['rivals_effect'],
             upcomingRivals: $sport['upcoming_rivals'],
+            referenceDate: $inputs->referenceDate,
         );
     }
 
@@ -351,6 +361,23 @@ class MaxBidCalculator
             && array_sum($inputs->recentTeamPoints) >= $parameters->streakExceptionTeamPoints
             && count($inputs->recentParticipation) === $matches
             && array_filter($inputs->recentParticipation, fn (array $match): bool => !$match['starter']) === [];
+    }
+
+    /**
+     * The latest day (Y-m-d) up to `$at` with any published market values,
+     * null when there is none. Cached per season + date like the market index.
+     */
+    private function referenceDate(Season $season, CarbonImmutable $at): ?string
+    {
+        $cacheKey = "{$season->id}:{$at->toDateString()}";
+
+        if (!array_key_exists($cacheKey, $this->referenceDateByDate)) {
+            $latest = PlayerMarket::query()->whereDate('date', '<=', $at)->max('date');
+
+            $this->referenceDateByDate[$cacheKey] = $latest === null ? null : substr((string) $latest, 0, 10);
+        }
+
+        return $this->referenceDateByDate[$cacheKey];
     }
 
     /**
