@@ -3,7 +3,7 @@
 use App\Services\MaxBidCalculator;
 
 test('projects the daily increment decaying 10 % per day over the 14-day lock', function (): void {
-    $projection = MaxBidCalculator::project(1000, 100.0);
+    $projection = MaxBidCalculator::project(1000, 100.0, 0.9);
 
     expect($projection)->toHaveCount(15)
         ->and($projection[0])->toBe(1000)

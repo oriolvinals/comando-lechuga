@@ -166,3 +166,28 @@ test('fails clearly for an unknown phase', function (): void {
         ->expectsOutputToContain('siesta')
         ->assertFailed();
 });
+
+test('grid-searches only the low decays around the chosen calibration with --grid-decay', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    $riser = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $faller = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+
+    foreach (range(0, 24) as $day) {
+        $date = CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString();
+        PlayerMarket::factory()->create(['player_id' => $riser->id, 'date' => $date, 'value' => 10_000_000 + $day * 200_000]);
+        PlayerMarket::factory()->create(['player_id' => $faller->id, 'date' => $date, 'value' => 10_000_000 - $day * 200_000]);
+    }
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-09-10', '--grid-decay' => true])
+        ->expectsOutputToContain('Pasada 3')
+        ->doesntExpectOutputToContain('Pasada 1')
+        ->expectsOutputToContain('defaults')
+        ->expectsOutputToContain('0,65')
+        ->expectsOutputToContain('Desglose de la ganadora de la pasada 3')
+        ->assertSuccessful();
+
+    expect(PlayerMarket::query()->count())->toBe(50);
+});

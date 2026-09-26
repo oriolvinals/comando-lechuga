@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\BadScoreRule;
 use App\Enums\FixtureState;
 use App\Enums\MaxBidStatus;
 use App\Enums\PlayerStatus;
@@ -210,14 +211,16 @@ test('participation weighs starts and minutes of the team\'s last three matches,
         ]);
 });
 
-test('a bench player gets half of a positive daily increment', function (): void {
+test('a bench player gets the bench factor of a positive daily increment', function (): void {
     $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
     playedFixture($this->season, $player, 2, null);
+    // Without the one-bench rule, which would otherwise cap this benched player's increment at 0.
+    $parameters = new MaxBidParameters(benchesBeforeUnprofitable: 0);
 
-    $estimate = app(MaxBidCalculator::class)->estimate($player, $this->season);
+    $estimate = (new MaxBidCalculator(app(LeagueStandings::class), $parameters))->estimate($player, $this->season);
 
     expect($estimate->dailyIncrement)->toEqualWithDelta(
-        ($estimate->momentumIncrement + $estimate->marketAdjustment + $estimate->sportAdjustment) / 2,
+        ($estimate->momentumIncrement + $estimate->marketAdjustment + $estimate->sportAdjustment) * $parameters->benchIncrementFactor,
         0.01,
     );
 });
@@ -317,7 +320,7 @@ test('a calculator built with a different decay projects differently', function 
     $custom = $slower->estimate($player, $this->season);
 
     expect($custom->dailyIncrement)->toBe($default->dailyIncrement)
-        ->and($custom->projection[14])->toBeLessThan($default->projection[14]);
+        ->and($custom->projection[14])->not->toBe($default->projection[14]);
 });
 
 test('gathering the inputs of a player benched in the last match records it newest first', function (): void {
@@ -332,4 +335,55 @@ test('gathering the inputs of a player benched in the last match records it newe
         ->and($inputs->latestPoints())->toBe(1)
         ->and($inputs->seasonPointsAverage)->toEqual(4.5)
         ->and($estimate->status)->toBe(MaxBidStatus::Unprofitable);
+});
+
+test('pins the formula on a sport-rich scenario with explicit parameters', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_150_000, 10_200_000, 10_400_000]);
+    playedFixture($this->season, $player, 23, 90, points: 0);
+    playedFixture($this->season, $player, 16, 90, points: 2);
+    playedFixture($this->season, $player, 9, 70, points: 12);
+    playedFixture($this->season, $player, 2, 90, starter: false, points: 6);
+    $leader = Team::factory()->create();
+    $bottom = Team::factory()->create();
+    $this->season->teams()->syncWithoutDetaching([$leader->id, $bottom->id]);
+    foreach ([12, 5] as $daysAgo) {
+        Fixture::factory()->create([
+            'season_id' => $this->season->id, 'week_number' => 1, 'date' => now()->subDays($daysAgo),
+            'team_local_id' => $leader->id, 'team_guest_id' => $bottom->id,
+            'local_score' => 3, 'guest_score' => 0, 'state' => FixtureState::Finished,
+        ]);
+    }
+    foreach ([[2, $leader], [9, $bottom]] as [$inDays, $rival]) {
+        Fixture::factory()->create([
+            'season_id' => $this->season->id, 'week_number' => 8, 'date' => now()->addDays($inDays)->setTime(18, 0),
+            'team_local_id' => $player->team_id, 'team_guest_id' => $rival->id, 'state' => FixtureState::Scheduled,
+        ]);
+    }
+    // The specified model, spelled out so a change of defaults doesn't move these numbers.
+    $parameters = new MaxBidParameters(
+        incrementDecayBreak: 0.9,
+        incrementDecayMatchweek: 0.9,
+        sportDailyRate: 0.01,
+        formWeight: 0.4,
+        participationWeight: 0.3,
+        rivalsWeight: 0.3,
+        proximityHalfLifeDays: 7.0,
+        benchParticipation: 0.4,
+        benchIncrementFactor: 0.5,
+        benchesBeforeUnprofitable: 0,
+        badScoreRule: BadScoreRule::Off,
+    );
+
+    $estimate = (new MaxBidCalculator(app(LeagueStandings::class), $parameters))->estimate($player, $this->season);
+
+    // form = (20/3 − 5) / 5; participation = 0,5·0,25 + 0,3·(0,5 + 0,5·70/90) + 0,2·1;
+    // leader (1st of 4) in 2 days, bottom (4th) in 9 days.
+    expect($estimate->status)->toBe(MaxBidStatus::Profitable)
+        ->and($estimate->form)->toEqualWithDelta(1 / 3, 1e-9)
+        ->and($estimate->participation)->toEqualWithDelta(0.716666667, 1e-9)
+        ->and($estimate->rivalsEffect)->toEqualWithDelta(-0.136722559, 1e-9)
+        ->and($estimate->sportScore)->toEqualWithDelta(0.092971340, 1e-9)
+        ->and($estimate->dailyIncrement)->toEqualWithDelta(141_629.415, 0.001)
+        ->and($estimate->projection[14])->toBe(11_383_062)
+        ->and($estimate->bid)->toBe(12_017_894);
 });

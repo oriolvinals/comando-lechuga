@@ -176,7 +176,7 @@ class MaxBidCalculator
      *
      * @return list<int>
      */
-    public static function project(int $value, float $dailyIncrement, float $incrementDecay = MaxBidParameters::DEFAULT_INCREMENT_DECAY): array
+    public static function project(int $value, float $dailyIncrement, float $incrementDecay): array
     {
         $projection = [$value];
         $current = (float) $value;

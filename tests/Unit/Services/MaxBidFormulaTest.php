@@ -42,12 +42,12 @@ test('the defaults reproduce a plain rising player', function (): void {
 
     expect($estimate->status)->toBe(MaxBidStatus::Profitable)
         ->and($estimate->dailyIncrement)->toEqual(100_000.0)
-        ->and($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, 100_000.0))
+        ->and($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, 100_000.0, (new MaxBidParameters)->incrementDecayBreak))
         ->and($estimate->confidence)->toBe(MaxBidCalculator::CONFIDENCE);
 });
 
 test('a different decay changes the projection', function (): void {
-    $default = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters);
+    $default = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(incrementDecayBreak: 0.9));
     $slower = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(incrementDecayBreak: 0.8));
 
     expect($slower->projection[14])->toBeLessThan($default->projection[14])
@@ -120,3 +120,8 @@ test('a status-only input is returned as that status, with no factors', function
         ->and($estimate->confidence)->toBe(0.9)
         ->and($estimate->projection)->toBeNull();
 })->with([MaxBidStatus::Unavailable, MaxBidStatus::NoData]);
+
+test('benchesBeforeUnprofitable can only count the three matches that are gathered', function (int $benches): void {
+    expect(fn (): MaxBidParameters => new MaxBidParameters(benchesBeforeUnprofitable: $benches))
+        ->toThrow(InvalidArgumentException::class);
+})->with([-1, 4]);

@@ -21,7 +21,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 
-#[Signature('season:backtest-max-bid {--from= : First reference date (Y-m-d)} {--to= : Last reference date (Y-m-d)} {--player= : Nickname of one player to replay day by day} {--grid : Grid-search the model parameters in memory instead (writes nothing)} {--phase= : With --grid, replay only the days of one phase: matchweek or break}')]
+#[Signature('season:backtest-max-bid {--from= : First reference date (Y-m-d)} {--to= : Last reference date (Y-m-d)} {--player= : Nickname of one player to replay day by day} {--grid : Grid-search the model parameters in memory instead (writes nothing)} {--grid-decay : Grid-search only both decays below 0.80 around the chosen calibration (pass 3; writes nothing)} {--phase= : With --grid or --grid-decay, replay only the days of one phase: matchweek or break}')]
 #[Description('Replay the max bid model over the market history and report how it would have done')]
 class BacktestMaxBid extends Command
 {
@@ -35,6 +35,9 @@ class BacktestMaxBid extends Command
 
     /** @var list<float> */
     private const array GRID_DECAYS = [0.8, 0.85, 0.9, 0.95];
+
+    /** @var list<float> Pass 3: below pass 1's lower edge. */
+    private const array GRID_LOW_DECAYS = [0.65, 0.7, 0.75, 0.8];
 
     /** @var list<float> */
     private const array GRID_SPORT_DAILY_RATES = [0.005, 0.01, 0.02];
@@ -50,12 +53,13 @@ class BacktestMaxBid extends Command
 
     public function handle(MaxBidCalculator $calculator): int
     {
-        $grid = (bool) $this->option('grid');
+        $decayOnly = (bool) $this->option('grid-decay');
+        $grid = $decayOnly || (bool) $this->option('grid');
         $phaseOption = $this->option('phase');
         $phase = is_string($phaseOption) ? $phaseOption : null;
 
         if ($phase !== null && (!$grid || !in_array($phase, self::PHASES, true))) {
-            $this->error("La fase «{$phase}» no es válida: usa --phase=matchweek o --phase=break, junto con --grid.");
+            $this->error("La fase «{$phase}» no es válida: usa --phase=matchweek o --phase=break, junto con --grid o --grid-decay.");
 
             return self::FAILURE;
         }
@@ -124,7 +128,7 @@ class BacktestMaxBid extends Command
         }
 
         if ($grid) {
-            return $this->gridSearch($calculator, $season, $players, $valuesByPlayer, $from, $to, $phase);
+            return $this->gridSearch($calculator, $season, $players, $valuesByPlayer, $from, $to, $phase, $decayOnly);
         }
 
         /** @var array<string, array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}> $groups */
@@ -190,14 +194,13 @@ class BacktestMaxBid extends Command
 
     /**
      * Gathers each (player, day)'s inputs once, then replays the formula in
-     * memory for every parameter combination: pass 1 sweeps the continuous
-     * parameters, pass 2 fixes pass 1's best and sweeps the bench and
-     * bad-score rules.
+     * memory for every parameter combination: passes 1 and 2, or only pass 3
+     * with `--grid-decay`.
      *
      * @param  Collection<int, Player>  $players
      * @param  array<int, array<string, int>>  $valuesByPlayer
      */
-    private function gridSearch(MaxBidCalculator $calculator, Season $season, Collection $players, array $valuesByPlayer, CarbonImmutable $from, CarbonImmutable $to, ?string $phase): int
+    private function gridSearch(MaxBidCalculator $calculator, Season $season, Collection $players, array $valuesByPlayer, CarbonImmutable $from, CarbonImmutable $to, ?string $phase, bool $decayOnly): int
     {
         $startedAt = hrtime(true);
 
@@ -248,6 +251,69 @@ class BacktestMaxBid extends Command
         $defaultsMetrics = $this->metrics($this->replay($records, $defaults, false)['Total']);
         $minimumProfitable = (int) ceil(self::MINIMUM_PROFITABLE_SHARE * $defaultsMetrics['profitableCount']);
 
+        [$winnerLabel, $winner] = $decayOnly
+            ? ['pasada 3', $this->decayPass($records, $defaults, $defaultsMetrics, $minimumProfitable)]
+            : ['pasada 2', $this->broadPasses($records, $defaults, $defaultsMetrics, $minimumProfitable)];
+
+        $this->newLine();
+        $this->info("Desglose de la ganadora de la {$winnerLabel}");
+        $this->table(
+            ['Grupo', 'Estimaciones', 'Rentables', 'Prob. real media (obj. 75 %)', 'Sin rentab.', 'Falsos negativos', 'Error proy. medio', 'Error proy. mediana'],
+            $this->rows($this->replay($records, $winner, true)),
+        );
+
+        $this->info(sprintf(
+            'Tiempo total: %.1f s · memoria pico: %.1f MB (límite %s).',
+            (hrtime(true) - $startedAt) / 1e9,
+            memory_get_peak_usage(true) / 1024 / 1024,
+            (string) ini_get('memory_limit'),
+        ));
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Pass 3: both decays below pass 1's lower edge, with every other
+     * parameter fixed at the chosen calibration (option B). Returns its winner.
+     *
+     * @param  list<array{0: MaxBidInputs, 1: list<int>, 2: MarketTrend|null}>  $records
+     * @param  array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}  $defaultsMetrics
+     */
+    private function decayPass(array $records, MaxBidParameters $defaults, array $defaultsMetrics, int $minimumProfitable): MaxBidParameters
+    {
+        $combinations = [];
+
+        foreach (self::GRID_LOW_DECAYS as $decayBreak) {
+            foreach (self::GRID_LOW_DECAYS as $decayMatchweek) {
+                $parameters = new MaxBidParameters(
+                    incrementDecayBreak: $decayBreak,
+                    incrementDecayMatchweek: $decayMatchweek,
+                    sportDailyRate: 0.005,
+                    proximityHalfLifeDays: 7.0,
+                    benchIncrementFactor: 0.25,
+                    benchesBeforeUnprofitable: 1,
+                    badScoreRule: BadScoreRule::AtMostTwo,
+                );
+                $combinations[] = ['parameters' => $parameters, 'metrics' => $this->metrics($this->replay($records, $parameters, false)['Total'])];
+            }
+        }
+
+        $ranking = $this->rank($combinations, $minimumProfitable);
+        $this->printPass('Pasada 3: decay parón × decay jornada por debajo de 0,80, con ritmo 0,005, vida media 7 d, factor banquillo 0,25, 1 banquillo y mala nota ≤ 2', $combinations, $ranking, $defaults, $defaultsMetrics, $minimumProfitable);
+
+        return $ranking[0]['parameters'] ?? $defaults;
+    }
+
+    /**
+     * Pass 1 sweeps the continuous parameters with the rules at their
+     * defaults; pass 2 fixes pass 1's best and sweeps the bench and bad-score
+     * rules. Returns pass 2's winner.
+     *
+     * @param  list<array{0: MaxBidInputs, 1: list<int>, 2: MarketTrend|null}>  $records
+     * @param  array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}  $defaultsMetrics
+     */
+    private function broadPasses(array $records, MaxBidParameters $defaults, array $defaultsMetrics, int $minimumProfitable): MaxBidParameters
+    {
         $firstPass = [];
 
         foreach (self::GRID_DECAYS as $decayBreak) {
@@ -291,23 +357,8 @@ class BacktestMaxBid extends Command
 
         $secondRanking = $this->rank($secondPass, $minimumProfitable);
         $this->printPass('Pasada 2: con los valores continuos de la mejor de la pasada 1, banquillos antes de no rentable × factor banquillo × mala nota', $secondPass, $secondRanking, $defaults, $defaultsMetrics, $minimumProfitable);
-        $winner = $secondRanking[0]['parameters'] ?? $best;
 
-        $this->newLine();
-        $this->info('Desglose de la ganadora de la pasada 2');
-        $this->table(
-            ['Grupo', 'Estimaciones', 'Rentables', 'Prob. real media (obj. 75 %)', 'Sin rentab.', 'Falsos negativos', 'Error proy. medio', 'Error proy. mediana'],
-            $this->rows($this->replay($records, $winner, true)),
-        );
-
-        $this->info(sprintf(
-            'Tiempo total: %.1f s · memoria pico: %.1f MB (límite %s).',
-            (hrtime(true) - $startedAt) / 1e9,
-            memory_get_peak_usage(true) / 1024 / 1024,
-            (string) ini_get('memory_limit'),
-        ));
-
-        return self::SUCCESS;
+        return $secondRanking[0]['parameters'] ?? $best;
     }
 
     /**
@@ -378,7 +429,7 @@ class BacktestMaxBid extends Command
     {
         return [
             $metrics['probability'] === null ? INF : abs($metrics['probability'] - MaxBidCalculator::CONFIDENCE),
-            $metrics['falseNegativeRate'] ?? 0.0,
+            $metrics['falseNegativeRate'] ?? INF,
             $metrics['medianError'] ?? INF,
         ];
     }
