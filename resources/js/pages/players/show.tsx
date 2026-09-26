@@ -204,18 +204,20 @@ export default function PlayerShow({
                                 marketValue={player.market_value}
                             />
                         </div>
+                    </div>
 
+                    <div className="min-w-0 flex-1 space-y-8">
                         {maxBid !== null && (
-                            <div className="mt-4">
+                            <div>
+                                <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
+                                    Puja máxima rentable
+                                </h2>
                                 <HqMaxBidCard
                                     estimate={maxBid}
                                     playerStatus={player.status}
                                 />
                             </div>
                         )}
-                    </div>
-
-                    <div className="min-w-0 flex-1 space-y-8">
                         <HqPlayerValueChart
                             marketHistory={marketHistory}
                             scores={scores}

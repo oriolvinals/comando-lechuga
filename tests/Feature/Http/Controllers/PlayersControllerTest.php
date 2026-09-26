@@ -1168,7 +1168,17 @@ test('the ficha has no max bid without the puja parameter', function (): void {
         ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null));
 });
 
-test('the puja parameter, even without a value, adds the max bid to the ficha', function (): void {
+test('a bare puja parameter does not add the max bid to the ficha', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    $this->get(route('players.show', $player).'?puja')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null))
+        ->assertCookieMissing('show_max_bid');
+});
+
+test('puja=1 adds the max bid to the ficha and remembers it in a cookie', function (): void {
     Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     foreach ([10_000_000, 10_100_000, 10_200_000, 10_300_000] as $index => $value) {
@@ -1179,10 +1189,32 @@ test('the puja parameter, even without a value, adds the max bid to the ficha', 
         ]);
     }
 
-    $this->get(route('players.show', $player).'?puja')
+    $this->get(route('players.show', $player).'?puja=1')
         ->assertOk()
         ->assertInertia(fn (Assert $page): AssertableInertia => $page
             ->where('maxBid.value', 10_300_000)
             ->has('maxBid.status')
-            ->has('maxBid.projection', 15));
+            ->has('maxBid.projection', 15))
+        ->assertCookie('show_max_bid', '1');
+});
+
+test('a remembered cookie adds the max bid with no puja parameter', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    $this->withCookie('show_max_bid', '1')
+        ->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->has('maxBid.status'));
+});
+
+test('puja=0 removes the max bid and forgets the cookie even when it is present', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    $this->withCookie('show_max_bid', '1')
+        ->get(route('players.show', $player).'?puja=0')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null))
+        ->assertCookieExpired('show_max_bid');
 });
