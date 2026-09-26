@@ -12,6 +12,7 @@ use App\Models\Season;
 use App\Models\Team;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
@@ -39,7 +40,7 @@ class MaxBidCalculator
     /** @var list<PlayerStatus> */
     private const array UNAVAILABLE_STATUSES = [PlayerStatus::Injured, PlayerStatus::Suspended, PlayerStatus::OutOfLeague];
 
-    /** @var array<string, float> Market-wide daily pace, cached per reference date for the backtest. */
+    /** @var array<string, float> Market-wide daily pace, cached per season + reference date for the backtest. */
     private array $marketPaceByDate = [];
 
     /**
@@ -170,25 +171,32 @@ class MaxBidCalculator
 
     /**
      * Value-weighted daily pace of the whole market over the momentum window,
-     * over players of the season's teams still in the league that have a value
-     * on both ends. 0 when either end has no data.
+     * over players of the season's teams still in the league that have a
+     * value on BOTH ends of the window (a self-join on `player_id`, so a
+     * player who only joined or left mid-window doesn't skew the index).
+     * 0 when either end totals to no data.
      */
     private function marketPace(Season $season, CarbonImmutable $at): float
     {
-        $today = $at->toDateString();
+        $cacheKey = "{$season->id}:{$at->toDateString()}";
 
-        return $this->marketPaceByDate[$today] ??= (function () use ($season, $at): float {
-            $totalOn = fn (CarbonImmutable $day): int => (int) PlayerMarket::query()
-                ->whereDate('date', $day)
-                ->whereHas('player', fn ($query) => $query
-                    ->whereIn('team_id', $season->teams()->select('teams.id'))
-                    ->where('status', '!=', PlayerStatus::OutOfLeague))
-                ->sum('value');
+        return $this->marketPaceByDate[$cacheKey] ??= (function () use ($season, $at): float {
+            $start = $at->subDays(self::MOMENTUM_DAYS);
 
-            $start = $totalOn($at->subDays(self::MOMENTUM_DAYS));
-            $end = $totalOn($at);
+            $totals = DB::table('player_markets as start_market')
+                ->join('player_markets as end_market', 'end_market.player_id', '=', 'start_market.player_id')
+                ->join('players', 'players.id', '=', 'start_market.player_id')
+                ->whereDate('start_market.date', $start)
+                ->whereDate('end_market.date', $at)
+                ->whereIn('players.team_id', $season->teams()->select('teams.id'))
+                ->where('players.status', '!=', PlayerStatus::OutOfLeague->value)
+                ->selectRaw('sum(start_market.value) as start_total, sum(end_market.value) as end_total')
+                ->first();
 
-            return $start > 0 && $end > 0 ? ($end - $start) / $start / self::MOMENTUM_DAYS : 0.0;
+            $startTotal = (int) ($totals->start_total ?? 0);
+            $endTotal = (int) ($totals->end_total ?? 0);
+
+            return $startTotal > 0 && $endTotal > 0 ? ($endTotal - $startTotal) / $startTotal / self::MOMENTUM_DAYS : 0.0;
         })();
     }
 

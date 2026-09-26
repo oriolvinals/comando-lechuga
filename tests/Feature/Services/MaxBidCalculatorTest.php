@@ -98,6 +98,21 @@ test('the market index is neutral when the start of the window has no data', fun
     expect($estimate->marketAdjustment)->toBe(0.0);
 });
 
+test('the market index ignores a player valued at only one end of the window', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+
+    $before = app(MaxBidCalculator::class)->estimate($player, $this->season)->marketAdjustment;
+
+    // Present only today (the end of the window), never 3 days ago — a player
+    // who just joined the league. If it leaked into the index, its huge value
+    // would swamp the flat anchor and change the index.
+    maxBidPlayer($this->season, [50_000_000_000]);
+
+    $after = app(MaxBidCalculator::class)->estimate($player, $this->season)->marketAdjustment;
+
+    expect($after)->toBe($before);
+});
+
 test('the reference date ignores anything after it', function (): void {
     $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000, 9_000_000, 8_000_000]);
 
