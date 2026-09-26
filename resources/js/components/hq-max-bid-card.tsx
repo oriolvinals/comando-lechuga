@@ -1,7 +1,9 @@
 import { router } from '@inertiajs/react';
+import { Info } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { HqTooltip } from '@/components/hq-tooltip';
 import { formatCurrency } from '@/lib/format';
 import { STATUS_LABELS } from '@/lib/player-labels';
 import { cn } from '@/lib/utils';
@@ -487,6 +489,56 @@ function ConfidenceStepper({
     );
 }
 
+function ConfidenceExplanation({ lockDays }: { lockDays: number }) {
+    return (
+        <>
+            <p>
+                <span className="font-bold">Confianza</span>: probabilidad de
+                que, durante los {lockDays} días de blindaje, te llegue una
+                oferta que supere lo que pagas. Cuanto más alta, más baja la
+                puja.
+            </p>
+            <ul className="mt-1.5 space-y-1">
+                <li>
+                    <span className="font-bold">50–65 %</span>: agresiva. Si
+                    necesitas al jugador sí o sí o te sobra dinero; es más fácil
+                    pasarte.
+                </li>
+                <li>
+                    <span className="font-bold">75 %</span> (por defecto):
+                    equilibrio entre conseguirlo y no perder dinero.
+                </li>
+                <li>
+                    <span className="font-bold">80–95 %</span>: prudente. Si vas
+                    justo de dinero o solo lo quieres si es buen negocio.
+                </li>
+            </ul>
+        </>
+    );
+}
+
+function ConfidenceLabel({ lockDays }: { lockDays: number }) {
+    return (
+        <div className="mt-1.5 flex items-center gap-1.5">
+            <span className="font-mono text-[11px] tracking-wide text-hq-moss uppercase">
+                Confianza
+            </span>
+            <HqTooltip
+                label={<ConfidenceExplanation lockDays={lockDays} />}
+                wrap
+            >
+                <button
+                    type="button"
+                    aria-label="Qué significa la confianza"
+                    className="text-hq-moss transition-colors hover:text-hq-paper focus-visible:text-hq-paper"
+                >
+                    <Info className="h-3.5 w-3.5" />
+                </button>
+            </HqTooltip>
+        </div>
+    );
+}
+
 function Headline({
     estimate,
     playerStatus,
@@ -613,10 +665,13 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                 <div>
                     <Headline estimate={estimate} playerStatus={playerStatus} />
                     {hasProjection && (
-                        <ConfidenceStepper
-                            percent={confidencePercent}
-                            onChange={handleConfidenceChange}
-                        />
+                        <>
+                            <ConfidenceStepper
+                                percent={confidencePercent}
+                                onChange={handleConfidenceChange}
+                            />
+                            <ConfidenceLabel lockDays={estimate.lock_days} />
+                        </>
                     )}
                 </div>
 
