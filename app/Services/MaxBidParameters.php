@@ -18,7 +18,7 @@ final readonly class MaxBidParameters
 {
     public function __construct(
         /** Daily fade of the increment when the next match is more than 7 days away (or there is none). */
-        public float $incrementDecayBreak = 0.65,
+        public float $incrementDecayBreak = 0.75,
         /** Daily fade of the increment when the next match is within 7 days. */
         public float $incrementDecayMatchweek = 0.8,
         /** Share of the value a sport score of ±1 adds or removes per day. */
@@ -39,6 +39,16 @@ final readonly class MaxBidParameters
          */
         public int $benchesBeforeUnprofitable = 1,
         public BadScoreRule $badScoreRule = BadScoreRule::AtMostTwo,
+        /**
+         * Streak exception to the bad-score cap (null = off): the cap is
+         * skipped when the player's own momentum pace (momentum / value, per
+         * day) is at least this, his team took at least
+         * `$streakExceptionTeamPoints` from its last three finished matches,
+         * and he started all three. It never touches the bench rules.
+         */
+        public ?float $streakExceptionPace = null,
+        /** Minimum team points (3 a win, 1 a draw) from its last three finished matches for the streak exception. */
+        public int $streakExceptionTeamPoints = 6,
     ) {
         $maximumBenches = count(MaxBidCalculator::RECENCY_WEIGHTS);
 

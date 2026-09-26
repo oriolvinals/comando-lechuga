@@ -191,3 +191,43 @@ test('grid-searches only the low decays around the chosen calibration with --gri
 
     expect(PlayerMarket::query()->count())->toBe(50);
 });
+
+test('grid-searches the streak exception with --grid-streak and reports a control player', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    $riser = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'nickname' => 'Racha']);
+    $faller = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+
+    foreach (range(0, 24) as $day) {
+        $date = CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString();
+        PlayerMarket::factory()->create(['player_id' => $riser->id, 'date' => $date, 'value' => 10_000_000 + $day * 200_000]);
+        PlayerMarket::factory()->create(['player_id' => $faller->id, 'date' => $date, 'value' => 10_000_000 - $day * 200_000]);
+    }
+
+    $this->artisan(BacktestMaxBid::class, [
+        '--from' => '2026-09-04', '--to' => '2026-09-10', '--grid-streak' => true,
+        '--control' => 'Racha', '--control-from' => '2026-09-05', '--control-to' => '2026-09-08',
+    ])
+        ->expectsOutputToContain('Pasada 4')
+        ->doesntExpectOutputToContain('Pasada 1')
+        ->expectsOutputToContain('Desglose de la ganadora de la pasada 4')
+        ->expectsOutputToContain('Control (cualitativo, no puntúa): Racha, 2026-09-05 a 2026-09-08')
+        ->assertSuccessful();
+
+    expect(PlayerMarket::query()->count())->toBe(50);
+});
+
+test('fails clearly for a control player who is not replayed', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => '2026-09-20', 'value' => 10_000_000]);
+
+    $this->artisan(BacktestMaxBid::class, ['--grid-streak' => true, '--control' => 'Nadie De Nadie'])
+        ->expectsOutputToContain('Nadie De Nadie')
+        ->assertFailed();
+});

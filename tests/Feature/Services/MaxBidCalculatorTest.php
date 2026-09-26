@@ -320,7 +320,7 @@ test('a calculator built with a different decay projects differently', function 
     $custom = $slower->estimate($player, $this->season);
 
     expect($custom->dailyIncrement)->toBe($default->dailyIncrement)
-        ->and($custom->projection[14])->not->toBe($default->projection[14]);
+        ->and($custom->projection[14])->toBeGreaterThan($default->projection[14]);
 });
 
 test('gathering the inputs of a player benched in the last match records it newest first', function (): void {
@@ -386,4 +386,22 @@ test('pins the formula on a sport-rich scenario with explicit parameters', funct
         ->and($estimate->dailyIncrement)->toEqualWithDelta(141_629.415, 0.001)
         ->and($estimate->projection[14])->toBe(11_383_062)
         ->and($estimate->bid)->toBe(12_017_894);
+});
+
+test('gathering the inputs records the team\'s points in its last three matches, newest first', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    playedFixture($this->season, $player, 16, 90);    // 1-1 at home: a draw
+    foreach ([[9, 0, 2], [2, 3, 1]] as [$daysAgo, $localScore, $guestScore]) {
+        // Away at a rival: 0-2 is a win for the player's team, 3-1 a loss.
+        Fixture::factory()->create([
+            'season_id' => $this->season->id, 'week_number' => 1, 'date' => now()->subDays($daysAgo),
+            'team_local_id' => Team::factory()->create()->id, 'team_guest_id' => $player->team_id,
+            'local_score' => $localScore, 'guest_score' => $guestScore, 'state' => FixtureState::Finished,
+        ]);
+    }
+
+    $inputs = app(MaxBidCalculator::class)->gatherInputs($player, $this->season);
+
+    expect($inputs->recentTeamPoints)->toBe([0, 3, 1])
+        ->and($inputs->recentParticipation)->toHaveCount(3);
 });

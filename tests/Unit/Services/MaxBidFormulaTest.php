@@ -125,3 +125,55 @@ test('benchesBeforeUnprofitable can only count the three matches that are gather
     expect(fn (): MaxBidParameters => new MaxBidParameters(benchesBeforeUnprofitable: $benches))
         ->toThrow(InvalidArgumentException::class);
 })->with([-1, 4]);
+
+/**
+ * A 2-point last score (bad under the ≤ 2 rule) on a strong streak: 6 %/day,
+ * the team won all of its last three matches and he started all three.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function streakInputs(array $overrides = []): MaxBidInputs
+{
+    return formulaInputs([
+        'momentum' => 600_000.0,
+        'lastPoints' => [2, 8, 8],
+        'seasonPointsAverage' => 6.0,
+        'recentTeamPoints' => [3, 3, 3],
+        ...$overrides,
+    ]);
+}
+
+test('the streak exception lifts the bad-score cap only when all three conditions hold', function (array $overrides, MaxBidStatus $expected): void {
+    $parameters = new MaxBidParameters(badScoreRule: BadScoreRule::AtMostTwo, streakExceptionPace: 0.05, streakExceptionTeamPoints: 6);
+
+    expect(MaxBidCalculator::estimateFromInputs(streakInputs($overrides), $parameters)->status)->toBe($expected);
+})->with([
+    'all three hold' => [[], MaxBidStatus::Profitable],
+    'pace below the threshold' => [['momentum' => 400_000.0], MaxBidStatus::Unprofitable],
+    'team points below the threshold' => [['recentTeamPoints' => [3, 1, 1]], MaxBidStatus::Unprofitable],
+    'did not start one of the three' => [['recentParticipation' => [
+        ['starter' => true, 'minutes' => 90], ['starter' => false, 'minutes' => 60], ['starter' => true, 'minutes' => 90],
+    ]], MaxBidStatus::Unprofitable],
+    'the team has played only two matches' => [[
+        'recentParticipation' => array_fill(0, 2, ['starter' => true, 'minutes' => 90]),
+        'recentTeamPoints' => [3, 3],
+    ], MaxBidStatus::Unprofitable],
+]);
+
+test('the streak exception is off when its pace is null', function (): void {
+    $estimate = MaxBidCalculator::estimateFromInputs(streakInputs(), new MaxBidParameters(badScoreRule: BadScoreRule::AtMostTwo));
+
+    expect((new MaxBidParameters)->streakExceptionPace)->toBeNull()
+        ->and($estimate->status)->toBe(MaxBidStatus::Unprofitable)
+        ->and($estimate->dailyIncrement)->toBe(0.0);
+});
+
+test('the streak exception never lifts the bench rules', function (): void {
+    // On a streak, but 0 minutes in the last match (a listed starter who didn't play).
+    $inputs = streakInputs(['lastPoints' => [8, 8, 8], 'recentParticipation' => [
+        ['starter' => true, 'minutes' => 0], ['starter' => true, 'minutes' => 90], ['starter' => true, 'minutes' => 90],
+    ]]);
+    $parameters = new MaxBidParameters(benchesBeforeUnprofitable: 1, streakExceptionPace: 0.05, streakExceptionTeamPoints: 6);
+
+    expect(MaxBidCalculator::estimateFromInputs($inputs, $parameters)->status)->toBe(MaxBidStatus::Unprofitable);
+});

@@ -20,9 +20,9 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * "Puja máxima rentable": the most you can bid for a player and still expect
+ * "Puja mÃ¡xima rentable": the most you can bid for a player and still expect
  * to get your money back within the 14-day clause lock, by accepting the
- * best of the league's daily sale offers (uniform ±10 % of that day's value).
+ * best of the league's daily sale offers (uniform Â±10 % of that day's value).
  * See docs/superpowers/specs/2026-09-26-max-bid-design.md.
  *
  * Two steps: `gatherInputs()` does every database query, and the pure
@@ -108,6 +108,7 @@ class MaxBidCalculator
         [$lastPoints, $seasonPointsAverage] = $this->points($player, $season, $at);
         $positions = $this->positionsByDate["{$season->id}:{$at->toDateString()}"] ??= $this->standings->positions($season, $at);
         $teamCount = max(count($positions), 2);
+        [$recentParticipation, $recentTeamPoints] = $this->recentMatches($player, $season, $at);
 
         return new MaxBidInputs(
             value: $value,
@@ -115,10 +116,11 @@ class MaxBidCalculator
             marketPace: $this->marketPace($season, $at),
             lastPoints: $lastPoints,
             seasonPointsAverage: $seasonPointsAverage,
-            recentParticipation: $this->recentParticipation($player, $season, $at),
+            recentParticipation: $recentParticipation,
             upcomingRivals: $this->upcomingRivals($player, $season, $at, $positions, $teamCount),
             teamCount: $teamCount,
             doubtful: $player->status === PlayerStatus::Doubtful,
+            recentTeamPoints: $recentTeamPoints,
         );
     }
 
@@ -142,7 +144,9 @@ class MaxBidCalculator
             $increment *= $parameters->benchIncrementFactor;
         }
 
-        if (self::benchedInEachOfTheLastMatches($inputs, $parameters->benchesBeforeUnprofitable) || self::hadBadLastScore($inputs, $parameters)) {
+        $badScoreCaps = self::hadBadLastScore($inputs, $parameters) && !self::onStreak($inputs, $parameters);
+
+        if (self::benchedInEachOfTheLastMatches($inputs, $parameters->benchesBeforeUnprofitable) || $badScoreCaps) {
             $increment = min($increment, 0.0);
         }
 
@@ -190,7 +194,7 @@ class MaxBidCalculator
     }
 
     /**
-     * Probability that none of the daily offers during the lock (days 1…14)
+     * Probability that none of the daily offers during the lock (days 1â€¦14)
      * exceeds `$amount`.
      *
      * @param  list<int>  $projection
@@ -208,7 +212,7 @@ class MaxBidCalculator
 
     /**
      * The amount the best offer of the lock beats with `$confidence` probability
-     * — a lower confidence accepts more risk, so it solves for a HIGHER bid.
+     * â€” a lower confidence accepts more risk, so it solves for a HIGHER bid.
      *
      * @param  list<int>  $projection
      */
@@ -270,7 +274,7 @@ class MaxBidCalculator
     }
 
     /**
-     * Last three fantasy points against the season average, in −1…1.
+     * Last three fantasy points against the season average, in âˆ’1â€¦1.
      */
     private static function form(MaxBidInputs $inputs): float
     {
@@ -285,7 +289,7 @@ class MaxBidCalculator
 
     /**
      * Starts and minutes in the team's last three finished matches,
-     * recency-weighted, in 0…1.
+     * recency-weighted, in 0â€¦1.
      */
     private static function participation(MaxBidInputs $inputs): float
     {
@@ -328,6 +332,25 @@ class MaxBidCalculator
         $latestPoints = $inputs->latestPoints();
 
         return $latestPoints !== null && $parameters->badScoreRule->isBadScore($latestPoints, $inputs->seasonPointsAverage);
+    }
+
+    /**
+     * The streak exception to the bad-score cap: a strong own market pace, a
+     * team in form and a player who started each of its last three matches.
+     */
+    private static function onStreak(MaxBidInputs $inputs, MaxBidParameters $parameters): bool
+    {
+        $matches = count(self::RECENCY_WEIGHTS);
+
+        if ($parameters->streakExceptionPace === null || $inputs->value <= 0) {
+            return false;
+        }
+
+        return $inputs->momentum / $inputs->value >= $parameters->streakExceptionPace
+            && count($inputs->recentTeamPoints) === $matches
+            && array_sum($inputs->recentTeamPoints) >= $parameters->streakExceptionTeamPoints
+            && count($inputs->recentParticipation) === $matches
+            && array_filter($inputs->recentParticipation, fn (array $match): bool => !$match['starter']) === [];
     }
 
     /**
@@ -386,14 +409,14 @@ class MaxBidCalculator
     }
 
     /**
-     * Starts and minutes in the team's last three finished matches up to
-     * `$at`, newest first.
+     * The team's last three finished matches up to `$at`, newest first: the
+     * player's start and minutes in each, and the team's points from each.
      *
-     * @return list<array{starter: bool, minutes: int}>
+     * @return array{0: list<array{starter: bool, minutes: int}>, 1: list<int>}
      */
-    private function recentParticipation(Player $player, Season $season, CarbonImmutable $at): array
+    private function recentMatches(Player $player, Season $season, CarbonImmutable $at): array
     {
-        $fixtureIds = Fixture::query()
+        $fixtures = Fixture::query()
             ->where('season_id', $season->id)
             ->where('state', FixtureState::Finished)
             ->where('date', '<=', $at)
@@ -402,32 +425,48 @@ class MaxBidCalculator
                 ->orWhere('team_guest_id', $player->team_id))
             ->orderByDesc('date')
             ->limit(count(self::RECENCY_WEIGHTS))
-            ->pluck('id');
+            ->get(['id', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score']);
 
         $lineups = FixtureLineup::query()
             ->where('player_id', $player->id)
-            ->whereIn('fixture_id', $fixtureIds)
+            ->whereIn('fixture_id', $fixtures->pluck('id'))
             ->get()
             ->keyBy('fixture_id');
 
-        $recent = [];
+        $participation = [];
+        $teamPoints = [];
 
-        foreach ($fixtureIds as $fixtureId) {
-            $lineup = $lineups->get($fixtureId);
-            $recent[] = [
+        foreach ($fixtures as $fixture) {
+            $lineup = $lineups->get($fixture->id);
+            $participation[] = [
                 'starter' => (bool) $lineup?->starter,
                 'minutes' => (int) ($lineup?->fantasy_stats['mins_played'][0] ?? 0),
             ];
+            $teamPoints[] = self::teamPoints($fixture, $player->team_id);
         }
 
-        return $recent;
+        return [$participation, $teamPoints];
+    }
+
+    /** 3 for a win, 1 for a draw, 0 for a loss (or a missing score), from the team's side. */
+    private static function teamPoints(Fixture $fixture, int $teamId): int
+    {
+        if ($fixture->local_score === null || $fixture->guest_score === null) {
+            return 0;
+        }
+
+        [$for, $against] = $fixture->team_local_id === $teamId
+            ? [$fixture->local_score, $fixture->guest_score]
+            : [$fixture->guest_score, $fixture->local_score];
+
+        return $for > $against ? 3 : ($for === $against ? 1 : 0);
     }
 
     /**
      * The team's next three fixtures after `$at`, each with the rival's
-     * standings position on that date and its difficulty (−1 leader … +1 last).
+     * standings position on that date and its difficulty (âˆ’1 leader â€¦ +1 last).
      *
-     * @param  array<int, int>  $positions  team id → standings position
+     * @param  array<int, int>  $positions  team id â†’ standings position
      * @return list<array{team: Team, position: int, days_until: int, difficulty: float}>
      */
     private function upcomingRivals(Player $player, Season $season, CarbonImmutable $at, array $positions, int $teamCount): array
@@ -437,7 +476,7 @@ class MaxBidCalculator
     }
 
     /**
-     * @param  array<int, int>  $positions  team id → standings position
+     * @param  array<int, int>  $positions  team id â†’ standings position
      * @return list<array{team: Team, position: int, days_until: int, difficulty: float}>
      */
     private function queryUpcomingRivals(Player $player, Season $season, CarbonImmutable $at, array $positions, int $teamCount): array
