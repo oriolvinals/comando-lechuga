@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\BadScoreRule;
 use App\Enums\MarketTrend;
 use App\Enums\MaxBidStatus;
 use App\Enums\PlayerStatus;
@@ -11,17 +12,54 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Services\MaxBidCalculator;
+use App\Services\MaxBidEstimate;
+use App\Services\MaxBidInputs;
+use App\Services\MaxBidParameters;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Collection;
 
-#[Signature('season:backtest-max-bid {--from= : First reference date (Y-m-d)} {--to= : Last reference date (Y-m-d)} {--player= : Nickname of one player to replay day by day}')]
+#[Signature('season:backtest-max-bid {--from= : First reference date (Y-m-d)} {--to= : Last reference date (Y-m-d)} {--player= : Nickname of one player to replay day by day} {--grid : Grid-search the model parameters in memory instead (writes nothing)} {--phase= : With --grid, replay only the days of one phase: matchweek or break}')]
 #[Description('Replay the max bid model over the market history and report how it would have done')]
 class BacktestMaxBid extends Command
 {
+    /** Phases `--phase` accepts. */
+    private const array PHASES = ['matchweek', 'break'];
+
+    /** A grid combination must call at least this share of the defaults' profitable count, so calling almost nothing profitable can't win. */
+    private const float MINIMUM_PROFITABLE_SHARE = 0.2;
+
+    private const int GRID_TOP = 10;
+
+    /** @var list<float> */
+    private const array GRID_DECAYS = [0.8, 0.85, 0.9, 0.95];
+
+    /** @var list<float> */
+    private const array GRID_SPORT_DAILY_RATES = [0.005, 0.01, 0.02];
+
+    /** @var list<float> */
+    private const array GRID_PROXIMITY_HALF_LIVES = [4.0, 7.0, 10.0];
+
+    /** @var list<int> */
+    private const array GRID_BENCHES_BEFORE_UNPROFITABLE = [0, 1, 2];
+
+    /** @var list<float> */
+    private const array GRID_BENCH_INCREMENT_FACTORS = [0.0, 0.25, 0.5, 0.7, 1.0];
+
     public function handle(MaxBidCalculator $calculator): int
     {
+        $grid = (bool) $this->option('grid');
+        $phaseOption = $this->option('phase');
+        $phase = is_string($phaseOption) ? $phaseOption : null;
+
+        if ($phase !== null && (!$grid || !in_array($phase, self::PHASES, true))) {
+            $this->error("La fase «{$phase}» no es válida: usa --phase=matchweek o --phase=break, junto con --grid.");
+
+            return self::FAILURE;
+        }
+
         $season = Season::current();
         $latest = PlayerMarket::query()->max('date');
 
@@ -85,6 +123,10 @@ class BacktestMaxBid extends Command
             $valuesByPlayer[(int) $row->player_id][substr((string) $row->date, 0, 10)] = (int) $row->value;
         }
 
+        if ($grid) {
+            return $this->gridSearch($calculator, $season, $players, $valuesByPlayer, $from, $to, $phase);
+        }
+
         /** @var array<string, array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}> $groups */
         $groups = [];
 
@@ -94,13 +136,9 @@ class BacktestMaxBid extends Command
         for ($day = $from; $day->lessThanOrEqualTo($to); $day = $day->addDay()) {
             foreach ($players as $player) {
                 $values = $valuesByPlayer[$player->id] ?? [];
-                $actual = [];
+                $actual = $this->actualValues($values, $day);
 
-                for ($offset = 0; $offset <= MaxBidCalculator::LOCK_DAYS; $offset++) {
-                    $actual[] = $values[$day->addDays($offset)->toDateString()] ?? null;
-                }
-
-                if (in_array(null, $actual, true)) {
+                if ($actual === null) {
                     continue;
                 }
 
@@ -110,23 +148,13 @@ class BacktestMaxBid extends Command
                     continue;
                 }
 
-                $history = array_values(array_filter(
-                    $values,
-                    fn (string $date): bool => $date <= $day->toDateString(),
-                    ARRAY_FILTER_USE_KEY,
-                ));
-                $trendCase = MarketTrend::fromDailyValues($history);
+                $trendCase = $this->trend($values, $day);
                 $trend = $trendCase === null ? 'sin tendencia' : $trendCase->value;
                 $nextMatchDays = $estimate->upcomingRivals[0]['days_until'] ?? null;
-                $phase = $nextMatchDays === null || $nextMatchDays > 7 ? 'parón' : 'semana de partido';
+                $phaseLabel = $nextMatchDays === null || $nextMatchDays > MaxBidInputs::MATCHWEEK_MAX_DAYS ? 'parón' : 'semana de partido';
+                ['error' => $error, 'probability' => $probability, 'rose' => $rose] = $this->outcome($estimate, $actual);
 
-                $error = abs($actual[MaxBidCalculator::LOCK_DAYS] - $estimate->projection[MaxBidCalculator::LOCK_DAYS]) / max($estimate->value, 1);
-                $probability = $estimate->bid !== null
-                    ? 1 - MaxBidCalculator::bestOfferProbabilityAtMost($estimate->bid, $actual)
-                    : null;
-                $rose = $actual[MaxBidCalculator::LOCK_DAYS] > $actual[0];
-
-                foreach (['Total', "tendencia: {$trend}", "fase: {$phase}"] as $group) {
+                foreach (['Total', "tendencia: {$trend}", "fase: {$phaseLabel}"] as $group) {
                     $this->addToGroup($groups, $group, $estimate->status, $error, $probability, $rose);
                 }
 
@@ -158,6 +186,313 @@ class BacktestMaxBid extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Gathers each (player, day)'s inputs once, then replays the formula in
+     * memory for every parameter combination: pass 1 sweeps the continuous
+     * parameters, pass 2 fixes pass 1's best and sweeps the bench and
+     * bad-score rules.
+     *
+     * @param  Collection<int, Player>  $players
+     * @param  array<int, array<string, int>>  $valuesByPlayer
+     */
+    private function gridSearch(MaxBidCalculator $calculator, Season $season, Collection $players, array $valuesByPlayer, CarbonImmutable $from, CarbonImmutable $to, ?string $phase): int
+    {
+        $startedAt = hrtime(true);
+
+        /** @var list<array{0: MaxBidInputs, 1: list<int>, 2: MarketTrend|null}> $records */
+        $records = [];
+
+        for ($day = $from; $day->lessThanOrEqualTo($to); $day = $day->addDay()) {
+            foreach ($players as $player) {
+                $values = $valuesByPlayer[$player->id] ?? [];
+                $actual = $this->actualValues($values, $day);
+
+                if ($actual === null) {
+                    continue;
+                }
+
+                $inputs = $calculator->gatherInputs($player, $season, $day);
+
+                if ($inputs->presetStatus !== null || ($phase === 'matchweek' && $inputs->isBreak()) || ($phase === 'break' && !$inputs->isBreak())) {
+                    continue;
+                }
+
+                $records[] = [$inputs, $actual, $this->trend($values, $day)];
+            }
+        }
+
+        $phaseLabel = match ($phase) {
+            'matchweek' => 'solo semana de partido',
+            'break' => 'solo parón',
+            default => 'todas las fases',
+        };
+
+        if ($records === []) {
+            $this->info("No hay estimaciones que reproducir ({$phaseLabel}).");
+
+            return self::SUCCESS;
+        }
+
+        $this->info(sprintf(
+            '%d estimaciones (%s, %s a %s) reunidas en %.1f s.',
+            count($records),
+            $phaseLabel,
+            $from->toDateString(),
+            $to->toDateString(),
+            (hrtime(true) - $startedAt) / 1e9,
+        ));
+
+        $defaults = new MaxBidParameters;
+        $defaultsMetrics = $this->metrics($this->replay($records, $defaults, false)['Total']);
+        $minimumProfitable = (int) ceil(self::MINIMUM_PROFITABLE_SHARE * $defaultsMetrics['profitableCount']);
+
+        $firstPass = [];
+
+        foreach (self::GRID_DECAYS as $decayBreak) {
+            foreach (self::GRID_DECAYS as $decayMatchweek) {
+                foreach (self::GRID_SPORT_DAILY_RATES as $sportDailyRate) {
+                    foreach (self::GRID_PROXIMITY_HALF_LIVES as $halfLife) {
+                        $parameters = new MaxBidParameters(
+                            incrementDecayBreak: $decayBreak,
+                            incrementDecayMatchweek: $decayMatchweek,
+                            sportDailyRate: $sportDailyRate,
+                            proximityHalfLifeDays: $halfLife,
+                        );
+                        $firstPass[] = ['parameters' => $parameters, 'metrics' => $this->metrics($this->replay($records, $parameters, false)['Total'])];
+                    }
+                }
+            }
+        }
+
+        $firstRanking = $this->rank($firstPass, $minimumProfitable);
+        $this->printPass('Pasada 1: decay parón × decay jornada × ritmo deportivo × vida media (reglas por defecto)', $firstPass, $firstRanking, $defaults, $defaultsMetrics, $minimumProfitable);
+        $best = $firstRanking[0]['parameters'] ?? $defaults;
+
+        $secondPass = [];
+
+        foreach (self::GRID_BENCHES_BEFORE_UNPROFITABLE as $benches) {
+            foreach (self::GRID_BENCH_INCREMENT_FACTORS as $benchFactor) {
+                foreach (BadScoreRule::cases() as $badScoreRule) {
+                    $parameters = new MaxBidParameters(
+                        incrementDecayBreak: $best->incrementDecayBreak,
+                        incrementDecayMatchweek: $best->incrementDecayMatchweek,
+                        sportDailyRate: $best->sportDailyRate,
+                        proximityHalfLifeDays: $best->proximityHalfLifeDays,
+                        benchIncrementFactor: $benchFactor,
+                        benchesBeforeUnprofitable: $benches,
+                        badScoreRule: $badScoreRule,
+                    );
+                    $secondPass[] = ['parameters' => $parameters, 'metrics' => $this->metrics($this->replay($records, $parameters, false)['Total'])];
+                }
+            }
+        }
+
+        $secondRanking = $this->rank($secondPass, $minimumProfitable);
+        $this->printPass('Pasada 2: con los valores continuos de la mejor de la pasada 1, banquillos antes de no rentable × factor banquillo × mala nota', $secondPass, $secondRanking, $defaults, $defaultsMetrics, $minimumProfitable);
+        $winner = $secondRanking[0]['parameters'] ?? $best;
+
+        $this->newLine();
+        $this->info('Desglose de la ganadora de la pasada 2');
+        $this->table(
+            ['Grupo', 'Estimaciones', 'Rentables', 'Prob. real media (obj. 75 %)', 'Sin rentab.', 'Falsos negativos', 'Error proy. medio', 'Error proy. mediana'],
+            $this->rows($this->replay($records, $winner, true)),
+        );
+
+        $this->info(sprintf(
+            'Tiempo total: %.1f s · memoria pico: %.1f MB (límite %s).',
+            (hrtime(true) - $startedAt) / 1e9,
+            memory_get_peak_usage(true) / 1024 / 1024,
+            (string) ini_get('memory_limit'),
+        ));
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Scores the formula with `$parameters` over every gathered record.
+     *
+     * @param  list<array{0: MaxBidInputs, 1: list<int>, 2: MarketTrend|null}>  $records
+     * @return array<string, array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}>
+     */
+    private function replay(array $records, MaxBidParameters $parameters, bool $breakdown): array
+    {
+        $groups = [];
+
+        foreach ($records as [$inputs, $actual, $trend]) {
+            $estimate = MaxBidCalculator::estimateFromInputs($inputs, $parameters);
+            ['error' => $error, 'probability' => $probability, 'rose' => $rose] = $this->outcome($estimate, $actual);
+            $groupNames = $breakdown
+                ? ['Total', 'tendencia: '.($trend === null ? 'sin tendencia' : $trend->value), 'fase: '.($inputs->isBreak() ? 'parón' : 'semana de partido')]
+                : ['Total'];
+
+            foreach ($groupNames as $group) {
+                $this->addToGroup($groups, $group, $estimate->status, $error, $probability, $rose);
+            }
+        }
+
+        return $groups;
+    }
+
+    /**
+     * @param  array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}  $group
+     * @return array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}
+     */
+    private function metrics(array $group): array
+    {
+        return [
+            'profitableCount' => $group['profitableCount'],
+            'probability' => $group['profitableCount'] === 0 ? null : $group['profitableProbabilitySum'] / $group['profitableCount'],
+            'unprofitableCount' => $group['unprofitableCount'],
+            'falseNegativeRate' => $group['unprofitableCount'] === 0 ? null : $group['unprofitableRoseCount'] / $group['unprofitableCount'],
+            'medianError' => $this->median($group['errors']),
+        ];
+    }
+
+    /**
+     * The combinations calling at least `$minimumProfitable` estimates
+     * profitable, best first: realised probability closest to the target,
+     * then fewer false negatives, then a lower median projection error.
+     *
+     * @param  list<array{parameters: MaxBidParameters, metrics: array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}}>  $combinations
+     * @return list<array{parameters: MaxBidParameters, metrics: array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}}>
+     */
+    private function rank(array $combinations, int $minimumProfitable): array
+    {
+        $eligible = array_values(array_filter(
+            $combinations,
+            fn (array $combination): bool => $combination['metrics']['profitableCount'] >= $minimumProfitable,
+        ));
+
+        usort($eligible, fn (array $a, array $b): int => $this->rankingKey($a['metrics']) <=> $this->rankingKey($b['metrics']));
+
+        return $eligible;
+    }
+
+    /**
+     * @param  array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}  $metrics
+     * @return array{0: float, 1: float, 2: float}
+     */
+    private function rankingKey(array $metrics): array
+    {
+        return [
+            $metrics['probability'] === null ? INF : abs($metrics['probability'] - MaxBidCalculator::CONFIDENCE),
+            $metrics['falseNegativeRate'] ?? 0.0,
+            $metrics['medianError'] ?? INF,
+        ];
+    }
+
+    /**
+     * @param  list<array{parameters: MaxBidParameters, metrics: array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}}>  $combinations
+     * @param  list<array{parameters: MaxBidParameters, metrics: array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}}>  $ranking
+     * @param  array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}  $defaultsMetrics
+     */
+    private function printPass(string $title, array $combinations, array $ranking, MaxBidParameters $defaults, array $defaultsMetrics, int $minimumProfitable): void
+    {
+        $this->newLine();
+        $this->info($title);
+        $this->line(sprintf(
+            '%d combinaciones; %d descartadas por dar menos de %d rentables (%d %% de las de los valores por defecto).',
+            count($combinations),
+            count($combinations) - count($ranking),
+            $minimumProfitable,
+            self::MINIMUM_PROFITABLE_SHARE * 100,
+        ));
+
+        $rows = [];
+
+        foreach (array_slice($ranking, 0, self::GRID_TOP) as $index => $combination) {
+            $rows[] = $this->gridRow('#'.($index + 1), $combination['parameters'], $combination['metrics']);
+        }
+
+        $rows[] = $this->gridRow('defaults', $defaults, $defaultsMetrics);
+
+        $this->table(
+            ['#', 'Decay parón', 'Decay jornada', 'Ritmo dep.', 'Vida media', 'Factor banq.', 'Banq. para no rent.', 'Mala nota', 'Rentables', 'Prob. real media', '|Δ 75 %|', 'Sin rentab.', 'Falsos neg.', 'Error mediana'],
+            $rows,
+        );
+    }
+
+    /**
+     * @param  array{profitableCount: int, probability: float|null, unprofitableCount: int, falseNegativeRate: float|null, medianError: float|null}  $metrics
+     * @return list<string>
+     */
+    private function gridRow(string $label, MaxBidParameters $parameters, array $metrics): array
+    {
+        $number = fn (float $value, int $decimals): string => number_format($value, $decimals, ',', '.');
+
+        return [
+            $label,
+            $number($parameters->incrementDecayBreak, 2),
+            $number($parameters->incrementDecayMatchweek, 2),
+            $number($parameters->sportDailyRate, 3),
+            $number($parameters->proximityHalfLifeDays, 0).' d',
+            $number($parameters->benchIncrementFactor, 2),
+            $parameters->benchesBeforeUnprofitable === 0 ? 'nunca' : (string) $parameters->benchesBeforeUnprofitable,
+            $parameters->badScoreRule->label(),
+            (string) $metrics['profitableCount'],
+            $this->percent($metrics['probability']),
+            $this->percent($metrics['probability'] === null ? null : abs($metrics['probability'] - MaxBidCalculator::CONFIDENCE)),
+            (string) $metrics['unprofitableCount'],
+            $this->percent($metrics['falseNegativeRate']),
+            $this->percent($metrics['medianError']),
+        ];
+    }
+
+    /**
+     * The real values from `$day` to the end of the lock (day 0…14), or null
+     * when any of those days is missing.
+     *
+     * @param  array<string, int>  $values  date → value
+     * @return list<int>|null
+     */
+    private function actualValues(array $values, CarbonImmutable $day): ?array
+    {
+        $actual = [];
+
+        for ($offset = 0; $offset <= MaxBidCalculator::LOCK_DAYS; $offset++) {
+            $value = $values[$day->addDays($offset)->toDateString()] ?? null;
+
+            if ($value === null) {
+                return null;
+            }
+
+            $actual[] = $value;
+        }
+
+        return $actual;
+    }
+
+    /**
+     * @param  array<string, int>  $values  date → value, oldest first
+     */
+    private function trend(array $values, CarbonImmutable $day): ?MarketTrend
+    {
+        return MarketTrend::fromDailyValues(array_values(array_filter(
+            $values,
+            fn (string $date): bool => $date <= $day->toDateString(),
+            ARRAY_FILTER_USE_KEY,
+        )));
+    }
+
+    /**
+     * How an estimate did against the real values: its day-14 projection
+     * error relative to the value, the real probability that the best offer
+     * of the lock beat its bid (profitable only), and whether the value rose.
+     *
+     * @param  list<int>  $actual  day 0…14
+     * @return array{error: float, probability: float|null, rose: bool}
+     */
+    private function outcome(MaxBidEstimate $estimate, array $actual): array
+    {
+        return [
+            'error' => abs($actual[MaxBidCalculator::LOCK_DAYS] - ($estimate->projection[MaxBidCalculator::LOCK_DAYS] ?? 0)) / max($estimate->value, 1),
+            'probability' => $estimate->bid !== null
+                ? 1 - MaxBidCalculator::bestOfferProbabilityAtMost($estimate->bid, $actual)
+                : null,
+            'rose' => $actual[MaxBidCalculator::LOCK_DAYS] > $actual[0],
+        ];
     }
 
     /**
@@ -198,24 +533,21 @@ class BacktestMaxBid extends Command
      */
     private function rows(array $groups): array
     {
-        $percent = fn (?float $value): string => $value === null ? '—' : number_format($value * 100, 1, ',', '.').' %';
-
         $rows = [];
 
         foreach ($groups as $group => $data) {
             $errors = $data['errors'];
-            sort($errors);
             $errorCount = count($errors);
 
             $rows[] = [
                 $group,
                 (string) $data['count'],
                 (string) $data['profitableCount'],
-                $percent($data['profitableCount'] === 0 ? null : $data['profitableProbabilitySum'] / $data['profitableCount']),
+                $this->percent($data['profitableCount'] === 0 ? null : $data['profitableProbabilitySum'] / $data['profitableCount']),
                 (string) $data['unprofitableCount'],
-                $percent($data['unprofitableCount'] === 0 ? null : $data['unprofitableRoseCount'] / $data['unprofitableCount']),
-                $percent($errorCount === 0 ? null : array_sum($errors) / $errorCount),
-                $percent($errorCount === 0 ? null : $errors[intdiv($errorCount, 2)]),
+                $this->percent($data['unprofitableCount'] === 0 ? null : $data['unprofitableRoseCount'] / $data['unprofitableCount']),
+                $this->percent($errorCount === 0 ? null : array_sum($errors) / $errorCount),
+                $this->percent($this->median($errors)),
             ];
         }
 
@@ -225,13 +557,32 @@ class BacktestMaxBid extends Command
     }
 
     /**
+     * The upper median (the middle of the sorted list), null for none.
+     *
+     * @param  list<float>  $values
+     */
+    private function median(array $values): ?float
+    {
+        if ($values === []) {
+            return null;
+        }
+
+        sort($values);
+
+        return $values[intdiv(count($values), 2)];
+    }
+
+    private function percent(?float $value): string
+    {
+        return $value === null ? '—' : number_format($value * 100, 1, ',', '.').' %';
+    }
+
+    /**
      * @param  list<array{date: string, value: int, status: MaxBidStatus, bid: int|null, projectedDay14: int, actualDay14: int, probability: float|null, rose: bool}>  $records
      * @return list<list<string>>
      */
     private function playerRows(array $records): array
     {
-        $percent = fn (?float $value): string => $value === null ? '—' : number_format($value * 100, 1, ',', '.').' %';
-
         return array_map(fn (array $record): array => [
             $record['date'],
             (string) $record['value'],
@@ -240,7 +591,7 @@ class BacktestMaxBid extends Command
             (string) $record['projectedDay14'],
             (string) $record['actualDay14'],
             $record['status'] === MaxBidStatus::Profitable
-                ? $percent($record['probability'])
+                ? $this->percent($record['probability'])
                 : ($record['rose'] ? 'subió' : 'no subió'),
         ], $records);
     }

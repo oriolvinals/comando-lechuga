@@ -110,3 +110,59 @@ test('classifies the market trend correctly no matter the market row insertion o
         ->expectsOutputToContain('tendencia: rise_steady')
         ->assertSuccessful();
 });
+
+test('grid-searches the model parameters in memory, printing the defaults row and writing nothing', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    $riser = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $faller = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+
+    foreach (range(0, 24) as $day) {
+        $date = CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString();
+        PlayerMarket::factory()->create(['player_id' => $riser->id, 'date' => $date, 'value' => 10_000_000 + $day * 200_000]);
+        PlayerMarket::factory()->create(['player_id' => $faller->id, 'date' => $date, 'value' => 10_000_000 - $day * 200_000]);
+    }
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-09-10', '--grid' => true])
+        ->expectsOutputToContain('Pasada 1')
+        ->expectsOutputToContain('Pasada 2')
+        ->expectsOutputToContain('defaults')
+        ->expectsOutputToContain('tendencia: rise_steady')
+        ->assertSuccessful();
+
+    expect(PlayerMarket::query()->count())->toBe(50)
+        ->and(Player::query()->count())->toBe(2);
+});
+
+test('the grid can be restricted to the matchweek phase', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    $riser = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+
+    foreach (range(0, 24) as $day) {
+        $date = CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString();
+        PlayerMarket::factory()->create(['player_id' => $riser->id, 'date' => $date, 'value' => 10_000_000 + $day * 200_000]);
+    }
+
+    // No fixtures at all: every day is a break, so a matchweek-only grid has nothing to replay.
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-09-10', '--grid' => true, '--phase' => 'matchweek'])
+        ->expectsOutputToContain('No hay estimaciones')
+        ->assertSuccessful();
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-09-10', '--grid' => true, '--phase' => 'break'])
+        ->expectsOutputToContain('defaults')
+        ->assertSuccessful();
+});
+
+test('fails clearly for an unknown phase', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+
+    $this->artisan(BacktestMaxBid::class, ['--grid' => true, '--phase' => 'siesta'])
+        ->expectsOutputToContain('siesta')
+        ->assertFailed();
+});
