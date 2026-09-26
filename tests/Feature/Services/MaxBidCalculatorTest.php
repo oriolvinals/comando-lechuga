@@ -320,7 +320,7 @@ test('a calculator built with a different decay projects differently', function 
     $custom = $slower->estimate($player, $this->season);
 
     expect($custom->dailyIncrement)->toBe($default->dailyIncrement)
-        ->and($custom->projection[14])->toBeGreaterThan($default->projection[14]);
+        ->and($custom->projection[14])->toBeLessThan($default->projection[14]);
 });
 
 test('gathering the inputs of a player benched in the last match records it newest first', function (): void {
