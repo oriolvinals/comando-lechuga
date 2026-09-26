@@ -97,7 +97,8 @@ class MaxBidCalculator
      */
     public function gatherInputs(Player $player, Season $season, ?CarbonInterface $at = null): MaxBidInputs
     {
-        $at = CarbonImmutable::parse($at ?? now())->endOfDay();
+        $moment = CarbonImmutable::parse($at ?? now());
+        $at = $moment->endOfDay();
         $referenceDate = $this->referenceDate($season, $at);
 
         $values = $referenceDate === null ? [] : PlayerMarket::query()
@@ -133,7 +134,7 @@ class MaxBidCalculator
             lastPoints: $lastPoints,
             seasonPointsAverage: $seasonPointsAverage,
             recentParticipation: $recentParticipation,
-            upcomingRivals: $this->upcomingRivals($player, $season, $at, $positions, $teamCount),
+            upcomingRivals: $this->upcomingRivals($player, $season, $moment, $positions, $teamCount),
             teamCount: $teamCount,
             doubtful: $player->status === PlayerStatus::Doubtful,
             recentTeamPoints: $recentTeamPoints,
@@ -503,27 +504,36 @@ class MaxBidCalculator
     }
 
     /**
-     * The team's next three fixtures after `$at`, each with the rival's
-     * standings position on that date and its difficulty (−1 leader … +1 last).
+     * The team's next three fixtures after `$moment` (any after its day, plus
+     * one later that same day not yet played), never a postponed one, each
+     * with the rival's standings position on that date and its difficulty
+     * (−1 leader … +1 last). A match later today is 0 days away.
      *
      * @param  array<int, int>  $positions  team id → standings position
      * @return list<array{team: Team, position: int, days_until: int, difficulty: float}>
      */
-    private function upcomingRivals(Player $player, Season $season, CarbonImmutable $at, array $positions, int $teamCount): array
+    private function upcomingRivals(Player $player, Season $season, CarbonImmutable $moment, array $positions, int $teamCount): array
     {
-        return $this->upcomingRivalsByTeamAndDate["{$season->id}:{$player->team_id}:{$at->toDateString()}"]
-            ??= $this->queryUpcomingRivals($player, $season, $at, $positions, $teamCount);
+        return $this->upcomingRivalsByTeamAndDate["{$season->id}:{$player->team_id}:{$moment->toDateTimeString()}"]
+            ??= $this->queryUpcomingRivals($player, $season, $moment, $positions, $teamCount);
     }
 
     /**
      * @param  array<int, int>  $positions  team id → standings position
      * @return list<array{team: Team, position: int, days_until: int, difficulty: float}>
      */
-    private function queryUpcomingRivals(Player $player, Season $season, CarbonImmutable $at, array $positions, int $teamCount): array
+    private function queryUpcomingRivals(Player $player, Season $season, CarbonImmutable $moment, array $positions, int $teamCount): array
     {
+        $endOfDay = $moment->endOfDay();
+
         $fixtures = Fixture::query()
             ->where('season_id', $season->id)
-            ->where('date', '>', $at)
+            ->where('state', '!=', FixtureState::Postponed)
+            ->where(fn ($query) => $query
+                ->where('date', '>', $endOfDay)
+                ->orWhere(fn ($query) => $query
+                    ->where('date', '>', $moment)
+                    ->whereNotIn('state', [FixtureState::Finished, FixtureState::Postponed])))
             ->where(fn ($query) => $query
                 ->where('team_local_id', $player->team_id)
                 ->orWhere('team_guest_id', $player->team_id))
@@ -549,7 +559,7 @@ class MaxBidCalculator
             $rivals[] = [
                 'team' => $rival,
                 'position' => $position,
-                'days_until' => (int) $at->startOfDay()->diffInDays($fixture->date->startOfDay()),
+                'days_until' => (int) $moment->startOfDay()->diffInDays($fixture->date->startOfDay()),
                 'difficulty' => ((float) $position - ($teamCount + 1) / 2) / (($teamCount - 1) / 2),
             ];
         }

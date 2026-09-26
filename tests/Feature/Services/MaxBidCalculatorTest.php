@@ -439,3 +439,37 @@ test('gathering the inputs flags a strong rise from the last seven values up to 
     'fall' => [[10_600_000, 10_500_000, 10_400_000, 10_300_000, 10_200_000, 10_100_000, 10_000_000], false],
     'too little history for a trend' => [[10_000_000, 10_100_000, 10_200_000, 10_300_000], false],
 ]);
+
+test('an unplayed match later today is an upcoming rival 0 days away, making it a matchweek', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    $rival = Team::factory()->create();
+    Fixture::factory()->create([
+        'season_id' => $this->season->id, 'week_number' => 8, 'date' => now()->setTime(21, 0),
+        'team_local_id' => $player->team_id, 'team_guest_id' => $rival->id, 'state' => FixtureState::Scheduled,
+    ]);
+
+    $inputs = app(MaxBidCalculator::class)->gatherInputs($player, $this->season);
+
+    expect($inputs->upcomingRivals)->toHaveCount(1)
+        ->and($inputs->upcomingRivals[0]['team']->id)->toBe($rival->id)
+        ->and($inputs->upcomingRivals[0]['days_until'])->toBe(0)
+        ->and($inputs->isBreak())->toBeFalse();
+});
+
+test('a match already finished earlier today or a postponed one is not an upcoming rival', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    Fixture::factory()->create([
+        'season_id' => $this->season->id, 'week_number' => 7, 'date' => now()->setTime(10, 0),
+        'team_local_id' => $player->team_id, 'team_guest_id' => Team::factory()->create()->id,
+        'local_score' => 1, 'guest_score' => 0, 'state' => FixtureState::Finished,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $this->season->id, 'week_number' => 8, 'date' => now()->addDays(3)->setTime(18, 0),
+        'team_local_id' => $player->team_id, 'team_guest_id' => Team::factory()->create()->id, 'state' => FixtureState::Postponed,
+    ]);
+
+    $inputs = app(MaxBidCalculator::class)->gatherInputs($player, $this->season);
+
+    expect($inputs->upcomingRivals)->toBe([])
+        ->and($inputs->isBreak())->toBeTrue();
+});
