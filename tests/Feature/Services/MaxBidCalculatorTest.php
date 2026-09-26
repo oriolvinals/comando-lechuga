@@ -9,7 +9,9 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\Team;
+use App\Services\LeagueStandings;
 use App\Services\MaxBidCalculator;
+use App\Services\MaxBidParameters;
 
 beforeEach(function (): void {
     $this->travelTo('2026-09-26 12:00:00');
@@ -277,4 +279,57 @@ test('a doubtful player has a sport score of at most −0,5', function (): void 
     $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000], ['status' => PlayerStatus::Doubtful]);
 
     expect(app(MaxBidCalculator::class)->estimate($player, $this->season)->sportScore)->toBeLessThanOrEqual(-0.5);
+});
+
+test('the formula with default parameters on the gathered inputs equals estimate()', function (): void {
+    $calculator = app(MaxBidCalculator::class);
+    $leader = Team::factory()->create();
+    $this->season->teams()->syncWithoutDetaching([$leader->id]);
+
+    $rising = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    $falling = maxBidPlayer($this->season, [10_300_000, 10_200_000, 10_100_000, 10_000_000]);
+    $injured = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000], ['status' => PlayerStatus::Injured]);
+    $short = maxBidPlayer($this->season, [10_000_000, 10_100_000]);
+    $doubtful = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000], ['status' => PlayerStatus::Doubtful]);
+    $bench = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    playedFixture($this->season, $bench, 9, 90, points: 8);
+    playedFixture($this->season, $bench, 2, null);
+    $regular = maxBidPlayer($this->season, [10_000_000, 10_150_000, 10_200_000, 10_400_000]);
+    playedFixture($this->season, $regular, 8, 90, points: 2);
+    playedFixture($this->season, $regular, 1, 70, points: 12);
+    Fixture::factory()->create([
+        'season_id' => $this->season->id, 'week_number' => 8, 'date' => now()->addDays(3)->setTime(18, 0),
+        'team_local_id' => $regular->team_id, 'team_guest_id' => $leader->id, 'state' => FixtureState::Scheduled,
+    ]);
+
+    foreach ([$rising, $falling, $injured, $short, $doubtful, $bench, $regular] as $player) {
+        $fromInputs = MaxBidCalculator::estimateFromInputs($calculator->gatherInputs($player, $this->season), new MaxBidParameters);
+
+        expect($fromInputs)->toEqual($calculator->estimate($player, $this->season));
+    }
+});
+
+test('a calculator built with a different decay projects differently', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    $slower = new MaxBidCalculator(app(LeagueStandings::class), new MaxBidParameters(incrementDecayBreak: 0.8, incrementDecayMatchweek: 0.8));
+
+    $default = app(MaxBidCalculator::class)->estimate($player, $this->season);
+    $custom = $slower->estimate($player, $this->season);
+
+    expect($custom->dailyIncrement)->toBe($default->dailyIncrement)
+        ->and($custom->projection[14])->toBeLessThan($default->projection[14]);
+});
+
+test('gathering the inputs of a player benched in the last match records it newest first', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    playedFixture($this->season, $player, 9, 90, points: 8);
+    playedFixture($this->season, $player, 2, 0, starter: false, points: 1);
+
+    $inputs = app(MaxBidCalculator::class)->gatherInputs($player, $this->season);
+    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters(benchesBeforeUnprofitable: 1));
+
+    expect($inputs->recentParticipation[0])->toBe(['starter' => false, 'minutes' => 0])
+        ->and($inputs->latestPoints())->toBe(1)
+        ->and($inputs->seasonPointsAverage)->toEqual(4.5)
+        ->and($estimate->status)->toBe(MaxBidStatus::Unprofitable);
 });
