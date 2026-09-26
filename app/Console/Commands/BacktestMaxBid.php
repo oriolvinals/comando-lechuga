@@ -45,10 +45,19 @@ class BacktestMaxBid extends Command
         $nickname = is_string($playerOption) ? $playerOption : null;
 
         if ($nickname !== null) {
-            $players = Player::query()->where('nickname', $nickname)->get();
+            $players = Player::query()->where('nickname', $nickname)->with('team')->get();
 
             if ($players->isEmpty()) {
                 $this->error("No existe ningún jugador con el apodo «{$nickname}».");
+
+                return self::FAILURE;
+            }
+
+            if ($players->count() > 1) {
+                $matches = $players
+                    ->map(fn (Player $player): string => sprintf('#%d (%s)', $player->id, $player->team->main_name))
+                    ->implode(', ');
+                $this->error("Hay {$players->count()} jugadores con el apodo «{$nickname}»: {$matches}.");
 
                 return self::FAILURE;
             }
@@ -59,9 +68,10 @@ class BacktestMaxBid extends Command
                 ->get();
         }
 
-        /** @var array<int, array<string, int>> $valuesByPlayer player id → date → value */
+        /** @var array<int, array<string, int>> $valuesByPlayer player id → date → value, oldest first */
         $valuesByPlayer = PlayerMarket::query()
             ->whereIn('player_id', $players->pluck('id'))
+            ->orderBy('date')
             ->get(['player_id', 'date', 'value'])
             ->groupBy('player_id')
             ->map(fn ($markets) => $markets->mapWithKeys(fn (PlayerMarket $market): array => [
@@ -69,8 +79,11 @@ class BacktestMaxBid extends Command
             ])->all())
             ->all();
 
-        /** @var list<array{groups: list<string>, status: MaxBidStatus, error: float, probability: float|null, rose: bool, date: string, value: int, bid: int|null, projectedDay14: int, actualDay14: int}> $records */
-        $records = [];
+        /** @var array<string, array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}> $groups */
+        $groups = [];
+
+        /** @var list<array{date: string, value: int, status: MaxBidStatus, bid: int|null, projectedDay14: int, actualDay14: int, probability: float|null, rose: bool}> $playerRows */
+        $playerRows = [];
 
         for ($day = $from; $day->lessThanOrEqualTo($to); $day = $day->addDay()) {
             foreach ($players as $player) {
@@ -101,32 +114,40 @@ class BacktestMaxBid extends Command
                 $nextMatchDays = $estimate->upcomingRivals[0]['days_until'] ?? null;
                 $phase = $nextMatchDays === null || $nextMatchDays > 7 ? 'parón' : 'semana de partido';
 
-                $records[] = [
-                    'groups' => ['Total', "tendencia: {$trend}", "fase: {$phase}"],
-                    'status' => $estimate->status,
-                    'error' => abs($actual[MaxBidCalculator::LOCK_DAYS] - $estimate->projection[MaxBidCalculator::LOCK_DAYS]) / max($estimate->value, 1),
-                    'probability' => $estimate->bid !== null
-                        ? 1 - MaxBidCalculator::bestOfferProbabilityAtMost($estimate->bid, $actual)
-                        : null,
-                    'rose' => $actual[MaxBidCalculator::LOCK_DAYS] > $actual[0],
-                    'date' => $day->toDateString(),
-                    'value' => $estimate->value,
-                    'bid' => $estimate->bid,
-                    'projectedDay14' => $estimate->projection[MaxBidCalculator::LOCK_DAYS],
-                    'actualDay14' => $actual[MaxBidCalculator::LOCK_DAYS],
-                ];
+                $error = abs($actual[MaxBidCalculator::LOCK_DAYS] - $estimate->projection[MaxBidCalculator::LOCK_DAYS]) / max($estimate->value, 1);
+                $probability = $estimate->bid !== null
+                    ? 1 - MaxBidCalculator::bestOfferProbabilityAtMost($estimate->bid, $actual)
+                    : null;
+                $rose = $actual[MaxBidCalculator::LOCK_DAYS] > $actual[0];
+
+                foreach (['Total', "tendencia: {$trend}", "fase: {$phase}"] as $group) {
+                    $this->addToGroup($groups, $group, $estimate->status, $error, $probability, $rose);
+                }
+
+                if ($nickname !== null) {
+                    $playerRows[] = [
+                        'date' => $day->toDateString(),
+                        'value' => $estimate->value,
+                        'status' => $estimate->status,
+                        'bid' => $estimate->bid,
+                        'projectedDay14' => $estimate->projection[MaxBidCalculator::LOCK_DAYS],
+                        'actualDay14' => $actual[MaxBidCalculator::LOCK_DAYS],
+                        'probability' => $probability,
+                        'rose' => $rose,
+                    ];
+                }
             }
         }
 
         $this->table(
             ['Grupo', 'Estimaciones', 'Rentables', 'Prob. real media (obj. 75 %)', 'Sin rentab.', 'Falsos negativos', 'Error proy. medio', 'Error proy. mediana'],
-            $this->rows($records),
+            $this->rows($groups),
         );
 
         if ($nickname !== null) {
             $this->table(
                 ['Fecha', 'Valor', 'Estado', 'Puja', 'Proy. día 14', 'Real día 14', 'Prob. real / ¿subió?'],
-                $this->playerRows($records),
+                $this->playerRows($playerRows),
             );
         }
 
@@ -134,64 +155,87 @@ class BacktestMaxBid extends Command
     }
 
     /**
-     * @param  list<array{groups: list<string>, status: MaxBidStatus, error: float, probability: float|null, rose: bool, date: string, value: int, bid: int|null, projectedDay14: int, actualDay14: int}>  $records
-     * @return list<list<string>>
+     * Adds one replay record to a report group's running totals, without keeping the record itself
+     * (only its error contributes a float to the list kept for the group's median).
+     *
+     * @param  array<string, array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}>  $groups
      */
-    private function rows(array $records): array
+    private function addToGroup(array &$groups, string $group, MaxBidStatus $status, float $error, ?float $probability, bool $rose): void
     {
-        $percent = fn (?float $value): string => $value === null ? '—' : number_format($value * 100, 1, ',', '.').' %';
+        $groups[$group] ??= [
+            'count' => 0,
+            'profitableCount' => 0,
+            'profitableProbabilitySum' => 0.0,
+            'unprofitableCount' => 0,
+            'unprofitableRoseCount' => 0,
+            'errors' => [],
+        ];
 
-        $rows = collect($records)
-            ->flatMap(fn (array $record): array => array_map(fn (string $group): array => ['group' => $group, 'record' => $record], $record['groups']))
-            ->groupBy('group')
-            ->map(function ($entries, string $group) use ($percent): array {
-                $records = collect($entries)->pluck('record');
-                $profitable = $records->where('status', MaxBidStatus::Profitable);
-                $unprofitable = $records->where('status', MaxBidStatus::Unprofitable);
-                $errors = $records->pluck('error')->sort()->values();
+        $groups[$group]['count']++;
+        $groups[$group]['errors'][] = $error;
 
-                return [
-                    $group,
-                    (string) $records->count(),
-                    (string) $profitable->count(),
-                    $percent($profitable->isEmpty() ? null : $profitable->avg('probability')),
-                    (string) $unprofitable->count(),
-                    $percent($unprofitable->isEmpty() ? null : $unprofitable->where('rose', true)->count() / $unprofitable->count()),
-                    $percent($errors->avg()),
-                    $percent($errors->isEmpty() ? null : $errors[intdiv($errors->count(), 2)]),
-                ];
-            })
-            ->sortBy(fn (array $row): string => $row[0] === 'Total' ? '' : $row[0])
-            ->values()
-            ->all();
+        if ($status === MaxBidStatus::Profitable) {
+            $groups[$group]['profitableCount']++;
+            $groups[$group]['profitableProbabilitySum'] += $probability ?? 0.0;
+        } else {
+            $groups[$group]['unprofitableCount']++;
 
-        return array_values($rows);
+            if ($rose) {
+                $groups[$group]['unprofitableRoseCount']++;
+            }
+        }
     }
 
     /**
-     * @param  list<array{groups: list<string>, status: MaxBidStatus, error: float, probability: float|null, rose: bool, date: string, value: int, bid: int|null, projectedDay14: int, actualDay14: int}>  $records
+     * @param  array<string, array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}>  $groups
+     * @return list<list<string>>
+     */
+    private function rows(array $groups): array
+    {
+        $percent = fn (?float $value): string => $value === null ? '—' : number_format($value * 100, 1, ',', '.').' %';
+
+        $rows = [];
+
+        foreach ($groups as $group => $data) {
+            $errors = $data['errors'];
+            sort($errors);
+            $errorCount = count($errors);
+
+            $rows[] = [
+                $group,
+                (string) $data['count'],
+                (string) $data['profitableCount'],
+                $percent($data['profitableCount'] === 0 ? null : $data['profitableProbabilitySum'] / $data['profitableCount']),
+                (string) $data['unprofitableCount'],
+                $percent($data['unprofitableCount'] === 0 ? null : $data['unprofitableRoseCount'] / $data['unprofitableCount']),
+                $percent($errorCount === 0 ? null : array_sum($errors) / $errorCount),
+                $percent($errorCount === 0 ? null : $errors[intdiv($errorCount, 2)]),
+            ];
+        }
+
+        usort($rows, fn (array $a, array $b): int => ($a[0] === 'Total' ? '' : $a[0]) <=> ($b[0] === 'Total' ? '' : $b[0]));
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<array{date: string, value: int, status: MaxBidStatus, bid: int|null, projectedDay14: int, actualDay14: int, probability: float|null, rose: bool}>  $records
      * @return list<list<string>>
      */
     private function playerRows(array $records): array
     {
         $percent = fn (?float $value): string => $value === null ? '—' : number_format($value * 100, 1, ',', '.').' %';
 
-        $rows = collect($records)
-            ->sortBy('date')
-            ->map(fn (array $record): array => [
-                $record['date'],
-                (string) $record['value'],
-                $record['status']->value,
-                $record['bid'] !== null ? (string) $record['bid'] : '—',
-                (string) $record['projectedDay14'],
-                (string) $record['actualDay14'],
-                $record['status'] === MaxBidStatus::Profitable
-                    ? $percent($record['probability'])
-                    : ($record['rose'] ? 'subió' : 'no subió'),
-            ])
-            ->values()
-            ->all();
-
-        return array_values($rows);
+        return array_map(fn (array $record): array => [
+            $record['date'],
+            (string) $record['value'],
+            $record['status']->value,
+            $record['bid'] !== null ? (string) $record['bid'] : '—',
+            (string) $record['projectedDay14'],
+            (string) $record['actualDay14'],
+            $record['status'] === MaxBidStatus::Profitable
+                ? $percent($record['probability'])
+                : ($record['rose'] ? 'subió' : 'no subió'),
+        ], $records);
     }
 }

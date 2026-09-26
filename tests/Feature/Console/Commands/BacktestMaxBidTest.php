@@ -76,3 +76,37 @@ test('fails clearly for an unknown player nickname', function (): void {
         ->expectsOutputToContain('Nadie De Nadie')
         ->assertFailed();
 });
+
+test('fails clearly when several players share a nickname', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $teamA = Team::factory()->create(['main_name' => 'Equipo A']);
+    $teamB = Team::factory()->create(['main_name' => 'Equipo B']);
+    $season->teams()->attach([$teamA->id, $teamB->id]);
+    $playerA = Player::factory()->create(['team_id' => $teamA->id, 'status' => PlayerStatus::Ok, 'nickname' => 'Ambiguo']);
+    $playerB = Player::factory()->create(['team_id' => $teamB->id, 'status' => PlayerStatus::Ok, 'nickname' => 'Ambiguo']);
+    PlayerMarket::factory()->create(['player_id' => $playerA->id, 'date' => '2026-09-20', 'value' => 10_000_000]);
+
+    $this->artisan(BacktestMaxBid::class, ['--player' => 'Ambiguo'])
+        ->expectsOutputToContain("#{$playerA->id} (Equipo A), #{$playerB->id} (Equipo B)")
+        ->assertFailed();
+});
+
+test('classifies the market trend correctly no matter the market row insertion order', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    $riser = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+
+    // Insert newest first: without an explicit ORDER BY when reading them back,
+    // this reproduces the un-ordered history bug the fix targets.
+    foreach (array_reverse(range(0, 24)) as $day) {
+        $date = CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString();
+        PlayerMarket::factory()->create(['player_id' => $riser->id, 'date' => $date, 'value' => 10_000_000 + $day * 200_000]);
+    }
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-10', '--to' => '2026-09-10'])
+        ->expectsOutputToContain('tendencia: rise_steady')
+        ->assertSuccessful();
+});
