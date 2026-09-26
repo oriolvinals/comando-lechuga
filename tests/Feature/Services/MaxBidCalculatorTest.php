@@ -1,7 +1,10 @@
 <?php
 
+use App\Enums\FixtureState;
 use App\Enums\MaxBidStatus;
 use App\Enums\PlayerStatus;
+use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
@@ -130,4 +133,123 @@ test('serializes for the ficha', function (): void {
     expect($array['status'])->toBe('profitable')
         ->and($array['projected_day14'])->toBe($array['projection'][14])
         ->and($array['bid_premium'])->toBeGreaterThan(0);
+});
+
+/**
+ * A finished fixture of `$team` on `$daysAgo`, with the player's lineup row
+ * when `$minutes` is given (null = not in the lineup at all).
+ */
+function playedFixture(Season $season, Player $player, int $daysAgo, ?int $minutes, bool $starter = true, ?int $points = 5): Fixture
+{
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'date' => now()->subDays($daysAgo)->setTime(18, 0),
+        'team_local_id' => $player->team_id,
+        'team_guest_id' => Team::factory()->create()->id,
+        'local_score' => 1,
+        'guest_score' => 1,
+        'state' => FixtureState::Finished,
+    ]);
+
+    if ($minutes !== null) {
+        FixtureLineup::factory()->create([
+            'fixture_id' => $fixture->id,
+            'player_id' => $player->id,
+            'team_id' => $player->team_id,
+            'starter' => $starter,
+            'fantasy_points' => $points,
+            'fantasy_stats' => ['mins_played' => [$minutes, 2]],
+        ]);
+    }
+
+    return $fixture;
+}
+
+test('participation weighs starts and minutes of the team\'s last three matches, newest first', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    playedFixture($this->season, $player, 21, 90);          // older than the last three — ignored
+    playedFixture($this->season, $player, 14, 90);          // 0,2 × 1
+    playedFixture($this->season, $player, 7, 45, false);    // 0,3 × (0 + 0,5·0,5) = 0,075
+    playedFixture($this->season, $player, 2, null);         // 0,5 × 0 — not in the lineup
+
+    $estimate = app(MaxBidCalculator::class)->estimate($player, $this->season);
+
+    expect($estimate->participation)->toEqualWithDelta(0.275, 0.0001)
+        ->and($estimate->recentParticipation)->toBe([
+            ['starter' => false, 'minutes' => 0],
+            ['starter' => false, 'minutes' => 45],
+            ['starter' => true, 'minutes' => 90],
+        ]);
+});
+
+test('a bench player gets half of a positive daily increment', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    playedFixture($this->season, $player, 2, null);
+
+    $estimate = app(MaxBidCalculator::class)->estimate($player, $this->season);
+
+    expect($estimate->dailyIncrement)->toEqualWithDelta(
+        ($estimate->momentumIncrement + $estimate->marketAdjustment + $estimate->sportAdjustment) / 2,
+        0.01,
+    );
+});
+
+test('form compares the last three points with the season average, null points counting as zero', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    playedFixture($this->season, $player, 20, 90, points: 2);
+    playedFixture($this->season, $player, 13, 90, points: 10);
+    playedFixture($this->season, $player, 6, 90, points: 10);
+    playedFixture($this->season, $player, 1, 90, points: null);
+
+    // average over all four = (2 + 10 + 10 + 0) / 4 = 5,5; last three = 20 / 3 = 6,67
+    $estimate = app(MaxBidCalculator::class)->estimate($player, $this->season);
+
+    expect($estimate->form)->toEqualWithDelta((20 / 3 - 5.5) / 5.5, 0.0001);
+});
+
+test('each upcoming rival weighs by how soon the match is', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    $leader = Team::factory()->create();
+    $bottom = Team::factory()->create();
+    $this->season->teams()->syncWithoutDetaching([$leader->id, $bottom->id]);
+    Fixture::factory()->create([
+        'season_id' => $this->season->id, 'week_number' => 1, 'date' => now()->subDays(5),
+        'team_local_id' => $leader->id, 'team_guest_id' => $bottom->id,
+        'local_score' => 3, 'guest_score' => 0, 'state' => FixtureState::Finished,
+    ]);
+    foreach ([[1, $leader], [20, $bottom]] as [$inDays, $rival]) {
+        Fixture::factory()->create([
+            'season_id' => $this->season->id, 'week_number' => 8, 'date' => now()->addDays($inDays)->setTime(18, 0),
+            'team_local_id' => $player->team_id, 'team_guest_id' => $rival->id, 'state' => FixtureState::Scheduled,
+        ]);
+    }
+
+    $estimate = app(MaxBidCalculator::class)->estimate($player, $this->season);
+    [$soon, $later] = $estimate->upcomingRivals;
+
+    expect($soon['team']->id)->toBe($leader->id)
+        ->and($soon['position'])->toBe(1)
+        ->and($soon['days_until'])->toBe(1)
+        ->and($soon['difficulty'])->toBe(-1.0)
+        ->and($soon['weight'])->toEqualWithDelta(0.5 ** (1 / 7), 0.0001)
+        ->and($later['days_until'])->toBe(20)
+        ->and($later['weight'])->toEqualWithDelta(0.5 ** (20 / 7), 0.0001)
+        ->and($estimate->rivalsEffect)->toBeLessThan(0.0);
+});
+
+test('a team with no upcoming fixture has a neutral rivals effect', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+
+    $estimate = app(MaxBidCalculator::class)->estimate($player, $this->season);
+
+    expect($estimate->upcomingRivals)->toBe([])
+        ->and($estimate->rivalsEffect)->toBe(0.0)
+        ->and($estimate->sportScore)->toBe(0.0);
+});
+
+test('a doubtful player has a sport score of at most −0,5', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000], ['status' => PlayerStatus::Doubtful]);
+
+    expect(app(MaxBidCalculator::class)->estimate($player, $this->season)->sportScore)->toBeLessThanOrEqual(-0.5);
 });

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\FixtureState;
 use App\Enums\MaxBidStatus;
 use App\Enums\PlayerStatus;
+use App\Models\Fixture;
+use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
@@ -14,6 +17,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * "Puja máxima rentable": the most you can bid for a player and still expect
@@ -37,17 +41,31 @@ class MaxBidCalculator
 
     public const float BENCH_PARTICIPATION = 0.4;
 
+    public const float PROXIMITY_HALF_LIFE_DAYS = 7.0;
+
+    public const float FORM_WEIGHT = 0.4;
+
+    public const float PARTICIPATION_WEIGHT = 0.3;
+
+    public const float RIVALS_WEIGHT = 0.3;
+
+    public const float DOUBTFUL_MAX_SPORT_SCORE = -0.5;
+
+    public const int UPCOMING_RIVALS = 3;
+
+    /** @var list<float> Weight of each of the team's last matches, newest first. */
+    public const array RECENCY_WEIGHTS = [0.5, 0.3, 0.2];
+
     /** @var list<PlayerStatus> */
     private const array UNAVAILABLE_STATUSES = [PlayerStatus::Injured, PlayerStatus::Suspended, PlayerStatus::OutOfLeague];
 
     /** @var array<string, float> Market-wide daily pace, cached per season + reference date for the backtest. */
     private array $marketPaceByDate = [];
 
-    /**
-     * Not read yet: sportFactors() below is a neutral stub until Task 3, which
-     * uses it to weigh the player's opponents' league position.
-     */
-    public function __construct(protected readonly LeagueStandings $standings) {}
+    /** @var array<string, array<int, int>> Standings positions, cached per reference date for the backtest. */
+    private array $positionsByDate = [];
+
+    public function __construct(private readonly LeagueStandings $standings) {}
 
     public function estimate(Player $player, Season $season, ?CarbonInterface $at = null): MaxBidEstimate
     {
@@ -201,12 +219,143 @@ class MaxBidCalculator
     }
 
     /**
-     * Sport score and its parts. Neutral until Task 3.
-     *
      * @return array{score: float, form: float, participation: float, recent_participation: list<array{starter: bool, minutes: int}>, rivals_effect: float, upcoming_rivals: list<array{team: Team, position: int, days_until: int, difficulty: float, weight: float}>}
      */
     private function sportFactors(Player $player, Season $season, CarbonImmutable $at): array
     {
-        return ['score' => 0.0, 'form' => 0.0, 'participation' => 1.0, 'recent_participation' => [], 'rivals_effect' => 0.0, 'upcoming_rivals' => []];
+        $form = $this->form($player, $season, $at);
+        [$participation, $recentParticipation] = $this->participation($player, $season, $at);
+        $upcomingRivals = $this->upcomingRivals($player, $season, $at);
+        $rivalsEffect = array_sum(array_map(
+            fn (array $rival): float => $rival['weight'] * $rival['difficulty'],
+            $upcomingRivals,
+        )) / self::UPCOMING_RIVALS;
+
+        $nextMatchWeight = $upcomingRivals === [] ? 0.0 : $upcomingRivals[0]['weight'];
+        $score = $nextMatchWeight * (self::FORM_WEIGHT * $form + self::PARTICIPATION_WEIGHT * (2 * $participation - 1))
+            + self::RIVALS_WEIGHT * self::UPCOMING_RIVALS * $rivalsEffect;
+
+        if ($player->status === PlayerStatus::Doubtful) {
+            $score = min($score, self::DOUBTFUL_MAX_SPORT_SCORE);
+        }
+
+        return [
+            'score' => $score,
+            'form' => $form,
+            'participation' => $participation,
+            'recent_participation' => $recentParticipation,
+            'rivals_effect' => $rivalsEffect,
+            'upcoming_rivals' => $upcomingRivals,
+        ];
+    }
+
+    /**
+     * Last three fantasy points against the season average up to `$at`, in
+     * −1…1. A lineup still waiting for its points counts as 0.
+     */
+    private function form(Player $player, Season $season, CarbonImmutable $at): float
+    {
+        $points = FixtureLineup::query()
+            ->where('fixture_lineups.player_id', $player->id)
+            ->join('fixtures', 'fixtures.id', '=', 'fixture_lineups.fixture_id')
+            ->where('fixtures.season_id', $season->id)
+            ->where('fixtures.state', FixtureState::Finished)
+            ->where('fixtures.date', '<=', $at)
+            ->orderByDesc('fixtures.date')
+            ->pluck('fixture_lineups.fantasy_points')
+            ->map(fn (?int $points): int => $points ?? 0);
+
+        if ($points->isEmpty()) {
+            return 0.0;
+        }
+
+        $average = $points->avg();
+
+        return max(-1.0, min(1.0, ($points->take(3)->avg() - $average) / max($average, 2)));
+    }
+
+    /**
+     * Starts and minutes in the team's last three finished matches up to
+     * `$at`, recency-weighted, in 0…1.
+     *
+     * @return array{0: float, 1: list<array{starter: bool, minutes: int}>}
+     */
+    private function participation(Player $player, Season $season, CarbonImmutable $at): array
+    {
+        $fixtureIds = Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('state', FixtureState::Finished)
+            ->where('date', '<=', $at)
+            ->where(fn ($query) => $query
+                ->where('team_local_id', $player->team_id)
+                ->orWhere('team_guest_id', $player->team_id))
+            ->orderByDesc('date')
+            ->limit(count(self::RECENCY_WEIGHTS))
+            ->pluck('id');
+
+        $lineups = FixtureLineup::query()
+            ->where('player_id', $player->id)
+            ->whereIn('fixture_id', $fixtureIds)
+            ->get()
+            ->keyBy('fixture_id');
+
+        $participation = 0.0;
+        $recent = [];
+
+        foreach ($fixtureIds->values() as $index => $fixtureId) {
+            $lineup = $lineups->get($fixtureId);
+            $minutes = (int) ($lineup?->fantasy_stats['mins_played'][0] ?? 0);
+            $starter = (bool) $lineup?->starter;
+            $participation += self::RECENCY_WEIGHTS[$index] * (0.5 * ($starter ? 1 : 0) + 0.5 * min($minutes / 90, 1));
+            $recent[] = ['starter' => $starter, 'minutes' => $minutes];
+        }
+
+        return [$participation, $recent];
+    }
+
+    /**
+     * The team's next three fixtures after `$at`, each with the rival's
+     * standings position on that date, its difficulty (−1 leader … +1 last)
+     * and its proximity weight.
+     *
+     * @return list<array{team: Team, position: int, days_until: int, difficulty: float, weight: float}>
+     */
+    private function upcomingRivals(Player $player, Season $season, CarbonImmutable $at): array
+    {
+        $positions = $this->positionsByDate["{$season->id}:{$at->toDateString()}"] ??= $this->standings->positions($season, $at);
+        $teamCount = max(count($positions), 2);
+
+        $rivals = Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('date', '>', $at)
+            ->where(fn ($query) => $query
+                ->where('team_local_id', $player->team_id)
+                ->orWhere('team_guest_id', $player->team_id))
+            ->with(['localTeam', 'guestTeam'])
+            ->orderBy('date')
+            ->limit(self::UPCOMING_RIVALS)
+            ->get()
+            ->map(function (Fixture $fixture) use ($player, $positions, $teamCount, $at): array {
+                $rival = $fixture->team_local_id === $player->team_id ? $fixture->guestTeam : $fixture->localTeam;
+
+                if (!$rival instanceof Team) {
+                    throw new RuntimeException("Fixture {$fixture->id} is missing its rival team.");
+                }
+
+                $position = $positions[$rival->id] ?? intdiv($teamCount + 1, 2);
+                $daysUntil = (int) $at->startOfDay()->diffInDays($fixture->date->startOfDay());
+
+                return [
+                    'team' => $rival,
+                    'position' => $position,
+                    'days_until' => $daysUntil,
+                    'difficulty' => ((float) $position - ($teamCount + 1) / 2) / (($teamCount - 1) / 2),
+                    'weight' => 0.5 ** ($daysUntil / self::PROXIMITY_HALF_LIFE_DAYS),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return array_values($rivals);
     }
 }
