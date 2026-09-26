@@ -2,6 +2,7 @@ import { Link, router } from '@inertiajs/react';
 import { RefreshCw, Shield, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
 import {
     HqPositionTag,
     POSITION_ACCENT_BORDER_CLASSES,
@@ -47,7 +48,10 @@ function RefreshMarketButton({ market }: { market: MarketPlayer[] }) {
 
         const settle = (next: RefreshStatus) => {
             clearTimeout(pendingTimeout.current);
-            const delay = Math.max(0, MIN_LOADING_MS - (Date.now() - startedAt));
+            const delay = Math.max(
+                0,
+                MIN_LOADING_MS - (Date.now() - startedAt),
+            );
             pendingTimeout.current = setTimeout(() => {
                 setStatus(next);
 
@@ -162,19 +166,11 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
 
             <p className="mt-1.5 font-mono text-[12px] font-bold text-hq-paper">
                 {formatCurrency(listing.value)}
-                {player.market_value_difference !== 0 && (
-                    <span
-                        className={cn(
-                            'ml-2 text-[10px]',
-                            player.market_value_difference > 0
-                                ? 'text-hq-lime'
-                                : 'text-hq-live',
-                        )}
-                    >
-                        {player.market_value_difference > 0 ? '▲' : '▼'}{' '}
-                        {formatCurrency(Math.abs(player.market_value_difference))}
-                    </span>
-                )}
+                <HqMarketValueDifference
+                    difference={player.market_value_difference}
+                    trend={player.market_trend}
+                    className="ml-2 align-middle text-[10px]"
+                />
             </p>
 
             <div className="mt-1.5 flex items-center justify-between gap-2">
@@ -206,9 +202,7 @@ function MarketCountdown({ market }: { market: MarketPlayer[] }) {
     }
 
     return (
-        <span className="font-display text-xl text-hq-gold">
-            {countdown}
-        </span>
+        <span className="font-display text-xl text-hq-gold">{countdown}</span>
     );
 }
 

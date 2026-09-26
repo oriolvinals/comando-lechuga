@@ -2,6 +2,7 @@ import { Link, router } from '@inertiajs/react';
 import { Shield, User } from 'lucide-react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { formatCurrency } from '@/lib/format';
@@ -155,21 +156,11 @@ export function PlayerRow({
                         <p className="font-mono text-[13px] font-bold text-hq-paper">
                             {formatCurrency(player.market_value)}
                         </p>
-                        {player.market_value_difference !== 0 && (
-                            <p
-                                className={cn(
-                                    'font-mono text-[10px] font-bold',
-                                    player.market_value_difference > 0
-                                        ? 'text-hq-lime'
-                                        : 'text-hq-live',
-                                )}
-                            >
-                                {player.market_value_difference > 0 ? '▲' : '▼'}{' '}
-                                {formatCurrency(
-                                    Math.abs(player.market_value_difference),
-                                )}
-                            </p>
-                        )}
+                        <HqMarketValueDifference
+                            difference={player.market_value_difference}
+                            trend={player.market_trend}
+                            className="text-[10px]"
+                        />
                     </div>
                     <div className="w-[52px] shrink-0 text-center font-display text-xl text-hq-lime">
                         {player.points}
@@ -255,21 +246,11 @@ export function PlayerRow({
                 <div className="mt-2 flex items-center justify-between border-t border-hq-ink pt-2">
                     <p className="font-mono text-[11px] font-bold text-hq-paper">
                         {formatCurrency(player.market_value)}
-                        {player.market_value_difference !== 0 && (
-                            <span
-                                className={cn(
-                                    'ml-2 text-[10px]',
-                                    player.market_value_difference > 0
-                                        ? 'text-hq-lime'
-                                        : 'text-hq-live',
-                                )}
-                            >
-                                {player.market_value_difference > 0 ? '▲' : '▼'}{' '}
-                                {formatCurrency(
-                                    Math.abs(player.market_value_difference),
-                                )}
-                            </span>
-                        )}
+                        <HqMarketValueDifference
+                            difference={player.market_value_difference}
+                            trend={player.market_trend}
+                            className="ml-2 align-middle text-[10px]"
+                        />
                     </p>
                     {showTeam ? (
                         <div className="flex items-center gap-1.5 font-mono text-[10px] text-hq-moss">

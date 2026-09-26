@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\MarketTrend;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Models\Player;
 use App\Models\PlayerMarket;
@@ -23,6 +24,12 @@ use Throwable;
 #[Description('Synchronize the current season player markets from La Liga Fantasy')]
 class SyncCurrentSeasonPlayerMarkets extends Command
 {
+    /**
+     * A market history whose last value is older than this is frozen (e.g. the
+     * player left the league), so it gets no market trend.
+     */
+    private const int STALE_HISTORY_DAYS = 3;
+
     /**
      * @throws FatalRequestException
      * @throws JsonException
@@ -63,8 +70,11 @@ class SyncCurrentSeasonPlayerMarkets extends Command
             $difference = $lastIndex > 0
                 ? $markets[$lastIndex]['value'] - $markets[$lastIndex - 1]['value']
                 : 0;
+            $trend = $markets[$lastIndex]['date'] >= now()->subDays(self::STALE_HISTORY_DAYS)->format('Y-m-d')
+                ? MarketTrend::fromDailyValues(array_column($markets, 'value'))
+                : null;
 
-            DB::transaction(function () use ($player, $markets, $difference, $season): void {
+            DB::transaction(function () use ($player, $markets, $difference, $trend, $season): void {
                 foreach ($markets as $marketData) {
                     PlayerMarket::query()->updateOrCreate(
                         [
@@ -77,7 +87,7 @@ class SyncCurrentSeasonPlayerMarkets extends Command
 
                 PlayerSeason::query()->updateOrCreate(
                     ['player_id' => $player->id, 'season_id' => $season->id],
-                    ['market_value_difference' => $difference],
+                    ['market_value_difference' => $difference, 'market_trend' => $trend],
                 );
             });
 

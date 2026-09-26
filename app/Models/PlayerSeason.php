@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\MarketTrend;
 use App\Enums\PlayerPosition;
 use Database\Factories\PlayerSeasonFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -20,12 +21,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read PlayerPosition $position
  * @property-read int $market_value
  * @property-read int $market_value_difference
+ * @property-read MarketTrend|null $market_trend
  * @property-read int $points
  * @property-read string $average_points
  */
 #[UseFactory(PlayerSeasonFactory::class)]
 #[Table(name: 'player_seasons', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['player_id', 'season_id', 'position', 'market_value', 'market_value_difference', 'points', 'average_points'])]
+#[Fillable(['player_id', 'season_id', 'position', 'market_value', 'market_value_difference', 'market_trend', 'points', 'average_points'])]
 class PlayerSeason extends Model
 {
     /** @use HasFactory<PlayerSeasonFactory> */
@@ -63,6 +65,7 @@ class PlayerSeason extends Model
             'position' => PlayerPosition::class,
             'market_value' => 'int',
             'market_value_difference' => 'int',
+            'market_trend' => MarketTrend::class,
             'points' => 'int',
             'average_points' => 'decimal:2',
         ];

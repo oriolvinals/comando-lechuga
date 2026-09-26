@@ -26,6 +26,7 @@ class PlayerDetailResource extends JsonResource
             'team' => new TeamResource($this->team),
             'market_value' => $this->market_value,
             'market_value_difference' => $this->market_value_difference,
+            'market_trend' => $this->market_trend?->value,
             'points' => $this->points,
             'average_points' => $this->average_points,
             'owner_manager' => $this->owner_manager,

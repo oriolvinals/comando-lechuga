@@ -25,7 +25,7 @@ class PlayerFactory extends Factory
      *
      * @var list<string>
      */
-    private const array SEASON_KEYS = ['position', 'market_value', 'market_value_difference', 'points', 'average_points'];
+    private const array SEASON_KEYS = ['position', 'market_value', 'market_value_difference', 'market_trend', 'points', 'average_points'];
 
     /**
      * @return array<string, mixed>
@@ -83,6 +83,7 @@ class PlayerFactory extends Factory
             $player->position = $playerSeason->position;
             $player->market_value = $playerSeason->market_value;
             $player->market_value_difference = $playerSeason->market_value_difference;
+            $player->market_trend = $playerSeason->market_trend;
             $player->points = $playerSeason->points;
             $player->average_points = $playerSeason->average_points;
 

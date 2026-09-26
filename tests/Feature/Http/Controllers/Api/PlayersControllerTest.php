@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\FixtureState;
+use App\Enums\MarketTrend;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Models\Fixture;
@@ -159,6 +160,7 @@ test('returns player fields including team and market data', function (): void {
         'position' => PlayerPosition::Midfield,
         'market_value' => 45_000_000,
         'market_value_difference' => -100_000,
+        'market_trend' => MarketTrend::NegativeInflection,
         'points' => 120,
         'average_points' => 6.5,
     ]);
@@ -175,6 +177,7 @@ test('returns player fields including team and market data', function (): void {
     $response->assertJsonPath('data.0.team.logo', asset('storage/team/4.png'));
     $response->assertJsonPath('data.0.market_value', 45_000_000);
     $response->assertJsonPath('data.0.market_value_difference', -100_000);
+    $response->assertJsonPath('data.0.market_trend', 'negative_inflection');
     $response->assertJsonPath('data.0.points', 120);
 });
 

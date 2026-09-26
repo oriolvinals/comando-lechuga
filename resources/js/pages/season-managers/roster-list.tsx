@@ -2,13 +2,14 @@ import { Link, router } from '@inertiajs/react';
 import { Lock, Shield, ShieldCheck, User } from 'lucide-react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { ClauseDifference } from '@/components/hq-player-property-card';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { resolveClauseStatus } from '@/lib/clause-status';
-import { formatCurrency, formatFullDateTime } from '@/lib/format';
+import { formatFullDateTime } from '@/lib/format';
 import {
     POSITION_GROUP_LABELS,
     STATUS_BADGE_CLASS,
@@ -115,22 +116,12 @@ function RosterClauseStatus({
 }
 
 function MarketValueDiff({ entry }: { entry: ManagerPlayer }) {
-    if (entry.player.market_value_difference === 0) {
-        return null;
-    }
-
     return (
-        <span
-            className={cn(
-                'font-mono text-xs font-bold whitespace-nowrap',
-                entry.player.market_value_difference > 0
-                    ? 'text-hq-lime'
-                    : 'text-hq-live',
-            )}
-        >
-            {entry.player.market_value_difference > 0 ? '▲' : '▼'}{' '}
-            {formatCurrency(Math.abs(entry.player.market_value_difference))}
-        </span>
+        <HqMarketValueDifference
+            difference={entry.player.market_value_difference}
+            trend={entry.player.market_trend}
+            className="text-xs"
+        />
     );
 }
 

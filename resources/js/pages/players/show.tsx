@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { User } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { HqPlayerMatchTimeline } from '@/components/hq-player-match-timeline';
 import { HqPlayerPropertyCard } from '@/components/hq-player-property-card';
@@ -169,26 +170,25 @@ export default function PlayerShow({
                                     {formatCurrency(player.market_value)}
                                 </span>
                             </div>
-                            {player.market_value_difference !== 0 && (
+                            {(player.market_value_difference !== 0 ||
+                                player.market_trend !== null) && (
                                 <div className="flex items-center justify-between border-t border-hq-border-strong pt-1.5">
-                                    <span className="font-mono text-[11px] text-hq-lime">
-                                        Δ HOY
-                                    </span>
                                     <span
                                         className={cn(
-                                            'font-mono font-bold',
-                                            player.market_value_difference > 0
-                                                ? 'text-hq-lime'
-                                                : 'text-hq-live',
+                                            'font-mono text-[11px]',
+                                            player.market_value_difference < 0
+                                                ? 'text-hq-live'
+                                                : 'text-hq-lime',
                                         )}
                                     >
-                                        {player.market_value_difference > 0
-                                            ? '+'
-                                            : ''}
-                                        {formatCurrency(
-                                            player.market_value_difference,
-                                        )}
+                                        HOY
                                     </span>
+                                    <HqMarketValueDifference
+                                        difference={
+                                            player.market_value_difference
+                                        }
+                                        trend={player.market_trend}
+                                    />
                                 </div>
                             )}
                         </div>

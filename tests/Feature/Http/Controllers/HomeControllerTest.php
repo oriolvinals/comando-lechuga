@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\FixtureState;
+use App\Enums\MarketTrend;
 use App\Enums\PlayerPosition;
 use App\Models\Activity;
 use App\Models\Fixture;
@@ -192,6 +193,7 @@ test('includes the current season position, points and market value for each mar
         'points' => 87,
         'market_value' => 12_000_000,
         'market_value_difference' => -350_000,
+        'market_trend' => MarketTrend::FallAccelerating,
     ]);
     MarketPlayer::factory()->create(['player_id' => $player->id]);
 
@@ -203,6 +205,7 @@ test('includes the current season position, points and market value for each mar
         ->where('market.0.player.points', 87)
         ->where('market.0.player.market_value', 12_000_000)
         ->where('market.0.player.market_value_difference', -350_000)
+        ->where('market.0.player.market_trend', 'fall_accelerating')
     );
 });
 

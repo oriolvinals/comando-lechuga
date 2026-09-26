@@ -12,6 +12,20 @@ export type PlayerPosition =
 export type PlayerStatus =
     'ok' | 'injured' | 'out_of_league' | 'suspended' | 'doubtful';
 
+export type MarketTrend =
+    | 'positive_inflection'
+    | 'rise_accelerating_sharply'
+    | 'rise_accelerating'
+    | 'rise_steady'
+    | 'rise_decelerating'
+    | 'rise_decelerating_sharply'
+    | 'negative_inflection'
+    | 'fall_decelerating_sharply'
+    | 'fall_decelerating'
+    | 'fall_steady'
+    | 'fall_accelerating'
+    | 'fall_accelerating_sharply';
+
 export interface OwnerManager {
     id: number;
     name: string;
@@ -34,6 +48,8 @@ export interface Player {
     status: PlayerStatus;
     market_value: number;
     market_value_difference: number;
+    /** How the market value is moving over the last week (recent 3-day pace vs. the 3 days before) — null without enough history or movement. */
+    market_trend: MarketTrend | null;
     points: number;
     average_points: string;
     owner_manager: OwnerManager | null;

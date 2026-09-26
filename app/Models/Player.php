@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\MarketTrend;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use Carbon\CarbonImmutable;
@@ -30,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property PlayerPosition|null $position Computed at query time from the current season's PlayerSeason; not a database column.
  * @property int $market_value Computed at query time from the current season's PlayerSeason; not a database column.
  * @property int $market_value_difference Computed at query time from the current season's PlayerSeason; not a database column.
+ * @property MarketTrend|null $market_trend Computed at query time from the current season's PlayerSeason; not a database column.
  * @property int $points Computed at query time from the current season's PlayerSeason; not a database column.
  * @property string $average_points Computed at query time from the current season's PlayerSeason; not a database column.
  * @property array{id: int, name: string, logo: string}|null $owner_manager Computed at query time by PlayersController; not a database column.

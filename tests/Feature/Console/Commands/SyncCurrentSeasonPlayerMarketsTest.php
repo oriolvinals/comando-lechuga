@@ -1,10 +1,12 @@
 <?php
 
 use App\Console\Commands\SyncCurrentSeasonPlayerMarkets;
+use App\Enums\MarketTrend;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerMarketValueRequest;
 use App\Models\Player;
 use App\Models\PlayerMarket;
+use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\Team;
 use Saloon\Http\Faking\MockClient;
@@ -52,4 +54,72 @@ test('updates player market history and caches the latest difference', function 
     expect(PlayerMarket::query()->where('player_id', $player->id)->count())->toBe(2)
         ->and($player->seasons()->where('season_id', $season->id)->sole()->market_value_difference)->toBe(30)
         ->and(PlayerMarket::query()->where('date', '2026-08-20')->sole()->value)->toBe(120);
+});
+
+test('caches the market trend of the last seven days', function (): void {
+    $this->travelTo('2026-08-27 12:00:00');
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    Player::factory()->create([
+        'fantasy_id' => 2783,
+        'team_id' => $team->id,
+    ]);
+
+    $values = [1000, 990, 980, 970, 980, 990, 1000];
+
+    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerMarketValueRequest::class => MockResponse::make(array_map(
+            static fn (int $day, int $value): array => [
+                'lfpId' => 4002783,
+                'marketValue' => $value,
+                'date' => sprintf('2026-08-%02dT00:00:00+02:00', 21 + $day),
+            ],
+            array_keys($values),
+            $values,
+        )),
+    ]));
+
+    app()->instance(LaLigaFantasyConnector::class, $connector);
+
+    $this->artisan(SyncCurrentSeasonPlayerMarkets::class)->assertSuccessful();
+
+    expect(PlayerSeason::query()->sole()->market_trend)->toBe(MarketTrend::PositiveInflection);
+});
+
+test('leaves no market trend when the market history stopped days ago', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    Player::factory()->create([
+        'fantasy_id' => 2783,
+        'team_id' => $team->id,
+    ]);
+
+    $values = [1000, 1000, 1000, 1000, 1010, 1020, 1030];
+
+    $connector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerMarketValueRequest::class => MockResponse::make(array_map(
+            static fn (int $day, int $value): array => [
+                'lfpId' => 4002783,
+                'marketValue' => $value,
+                'date' => sprintf('2026-07-%02dT00:00:00+02:00', 1 + $day),
+            ],
+            array_keys($values),
+            $values,
+        )),
+    ]));
+
+    app()->instance(LaLigaFantasyConnector::class, $connector);
+
+    $this->artisan(SyncCurrentSeasonPlayerMarkets::class)->assertSuccessful();
+
+    expect(PlayerSeason::query()->sole()->market_trend)->toBeNull();
 });

@@ -33,6 +33,7 @@ trait AttachesCurrentPlayerSeason
             $player->position = $playerSeason->position;
             $player->market_value = $playerSeason->market_value;
             $player->market_value_difference = $playerSeason->market_value_difference;
+            $player->market_trend = $playerSeason->market_trend;
             $player->points = $playerSeason->points;
             $player->average_points = $playerSeason->average_points;
             $player->syncOriginal();

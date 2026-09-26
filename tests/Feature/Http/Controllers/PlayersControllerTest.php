@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\FixtureState;
+use App\Enums\MarketTrend;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
@@ -597,6 +598,21 @@ test('renders the player show page', function (): void {
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->component('players/show')
         ->where('player.id', $player->id)
+    );
+});
+
+test('includes the current season market trend in the ficha', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create(['market_trend' => MarketTrend::RiseAccelerating]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('player.market_trend', 'rise_accelerating')
     );
 });
 
