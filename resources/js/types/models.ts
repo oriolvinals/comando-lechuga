@@ -368,7 +368,7 @@ export interface MaxBidRival {
     weight: number;
 }
 
-/** The hidden "puja máxima rentable" estimate — only sent with ?puja. */
+/** The hidden "puja máxima rentable" estimate — only sent in god mode. */
 export interface MaxBidEstimate {
     status: MaxBidStatus;
     value: number;

@@ -13,6 +13,7 @@ use App\Http\Controllers\Concerns\AttachesNextFixtures;
 use App\Http\Controllers\Concerns\AttachesOwnerManager;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Filters\PlayerFilter;
+use App\Http\Middleware\HandleGodMode;
 use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
@@ -27,7 +28,6 @@ use App\Models\Team;
 use App\Services\MaxBidCalculator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,12 +38,6 @@ class PlayersController extends Controller
     use AttachesNextFixtures;
     use AttachesOwnerManager;
     use AttachesRecentScores;
-
-    /**
-     * Remembers the hidden "puja máxima rentable" card across visits once the
-     * user has opted in with ?puja=1 — until they opt back out with ?puja=0.
-     */
-    private const string MAX_BID_COOKIE = 'show_max_bid';
 
     /**
      * Diacritics found in LaLiga squads (Spanish, Portuguese, French, German
@@ -265,9 +259,9 @@ class PlayersController extends Controller
                 $season,
                 $scores->map(fn (array $score): int => $score['fixture']->id)->all(),
             ),
-            // Hidden: only computed and sent when ?puja=1 (or a prior visit's
-            // remembered cookie) turns the card on for this request.
-            'maxBid' => $this->shouldShowMaxBid($request)
+            // Hidden: only computed and sent when god mode is on for this
+            // request (see HandleGodMode).
+            'maxBid' => HandleGodMode::isEnabled($request)
                 ? $maxBidCalculator->estimate($player, $season, confidence: $this->resolveConfidence($request))->toArray()
                 : null,
         ]);
@@ -293,34 +287,6 @@ class PlayersController extends Controller
         }
 
         return $percent / 100;
-    }
-
-    /**
-     * `?puja=1` turns the hidden max-bid card on and remembers that choice in
-     * a long-lived cookie; `?puja=0` turns it off and forgets it. With no
-     * `puja` parameter at all, the remembered cookie decides. Any other value
-     * (including a bare `?puja`) never turns it on for that request, and
-     * leaves the cookie untouched.
-     */
-    private function shouldShowMaxBid(Request $request): bool
-    {
-        if (!$request->has('puja')) {
-            return $request->cookie(self::MAX_BID_COOKIE) !== null;
-        }
-
-        $puja = $request->query('puja');
-
-        if ($puja === '1') {
-            Cookie::queue(Cookie::forever(self::MAX_BID_COOKIE, '1'));
-
-            return true;
-        }
-
-        if ($puja === '0') {
-            Cookie::queue(Cookie::forget(self::MAX_BID_COOKIE));
-        }
-
-        return false;
     }
 
     /**

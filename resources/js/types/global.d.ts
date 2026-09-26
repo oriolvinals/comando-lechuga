@@ -16,6 +16,7 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             season: Season;
             liveMatchday: boolean;
+            godMode: boolean;
             [key: string]: unknown;
         };
     }

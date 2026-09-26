@@ -54,6 +54,7 @@ class HandleInertiaRequests extends Middleware
                     FixtureState::SecondHalf,
                 ])
                 ->exists(),
+            'godMode' => HandleGodMode::isEnabled($request),
         ];
     }
 }

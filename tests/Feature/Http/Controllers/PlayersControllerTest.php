@@ -1159,7 +1159,7 @@ test('returns 200 for a player ficha with a fantasy_id', function (): void {
     $response->assertOk();
 });
 
-test('the ficha has no max bid without the puja parameter', function (): void {
+test('the ficha has no max bid without god mode', function (): void {
     Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
 
@@ -1168,17 +1168,8 @@ test('the ficha has no max bid without the puja parameter', function (): void {
         ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null));
 });
 
-test('a bare puja parameter does not add the max bid to the ficha', function (): void {
-    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
-
-    $this->get(route('players.show', $player).'?puja')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null))
-        ->assertCookieMissing('show_max_bid');
-});
-
-test('puja=1 adds the max bid to the ficha and remembers it in a cookie', function (): void {
+test('the configured god mode key adds the max bid to the ficha and remembers it in a cookie', function (): void {
+    config(['services.god_mode.key' => 'super-secret-key']);
     Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     foreach ([10_000_000, 10_100_000, 10_200_000, 10_300_000] as $index => $value) {
@@ -1189,37 +1180,38 @@ test('puja=1 adds the max bid to the ficha and remembers it in a cookie', functi
         ]);
     }
 
-    $this->get(route('players.show', $player).'?puja=1')
+    $this->get(route('players.show', $player).'?god_mode=super-secret-key')
         ->assertOk()
         ->assertInertia(fn (Assert $page): AssertableInertia => $page
             ->where('maxBid.value', 10_300_000)
             ->has('maxBid.status')
             ->has('maxBid.projection', 15))
-        ->assertCookie('show_max_bid', '1');
+        ->assertCookie('god_mode', '1');
 });
 
-test('a remembered cookie adds the max bid with no puja parameter', function (): void {
+test('a remembered cookie adds the max bid with no god_mode parameter', function (): void {
     Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
 
-    $this->withCookie('show_max_bid', '1')
+    $this->withCookie('god_mode', '1')
         ->get(route('players.show', $player))
         ->assertOk()
         ->assertInertia(fn (Assert $page): AssertableInertia => $page->has('maxBid.status'));
 });
 
-test('puja=0 removes the max bid and forgets the cookie even when it is present', function (): void {
+test('god_mode=0 removes the max bid and forgets the cookie even when it is present', function (): void {
     Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
 
-    $this->withCookie('show_max_bid', '1')
-        ->get(route('players.show', $player).'?puja=0')
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player).'?god_mode=0')
         ->assertOk()
         ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null))
-        ->assertCookieExpired('show_max_bid');
+        ->assertCookieExpired('god_mode');
 });
 
 test('confianza sets the confidence used to solve the bid, and a lower confidence bids higher', function (): void {
+    config(['services.god_mode.key' => 'super-secret-key']);
     Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
     foreach ([10_000_000, 10_100_000, 10_200_000, 10_300_000] as $index => $value) {
@@ -1234,7 +1226,7 @@ test('confianza sets the confidence used to solve the bid, and a lower confidenc
     // nested closure's `use (&...)` with a disconnected copy — plain closures
     // avoid that so the reference reaches the real outer variable.
     $bidAt90 = null;
-    $this->get(route('players.show', $player).'?puja=1&confianza=90')
+    $this->get(route('players.show', $player).'?god_mode=super-secret-key&confianza=90')
         ->assertOk()
         ->assertInertia(function (Assert $page) use (&$bidAt90): AssertableInertia {
             return $page
@@ -1247,7 +1239,7 @@ test('confianza sets the confidence used to solve the bid, and a lower confidenc
         });
 
     $bidAt75 = null;
-    $this->get(route('players.show', $player).'?puja=1')
+    $this->get(route('players.show', $player).'?god_mode=super-secret-key')
         ->assertOk()
         ->assertInertia(function (Assert $page) use (&$bidAt75): AssertableInertia {
             return $page
@@ -1265,10 +1257,11 @@ test('confianza sets the confidence used to solve the bid, and a lower confidenc
 });
 
 test('an invalid or out-of-range confianza falls back to 0,75 confidence', function (string $confianza): void {
+    config(['services.god_mode.key' => 'super-secret-key']);
     Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
 
-    $this->get(route('players.show', $player)."?puja=1&confianza={$confianza}")
+    $this->get(route('players.show', $player)."?god_mode=super-secret-key&confianza={$confianza}")
         ->assertOk()
         ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid.confidence', 0.75));
 })->with(['999', '10', 'abc', '90.5']);
