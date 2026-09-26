@@ -20,9 +20,9 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * "Puja mÃ¡xima rentable": the most you can bid for a player and still expect
+ * "Puja máxima rentable": the most you can bid for a player and still expect
  * to get your money back within the 14-day clause lock, by accepting the
- * best of the league's daily sale offers (uniform Â±10 % of that day's value).
+ * best of the league's daily sale offers (uniform ±10 % of that day's value).
  * See docs/superpowers/specs/2026-09-26-max-bid-design.md.
  *
  * Two steps: `gatherInputs()` does every database query, and the pure
@@ -194,7 +194,7 @@ class MaxBidCalculator
     }
 
     /**
-     * Probability that none of the daily offers during the lock (days 1â€¦14)
+     * Probability that none of the daily offers during the lock (days 1…14)
      * exceeds `$amount`.
      *
      * @param  list<int>  $projection
@@ -212,7 +212,7 @@ class MaxBidCalculator
 
     /**
      * The amount the best offer of the lock beats with `$confidence` probability
-     * â€” a lower confidence accepts more risk, so it solves for a HIGHER bid.
+     * — a lower confidence accepts more risk, so it solves for a HIGHER bid.
      *
      * @param  list<int>  $projection
      */
@@ -274,7 +274,7 @@ class MaxBidCalculator
     }
 
     /**
-     * Last three fantasy points against the season average, in âˆ’1â€¦1.
+     * Last three fantasy points against the season average, in −1…1.
      */
     private static function form(MaxBidInputs $inputs): float
     {
@@ -289,7 +289,7 @@ class MaxBidCalculator
 
     /**
      * Starts and minutes in the team's last three finished matches,
-     * recency-weighted, in 0â€¦1.
+     * recency-weighted, in 0…1.
      */
     private static function participation(MaxBidInputs $inputs): float
     {
@@ -464,9 +464,9 @@ class MaxBidCalculator
 
     /**
      * The team's next three fixtures after `$at`, each with the rival's
-     * standings position on that date and its difficulty (âˆ’1 leader â€¦ +1 last).
+     * standings position on that date and its difficulty (−1 leader … +1 last).
      *
-     * @param  array<int, int>  $positions  team id â†’ standings position
+     * @param  array<int, int>  $positions  team id → standings position
      * @return list<array{team: Team, position: int, days_until: int, difficulty: float}>
      */
     private function upcomingRivals(Player $player, Season $season, CarbonImmutable $at, array $positions, int $teamCount): array
@@ -476,7 +476,7 @@ class MaxBidCalculator
     }
 
     /**
-     * @param  array<int, int>  $positions  team id â†’ standings position
+     * @param  array<int, int>  $positions  team id → standings position
      * @return list<array{team: Team, position: int, days_until: int, difficulty: float}>
      */
     private function queryUpcomingRivals(Player $player, Season $season, CarbonImmutable $at, array $positions, int $teamCount): array
