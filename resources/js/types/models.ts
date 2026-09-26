@@ -353,3 +353,47 @@ export interface StandingsRow {
     /** This team's next scheduled fixture — only set when `live` is null. */
     next: StandingsNext | null;
 }
+
+export type MaxBidStatus =
+    'profitable' | 'unprofitable' | 'unavailable' | 'no_data';
+
+export interface MaxBidRival {
+    team: Team;
+    /** Real LaLiga standings position on the reference date. */
+    position: number;
+    days_until: number;
+    /** −1 (leader) … +1 (last). */
+    difficulty: number;
+    /** Proximity weight, 0,5^(days/7). */
+    weight: number;
+}
+
+/** The hidden "puja máxima rentable" estimate — only sent in god mode. */
+export interface MaxBidEstimate {
+    status: MaxBidStatus;
+    value: number;
+    /** The confidence actually used (or requested), e.g. 0.75 — adjustable via the ?confianza stepper. */
+    confidence: number;
+    /** The clause-lock length actually used, in days. */
+    lock_days: number;
+    bid: number | null;
+    bid_premium: number | null;
+    /** Day 0 (today) … day 14 of the clause lock; null without an estimate. */
+    projection: number[] | null;
+    projected_day7: number | null;
+    projected_day14: number | null;
+    momentum_increment: number | null;
+    market_adjustment: number | null;
+    sport_adjustment: number | null;
+    daily_increment: number | null;
+    sport_score: number | null;
+    form: number | null;
+    participation: number | null;
+    /** Team's last 3 matches, newest first. */
+    recent_participation: { starter: boolean; minutes: number }[];
+    rivals_effect: number | null;
+    /** Next 3 fixtures, soonest first. */
+    upcoming_rivals: MaxBidRival[];
+    /** The market day the values come from (Y-m-d): the latest published day, null without market data. */
+    reference_date: string | null;
+}

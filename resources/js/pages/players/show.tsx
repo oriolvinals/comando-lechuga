@@ -3,6 +3,7 @@ import { User } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
+import { HqMaxBidCard } from '@/components/hq-max-bid-card';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { HqPlayerMatchTimeline } from '@/components/hq-player-match-timeline';
 import { HqPlayerPropertyCard } from '@/components/hq-player-property-card';
@@ -21,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { show as teamsShow } from '@/routes/teams';
 import type {
     Fixture,
+    MaxBidEstimate,
     OwnershipActivity,
     Player,
     PlayerFichaMarketListing,
@@ -41,6 +43,7 @@ interface PlayerShowProps {
     teamJoinedAt: Record<string, string>;
     teamFixtures: Fixture[];
     missedFixtures: PlayerMissedFixture[];
+    maxBid: MaxBidEstimate | null;
     [key: string]: unknown;
 }
 
@@ -55,6 +58,7 @@ export default function PlayerShow({
     teamJoinedAt,
     teamFixtures,
     missedFixtures,
+    maxBid,
 }: PlayerShowProps) {
     const ownershipSegments = buildOwnershipTimeline(
         ownershipActivity,
@@ -203,6 +207,17 @@ export default function PlayerShow({
                     </div>
 
                     <div className="min-w-0 flex-1 space-y-8">
+                        {maxBid !== null && (
+                            <div>
+                                <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
+                                    Puja máxima rentable
+                                </h2>
+                                <HqMaxBidCard
+                                    estimate={maxBid}
+                                    playerStatus={player.status}
+                                />
+                            </div>
+                        )}
                         <HqPlayerValueChart
                             marketHistory={marketHistory}
                             scores={scores}

@@ -4,7 +4,7 @@ import {
     ChevronsDown,
     ChevronsUp,
     ChevronUp,
-    Minus,
+    ChevronRight,
     TriangleAlert,
 } from 'lucide-react';
 import { HqTooltip } from '@/components/hq-tooltip';
@@ -19,7 +19,7 @@ interface TrendDisplay {
 }
 
 /**
- * The icon always reads "up = improving, down = worsening": a fall that slows
+ * The icon always reads "up = improving, down = worsening" (right = same pace): a fall that slows
  * down points up, a fall that speeds up points down. The color tells whether
  * the value is rising (lime) or falling (red).
  */
@@ -40,7 +40,7 @@ const TREND_DISPLAY: Record<MarketTrend, TrendDisplay> = {
         rising: true,
     },
     rise_steady: {
-        icon: Minus,
+        icon: ChevronRight,
         label: 'Sube a ritmo constante',
         rising: true,
     },
@@ -70,7 +70,7 @@ const TREND_DISPLAY: Record<MarketTrend, TrendDisplay> = {
         rising: false,
     },
     fall_steady: {
-        icon: Minus,
+        icon: ChevronRight,
         label: 'Baja a ritmo constante',
         rising: false,
     },

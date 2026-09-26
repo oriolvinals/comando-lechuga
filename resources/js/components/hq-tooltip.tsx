@@ -9,6 +9,12 @@ interface HqTooltipProps {
     className?: string;
     /** Tailwind border-color class for the tooltip bubble — defaults to lime. */
     borderClassName?: string;
+    /**
+     * Lets `label` wrap onto multiple lines within a max width, instead of
+     * staying on one line (the default, used by every existing caller —
+     * a short date or a single figure).
+     */
+    wrap?: boolean;
 }
 
 interface Position {
@@ -30,6 +36,7 @@ export function HqTooltip({
     children,
     className,
     borderClassName = 'border-hq-lime',
+    wrap = false,
 }: HqTooltipProps) {
     const [position, setPosition] = useState<Position | null>(null);
     const triggerRef = useRef<HTMLSpanElement>(null);
@@ -44,19 +51,26 @@ export function HqTooltip({
         setPosition({ x: rect.left + rect.width / 2, y: rect.top });
     };
 
+    const hide = () => setPosition(null);
+
     return (
         <span
             ref={triggerRef}
             className={cn('inline-flex', className)}
             onMouseEnter={show}
-            onMouseLeave={() => setPosition(null)}
+            onMouseLeave={hide}
+            onFocus={show}
+            onBlur={hide}
         >
             {children}
             {position &&
                 createPortal(
                     <div
                         className={cn(
-                            'pointer-events-none fixed z-[999] -translate-x-1/2 -translate-y-[calc(100%+8px)] rounded border bg-hq-panel-alt px-2.5 py-1.5 font-mono text-[11px] whitespace-nowrap text-hq-paper shadow-lg',
+                            'pointer-events-none fixed z-[999] -translate-x-1/2 -translate-y-[calc(100%+8px)] rounded border bg-hq-panel-alt px-2.5 py-1.5 font-mono text-[11px] text-hq-paper shadow-lg',
+                            wrap
+                                ? 'max-w-xs text-left whitespace-normal'
+                                : 'whitespace-nowrap',
                             borderClassName,
                         )}
                         style={{ left: position.x, top: position.y }}

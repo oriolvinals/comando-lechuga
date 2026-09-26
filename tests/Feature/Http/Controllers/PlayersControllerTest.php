@@ -19,6 +19,7 @@ use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
+use Inertia\Inertia;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -1158,3 +1159,155 @@ test('returns 200 for a player ficha with a fantasy_id', function (): void {
 
     $response->assertOk();
 });
+
+test('the ficha has no max bid without god mode', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    $this->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null));
+});
+
+test('the configured god mode key redirects without the param and, once the cookie sticks, adds the max bid', function (): void {
+    config(['services.god_mode.key' => 'super-secret-key']);
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    foreach ([10_000_000, 10_100_000, 10_200_000, 10_300_000] as $index => $value) {
+        PlayerMarket::factory()->create([
+            'player_id' => $player->id,
+            'date' => now()->subDays(3 - $index)->toDateString(),
+            'value' => $value,
+        ]);
+    }
+    $target = route('players.show', $player);
+
+    // The secret key never stays in the URL: HandleGodMode redirects to the
+    // same page without it, carrying the new cookie on that redirect.
+    $this->get($target.'?god_mode=super-secret-key')
+        ->assertRedirect($target)
+        ->assertCookie('god_mode', '1');
+
+    $this->withCookie('god_mode', '1')
+        ->get($target)
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('maxBid.value', 10_300_000)
+            ->has('maxBid.status')
+            ->has('maxBid.projection', 15));
+});
+
+test('a remembered cookie adds the max bid with no god_mode parameter', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->has('maxBid.status'));
+});
+
+test('god_mode=0 redirects without the param, expires the cookie, and once gone the max bid is removed', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    $target = route('players.show', $player);
+
+    $this->withCookie('god_mode', '1')
+        ->get($target.'?god_mode=0')
+        ->assertRedirect($target)
+        ->assertCookieExpired('god_mode');
+
+    // The test client doesn't drop a cookie set earlier via withCookie() on
+    // its own — simulate the browser actually honoring the expiry above.
+    $this->defaultCookies = [];
+
+    $this->get($target)
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null));
+});
+
+test('a cookie-only partial reload of maxBid still returns it, unaffected by the god_mode redirect', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    // The asset version Inertia expects on every request is only computed
+    // once a request actually runs through Inertia's own middleware — prime
+    // it with a plain (non-XHR) visit first rather than assuming a value.
+    $this->get(route('players.show', $player));
+    $version = Inertia::getVersion();
+
+    $response = $this->withCookie('god_mode', '1')
+        ->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Inertia-Partial-Component' => 'players/show',
+            'X-Inertia-Partial-Data' => 'maxBid',
+            'X-Inertia-Version' => $version,
+        ])
+        ->get(route('players.show', $player).'?confianza=80');
+
+    // A genuine X-Inertia XHR response is raw JSON, not the Blade view
+    // assertInertia() relies on (that view only backs a normal page visit),
+    // so the partial payload is asserted directly instead.
+    $response->assertOk();
+    $response->assertJsonPath('component', 'players/show');
+    $response->assertJsonPath('props.maxBid.status', fn (string $status): bool => $status !== '');
+});
+
+test('confianza sets the confidence used to solve the bid, and a lower confidence bids higher', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    foreach ([10_000_000, 10_100_000, 10_200_000, 10_300_000] as $index => $value) {
+        PlayerMarket::factory()->create([
+            'player_id' => $player->id,
+            'date' => now()->subDays(3 - $index)->toDateString(),
+            'value' => $value,
+        ]);
+    }
+
+    // Arrow functions auto-capture by value, which would otherwise shadow a
+    // nested closure's `use (&...)` with a disconnected copy — plain closures
+    // avoid that so the reference reaches the real outer variable. God mode
+    // is established via the cookie here (not the ?god_mode param) so this
+    // test exercises confianza in isolation, without the param's redirect.
+    $bidAt90 = null;
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player).'?confianza=90')
+        ->assertOk()
+        ->assertInertia(function (Assert $page) use (&$bidAt90): AssertableInertia {
+            return $page
+                ->where('maxBid.confidence', 0.9)
+                ->where('maxBid.bid', function ($value) use (&$bidAt90): bool {
+                    $bidAt90 = $value;
+
+                    return true;
+                });
+        });
+
+    $bidAt75 = null;
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(function (Assert $page) use (&$bidAt75): AssertableInertia {
+            return $page
+                ->where('maxBid.confidence', 0.75)
+                ->where('maxBid.bid', function ($value) use (&$bidAt75): bool {
+                    $bidAt75 = $value;
+
+                    return true;
+                });
+        });
+
+    expect($bidAt90)->not->toBeNull()
+        ->and($bidAt75)->not->toBeNull()
+        ->and($bidAt90)->toBeLessThan($bidAt75);
+});
+
+test('an invalid or out-of-range confianza falls back to 0,75 confidence', function (string $confianza): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player)."?confianza={$confianza}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid.confidence', 0.75));
+})->with(['999', '10', 'abc', '90.5']);

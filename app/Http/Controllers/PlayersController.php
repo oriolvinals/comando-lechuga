@@ -13,6 +13,7 @@ use App\Http\Controllers\Concerns\AttachesNextFixtures;
 use App\Http\Controllers\Concerns\AttachesOwnerManager;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Filters\PlayerFilter;
+use App\Http\Middleware\HandleGodMode;
 use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
@@ -24,7 +25,9 @@ use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
+use App\Services\MaxBidCalculator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -136,7 +139,7 @@ class PlayersController extends Controller
         SeasonActivityType::Buyout,
     ];
 
-    public function show(Player $player): Response
+    public function show(Request $request, Player $player, MaxBidCalculator $maxBidCalculator): Response
     {
         abort_if($player->fantasy_id === null, 404);
 
@@ -256,7 +259,34 @@ class PlayersController extends Controller
                 $season,
                 $scores->map(fn (array $score): int => $score['fixture']->id)->all(),
             ),
+            // Hidden: only computed and sent when god mode is on for this
+            // request (see HandleGodMode).
+            'maxBid' => HandleGodMode::isEnabled($request)
+                ? $maxBidCalculator->estimate($player, $season, confidence: $this->resolveConfidence($request))->toArray()
+                : null,
         ]);
+    }
+
+    /**
+     * `?confianza` is the confidence percentage (50–95) the max-bid stepper
+     * asks for, as a whole number. Missing, non-integer, or out-of-range
+     * falls back to the calculator's own default confidence.
+     */
+    private function resolveConfidence(Request $request): float
+    {
+        $raw = $request->query('confianza');
+
+        if (!is_scalar($raw)) {
+            return MaxBidCalculator::CONFIDENCE;
+        }
+
+        $percent = filter_var($raw, FILTER_VALIDATE_INT);
+
+        if ($percent === false || $percent < 50 || $percent > 95) {
+            return MaxBidCalculator::CONFIDENCE;
+        }
+
+        return $percent / 100;
     }
 
     /**

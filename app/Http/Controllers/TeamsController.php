@@ -7,7 +7,6 @@ namespace App\Http\Controllers;
 use App\Enums\FixtureState;
 use App\Enums\MatchPositionLine;
 use App\Enums\MatchPositionSide;
-use App\Enums\MatchResult;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
@@ -19,6 +18,7 @@ use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
+use App\Services\LeagueStandings;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -31,11 +31,7 @@ class TeamsController extends Controller
     use AttachesOwnerManager;
     use AttachesRecentScores;
 
-    private const array LIVE_STATES = [
-        FixtureState::FirstHalf,
-        FixtureState::HalfTime,
-        FixtureState::SecondHalf,
-    ];
+    public function __construct(private readonly LeagueStandings $standings) {}
 
     // Vertical anchors (top %) for the ficha's own portrait pitch, matching
     // HqLineupPitch's ROWS constant. Unlike the fantasy `Player::position`
@@ -67,11 +63,11 @@ class TeamsController extends Controller
     {
         $season = Season::current();
         $teams = $season->teams;
-        $fixtures = $this->standingsFixtures($season);
+        $fixtures = $this->standings->fixtures($season);
         $nextByTeam = $this->nextFixtureByTeam($season);
 
         return Inertia::render('teams/index', [
-            'standings' => $this->standingsFor($teams, $fixtures, $nextByTeam),
+            'standings' => $this->standings->table($teams, $fixtures, $nextByTeam),
         ]);
     }
 
@@ -97,7 +93,7 @@ class TeamsController extends Controller
         $this->attachRecentScores($squad, $season);
         $this->attachNextFixtures($squad, $season);
 
-        $standing = collect($this->standingsFor($season->teams, $this->standingsFixtures($season)))
+        $standing = collect($this->standings->table($season->teams, $this->standings->fixtures($season)))
             ->first(fn (array $row): bool => $row['team']->id === $team->id);
 
         $nextFixtures = array_pad(
@@ -148,28 +144,6 @@ class TeamsController extends Controller
     }
 
     /**
-     * Fixtures relevant to the standings table: finished matches plus any
-     * currently live (in-progress) match — a live match counts provisionally
-     * with its current score, the same way real LaLiga standings apps show
-     * the table updating live during a jornada. `date` drives recent-form
-     * ordering (not `week_number` — a jornada spans several days, and a
-     * postponed match can be played out of its nominal week order).
-     *
-     * @return Collection<int, Fixture>
-     */
-    private function standingsFixtures(Season $season): Collection
-    {
-        return Fixture::query()
-            ->where('season_id', $season->id)
-            ->whereIn('state', [
-                FixtureState::Finished,
-                ...self::LIVE_STATES,
-            ])
-            ->with(['localTeam', 'guestTeam'])
-            ->get(['id', 'team_local_id', 'team_guest_id', 'local_score', 'guest_score', 'state', 'date']);
-    }
-
-    /**
      * Each team's single soonest scheduled fixture — used as the standings
      * table's "next match" slot for a team that isn't currently live.
      *
@@ -201,113 +175,6 @@ class TeamsController extends Controller
             });
 
         return $nextByTeam;
-    }
-
-    /**
-     * Real LaLiga standings computed from finished + live fixtures — points
-     * desc, goal difference desc, goals for desc, then team name asc as a
-     * stable final tiebreak (no head-to-head rule; good enough for display).
-     *
-     * `recent_form` holds up to the last 4 FINISHED results, newest first —
-     * the "what's happening right now" slot (live score, or else the next
-     * scheduled match) is deliberately separate (`live`/`next`) rather than
-     * a 5th form entry, since it isn't a settled result yet.
-     *
-     * @param  Collection<int, Team>  $teams
-     * @param  Collection<int, Fixture>  $fixtures  from standingsFixtures() — finished + live
-     * @param  array<int, array{fixture_id: int, opponent: Team, is_home: bool, date: CarbonImmutable}>  $nextByTeam  from nextFixtureByTeam(), keyed by team id
-     * @return list<array{position: int, team: Team, played: int, won: int, drawn: int, lost: int, goals_for: int, goals_against: int, goal_difference: int, points: int, recent_form: list<array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: CarbonImmutable}>, live: array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: CarbonImmutable}|null, next: array{fixture_id: int, opponent: Team, is_home: bool, date: CarbonImmutable}|null}>
-     */
-    private function standingsFor(Collection $teams, Collection $fixtures, array $nextByTeam = []): array
-    {
-        $rows = $teams->map(function (Team $team) use ($fixtures, $nextByTeam): array {
-            $played = 0;
-            $won = 0;
-            $drawn = 0;
-            $lost = 0;
-            $goalsFor = 0;
-            $goalsAgainst = 0;
-            $live = null;
-
-            /** @var list<array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: CarbonImmutable}> $formEntries */
-            $formEntries = [];
-
-            foreach ($fixtures as $fixture) {
-                $isLocal = $fixture->team_local_id === $team->id;
-                $isGuest = $fixture->team_guest_id === $team->id;
-
-                if (!$isLocal && !$isGuest) {
-                    continue;
-                }
-
-                $played++;
-                $for = ($isLocal ? $fixture->local_score : $fixture->guest_score) ?? 0;
-                $against = ($isLocal ? $fixture->guest_score : $fixture->local_score) ?? 0;
-                $goalsFor += $for;
-                $goalsAgainst += $against;
-                $opponent = $isLocal ? $fixture->guestTeam : $fixture->localTeam;
-                $result = MatchResult::fromScore($for, $against);
-
-                if ($result === MatchResult::Win) {
-                    $won++;
-                } elseif ($result === MatchResult::Draw) {
-                    $drawn++;
-                } else {
-                    $lost++;
-                }
-
-                $entry = $this->formEntry($fixture, $opponent, $for, $against);
-
-                if (in_array($fixture->state, self::LIVE_STATES, true)) {
-                    $live = $entry;
-                }
-
-                if ($fixture->state === FixtureState::Finished) {
-                    $formEntries[] = $entry;
-                }
-            }
-
-            usort($formEntries, fn (array $a, array $b): int => $b['date'] <=> $a['date']);
-            $recentForm = array_slice($formEntries, 0, 4);
-
-            return [
-                'team' => $team,
-                'played' => $played,
-                'won' => $won,
-                'drawn' => $drawn,
-                'lost' => $lost,
-                'goals_for' => $goalsFor,
-                'goals_against' => $goalsAgainst,
-                'goal_difference' => $goalsFor - $goalsAgainst,
-                'points' => $won * 3 + $drawn,
-                'recent_form' => $recentForm,
-                'live' => $live,
-                'next' => $live === null ? ($nextByTeam[$team->id] ?? null) : null,
-            ];
-        });
-
-        return array_values($rows
-            ->sort(fn (array $a, array $b): int => $b['points'] <=> $a['points']
-                ?: $b['goal_difference'] <=> $a['goal_difference']
-                ?: $b['goals_for'] <=> $a['goals_for']
-                ?: $a['team']->main_name <=> $b['team']->main_name)
-            ->values()
-            ->map(fn (array $row, int $index): array => ['position' => $index + 1, ...$row])
-            ->all());
-    }
-
-    /**
-     * @return array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: CarbonImmutable}
-     */
-    private function formEntry(Fixture $fixture, Team $opponent, int $for, int $against): array
-    {
-        return [
-            'fixture_id' => $fixture->id,
-            'opponent' => $opponent,
-            'score' => "{$for}-{$against}",
-            'result' => MatchResult::fromScore($for, $against),
-            'date' => $fixture->date,
-        ];
     }
 
     /**
