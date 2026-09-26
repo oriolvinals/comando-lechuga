@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\FixtureState;
+use App\Enums\MarketTrend;
 use App\Enums\MaxBidStatus;
 use App\Enums\PlayerStatus;
 use App\Models\Fixture;
@@ -45,6 +46,12 @@ class MaxBidCalculator
 
     /** @var list<float> Weight of each of the team's last matches, newest first. */
     public const array RECENCY_WEIGHTS = [0.5, 0.3, 0.2];
+
+    /** @var list<MarketTrend> Trends whose increment fades with `decayStrongRiseBreak` in a break. */
+    public const array STRONG_RISE_TRENDS = [MarketTrend::RiseSteady, MarketTrend::RiseAccelerating, MarketTrend::RiseAcceleratingSharply];
+
+    /** Values read per player: the seven the market trend needs (the momentum uses the last four). */
+    private const int VALUES_READ = 7;
 
     /** @var list<PlayerStatus> */
     private const array UNAVAILABLE_STATUSES = [PlayerStatus::Injured, PlayerStatus::Suspended, PlayerStatus::OutOfLeague];
@@ -97,7 +104,7 @@ class MaxBidCalculator
             ->where('player_id', $player->id)
             ->whereDate('date', '<=', $referenceDate)
             ->orderByDesc('date')
-            ->limit(self::MOMENTUM_DAYS + 1)
+            ->limit(self::VALUES_READ)
             ->pluck('value')
             ->reverse()
             ->values()
@@ -113,6 +120,7 @@ class MaxBidCalculator
             return new MaxBidInputs($value, MaxBidStatus::NoData, referenceDate: $referenceDate);
         }
 
+        $momentumValues = array_slice($values, -(self::MOMENTUM_DAYS + 1));
         [$lastPoints, $seasonPointsAverage] = $this->points($player, $season, $at);
         $positions = $this->positionsByDate["{$season->id}:{$at->toDateString()}"] ??= $this->standings->positions($season, $at);
         $teamCount = max(count($positions), 2);
@@ -120,7 +128,7 @@ class MaxBidCalculator
 
         return new MaxBidInputs(
             value: $value,
-            momentum: ($values[self::MOMENTUM_DAYS] - $values[0]) / self::MOMENTUM_DAYS,
+            momentum: ($momentumValues[self::MOMENTUM_DAYS] - $momentumValues[0]) / self::MOMENTUM_DAYS,
             marketPace: $this->marketPace($season, CarbonImmutable::parse($referenceDate)->endOfDay()),
             lastPoints: $lastPoints,
             seasonPointsAverage: $seasonPointsAverage,
@@ -130,6 +138,7 @@ class MaxBidCalculator
             doubtful: $player->status === PlayerStatus::Doubtful,
             recentTeamPoints: $recentTeamPoints,
             referenceDate: $referenceDate,
+            strongRise: in_array(MarketTrend::fromDailyValues(array_values($values)), self::STRONG_RISE_TRENDS, true),
         );
     }
 
@@ -159,7 +168,11 @@ class MaxBidCalculator
             $increment = min($increment, 0.0);
         }
 
-        $decay = $inputs->isBreak() ? $parameters->incrementDecayBreak : $parameters->incrementDecayMatchweek;
+        $decay = match (true) {
+            $inputs->isBreak() && $inputs->strongRise => $parameters->decayStrongRiseBreak,
+            $inputs->isBreak() => $parameters->incrementDecayBreak,
+            default => $parameters->incrementDecayMatchweek,
+        };
         $projection = self::project($value, $increment, $decay);
         $profitable = $increment > 0;
 

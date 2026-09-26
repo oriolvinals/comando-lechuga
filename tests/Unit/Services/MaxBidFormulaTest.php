@@ -177,3 +177,21 @@ test('the streak exception never lifts the bench rules', function (): void {
 
     expect(MaxBidCalculator::estimateFromInputs($inputs, $parameters)->status)->toBe(MaxBidStatus::Unprofitable);
 });
+
+test('a strong riser keeps his momentum longer in a break', function (bool $strongRise, float $momentum, ?int $daysToNextMatch, float $expectedDecay): void {
+    $inputs = formulaInputs([
+        'strongRise' => $strongRise,
+        'momentum' => $momentum,
+        'upcomingRivals' => $daysToNextMatch === null ? [] : [formulaRival($daysToNextMatch)],
+    ]);
+
+    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters);
+
+    expect($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, $estimate->dailyIncrement, $expectedDecay));
+})->with([
+    'strong riser, break' => [true, 100_000.0, null, 0.925],
+    'strong riser, 8 days to the next match' => [true, 100_000.0, 8, 0.925],
+    'strong riser, matchweek' => [true, 100_000.0, 3, 0.9],
+    'decelerating riser, break' => [false, 100_000.0, null, 0.9],
+    'non-riser, break' => [false, -100_000.0, null, 0.9],
+]);

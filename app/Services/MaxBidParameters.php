@@ -49,6 +49,12 @@ final readonly class MaxBidParameters
         public ?float $streakExceptionPace = null,
         /** Minimum team points (3 a win, 1 a draw) from its last three finished matches for the streak exception. */
         public int $streakExceptionTeamPoints = 7,
+        /**
+         * Daily fade of a strong riser's increment in a break (steady,
+         * accelerating or sharply accelerating rise): such risers keep rising
+         * through a mid-season break. Every other case uses the phase decay.
+         */
+        public float $decayStrongRiseBreak = 0.925,
     ) {
         $maximumBenches = count(MaxBidCalculator::RECENCY_WEIGHTS);
 

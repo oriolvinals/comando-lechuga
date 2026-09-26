@@ -427,3 +427,15 @@ test('the reference date is the latest published market day up to the requested 
     expect(app(MaxBidCalculator::class)->estimate($player, $this->season)->referenceDate)->toBe('2026-09-26')
         ->and(app(MaxBidCalculator::class)->estimate($player, $this->season, now()->subDay())->referenceDate)->toBe('2026-09-25');
 });
+
+test('gathering the inputs flags a strong rise from the last seven values up to the reference date', function (array $values, bool $expected): void {
+    $player = maxBidPlayer($this->season, $values);
+
+    expect(app(MaxBidCalculator::class)->gatherInputs($player, $this->season)->strongRise)->toBe($expected);
+})->with([
+    'steady rise' => [[10_000_000, 10_100_000, 10_200_000, 10_300_000, 10_400_000, 10_500_000, 10_600_000], true],
+    'accelerating rise' => [[10_000_000, 10_050_000, 10_100_000, 10_150_000, 10_400_000, 10_650_000, 10_900_000], true],
+    'decelerating rise' => [[10_000_000, 10_300_000, 10_600_000, 10_900_000, 10_950_000, 11_000_000, 11_050_000], false],
+    'fall' => [[10_600_000, 10_500_000, 10_400_000, 10_300_000, 10_200_000, 10_100_000, 10_000_000], false],
+    'too little history for a trend' => [[10_000_000, 10_100_000, 10_200_000, 10_300_000], false],
+]);

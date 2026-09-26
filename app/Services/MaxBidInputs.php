@@ -41,6 +41,8 @@ final readonly class MaxBidInputs
         public array $recentTeamPoints = [],
         /** The market day the values come from (Y-m-d): the latest published day up to the requested date. */
         public ?string $referenceDate = null,
+        /** Whether his market trend over his last seven values is a steady, accelerating or sharply accelerating rise. */
+        public bool $strongRise = false,
     ) {}
 
     /** Fantasy points of the most recent finished lineup, null when he has none. */
