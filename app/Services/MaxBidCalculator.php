@@ -67,7 +67,7 @@ class MaxBidCalculator
 
     public function __construct(private readonly LeagueStandings $standings) {}
 
-    public function estimate(Player $player, Season $season, ?CarbonInterface $at = null): MaxBidEstimate
+    public function estimate(Player $player, Season $season, ?CarbonInterface $at = null, float $confidence = self::CONFIDENCE): MaxBidEstimate
     {
         $at = CarbonImmutable::parse($at ?? now())->endOfDay();
 
@@ -84,11 +84,11 @@ class MaxBidCalculator
         $value = $values === [] ? 0 : end($values);
 
         if (in_array($player->status, self::UNAVAILABLE_STATUSES, true)) {
-            return new MaxBidEstimate(MaxBidStatus::Unavailable, $value);
+            return new MaxBidEstimate(MaxBidStatus::Unavailable, $value, $confidence, self::LOCK_DAYS);
         }
 
         if (count($values) < self::MOMENTUM_DAYS + 1) {
-            return new MaxBidEstimate(MaxBidStatus::NoData, $value);
+            return new MaxBidEstimate(MaxBidStatus::NoData, $value, $confidence, self::LOCK_DAYS);
         }
 
         $momentum = ($values[self::MOMENTUM_DAYS] - $values[0]) / self::MOMENTUM_DAYS;
@@ -107,7 +107,9 @@ class MaxBidCalculator
         return new MaxBidEstimate(
             status: $profitable ? MaxBidStatus::Profitable : MaxBidStatus::Unprofitable,
             value: $value,
-            bid: $profitable ? self::solveBid($projection) : null,
+            confidence: $confidence,
+            lockDays: self::LOCK_DAYS,
+            bid: $profitable ? self::solveBid($projection, $confidence) : null,
             projection: $projection,
             momentumIncrement: $momentum,
             marketAdjustment: $marketAdjustment,
@@ -159,11 +161,12 @@ class MaxBidCalculator
     }
 
     /**
-     * The amount the best offer of the lock beats with CONFIDENCE probability.
+     * The amount the best offer of the lock beats with `$confidence` probability
+     * — a lower confidence accepts more risk, so it solves for a HIGHER bid.
      *
      * @param  list<int>  $projection
      */
-    public static function solveBid(array $projection): int
+    public static function solveBid(array $projection, float $confidence = self::CONFIDENCE): int
     {
         $days = array_slice($projection, 1);
 
@@ -177,7 +180,7 @@ class MaxBidCalculator
         for ($iteration = 0; $iteration < 60; $iteration++) {
             $middle = ($low + $high) / 2;
 
-            if (self::bestOfferProbabilityAtMost($middle, $projection) < 1 - self::CONFIDENCE) {
+            if (self::bestOfferProbabilityAtMost($middle, $projection) < 1 - $confidence) {
                 $low = $middle;
             } else {
                 $high = $middle;

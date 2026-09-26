@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,6 +14,10 @@ const MONO_CHAR_PX = 6.6;
 const CHART_HEIGHT = 80;
 const CHART_PAD = 4;
 const TOOLTIP_VIEWPORT_MARGIN = 8;
+const CONFIDENCE_MIN = 50;
+const CONFIDENCE_MAX = 95;
+const CONFIDENCE_STEP = 5;
+const CONFIDENCE_DEBOUNCE_MS = 300;
 
 function formatMillions(amount: number): string {
     return `${(amount / 1_000_000).toLocaleString('es-ES', { maximumFractionDigits: 2 })} M€`;
@@ -94,10 +99,21 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
 
         const fitsAbove =
             tooltip.y - el.offsetHeight * 1.15 >= TOOLTIP_VIEWPORT_MARGIN;
+        const verticalTransform = fitsAbove ? '-115%' : '14px';
 
-        el.style.transform = fitsAbove
-            ? 'translate(-50%, -115%)'
-            : 'translate(-50%, 14px)';
+        // The tooltip is positioned at `left: tooltip.x` and normally
+        // centered with `translateX(-50%)`. Near day 0 or day 14 that
+        // centering can push it past the viewport edge, so nudge it inward
+        // by exactly enough to keep it fully on screen, without moving its
+        // anchor point (the hovered day) off the -50% baseline unless needed.
+        const halfWidth = el.offsetWidth / 2;
+        const minCenter = TOOLTIP_VIEWPORT_MARGIN + halfWidth;
+        const maxCenter =
+            window.innerWidth - TOOLTIP_VIEWPORT_MARGIN - halfWidth;
+        const clampedX = Math.min(maxCenter, Math.max(minCenter, tooltip.x));
+        const horizontalNudge = clampedX - tooltip.x;
+
+        el.style.transform = `translate(calc(-50% + ${horizontalNudge}px), ${verticalTransform})`;
     }, [tooltip]);
 
     const profitable = estimate.status === 'profitable';
@@ -272,7 +288,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                         className="pointer-events-none fixed z-[999] min-w-[160px] border border-hq-gold bg-hq-panel-alt px-3 py-2 font-mono text-[11px] whitespace-nowrap text-hq-paper"
                         style={{ left: tooltip.x, top: tooltip.y }}
                     >
-                        <div className="text-[10px] tracking-wide text-hq-moss uppercase">
+                        <div className="text-[11px] tracking-wide text-hq-moss uppercase">
                             {tooltip.day === 0
                                 ? 'Día 0 · hoy'
                                 : `Día ${tooltip.day}`}
@@ -351,6 +367,48 @@ function RivalRow({ rival }: { rival: MaxBidRival }) {
     );
 }
 
+function ConfidenceStepper({
+    percent,
+    onChange,
+}: {
+    percent: number;
+    onChange: (next: number) => void;
+}) {
+    return (
+        <div className="mt-2 inline-flex items-center border border-hq-border-strong font-mono text-[11px] font-bold text-hq-paper">
+            <button
+                type="button"
+                onClick={() =>
+                    onChange(
+                        Math.max(CONFIDENCE_MIN, percent - CONFIDENCE_STEP),
+                    )
+                }
+                disabled={percent <= CONFIDENCE_MIN}
+                aria-label="Bajar confianza"
+                className="px-2 py-1 text-hq-moss hover:text-hq-paper disabled:cursor-not-allowed disabled:text-hq-moss-dim disabled:opacity-50"
+            >
+                −
+            </button>
+            <span className="border-x border-hq-border-strong px-2 py-1 tabular-nums">
+                {percent} %
+            </span>
+            <button
+                type="button"
+                onClick={() =>
+                    onChange(
+                        Math.min(CONFIDENCE_MAX, percent + CONFIDENCE_STEP),
+                    )
+                }
+                disabled={percent >= CONFIDENCE_MAX}
+                aria-label="Subir confianza"
+                className="px-2 py-1 text-hq-moss hover:text-hq-paper disabled:cursor-not-allowed disabled:text-hq-moss-dim disabled:opacity-50"
+            >
+                +
+            </button>
+        </div>
+    );
+}
+
 function Headline({
     estimate,
     playerStatus,
@@ -389,7 +447,7 @@ function Headline({
     const reason =
         estimate.status === 'unavailable'
             ? STATUS_LABELS[playerStatus]
-            : `Proyección a la baja: ${formatMillions((estimate.projected_day14 ?? estimate.value) - estimate.value)} en 14 días`;
+            : `Proyección a la baja: ${formatMillions((estimate.projected_day14 ?? estimate.value) - estimate.value)} en ${estimate.lock_days} días`;
 
     return (
         <>
@@ -408,15 +466,53 @@ interface HqMaxBidCardProps {
 
 /**
  * Hidden "puja máxima rentable" card: the bid the best daily league offer
- * beats with 75 % probability during the 14-day clause lock, the projected
- * value, and the factors behind it. Full-width, above "Evolución". In
- * no_data/unavailable states only the headline renders — no chart, no
- * breakdown, since there is nothing to project.
+ * beats with the chosen confidence probability (default 75 %, adjustable via
+ * the stepper) during the clause lock, the projected value, and the factors
+ * behind it. Full-width, above "Evolución" (whose section title already
+ * labels this card, so no inner label is repeated here). In no_data/
+ * unavailable states only the headline renders — no chart, no breakdown,
+ * since there is nothing to project.
  */
 export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
     const hasProjection = estimate.projection !== null;
     const profitable = estimate.status === 'profitable';
     const firstRival = estimate.upcoming_rivals[0] ?? null;
+    const [confidencePercent, setConfidencePercent] = useState(() =>
+        Math.round(estimate.confidence * 100),
+    );
+    // Stay in sync when the estimate prop changes for a reason other than our
+    // own stepper (e.g. browser back/forward restoring a different
+    // ?confianza) — adjusted during render rather than in an effect, per
+    // https://react.dev/learn/you-might-not-need-an-effect.
+    const [lastSyncedConfidence, setLastSyncedConfidence] = useState(
+        estimate.confidence,
+    );
+
+    if (estimate.confidence !== lastSyncedConfidence) {
+        setLastSyncedConfidence(estimate.confidence);
+        setConfidencePercent(Math.round(estimate.confidence * 100));
+    }
+
+    const confidenceTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+    useEffect(() => () => clearTimeout(confidenceTimeout.current), []);
+
+    function handleConfidenceChange(nextPercent: number) {
+        setConfidencePercent(nextPercent);
+        clearTimeout(confidenceTimeout.current);
+
+        confidenceTimeout.current = setTimeout(() => {
+            const params = new URLSearchParams(window.location.search);
+            params.set('confianza', String(nextPercent));
+
+            router.get(window.location.pathname, Object.fromEntries(params), {
+                only: ['maxBid'],
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            });
+        }, CONFIDENCE_DEBOUNCE_MS);
+    }
 
     return (
         <div
@@ -437,10 +533,13 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                 )}
             >
                 <div>
-                    <p className="font-mono text-[11px] font-bold tracking-wide text-hq-moss uppercase">
-                        Puja máx. rentable
-                    </p>
                     <Headline estimate={estimate} playerStatus={playerStatus} />
+                    {hasProjection && (
+                        <ConfidenceStepper
+                            percent={confidencePercent}
+                            onChange={handleConfidenceChange}
+                        />
+                    )}
                 </div>
 
                 {hasProjection && <ProjectionChart estimate={estimate} />}
@@ -474,7 +573,7 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                             )}
                         />
                         <BreakdownRow
-                            label="Proyección día 14"
+                            label={`Proyección día ${estimate.lock_days}`}
                             value={formatMillions(
                                 estimate.projected_day14 ?? 0,
                             )}
@@ -524,7 +623,8 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
             )}
 
             <p className="mt-4 border-t border-hq-border pt-2 font-mono text-[11px] leading-snug text-hq-moss-dim">
-                Mejor oferta esperada durante los 14 días de blindaje · 75 % de
+                Mejor oferta esperada durante los {estimate.lock_days} días de
+                blindaje · {Math.round(estimate.confidence * 100)} % de
                 confianza
             </p>
         </div>

@@ -132,7 +132,32 @@ test('serializes for the ficha', function (): void {
 
     expect($array['status'])->toBe('profitable')
         ->and($array['projected_day14'])->toBe($array['projection'][14])
-        ->and($array['bid_premium'])->toBeGreaterThan(0);
+        ->and($array['bid_premium'])->toBeGreaterThan(0)
+        ->and($array['confidence'])->toBe(MaxBidCalculator::CONFIDENCE)
+        ->and($array['lock_days'])->toBe(MaxBidCalculator::LOCK_DAYS);
+});
+
+test('a custom confidence is used to solve the bid and is reflected in the estimate', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+
+    $estimateAt90 = app(MaxBidCalculator::class)->estimate($player, $this->season, confidence: 0.9);
+    $estimateAt75 = app(MaxBidCalculator::class)->estimate($player, $this->season, confidence: 0.75);
+
+    expect($estimateAt90->confidence)->toBe(0.9)
+        ->and($estimateAt90->bid)->toBeLessThan($estimateAt75->bid);
+});
+
+test('an unavailable or unprofitable estimate still reports the requested confidence and lock days', function (): void {
+    $unavailable = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000], ['status' => PlayerStatus::Injured]);
+    $falling = maxBidPlayer($this->season, [10_300_000, 10_200_000, 10_100_000, 10_000_000]);
+
+    $unavailableEstimate = app(MaxBidCalculator::class)->estimate($unavailable, $this->season, confidence: 0.9);
+    $fallingEstimate = app(MaxBidCalculator::class)->estimate($falling, $this->season, confidence: 0.9);
+
+    expect($unavailableEstimate->confidence)->toBe(0.9)
+        ->and($unavailableEstimate->lockDays)->toBe(MaxBidCalculator::LOCK_DAYS)
+        ->and($fallingEstimate->confidence)->toBe(0.9)
+        ->and($fallingEstimate->lockDays)->toBe(MaxBidCalculator::LOCK_DAYS);
 });
 
 /**

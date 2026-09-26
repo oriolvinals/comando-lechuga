@@ -22,6 +22,10 @@ final readonly class MaxBidEstimate
     public function __construct(
         public MaxBidStatus $status,
         public int $value,
+        /** The confidence actually used (or requested, for a status with no bid to solve) — e.g. 0.75. */
+        public float $confidence,
+        /** The clause-lock length actually used, in days. */
+        public int $lockDays,
         public ?int $bid = null,
         public ?array $projection = null,
         public ?float $momentumIncrement = null,
@@ -44,6 +48,8 @@ final readonly class MaxBidEstimate
         return [
             'status' => $this->status->value,
             'value' => $this->value,
+            'confidence' => $this->confidence,
+            'lock_days' => $this->lockDays,
             'bid' => $this->bid,
             'bid_premium' => $this->bid !== null && $this->value > 0 ? $this->bid / $this->value - 1 : null,
             'projection' => $this->projection,

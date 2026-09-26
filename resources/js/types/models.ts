@@ -372,6 +372,10 @@ export interface MaxBidRival {
 export interface MaxBidEstimate {
     status: MaxBidStatus;
     value: number;
+    /** The confidence actually used (or requested), e.g. 0.75 — adjustable via the ?confianza stepper. */
+    confidence: number;
+    /** The clause-lock length actually used, in days. */
+    lock_days: number;
     bid: number | null;
     bid_premium: number | null;
     /** Day 0 (today) … day 14 of the clause lock; null without an estimate. */

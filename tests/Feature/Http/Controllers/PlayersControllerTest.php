@@ -1218,3 +1218,57 @@ test('puja=0 removes the max bid and forgets the cookie even when it is present'
         ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null))
         ->assertCookieExpired('show_max_bid');
 });
+
+test('confianza sets the confidence used to solve the bid, and a lower confidence bids higher', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    foreach ([10_000_000, 10_100_000, 10_200_000, 10_300_000] as $index => $value) {
+        PlayerMarket::factory()->create([
+            'player_id' => $player->id,
+            'date' => now()->subDays(3 - $index)->toDateString(),
+            'value' => $value,
+        ]);
+    }
+
+    // Arrow functions auto-capture by value, which would otherwise shadow a
+    // nested closure's `use (&...)` with a disconnected copy — plain closures
+    // avoid that so the reference reaches the real outer variable.
+    $bidAt90 = null;
+    $this->get(route('players.show', $player).'?puja=1&confianza=90')
+        ->assertOk()
+        ->assertInertia(function (Assert $page) use (&$bidAt90): AssertableInertia {
+            return $page
+                ->where('maxBid.confidence', 0.9)
+                ->where('maxBid.bid', function ($value) use (&$bidAt90): bool {
+                    $bidAt90 = $value;
+
+                    return true;
+                });
+        });
+
+    $bidAt75 = null;
+    $this->get(route('players.show', $player).'?puja=1')
+        ->assertOk()
+        ->assertInertia(function (Assert $page) use (&$bidAt75): AssertableInertia {
+            return $page
+                ->where('maxBid.confidence', 0.75)
+                ->where('maxBid.bid', function ($value) use (&$bidAt75): bool {
+                    $bidAt75 = $value;
+
+                    return true;
+                });
+        });
+
+    expect($bidAt90)->not->toBeNull()
+        ->and($bidAt75)->not->toBeNull()
+        ->and($bidAt90)->toBeLessThan($bidAt75);
+});
+
+test('an invalid or out-of-range confianza falls back to 0,75 confidence', function (string $confianza): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    $this->get(route('players.show', $player)."?puja=1&confianza={$confianza}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid.confidence', 0.75));
+})->with(['999', '10', 'abc', '90.5']);

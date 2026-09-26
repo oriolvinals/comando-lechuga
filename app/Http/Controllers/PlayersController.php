@@ -268,9 +268,31 @@ class PlayersController extends Controller
             // Hidden: only computed and sent when ?puja=1 (or a prior visit's
             // remembered cookie) turns the card on for this request.
             'maxBid' => $this->shouldShowMaxBid($request)
-                ? $maxBidCalculator->estimate($player, $season)->toArray()
+                ? $maxBidCalculator->estimate($player, $season, confidence: $this->resolveConfidence($request))->toArray()
                 : null,
         ]);
+    }
+
+    /**
+     * `?confianza` is the confidence percentage (50–95) the max-bid stepper
+     * asks for, as a whole number. Missing, non-integer, or out-of-range
+     * falls back to the calculator's own default confidence.
+     */
+    private function resolveConfidence(Request $request): float
+    {
+        $raw = $request->query('confianza');
+
+        if (!is_scalar($raw)) {
+            return MaxBidCalculator::CONFIDENCE;
+        }
+
+        $percent = filter_var($raw, FILTER_VALIDATE_INT);
+
+        if ($percent === false || $percent < 50 || $percent > 95) {
+            return MaxBidCalculator::CONFIDENCE;
+        }
+
+        return $percent / 100;
     }
 
     /**
