@@ -41,7 +41,7 @@ enum MarketTrend: string
      */
     public static function fromDailyValues(array $values): ?self
     {
-        $values = array_slice(array_values($values), -(self::WINDOW_DAYS * 2 + 1));
+        $values = array_slice($values, -(self::WINDOW_DAYS * 2 + 1));
 
         if (count($values) < self::WINDOW_DAYS * 2 + 1 || $values[0] <= 0 || $values[self::WINDOW_DAYS] <= 0) {
             return null;
