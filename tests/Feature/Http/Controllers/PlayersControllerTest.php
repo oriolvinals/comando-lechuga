@@ -1158,3 +1158,31 @@ test('returns 200 for a player ficha with a fantasy_id', function (): void {
 
     $response->assertOk();
 });
+
+test('the ficha has no max bid without the puja parameter', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    $this->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid', null));
+});
+
+test('the puja parameter, even without a value, adds the max bid to the ficha', function (): void {
+    Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    foreach ([10_000_000, 10_100_000, 10_200_000, 10_300_000] as $index => $value) {
+        PlayerMarket::factory()->create([
+            'player_id' => $player->id,
+            'date' => now()->subDays(3 - $index)->toDateString(),
+            'value' => $value,
+        ]);
+    }
+
+    $this->get(route('players.show', $player).'?puja')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('maxBid.value', 10_300_000)
+            ->has('maxBid.status')
+            ->has('maxBid.projection', 15));
+});

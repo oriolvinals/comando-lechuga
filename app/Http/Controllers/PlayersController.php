@@ -24,7 +24,9 @@ use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
+use App\Services\MaxBidCalculator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -136,7 +138,7 @@ class PlayersController extends Controller
         SeasonActivityType::Buyout,
     ];
 
-    public function show(Player $player): Response
+    public function show(Request $request, Player $player, MaxBidCalculator $maxBidCalculator): Response
     {
         abort_if($player->fantasy_id === null, 404);
 
@@ -256,6 +258,10 @@ class PlayersController extends Controller
                 $season,
                 $scores->map(fn (array $score): int => $score['fixture']->id)->all(),
             ),
+            // Hidden: only computed and sent when the URL carries ?puja.
+            'maxBid' => $request->has('puja')
+                ? $maxBidCalculator->estimate($player, $season)->toArray()
+                : null,
         ]);
     }
 
