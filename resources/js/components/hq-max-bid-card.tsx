@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import type { CSSProperties, ReactNode } from 'react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatCurrency } from '@/lib/format';
 import { STATUS_LABELS } from '@/lib/player-labels';
@@ -11,7 +11,11 @@ const OFFER_SPREAD = 0.1;
 /** Rough JetBrains Mono advance width at 11px — used only to keep the chart's
  * three axis labels from overlapping at narrow widths, never to size text. */
 const MONO_CHAR_PX = 6.6;
-const CHART_HEIGHT = 80;
+/** Matches the card's own `min-[1100px]:` breakpoint for the two-tier layout,
+ * so the chart's plot height tracks the same desktop/mobile split. */
+const DESKTOP_QUERY = '(min-width: 1100px)';
+const CHART_HEIGHT_DESKTOP = 160;
+const CHART_HEIGHT_MOBILE = 110;
 const CHART_PAD = 4;
 const TOOLTIP_VIEWPORT_MARGIN = 8;
 const CONFIDENCE_MIN = 50;
@@ -67,6 +71,13 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
     const tooltipRef = useRef<HTMLDivElement>(null);
     const [width, setWidth] = useState(600);
     const [tooltip, setTooltip] = useState<ChartTooltipState | null>(null);
+    const [isDesktop, setIsDesktop] = useState(
+        () =>
+            typeof window !== 'undefined' &&
+            window.matchMedia(DESKTOP_QUERY).matches,
+    );
+    const clipId = `max-bid-chart-clip-${useId().replace(/[^a-zA-Z0-9-]/g, '')}`;
+    const chartHeight = isDesktop ? CHART_HEIGHT_DESKTOP : CHART_HEIGHT_MOBILE;
 
     // The viewBox width tracks the container's real pixel width (like
     // HqPlayerValueChart) so text renders at its true size and the axis
@@ -88,6 +99,18 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
         observer.observe(el);
 
         return () => observer.disconnect();
+    }, []);
+
+    // Mirrors the card's own `min-[1100px]:` breakpoint so the plot shrinks
+    // sensibly under it instead of staying at the tall desktop height.
+    useEffect(() => {
+        const mql = window.matchMedia(DESKTOP_QUERY);
+        const handleChange = () => setIsDesktop(mql.matches);
+
+        handleChange();
+        mql.addEventListener('change', handleChange);
+
+        return () => mql.removeEventListener('change', handleChange);
     }, []);
 
     useLayoutEffect(() => {
@@ -117,14 +140,35 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
     }, [tooltip]);
 
     const profitable = estimate.status === 'profitable';
-    const low = Math.min(...projection) * (1 - OFFER_SPREAD);
-    const high =
-        Math.max(...projection, estimate.bid ?? 0) * (1 + OFFER_SPREAD);
+    // The y-domain fits the projection line and the bid line (today's value
+    // is already projection[0]), with 5 % padding — not the ±10 % offer band,
+    // which would otherwise squash the curve into a thin sliver. The band is
+    // still drawn at its real width, just clipped to the plot area below.
+    const domainValues =
+        estimate.bid !== null ? [...projection, estimate.bid] : projection;
+    const rawMin = Math.min(...domainValues);
+    const rawMax = Math.max(...domainValues);
+    let low: number;
+    let high: number;
+
+    if (rawMax > rawMin) {
+        const padding = (rawMax - rawMin) * 0.05;
+        low = rawMin - padding;
+        high = rawMax + padding;
+    } else {
+        // A flat projection (and no bid, or a bid equal to it) has zero span
+        // — fall back to a small window around the value so the line isn't a
+        // degenerate point.
+        const fallbackSpan = Math.max(Math.abs(rawMin), 1) * 0.05;
+        low = rawMin - fallbackSpan;
+        high = rawMax + fallbackSpan;
+    }
+
     const x = (day: number) => CHART_PAD + (day / 14) * (width - 2 * CHART_PAD);
     const y = (amount: number) =>
-        CHART_HEIGHT -
+        chartHeight -
         CHART_PAD -
-        ((amount - low) / (high - low)) * (CHART_HEIGHT - 2 * CHART_PAD);
+        ((amount - low) / (high - low)) * (chartHeight - 2 * CHART_PAD);
     const line = projection.map((v, day) => `${x(day)},${y(v)}`).join(' ');
     const band = [
         ...projection.map((v, day) => `${x(day)},${y(v * (1 + OFFER_SPREAD))}`),
@@ -177,12 +221,21 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
     }
 
     const hoveredValue = tooltip !== null ? projection[tooltip.day] : null;
+    // That day's best possible offer (1,1 × its projected value) against the
+    // one fixed bid for the whole lock — whether it could ever reach it,
+    // rather than repeating the same "puja" figure on every single day.
+    const maxOfferAtHover =
+        hoveredValue !== null ? hoveredValue * (1 + OFFER_SPREAD) : null;
+    const offerReachesBid =
+        maxOfferAtHover !== null &&
+        estimate.bid !== null &&
+        maxOfferAtHover >= estimate.bid;
 
     return (
         <div ref={containerRef} className="w-full">
             <svg
                 ref={svgRef}
-                viewBox={`0 0 ${width} ${CHART_HEIGHT + 16}`}
+                viewBox={`0 0 ${width} ${chartHeight + 16}`}
                 className="block w-full cursor-crosshair touch-none"
                 role="img"
                 aria-label={`Proyección: ${formatMillions(projection[14])} en 14 días`}
@@ -192,7 +245,22 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                 onTouchMove={(event) => handleMove(event.touches[0].clientX)}
                 onTouchEnd={clearHover}
             >
-                <polygon points={band} fill={stroke} opacity={0.08} />
+                <defs>
+                    <clipPath id={clipId}>
+                        <rect
+                            x={CHART_PAD}
+                            y={CHART_PAD}
+                            width={width - 2 * CHART_PAD}
+                            height={chartHeight - 2 * CHART_PAD}
+                        />
+                    </clipPath>
+                </defs>
+                <polygon
+                    points={band}
+                    fill={stroke}
+                    opacity={0.08}
+                    clipPath={`url(#${clipId})`}
+                />
                 <line
                     x1={CHART_PAD}
                     x2={width - CHART_PAD}
@@ -238,7 +306,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                             x1={x(tooltip.day)}
                             x2={x(tooltip.day)}
                             y1={CHART_PAD}
-                            y2={CHART_HEIGHT - CHART_PAD}
+                            y2={chartHeight - CHART_PAD}
                             stroke="var(--color-hq-paper)"
                             strokeWidth={1}
                             opacity={0.35}
@@ -255,7 +323,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                 )}
                 <text
                     x={CHART_PAD}
-                    y={CHART_HEIGHT + 13}
+                    y={chartHeight + 13}
                     className="fill-hq-moss-dim font-mono text-[11px]"
                 >
                     hoy
@@ -263,7 +331,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                 {day7Label !== null && (
                     <text
                         x={width / 2}
-                        y={CHART_HEIGHT + 13}
+                        y={chartHeight + 13}
                         textAnchor="middle"
                         className="fill-hq-moss-dim font-mono text-[11px]"
                     >
@@ -272,7 +340,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                 )}
                 <text
                     x={width - CHART_PAD}
-                    y={CHART_HEIGHT + 13}
+                    y={chartHeight + 13}
                     textAnchor="end"
                     className="fill-hq-moss-dim font-mono text-[11px]"
                 >
@@ -302,9 +370,19 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                             {' – '}
                             {formatMillions(hoveredValue * (1 + OFFER_SPREAD))}
                         </div>
-                        {estimate.bid !== null && (
-                            <div className="mt-1 font-bold text-hq-gold">
-                                puja {formatMillions(estimate.bid)}
+                        {estimate.bid !== null && maxOfferAtHover !== null && (
+                            <div
+                                className={cn(
+                                    'mt-1 font-bold',
+                                    offerReachesBid
+                                        ? 'text-hq-lime'
+                                        : 'text-hq-moss-dim',
+                                )}
+                            >
+                                Oferta máx. {formatMillions(maxOfferAtHover)} ·{' '}
+                                {offerReachesBid
+                                    ? 'puede superar la puja'
+                                    : 'no llega a la puja'}
                             </div>
                         )}
                     </div>,
