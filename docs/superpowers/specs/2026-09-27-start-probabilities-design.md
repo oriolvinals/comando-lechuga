@@ -106,7 +106,8 @@ last-3-matches starts + minutes. Not backtestable (no history) — note it in th
   "Posible alineación J{n}" vs "Alineación confirmada J{n}" headings, missing heading).
 - Linker tests for each rule, including ties and the manual map.
 - Command feature tests with `Http::fake` / Saloon mocks: due-logic per team, failure keeps rows,
-  upsert, no fetch inside the 1 h window.
+  upsert, fetch every run within 48 h and never after kickoff, FF confirmation stored as fallback;
+  live sync picks up lineups from 1 h 30 min before kickoff.
 - Controller tests for the new props on match, team and manager fichas; max bid participation
   switch (fresh vs stale vs missing).
 
