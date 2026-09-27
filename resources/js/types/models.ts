@@ -420,10 +420,13 @@ export interface TickerFixture {
     guest_team: TickerTeam;
 }
 
-/** A player whose market value moved the most on the latest daily update. */
-export interface TickerMover {
+/** A listing of the current daily market, with its player's daily value move. */
+export interface TickerListing {
     id: number;
+    player_id: number;
     nickname: string;
+    value: number;
+    bids: number;
     market_value_difference: number;
     market_trend: MarketTrend | null;
 }
@@ -442,7 +445,6 @@ export interface Ticker {
     /** The last jornada whose fixtures have all been played — null before the first one ends. */
     finished_week: number | null;
     results: TickerFixture[];
-    risers: TickerMover[];
-    fallers: TickerMover[];
+    market: TickerListing[];
     activities: TickerActivity[];
 }

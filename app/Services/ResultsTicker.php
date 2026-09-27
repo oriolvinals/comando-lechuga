@@ -9,34 +9,31 @@ use App\Enums\PlayerPosition;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Models\Activity;
 use App\Models\Fixture;
-use App\Models\PlayerSeason;
+use App\Models\MarketPlayer;
 use App\Models\Season;
 use App\Models\Team;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * The shell's "Teletipo" strip: what's new in the season at a glance — live
- * matches, the last fully finished jornada's results, the biggest daily
- * market movers and the latest transfer-market activity — as plain arrays
+ * matches, the last fully finished jornada's results, the current daily
+ * market listings and the latest transfer-market activity — as plain arrays
  * for a shared Inertia prop.
  *
  * @phpstan-type TickerTeam array{id: int, short_name: string, main_name: string, logo: string}
  * @phpstan-type TickerFixture array{id: int, state: string, display_clock: string|null, local_score: int|null, guest_score: int|null, local_team: TickerTeam, guest_team: TickerTeam}
- * @phpstan-type TickerMover array{id: int, nickname: string, market_value_difference: int, market_trend: string|null}
+ * @phpstan-type TickerListing array{id: int, player_id: int, nickname: string, value: int, bids: int, market_value_difference: int, market_trend: string|null}
  * @phpstan-type TickerActivity array{id: int, type: string, manager_name: string, player_nickname: string|null, amount: int|null}
  */
 class ResultsTicker
 {
     use FiltersSeasonWeeks;
 
-    public const int RISER_COUNT = 4;
-
-    public const int FALLER_COUNT = 3;
-
     public const int ACTIVITY_COUNT = 5;
 
     /**
-     * @return array{live: array<int, TickerFixture>, finished_week: int|null, results: array<int, TickerFixture>, risers: array<int, TickerMover>, fallers: array<int, TickerMover>, activities: array<int, TickerActivity>}
+     * @return array{live: array<int, TickerFixture>, finished_week: int|null, results: array<int, TickerFixture>, market: array<int, TickerListing>, activities: array<int, TickerActivity>}
      */
     public function forSeason(Season $season): array
     {
@@ -46,8 +43,7 @@ class ResultsTicker
             'live' => $this->liveFixtures($season),
             'finished_week' => $finishedWeek,
             'results' => $finishedWeek === null ? [] : $this->results($season, $finishedWeek),
-            'risers' => $this->marketMovers($season, rising: true),
-            'fallers' => $this->marketMovers($season, rising: false),
+            'market' => $this->marketListings($season),
             'activities' => $this->latestActivities($season),
         ];
     }
@@ -101,29 +97,39 @@ class ResultsTicker
     }
 
     /**
-     * The players whose market value moved the most on the latest daily
-     * update, in one direction — biggest move first. Coaches are left out,
-     * like on the home market.
+     * The private league's current daily market: the listings that have not
+     * expired yet, soonest to expire first, with each player's daily value
+     * move. Coaches are left out, like on the home market.
      *
-     * @return array<int, TickerMover>
+     * @return array<int, TickerListing>
      */
-    private function marketMovers(Season $season, bool $rising): array
+    private function marketListings(Season $season): array
     {
-        return PlayerSeason::query()
-            ->where('season_id', $season->id)
-            ->where('position', '!=', PlayerPosition::Coach)
-            ->where('market_value_difference', $rising ? '>' : '<', 0)
-            ->orderBy('market_value_difference', $rising ? 'desc' : 'asc')
-            ->orderBy('player_id')
-            ->limit($rising ? self::RISER_COUNT : self::FALLER_COUNT)
-            ->with('player:id,nickname')
-            ->get()
-            ->map(fn (PlayerSeason $playerSeason): array => [
-                'id' => $playerSeason->player_id,
-                'nickname' => $playerSeason->player->nickname,
-                'market_value_difference' => $playerSeason->market_value_difference,
-                'market_trend' => $playerSeason->market_trend?->value,
+        return MarketPlayer::query()
+            ->whereHas('player.seasons', fn (Builder $query): Builder => $query
+                ->where('season_id', $season->id)
+                ->where('position', '!=', PlayerPosition::Coach))
+            ->where('expires_at', '>', now())
+            ->with([
+                'player:id,nickname',
+                'player.seasons' => fn (HasMany $query): HasMany => $query->where('season_id', $season->id),
             ])
+            ->orderBy('expires_at')
+            ->orderBy('id')
+            ->get()
+            ->map(function (MarketPlayer $listing): array {
+                $playerSeason = $listing->player->seasons->first();
+
+                return [
+                    'id' => $listing->id,
+                    'player_id' => $listing->player_id,
+                    'nickname' => $listing->player->nickname,
+                    'value' => $listing->value,
+                    'bids' => $listing->bids,
+                    'market_value_difference' => $playerSeason?->market_value_difference ?? 0,
+                    'market_trend' => $playerSeason?->market_trend?->value,
+                ];
+            })
             ->all();
     }
 

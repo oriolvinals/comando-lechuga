@@ -8,8 +8,8 @@ use App\Enums\PlayerPosition;
 use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Fixture;
+use App\Models\MarketPlayer;
 use App\Models\Player;
-use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
@@ -41,8 +41,7 @@ test('shares the teletipo with every inertia page and no live matches when none 
             ->where('live', [])
             ->where('finished_week', 4)
             ->has('results')
-            ->has('risers')
-            ->has('fallers')
+            ->where('market', [])
             ->has('activities')));
 });
 
@@ -153,49 +152,50 @@ test('falls back to the previous jornada while the current one is partly played'
         ->where('ticker.results.0.id', $previous->id));
 });
 
-test('lists the top 4 risers and top 3 fallers of the latest market update, coaches excluded', function (): void {
-    $season = tickerSeason();
-    $moverDifferences = [
-        'riser 1' => 900_000,
-        'riser 2' => 700_000,
-        'riser 3' => 500_000,
-        'riser 4' => 300_000,
-        'riser 5' => 100_000,
-        'steady' => 0,
-        'faller 3' => -200_000,
-        'faller 2' => -400_000,
-        'faller 1' => -800_000,
-        'faller 4' => -100_000,
-    ];
-
-    foreach ($moverDifferences as $nickname => $difference) {
-        Player::factory()->create([
-            'nickname' => $nickname,
+test('lists the current daily market listings soonest to expire first, expired listings and coaches excluded', function (): void {
+    tickerSeason();
+    $later = MarketPlayer::factory()->create([
+        'player_id' => Player::factory()->create([
+            'nickname' => 'later',
             'position' => PlayerPosition::Midfield,
-            'market_value_difference' => $difference,
-            'market_trend' => $difference > 0 ? MarketTrend::RiseSteady : null,
-        ]);
-    }
-
-    Player::factory()->create([
-        'nickname' => 'coach',
-        'position' => PlayerPosition::Coach,
-        'market_value_difference' => 5_000_000,
+            'market_value_difference' => -300_000,
+        ])->id,
+        'expires_at' => now()->addHours(5),
+        'value' => 8_000_000,
+        'bids' => 0,
     ]);
-    PlayerSeason::factory()->create([
-        'player_id' => Player::factory()->create(['nickname' => 'other season', 'market_value_difference' => 0])->id,
-        'position' => PlayerPosition::Striker,
-        'market_value_difference' => 9_000_000,
+    $sooner = MarketPlayer::factory()->create([
+        'player_id' => Player::factory()->create([
+            'nickname' => 'sooner',
+            'position' => PlayerPosition::Striker,
+            'market_value_difference' => 450_000,
+            'market_trend' => MarketTrend::RiseSteady,
+        ])->id,
+        'expires_at' => now()->addHours(2),
+        'value' => 12_500_000,
+        'bids' => 3,
+    ]);
+    MarketPlayer::factory()->create([
+        'player_id' => Player::factory()->create(['nickname' => 'expired', 'position' => PlayerPosition::Defender])->id,
+        'expires_at' => now()->subMinute(),
+    ]);
+    MarketPlayer::factory()->create([
+        'player_id' => Player::factory()->create(['nickname' => 'coach', 'position' => PlayerPosition::Coach])->id,
+        'expires_at' => now()->addHours(3),
     ]);
 
     $response = $this->get(route('activity.index'));
 
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('ticker.risers', fn ($risers): bool => collect($risers)->pluck('nickname')->all() === ['riser 1', 'riser 2', 'riser 3', 'riser 4'])
-        ->where('ticker.risers.0.market_value_difference', 900_000)
-        ->where('ticker.risers.0.market_trend', 'rise_steady')
-        ->where('ticker.fallers', fn ($fallers): bool => collect($fallers)->pluck('nickname')->all() === ['faller 1', 'faller 2', 'faller 3'])
-        ->where('ticker.fallers.0.market_trend', null));
+        ->where('ticker.market', fn ($market): bool => collect($market)->pluck('nickname')->all() === ['sooner', 'later'])
+        ->where('ticker.market.0.id', $sooner->id)
+        ->where('ticker.market.0.player_id', $sooner->player_id)
+        ->where('ticker.market.0.value', 12_500_000)
+        ->where('ticker.market.0.bids', 3)
+        ->where('ticker.market.0.market_value_difference', 450_000)
+        ->where('ticker.market.0.market_trend', 'rise_steady')
+        ->where('ticker.market.1.id', $later->id)
+        ->where('ticker.market.1.market_value_difference', -300_000));
 });
 
 test('lists the 5 latest activities of the season, newest first', function (): void {

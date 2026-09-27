@@ -89,26 +89,33 @@ function tickerItems(ticker: Ticker): ReactNode[] {
         });
     }
 
-    const movers = [...ticker.risers, ...ticker.fallers];
-
-    if (movers.length > 0) {
+    if (ticker.market.length > 0) {
         items.push(<Label key="market-label">MERCADO</Label>);
 
-        movers.forEach((mover) => {
+        ticker.market.forEach((listing) => {
             items.push(
                 <Link
-                    key={`mover-${mover.id}`}
-                    href={playersShow(mover.id).url}
+                    key={`listing-${listing.id}`}
+                    href={playersShow(listing.player_id).url}
                     className={LINK_CLASSES}
                 >
                     <b className="font-semibold text-hq-paper">
-                        {mover.nickname}
+                        {listing.nickname}
                     </b>
+                    <span className="tabular-nums">
+                        {formatMillions(listing.value)}
+                    </span>
                     <HqMarketValueDifference
-                        difference={mover.market_value_difference}
-                        trend={mover.market_trend}
+                        difference={listing.market_value_difference}
+                        trend={listing.market_trend}
                         className="text-[11px] lg:text-xs"
                     />
+                    {listing.bids > 0 && (
+                        <span className="font-semibold text-hq-ember">
+                            {listing.bids}{' '}
+                            {listing.bids === 1 ? 'PUJA' : 'PUJAS'}
+                        </span>
+                    )}
                 </Link>,
             );
         });
@@ -190,8 +197,8 @@ function TickerRun({
 /**
  * The "Teletipo" above the shell header: a scrolling strip with the matches
  * being played (red "EN DIRECTO" lead) or the last finished jornada (lime
- * "J{n} FINAL" lead), its results, the day's biggest market risers and
- * fallers and the latest transfer-market moves. It pauses on hover or
+ * "J{n} FINAL" lead), its results, the current daily market listings (value,
+ * daily move and bids) and the latest transfer-market moves. It pauses on hover or
  * keyboard focus and stands still under reduced motion.
  */
 export function HqTicker() {
