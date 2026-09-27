@@ -98,6 +98,16 @@ const TREND_DISPLAY: Record<MarketTrend, TrendDisplay> = {
     },
 };
 
+/** The trend spelled out in Spanish ("Sube a ritmo constante"), and whether the value is rising. */
+export function describeMarketTrend(trend: MarketTrend): {
+    label: string;
+    rising: boolean;
+} {
+    const { label, rising } = TREND_DISPLAY[trend];
+
+    return { label, rising };
+}
+
 interface HqMarketTrendIconProps {
     trend: MarketTrend | null;
     className?: string;

@@ -1,9 +1,12 @@
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 import type { JornadaStats, PlayerPosition } from '@/types/models';
 
 interface MatchEventIconsProps {
     stats: JornadaStats;
     position: PlayerPosition;
+    /** Overrides the default bottom margin (e.g. inline in a row). */
+    className?: string;
 }
 
 function statCount(stats: JornadaStats, key: string): number {
@@ -36,7 +39,15 @@ export function EventGlyph({
     );
 }
 
-export function MatchEventIcons({ stats, position }: MatchEventIconsProps) {
+/** Whether {@link MatchEventIcons} would render anything for these stats. */
+export function hasMatchEvents(
+    stats: JornadaStats,
+    position: PlayerPosition,
+): boolean {
+    return matchEventCounts(stats, position).hasAnyEvent;
+}
+
+function matchEventCounts(stats: JornadaStats, position: PlayerPosition) {
     const goals = statCount(stats, 'goals');
     const ownGoals = statCount(stats, 'own_goals');
     const assists = statCount(stats, 'goal_assist');
@@ -65,12 +76,53 @@ export function MatchEventIcons({ stats, position }: MatchEventIconsProps) {
         penaltySaved > 0 ||
         cleanSheet;
 
+    return {
+        goals,
+        ownGoals,
+        assists,
+        secondYellow,
+        yellow,
+        red,
+        penaltyWon,
+        penaltyConceded,
+        penaltyMissed,
+        penaltySaved,
+        cleanSheet,
+        hasAnyEvent,
+    };
+}
+
+export function MatchEventIcons({
+    stats,
+    position,
+    className,
+}: MatchEventIconsProps) {
+    const {
+        goals,
+        ownGoals,
+        assists,
+        secondYellow,
+        yellow,
+        red,
+        penaltyWon,
+        penaltyConceded,
+        penaltyMissed,
+        penaltySaved,
+        cleanSheet,
+        hasAnyEvent,
+    } = matchEventCounts(stats, position);
+
     if (!hasAnyEvent) {
         return null;
     }
 
     return (
-        <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+        <div
+            className={cn(
+                'mb-1.5 flex flex-wrap items-center gap-1.5',
+                className,
+            )}
+        >
             {goals > 0 && (
                 <EventGlyph count={goals} title="Gol">
                     <span className="text-[13px] leading-none">⚽</span>
@@ -85,19 +137,32 @@ export function MatchEventIcons({ stats, position }: MatchEventIconsProps) {
             )}
             {assists > 0 && (
                 <EventGlyph count={assists} title="Asistencia">
-                    <span className="text-[13px] leading-none text-hq-med">➜</span>
+                    <span className="text-[13px] leading-none text-hq-med">
+                        ➜
+                    </span>
                 </EventGlyph>
             )}
             {yellow && (
-                <span title="Amarilla" className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold" />
+                <span
+                    title="Amarilla"
+                    className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold"
+                />
             )}
             {secondYellow && (
-                <span title="Doble amarilla" className="relative inline-block h-3.5 w-4">
+                <span
+                    title="Doble amarilla"
+                    className="relative inline-block h-3.5 w-4"
+                >
                     <span className="hq-crest-cut absolute top-0.5 left-0 h-3 w-2 bg-hq-gold/60" />
                     <span className="hq-crest-cut absolute top-0 left-1.5 h-3 w-2 bg-hq-gold" />
                 </span>
             )}
-            {red && <span title="Roja" className="hq-crest-cut h-3.5 w-2.5 bg-hq-live" />}
+            {red && (
+                <span
+                    title="Roja"
+                    className="hq-crest-cut h-3.5 w-2.5 bg-hq-live"
+                />
+            )}
             {penaltyWon > 0 && (
                 <EventGlyph count={penaltyWon} title="Provoca penalti">
                     <span className="border border-hq-gold px-1 py-px font-mono text-[9px] font-bold text-hq-gold">
@@ -127,7 +192,10 @@ export function MatchEventIcons({ stats, position }: MatchEventIconsProps) {
                 </EventGlyph>
             )}
             {cleanSheet && (
-                <span title="Portería a cero" className="border border-hq-lime px-1 py-px font-mono text-[9px] font-bold text-hq-lime">
+                <span
+                    title="Portería a cero"
+                    className="border border-hq-lime px-1 py-px font-mono text-[9px] font-bold text-hq-lime"
+                >
                     0
                 </span>
             )}
