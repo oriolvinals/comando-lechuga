@@ -9,8 +9,8 @@ import {
 } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqSection } from '@/components/hq-section';
+import { HqStatusBadge } from '@/components/hq-status-badge';
 import { formatCurrency } from '@/lib/format';
-import { STATUS_BADGE_CLASS, STATUS_SHORT_LABELS } from '@/lib/player-labels';
 import { useCountdown } from '@/lib/use-countdown';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
@@ -152,16 +152,7 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                     {player.team.short_name}
                 </span>
                 <HqPositionTag position={player.position} />
-                {player.status !== 'ok' && (
-                    <span
-                        className={cn(
-                            'border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
-                            STATUS_BADGE_CLASS[player.status],
-                        )}
-                    >
-                        {STATUS_SHORT_LABELS[player.status]}
-                    </span>
-                )}
+                <HqStatusBadge status={player.status} />
             </div>
 
             <p className="mt-1.5 font-mono text-[12px] font-bold text-hq-paper">

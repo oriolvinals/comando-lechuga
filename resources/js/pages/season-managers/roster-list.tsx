@@ -7,17 +7,13 @@ import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { ClauseDifference } from '@/components/hq-player-property-card';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
+import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { resolveClauseStatus } from '@/lib/clause-status';
 import { formatFullDateTime } from '@/lib/format';
-import {
-    POSITION_GROUP_LABELS,
-    STATUS_BADGE_CLASS,
-    STATUS_SHORT_LABELS,
-} from '@/lib/player-labels';
+import { POSITION_GROUP_LABELS } from '@/lib/player-labels';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
 import { useNow } from '@/lib/use-now';
-import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
 import { show as teamsShow } from '@/routes/teams';
 import type { PlayerPosition, ManagerPlayer } from '@/types/models';
@@ -164,16 +160,10 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                                 {entry.player.team.short_name}
                             </span>
                         </span>
-                        {entry.player.status !== 'ok' && (
-                            <span
-                                className={cn(
-                                    'mt-1 inline-block border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
-                                    STATUS_BADGE_CLASS[entry.player.status],
-                                )}
-                            >
-                                {STATUS_SHORT_LABELS[entry.player.status]}
-                            </span>
-                        )}
+                        <HqStatusBadge
+                            status={entry.player.status}
+                            className="mt-1"
+                        />
                     </div>
 
                     <RosterClauseStatus entry={entry} now={now} />
@@ -236,16 +226,10 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                                 {entry.player.team.short_name}
                             </span>
                         </span>
-                        {entry.player.status !== 'ok' && (
-                            <span
-                                className={cn(
-                                    'mt-1 inline-block border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
-                                    STATUS_BADGE_CLASS[entry.player.status],
-                                )}
-                            >
-                                {STATUS_SHORT_LABELS[entry.player.status]}
-                            </span>
-                        )}
+                        <HqStatusBadge
+                            status={entry.player.status}
+                            className="mt-1"
+                        />
                     </div>
                     <span className="shrink-0 font-display text-xl text-hq-lime">
                         {entry.player.points}

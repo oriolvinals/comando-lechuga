@@ -9,14 +9,11 @@ import { HqPlayerMatchTimeline } from '@/components/hq-player-match-timeline';
 import { HqPlayerPropertyCard } from '@/components/hq-player-property-card';
 import { HqPlayerValueChart } from '@/components/hq-player-value-chart';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { HqStatusBadge } from '@/components/hq-status-badge';
 import AppLayout from '@/layouts/app-layout';
 import { formatAverage, formatCurrency } from '@/lib/format';
 import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
-import {
-    didNotPlayMatch,
-    STATUS_BADGE_CLASS,
-    STATUS_LABELS,
-} from '@/lib/player-labels';
+import { didNotPlayMatch } from '@/lib/player-labels';
 import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import { show as teamsShow } from '@/routes/teams';
@@ -106,16 +103,11 @@ export default function PlayerShow({
                                     />
                                 </Link>
                             </div>
-                            {player.status !== 'ok' && (
-                                <span
-                                    className={cn(
-                                        'mb-3 inline-block border px-2 py-0.5 font-mono text-[10px] font-bold uppercase',
-                                        STATUS_BADGE_CLASS[player.status],
-                                    )}
-                                >
-                                    {STATUS_LABELS[player.status]}
-                                </span>
-                            )}
+                            <HqStatusBadge
+                                status={player.status}
+                                variant="long"
+                                className="mb-3"
+                            />
 
                             <div className="flex items-center justify-between border-t border-hq-border py-1.5">
                                 <span className="font-mono text-[11px] text-hq-moss">

@@ -6,6 +6,7 @@ import { HqMultiSelect } from '@/components/hq-multi-select';
 import { PlayerRow } from '@/components/hq-player-row';
 import AppLayout from '@/layouts/app-layout';
 import { POSITION_LABELS, STATUS_LABELS } from '@/lib/player-labels';
+import { PLAYER_SEARCH_INPUT_ID } from '@/lib/player-search';
 import { cn } from '@/lib/utils';
 import { index as playersIndex } from '@/routes/players';
 import type {
@@ -140,7 +141,9 @@ export default function PlayersIndex({
 
                 <div className="mb-5 flex flex-wrap gap-2.5">
                     <input
-                        type="text"
+                        id={PLAYER_SEARCH_INPUT_ID}
+                        type="search"
+                        aria-label="Buscar jugador"
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                         placeholder="Buscar jugador…"

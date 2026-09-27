@@ -5,10 +5,9 @@ import { EntityImage } from '@/components/entity-image';
 import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
+import { HqStatusBadge } from '@/components/hq-status-badge';
 import { formatCurrency } from '@/lib/format';
-import { STATUS_BADGE_CLASS, STATUS_SHORT_LABELS } from '@/lib/player-labels';
 import { managerColor } from '@/lib/season-manager-colors';
-import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
 import { show as seasonManagersShow } from '@/routes/season-managers';
 import { show as teamsShow } from '@/routes/teams';
@@ -107,16 +106,7 @@ export function PlayerRow({
                         </div>
                     )}
                     <div className="w-16 shrink-0">
-                        {player.status !== 'ok' && (
-                            <span
-                                className={cn(
-                                    'border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
-                                    STATUS_BADGE_CLASS[player.status],
-                                )}
-                            >
-                                {STATUS_SHORT_LABELS[player.status]}
-                            </span>
-                        )}
+                        <HqStatusBadge status={player.status} />
                     </div>
                     {showTeam && (
                         <div className="flex w-[150px] shrink-0 items-center gap-1.5 font-mono text-[11px] text-hq-moss">
@@ -227,16 +217,7 @@ export function PlayerRow({
                             {showPosition && (
                                 <HqPositionTag position={player.position} />
                             )}
-                            {player.status !== 'ok' && (
-                                <span
-                                    className={cn(
-                                        'border px-1 py-0.5 font-mono text-[8px] font-bold uppercase',
-                                        STATUS_BADGE_CLASS[player.status],
-                                    )}
-                                >
-                                    {STATUS_SHORT_LABELS[player.status]}
-                                </span>
-                            )}
+                            <HqStatusBadge status={player.status} />
                         </div>
                     </div>
                     <span className="shrink-0 font-display text-lg text-hq-lime">

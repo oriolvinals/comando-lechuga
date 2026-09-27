@@ -14,63 +14,225 @@
 html {
     overflow-x: hidden;
     background-color: var(--color-hq-ink);
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
 }
 
+/*
+ * "Sala de mando" design tokens (redesign B). Names keep the historical
+ * hq-* prefix; the mock's CSS variables map onto them as:
+ *   --bg → hq-ink · --bg2 → hq-panel · --bg3 → hq-panel-alt · --well → hq-well
+ *   --rule → hq-border · --rule2 → hq-border-strong · --rule3 → hq-border-bright
+ *   --tx → hq-paper · --t2 → hq-moss · --t3 → hq-moss-dim
+ *   --neg → hq-neg (value/trend falls) · --live → hq-live (live, injuries, bad)
+ */
 @theme {
     --font-sans:
-        'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Chivo', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
         'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-    --font-display: 'Anton', Impact, 'Arial Black', sans-serif;
-    --font-mono:
-        'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Headings: Chivo black, uppercase at the call site. */
+    --font-display: 'Chivo', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Chivo Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Dot-matrix: ONLY scoreboards, big points, countdowns and the bid (HqLed). */
+    --font-dot: 'Doto', 'Chivo Mono', ui-monospace, monospace;
+    /* The "Comando Lechuga" wordmark only. */
+    --font-wordmark: 'Anton', Impact, 'Arial Black', sans-serif;
 
-    --color-hq-ink: #10130c;
-    --color-hq-panel: #171b10;
-    --color-hq-panel-alt: #1a2013;
-    --color-hq-border: #262b1c;
+    --color-hq-ink: #0b0d09;
+    --color-hq-panel: #10130d;
+    --color-hq-panel-alt: #161b11;
+    --color-hq-well: #060705;
+    --color-hq-border: #262c1d;
     --color-hq-border-strong: #3a4228;
+    --color-hq-border-bright: #4f5936;
+    --color-hq-paper: #eceedf;
+    --color-hq-moss: #a8b093;
+    --color-hq-moss-dim: #848c70;
+    --color-hq-olive: #8f9a74;
+    --color-hq-led-off: #56603f;
     --color-hq-lime: #c4ff3d;
-    --color-hq-khaki: #c9b98a;
-    --color-hq-ember: #ff7a3d;
-    --color-hq-live: #ff3d5a;
-    --color-hq-paper: #f2f0e4;
-    --color-hq-moss: #9aa382;
-    --color-hq-moss-dim: #5a6248;
-    --color-hq-gold: #e0b83f;
-    --color-hq-silver: #c7cdd6;
-    --color-hq-bronze: #c9793f;
-    --color-hq-azure: #4d94ff;
-    --color-hq-violet: #9333ea;
+    --color-hq-lime-dim: #9fd12a;
+    --color-hq-khaki: #d3c392;
+    --color-hq-ember: #ff8a4c;
+    --color-hq-amber: #ffb547;
+    --color-hq-live: #ff4d5e;
+    --color-hq-neg: #ff6b7d;
+    --color-hq-gold: #e8c14a;
+    --color-hq-silver: #c9cfd8;
+    --color-hq-bronze: #cd8048;
+    --color-hq-azure: #7fb0ff;
+    --color-hq-violet: #e3a6ff;
     --color-hq-good-corner: #1f2e0d;
     --color-hq-bad-corner: #2e0f14;
-    --color-hq-pitch: #141c0f;
+    --color-hq-pitch: #0d170b;
+    --color-hq-pitch-alt: #101d0d;
     --color-hq-pitch-line: rgba(196, 255, 61, 0.22);
 
     /* Canonical position colors — use HqPositionTag, don't redefine these ad hoc */
-    --color-hq-por: #ff8c3d;
-    --color-hq-def: #b388ff;
-    --color-hq-med: #4dabf7;
-    --color-hq-del: #ffd54a;
+    --color-hq-por: #ff9d4a;
+    --color-hq-def: #b69cff;
+    --color-hq-med: #4fc3f7;
+    --color-hq-del: #f7c948;
+    --color-hq-ent: #8f9a74;
+
+    --animate-hq-pulse: hq-pulse 1.2s ease-in-out infinite;
+    --animate-hq-ticker: hq-ticker 90s linear infinite;
+
+    @keyframes hq-pulse {
+        50% {
+            opacity: 0.35;
+        }
+    }
+
+    @keyframes hq-ticker {
+        from {
+            transform: translateX(0);
+        }
+        to {
+            transform: translateX(-50%);
+        }
+    }
 }
 
+@layer base {
+    /* Height of the sticky shell header — anchor sticky page bars with top-(--hq-header-h). */
+    :root {
+        --hq-header-h: 50px;
+    }
+
+    @media (width >= 64rem) {
+        :root {
+            --hq-header-h: 52px;
+        }
+    }
+
+    body {
+        background-color: var(--color-hq-ink);
+        color: var(--color-hq-paper);
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    ::selection {
+        background-color: var(--color-hq-lime);
+        color: var(--color-hq-ink);
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-hq-lime);
+        outline-offset: 2px;
+    }
+}
+
+@layer components {
+    /* Headings default to Chivo black; a font-* weight utility still wins. */
+    .font-display {
+        font-weight: 900;
+        letter-spacing: -0.01em;
+    }
+}
+
+@utility tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Mono small-caps label ("k" in the mock): 11px Chivo Mono, uppercase,
+ * tracked, tertiary text. The workhorse for every field label.
+ */
+@utility hq-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--color-hq-moss-dim);
+}
+
+/* Corner brackets on a framed block (the mock's "hud"). */
+@utility hq-hud {
+    position: relative;
+
+    &::before,
+    &::after {
+        content: '';
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        pointer-events: none;
+        border-color: var(--color-hq-border-bright);
+        border-style: solid;
+    }
+
+    &::before {
+        top: -1px;
+        left: -1px;
+        border-width: 1px 0 0 1px;
+    }
+
+    &::after {
+        right: -1px;
+        bottom: -1px;
+        border-width: 0 1px 1px 0;
+    }
+}
+
+/* CRT scanlines over a scoreboard / camera frame. */
+@utility hq-scanlines {
+    position: relative;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.018) 0 1px,
+            transparent 1px 3px
+        );
+    }
+}
+
+/* God-mode amber hazard strip. */
+@utility hq-hazard {
+    background: repeating-linear-gradient(
+        135deg,
+        rgba(255, 181, 71, 0.08) 0 6px,
+        transparent 6px 12px
+    );
+}
+
+@utility hq-no-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-hq-ticker {
+        animation: none;
+    }
+}
+
+/*
+ * Legacy (redesign A) page chrome, kept so pages not yet restyled keep
+ * rendering. B is flat: no textures, no cut corners on new work.
+ */
 .hq-texture {
     background-color: var(--color-hq-ink);
-    background-image:
-        radial-gradient(
-            ellipse 900px 500px at 15% -10%,
-            rgba(196, 255, 61, 0.1),
-            transparent 60%
-        ),
-        radial-gradient(
-            ellipse 700px 500px at 110% 20%,
-            rgba(201, 185, 138, 0.1),
-            transparent 55%
-        ),
-        repeating-linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.015) 0 2px,
-            transparent 2px 5px
-        );
+}
+
+/*
+ * Pages used to break out of a padded max-width <main> with this. The B
+ * shell's <main> is already the full-width console frame, so it is a no-op
+ * now; drop it when a page is restyled.
+ */
+.hq-bleed {
+    width: auto;
 }
 
 .hq-badge-cut {
@@ -101,7 +263,10 @@ html {
     z-index: -1;
     clip-path: inherit;
     background:
-        linear-gradient(var(--hq-panel-tint, transparent), var(--hq-panel-tint, transparent)),
+        linear-gradient(
+            var(--hq-panel-tint, transparent),
+            var(--hq-panel-tint, transparent)
+        ),
         linear-gradient(
             to bottom right,
             var(--color-hq-panel-alt),
@@ -155,10 +320,4 @@ html {
             var(--hq-card-tint, transparent)
         ),
         var(--color-hq-panel);
-}
-
-.hq-bleed {
-    width: 100vw;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
 }
