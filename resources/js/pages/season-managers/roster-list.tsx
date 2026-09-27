@@ -8,6 +8,10 @@ import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { ClauseDifference } from '@/components/hq-player-property-card';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
+import {
+    HqStartMeter,
+    HqStartOutcomeChip,
+} from '@/components/hq-start-probability';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { resolveClauseStatus } from '@/lib/clause-status';
@@ -18,7 +22,12 @@ import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
 import { show as teamsShow } from '@/routes/teams';
-import type { PlayerPosition, ManagerPlayer } from '@/types/models';
+import type {
+    PlayerNextStart,
+    PlayerPosition,
+    PlayerStatus,
+    ManagerPlayer,
+} from '@/types/models';
 
 const GROUP_ORDER: PlayerPosition[] = [
     'goalkeeper',
@@ -145,6 +154,36 @@ function MobileCaption({ children }: { children: ReactNode }) {
 }
 
 /**
+ * Under the next-match cell: FútbolFantasy's % for that match as the
+ * shared 10-cell bar (the match list's), or the confirmed Titular /
+ * Suplente. Nothing without data.
+ */
+function RosterNextStart({
+    start,
+    status,
+}: {
+    start: PlayerNextStart | null;
+    status: PlayerStatus;
+}) {
+    if (start === null) {
+        return null;
+    }
+
+    if (start.confirmed_starter !== null) {
+        return <HqStartOutcomeChip facts={start} className="self-start" />;
+    }
+
+    return (
+        <HqStartMeter
+            probability={start.probability}
+            status={status}
+            size="sm"
+            muted={start.is_stale}
+        />
+    );
+}
+
+/**
  * One roster player (mock `.rrow`). The whole row opens the player ficha
  * (the name is the real link, for keyboard and middle-click); the club is
  * its own link. On phones: photo · identity · points, then the clause on a
@@ -205,6 +244,10 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                 <HqNextFixtures
                     fixtures={entry.player.next_fixtures}
                     size="sm"
+                />
+                <RosterNextStart
+                    start={entry.player.next_start ?? null}
+                    status={entry.player.status}
                 />
             </div>
 
