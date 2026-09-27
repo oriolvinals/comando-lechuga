@@ -4,9 +4,9 @@ Date: 2026-09-27 · Status: approved in conversation, pending written-spec revie
 
 ## Goal
 
-Show, for every LaLiga player, how likely he is to START his team's next match, and use it in the
-max bid model. Confirmed lineups already exist (worldcup26 → `fixture_lineups`, from 1 h before
-kickoff); this feature adds the **predicted** part before that.
+Show, for every LaLiga player, how likely he is to START his team's next match. (Using it in the
+max bid model is deferred.) Confirmed lineups already exist (worldcup26 → `fixture_lineups`, from 1 h 30 min
+before kickoff after this change); this feature adds the **predicted** part before that.
 
 ## Source
 
@@ -77,10 +77,8 @@ manager page use each team's / player's next fixture (the one already shown as "
 
 ## Max bid
 
-`MaxBidCalculator` participation factor: when a fresh (≤ 48 h) probability exists for the player's
-next fixture, use `probability / 100` as the participation input; otherwise keep today's
-last-3-matches starts + minutes. Not backtestable (no history) — note it in the card's breakdown
-("titularidad FF" vs "últimos 3 partidos").
+Out of scope for now (user decision): `MaxBidCalculator` keeps using the last-3-matches starts +
+minutes. The probability may be wired into it later.
 
 ## Display (mocks: `public/_titulares.html`, untracked; builder in the session scratchpad)
 
@@ -108,9 +106,9 @@ last-3-matches starts + minutes. Not backtestable (no history) — note it in th
 - Command feature tests with `Http::fake` / Saloon mocks: due-logic per team, failure keeps rows,
   upsert, fetch every run within 48 h and never after kickoff, FF confirmation stored as fallback;
   live sync picks up lineups from 1 h 30 min before kickoff.
-- Controller tests for the new props on match, team and manager fichas; max bid participation
-  switch (fresh vs stale vs missing).
+- Controller tests for the new props on match, team and manager fichas.
 
 ## Out of scope
 
-Historical probabilities / backtesting, scraping other sources, showing FF injury flags as truth.
+Using the probability in the max bid, historical probabilities / backtesting, scraping other
+sources, showing FF injury flags as truth.
