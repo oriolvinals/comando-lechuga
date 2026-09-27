@@ -216,7 +216,7 @@ test('ignores fixtures outside the live window or without a wc26_id', function (
         ->and($unlinked->refresh()->state)->toBe(FixtureState::Scheduled);
 });
 
-test('starts syncing a fixture up to 1 hour before kickoff, to pick up lineups early', function (): void {
+test('starts syncing a fixture up to 1 h 30 min before kickoff, to pick up lineups early', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $home = Team::factory()->create(['wc26_id' => 83]);
     $away = Team::factory()->create(['wc26_id' => 86]);
@@ -226,7 +226,7 @@ test('starts syncing a fixture up to 1 hour before kickoff, to pick up lineups e
         'team_local_id' => $home->id,
         'team_guest_id' => $away->id,
         'wc26_id' => 401882926,
-        'date' => now()->addMinutes(30),
+        'date' => now()->addMinutes(85),
     ]);
 
     $payload = liveMatchEventPayload([
@@ -256,6 +256,70 @@ test('starts syncing a fixture up to 1 hour before kickoff, to pick up lineups e
     expect($fixture->state)->toBe(FixtureState::Scheduled)
         ->and($fixture->local_formation)->toBe('4-3-3')
         ->and($fixture->guest_formation)->toBe('3-5-2');
+});
+
+test('picks up the official lineup published 1 h 30 min before kickoff', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'wc26_id' => 401882926,
+        'date' => now()->addMinutes(85),
+    ]);
+    $player = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001]);
+
+    $payload = liveMatchEventPayload([
+        'header' => ['competitions' => [['status' => ['type' => ['name' => 'STATUS_SCHEDULED']]]]],
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 5001, 'displayName' => 'Starter One'], 'starter' => true, 'position' => ['displayName' => 'Goalkeeper'], 'jersey' => '1', 'stats' => []],
+                ],
+            ],
+        ],
+    ]);
+
+    app()->instance(Worldcup26Connector::class, (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ])));
+    app()->instance(LaLigaFantasyConnector::class, (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make(['playerStats' => []]),
+    ])));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $lineup = FixtureLineup::query()->where('fixture_id', $fixture->id)->sole();
+    expect($lineup->player_id)->toBe($player->id)
+        ->and($lineup->starter)->toBeTrue();
+});
+
+test('does not sync a fixture more than 1 h 30 min before kickoff', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'wc26_id' => 401882926,
+        'date' => now()->addMinutes(95),
+    ]);
+
+    app()->instance(Worldcup26Connector::class, (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make(liveMatchEventPayload()),
+    ])));
+
+    $this->artisan(SyncLiveSeasonMatchData::class)
+        ->expectsOutput('0 fixtures synced.')
+        ->assertSuccessful();
 });
 
 test('upserts fixture_lineups from the rosters, including substitution minute and counterpart', function (): void {
