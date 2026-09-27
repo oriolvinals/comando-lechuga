@@ -1,5 +1,6 @@
 import { Armchair, Clock, Home, Plane, Shield, User } from 'lucide-react';
 import { EntityImage } from '@/components/entity-image';
+import { HqTooltip } from '@/components/hq-tooltip';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
 import { RESULT_STRIP_CLASSES, resultFor } from '@/lib/team-fixture-result';
 import { cn } from '@/lib/utils';
@@ -19,10 +20,10 @@ import type {
  * a team ficha's real match lineup can't use this same row grouping.
  */
 const ROWS: { position: PlayerPosition; top: string }[] = [
-    { position: 'goalkeeper', top: '6%' },
-    { position: 'defender', top: '28%' },
-    { position: 'midfield', top: '51%' },
-    { position: 'striker', top: '74%' },
+    { position: 'goalkeeper', top: '5%' },
+    { position: 'defender', top: '27%' },
+    { position: 'midfield', top: '50%' },
+    { position: 'striker', top: '73%' },
 ];
 
 /**
@@ -36,36 +37,34 @@ const FORMATION_ROW_POSITIONS: PlayerPosition[] = [
 ];
 
 /**
- * Same tiers as `matchPointsBadgeClass`, but opaque — the badge sits on
- * grass, not a dark panel, so the translucent tints used elsewhere lose
- * contrast here. Every tier (including "no data") gets a real color, never
- * black, so the badge is always legible against the pitch. "Not called up"
- * used to get its own dashed tier here — that distinction now lives in the
- * status badge instead (see `lineupBadgeState`), so a null score is always
- * just the plain "no data" tier.
+ * Same tiers as `matchPointsBadgeClass`, but solid — the badge sits on the
+ * dark pitch over a photo, where the translucent tints used elsewhere lose
+ * contrast. Every tier (including "no data") gets a real fill. "Not called
+ * up" lives in the status badge instead (see `lineupBadgeState`), so a null
+ * score is always just the plain "no data" tier.
  */
 function pointsBadgeTierClass(points: number | null): string {
     if (points === null) {
-        return 'border-hq-border-strong bg-hq-border-strong text-hq-moss';
+        return 'bg-hq-border-strong text-hq-moss';
     }
 
     if (points < 0) {
-        return 'border-hq-live bg-hq-live text-white';
+        return 'bg-hq-live text-white';
     }
 
     if (points < 5) {
-        return 'border-hq-gold bg-hq-gold text-hq-ink';
+        return 'bg-hq-gold text-hq-ink';
     }
 
     if (points < 9) {
-        return 'border-hq-lime bg-hq-lime text-hq-ink';
+        return 'bg-hq-lime text-hq-ink';
     }
 
     if (points < 14) {
-        return 'border-hq-azure bg-hq-azure text-white';
+        return 'bg-hq-azure text-hq-ink';
     }
 
-    return 'border-hq-violet bg-hq-violet text-white';
+    return 'bg-hq-violet text-hq-ink';
 }
 
 /**
@@ -95,16 +94,36 @@ function lineupBadgeState(entry: ManagerLineupPlayerEntry): LineupBadgeState {
     return entry.starter ? 'starter' : 'bench';
 }
 
-function statusBadgeTierClass(state: LineupBadgeState): string {
+function statusBadgeToneClass(state: LineupBadgeState): string {
     if (state === 'starter' || state === 'subbed_in') {
-        return 'border-hq-lime text-hq-lime';
+        return 'text-hq-lime';
     }
 
     if (state === 'not_played_yet') {
-        return 'border-hq-azure text-hq-azure';
+        return 'text-hq-azure';
     }
 
-    return 'border-hq-live text-hq-live';
+    return 'text-hq-live';
+}
+
+function statusBadgeLabel(
+    state: LineupBadgeState,
+    subMinute: number | null,
+): string {
+    switch (state) {
+        case 'starter':
+            return 'Titular';
+        case 'subbed_in':
+            return `Entró en el ${subMinute}'`;
+        case 'subbed_out':
+            return `Sustituido en el ${subMinute}'`;
+        case 'not_called_up':
+            return 'No convocado';
+        case 'not_played_yet':
+            return 'Su partido aún no se ha jugado';
+        case 'bench':
+            return 'Suplente sin minutos';
+    }
 }
 
 function StatusBadgeContent({
@@ -127,10 +146,10 @@ function StatusBadgeContent({
     }
 
     if (state === 'not_played_yet') {
-        return <Clock className="h-2.5 w-2.5" />;
+        return <Clock aria-hidden="true" className="h-2.5 w-2.5" />;
     }
 
-    return <Armchair className="h-2.5 w-2.5" />;
+    return <Armchair aria-hidden="true" className="h-2.5 w-2.5" />;
 }
 
 /**
@@ -153,25 +172,24 @@ function isPlayerLiveNow(
 }
 
 /**
- * The name pill's max-width, tuned per row density: 60px is the floor for a
- * full 5-player row, and it only needs to grow from there as a row has more
- * room to spare. A 1-2 player row has none of that pressure, so it's left
- * uncapped (just `w-full` inside the button).
+ * The token's width (and so its name pill's): an even share of the pitch's
+ * width for the players in that row, so names use all the room the row has
+ * instead of a fixed pixel width.
  */
-function nameMaxWidthForRowCount(count: number): string {
+function tokenWidthForRowCount(count: number): string {
     if (count >= 5) {
-        return 'max-w-[60px]';
+        return 'w-[19.5%]';
     }
 
     if (count === 4) {
-        return 'max-w-[70px]';
+        return 'w-[24.5%]';
     }
 
     if (count === 3) {
-        return 'max-w-[85px]';
+        return 'w-[30%]';
     }
 
-    return '';
+    return 'w-[36%]';
 }
 
 interface PlayerTokenProps {
@@ -182,35 +200,49 @@ interface PlayerTokenProps {
     showStarterBadge: boolean;
     /** Off on a team's own ficha — the pitch there already only shows that team's real XI for a match already known to be live from the scoreline above, so a per-player glow adds noise instead of signal. Still on for a fantasy manager's lineup, where it's the only cue for which picks are live right now. */
     showLiveIndicator: boolean;
-    nameMaxWidth: string;
+    widthClass: string;
 }
 
+/**
+ * A pitch token (mock `.tok`): 48px photo in a paper frame with the club
+ * crest showing through behind the cut-out, the real-match status badge on
+ * top (✓ / ↳min' / ✕ / clock / armchair), the solid points tier chip at the
+ * bottom-right corner, a pulsing red frame while the match is live, and the
+ * name pill below. Opens the player's jornada modal.
+ */
 function PlayerToken({
     entry,
     onSelectPlayer,
     showTeamBadge,
     showStarterBadge,
     showLiveIndicator,
-    nameMaxWidth,
+    widthClass,
 }: PlayerTokenProps) {
     const badgeState = lineupBadgeState(entry);
     const liveNow = showLiveIndicator && isPlayerLiveNow(entry, badgeState);
     const showBadge = badgeState !== 'starter' || showStarterBadge;
+    const stateLabel = statusBadgeLabel(badgeState, entry.sub_minute);
+    const pointsLabel =
+        entry.points === null ? 'sin puntos' : `${entry.points} puntos`;
 
     return (
         <button
             type="button"
             onClick={() => onSelectPlayer(entry)}
-            className="relative shrink-0 cursor-pointer"
+            aria-label={`${entry.player.nickname} · ${stateLabel} · ${pointsLabel}${liveNow ? ' · en directo' : ''}`}
+            className={cn(
+                'group relative flex shrink-0 cursor-pointer flex-col items-center outline-none',
+                widthClass,
+            )}
         >
-            <span className="relative block h-14 w-14">
+            <span className="relative block h-12 w-12">
                 {/* Clipped separately from the status/points badges below — those
                     need to poke out past this box's own border, which a shared
                     overflow:hidden would cut off. */}
                 <span
                     className={cn(
-                        'absolute inset-0 overflow-hidden rounded-[3px] border-2 bg-hq-ink',
-                        liveNow ? 'border-transparent' : 'border-white',
+                        'absolute inset-0 overflow-hidden border-[1.5px] bg-hq-well transition-colors group-hover:border-hq-lime group-focus-visible:border-hq-lime',
+                        liveNow ? 'border-transparent' : 'border-hq-paper/85',
                     )}
                 >
                     {/* Sits behind the photo — the photo is a cutout with
@@ -219,64 +251,91 @@ function PlayerToken({
                     {showTeamBadge && (
                         <EntityImage
                             src={entry.player.team.logo}
-                            alt={entry.player.team.main_name}
+                            alt=""
                             fallback={Shield}
                             shape="square"
-                            className="absolute top-[38%] -left-1.5 h-7 w-7 -translate-y-1/2"
+                            className="absolute top-1 -left-[5px] h-[22px] w-[22px] rounded-none bg-transparent opacity-90"
                         />
                     )}
                     <EntityImage
                         src={entry.player.image}
-                        alt={entry.player.nickname}
+                        alt=""
                         fallback={User}
                         shape="square"
-                        className="absolute inset-0 h-full w-full rounded-none border-0 object-cover"
-                        style={{ objectPosition: 'center calc(45% + 6px)' }}
+                        className="absolute inset-0 h-full w-full rounded-none border-0 bg-transparent object-cover"
+                        style={{ objectPosition: 'center 30%' }}
                     />
                 </span>
-                {/* Drawn as its own layer instead of animating the photo box's
-                    border directly — that box's opacity would also fade the
-                    photo underneath, when only the border should pulse. The
-                    glow (not just the border color) is what keeps this
-                    legible against a bright/busy player photo. */}
+                {/* Its own layer so only the frame pulses, not the photo. */}
                 {liveNow && (
-                    <span className="pointer-events-none absolute inset-0 animate-pulse rounded-[3px] border-2 border-hq-live shadow-[0_0_8px_2px_rgba(255,61,90,0.65)]" />
+                    <span className="pointer-events-none absolute -inset-px animate-hq-pulse border-2 border-hq-live shadow-[0_0_10px_2px_rgba(255,77,94,0.6)]" />
                 )}
                 {showBadge && (
-                    <span
+                    <HqTooltip
+                        label={stateLabel}
                         className={cn(
-                            'absolute -top-2 left-1/2 z-10 flex h-4 -translate-x-1/2 items-center justify-center gap-0.5 rounded-[3px] border bg-hq-ink px-1 font-mono text-[9px] leading-none font-bold whitespace-nowrap',
-                            statusBadgeTierClass(badgeState),
+                            'absolute -top-2 left-1/2 z-10 h-4 min-w-[18px] -translate-x-1/2 items-center justify-center gap-0.5 border border-current bg-hq-ink px-1 font-mono text-[9.5px] leading-none font-bold whitespace-nowrap',
+                            statusBadgeToneClass(badgeState),
                         )}
                     >
                         <StatusBadgeContent
                             state={badgeState}
                             subMinute={entry.sub_minute}
                         />
-                    </span>
+                    </HqTooltip>
                 )}
                 <span
+                    aria-hidden="true"
                     className={cn(
-                        'absolute right-0 bottom-0 z-10 flex h-3.5 min-w-[17px] items-center justify-center rounded-[2px] border px-0.5 font-mono text-[9px] leading-none font-bold',
+                        'absolute -right-[7px] -bottom-[5px] z-10 flex h-4 min-w-5 items-center justify-center px-[3px] font-mono text-[10.5px] leading-none font-extrabold tabular-nums',
                         pointsBadgeTierClass(entry.points),
                     )}
                 >
                     {entry.points ?? '–'}
                 </span>
             </span>
-            <span
-                className={cn(
-                    'absolute top-full left-1/2 mt-1 min-w-0 -translate-x-1/2 rounded-[3px] bg-hq-ink/85 px-1.5 py-px text-center',
-                    nameMaxWidth,
-                )}
-            >
-                <span className="block min-w-0 truncate font-mono text-[10px] font-bold text-hq-paper">
-                    {entry.player.nickname}
-                </span>
+            <span className="mt-[5px] block max-w-full truncate bg-[rgba(6,7,5,0.86)] px-1 py-0.5 font-mono text-[10px] leading-[1.1] font-bold text-hq-paper">
+                {entry.player.nickname}
             </span>
         </button>
     );
 }
+
+function EmptySlot({ widthClass }: { widthClass: string }) {
+    return (
+        <span
+            aria-label="Hueco sin jugador"
+            className={cn('flex shrink-0 flex-col items-center', widthClass)}
+        >
+            <span className="flex h-12 w-12 items-center justify-center border-[1.5px] border-dashed border-hq-paper/30 text-hq-paper/30">
+                <User aria-hidden="true" className="h-5 w-5" />
+            </span>
+        </span>
+    );
+}
+
+/** The pitch markings (mock PITCH_V) on plain turf: touchlines, halfway line, centre circle, both boxes. */
+function PitchLines() {
+    return (
+        <svg
+            aria-hidden="true"
+            viewBox="0 0 280 430"
+            preserveAspectRatio="none"
+            className="absolute inset-0 h-full w-full fill-none stroke-hq-pitch-line [stroke-width:1.2] [&>*]:[vector-effect:non-scaling-stroke]"
+        >
+            <rect x="8" y="8" width="264" height="414" />
+            <line x1="8" y1="215" x2="272" y2="215" />
+            <circle cx="140" cy="215" r="36" />
+            <rect x="63" y="8" width="154" height="62" />
+            <rect x="104" y="8" width="72" height="22" />
+            <rect x="63" y="360" width="154" height="62" />
+            <rect x="104" y="400" width="72" height="22" />
+        </svg>
+    );
+}
+
+const PITCH_TAG_CLASS =
+    'absolute z-20 border bg-hq-ink px-1.5 py-1 font-mono text-[10.5px] leading-none font-bold tracking-[0.06em] uppercase';
 
 interface HqLineupPitchProps {
     players: ManagerLineupPlayerEntry[];
@@ -297,6 +356,10 @@ interface HqLineupPitchProps {
 }
 
 /**
+ * A dark tactical pitch (mock `.pitch`): plain turf, hairline markings,
+ * the formation tag top-left and, on a team ficha, the match state, result
+ * and home/away tags.
+ *
  * A fantasy manager's lineup is always exactly a GK + 3 outfield rows
  * (defender/midfield/striker — `Player::position`'s only 4 buckets), so
  * grouping by that broad category and spacing rows evenly always matches
@@ -418,23 +481,16 @@ export function HqLineupPitch({
 
     return (
         <div>
-            <div className="relative aspect-[280/440] w-full border-2 border-[#0e4a24] bg-[#1a6b37]">
-                <div className="absolute inset-0 overflow-hidden">
-                    <div
-                        className="absolute inset-2 border-2 border-white/75"
-                        style={{
-                            background:
-                                'repeating-linear-gradient(180deg, #1f7a3f 0%, #1f7a3f 12.5%, #1a6b37 12.5%, #1a6b37 25%)',
-                        }}
-                    />
-                    <div className="absolute top-1/2 right-2 left-2 border-t-2 border-white/75" />
-                    <div className="absolute top-1/2 left-1/2 aspect-square w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/75" />
-                    <div className="absolute top-2 left-1/2 h-[12.5%] w-[55%] -translate-x-1/2 border-2 border-t-0 border-white/75" />
-                    <div className="absolute bottom-2 left-1/2 h-[12.5%] w-[55%] -translate-x-1/2 border-2 border-b-0 border-white/75" />
-                </div>
+            <div className="hq-hud relative aspect-[280/430] w-full border border-hq-border-strong bg-hq-pitch">
+                <PitchLines />
 
                 {formationLabel && (
-                    <span className="absolute top-2 left-2 z-20 border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-hq-moss uppercase">
+                    <span
+                        className={cn(
+                            PITCH_TAG_CLASS,
+                            'top-2 left-2 border-hq-border-bright text-hq-moss',
+                        )}
+                    >
                         {formationLabel}
                     </span>
                 )}
@@ -442,10 +498,11 @@ export function HqLineupPitch({
                 {matchStateLabel && (
                     <span
                         className={cn(
-                            'absolute top-2 left-1/2 z-20 -translate-x-1/2 border bg-hq-panel px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider whitespace-nowrap uppercase',
+                            PITCH_TAG_CLASS,
+                            'top-2 left-1/2 -translate-x-1/2 whitespace-nowrap',
                             matchStateLabel.isLive
                                 ? 'border-hq-live text-hq-live'
-                                : 'border-hq-border-strong text-hq-moss',
+                                : 'border-hq-border-bright text-hq-moss',
                         )}
                     >
                         {matchStateLabel.text}
@@ -455,31 +512,46 @@ export function HqLineupPitch({
                 {scoreboard && (
                     <span
                         className={cn(
-                            'absolute top-2 right-2 z-20 flex items-center gap-1 border bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider uppercase',
+                            PITCH_TAG_CLASS,
+                            'top-2 right-2 flex items-center gap-1',
                             RESULT_STRIP_CLASSES[scoreboard.result],
                         )}
                     >
                         {scoreboard.isLive && (
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
+                            <span className="h-1.5 w-1.5 animate-hq-pulse rounded-full bg-hq-live" />
                         )}
                         {scoreboard.ownScore}-{scoreboard.rivalScore}
                     </span>
                 )}
 
                 {venue && (
-                    <span
-                        title={venue.isHome ? 'Casa' : 'Fuera'}
-                        className="absolute right-2 bottom-2 z-20 flex h-6 w-6 items-center justify-center border border-hq-border-strong bg-hq-panel text-hq-moss"
+                    <HqTooltip
+                        label={venue.isHome ? 'Casa' : 'Fuera'}
+                        focusable
+                        className={cn(
+                            PITCH_TAG_CLASS,
+                            'right-2 bottom-2 border-hq-border-bright p-[3px] text-hq-moss',
+                        )}
                     >
-                        <venue.Icon className="h-3.5 w-3.5" />
-                    </span>
+                        <venue.Icon
+                            aria-label={venue.isHome ? 'Casa' : 'Fuera'}
+                            className="h-[13px] w-[13px]"
+                        />
+                    </HqTooltip>
                 )}
 
                 {useRealCoordinates
                     ? players.map((entry) => (
                           <div
                               key={entry.id}
-                              className="absolute z-10 -translate-x-1/2"
+                              className={cn(
+                                  'absolute z-10 flex -translate-x-1/2 justify-center',
+                                  tokenWidthForRowCount(
+                                      lineSizes.get(
+                                          entry.pitch_top as number,
+                                      ) ?? 1,
+                                  ),
+                              )}
                               style={{
                                   top: `${entry.pitch_top}%`,
                                   left: `${entry.pitch_left}%`,
@@ -491,23 +563,19 @@ export function HqLineupPitch({
                                   showTeamBadge={showTeamBadge}
                                   showStarterBadge={showStarterBadge}
                                   showLiveIndicator={showLiveIndicator}
-                                  nameMaxWidth={nameMaxWidthForRowCount(
-                                      lineSizes.get(
-                                          entry.pitch_top as number,
-                                      ) ?? 1,
-                                  )}
+                                  widthClass="w-full"
                               />
                           </div>
                       ))
                     : rows.map((row) => {
-                          const nameMaxWidth = nameMaxWidthForRowCount(
+                          const widthClass = tokenWidthForRowCount(
                               row.entries.length + row.emptySlots,
                           );
 
                           return (
                               <div
                                   key={row.position}
-                                  className="absolute right-2 left-2 z-10 flex justify-evenly"
+                                  className="absolute right-1.5 left-1.5 z-10 flex justify-evenly"
                                   style={{ top: row.top }}
                               >
                                   {row.entries.map((entry) => (
@@ -518,17 +586,15 @@ export function HqLineupPitch({
                                           showTeamBadge={showTeamBadge}
                                           showStarterBadge={showStarterBadge}
                                           showLiveIndicator={showLiveIndicator}
-                                          nameMaxWidth={nameMaxWidth}
+                                          widthClass={widthClass}
                                       />
                                   ))}
                                   {Array.from({ length: row.emptySlots }).map(
                                       (_, index) => (
-                                          <div
+                                          <EmptySlot
                                               key={`empty-${row.position}-${index}`}
-                                              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-white/40"
-                                          >
-                                              <User className="h-5 w-5 text-white/40" />
-                                          </div>
+                                              widthClass={widthClass}
+                                          />
                                       ),
                                   )}
                               </div>
@@ -537,11 +603,9 @@ export function HqLineupPitch({
             </div>
 
             {substitutes.length > 0 && (
-                <div className="mt-4">
-                    <p className="mb-2.5 text-center font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase">
-                        Suplentes
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-x-3 gap-y-7">
+                <div className="mt-3.5">
+                    <p className="mb-3 text-center hq-label">Suplentes</p>
+                    <div className="flex flex-wrap justify-center gap-x-2 gap-y-4">
                         {substitutes.map((entry) => (
                             <PlayerToken
                                 key={entry.id}
@@ -550,7 +614,7 @@ export function HqLineupPitch({
                                 showTeamBadge={showTeamBadge}
                                 showStarterBadge={showStarterBadge}
                                 showLiveIndicator={showLiveIndicator}
-                                nameMaxWidth=""
+                                widthClass="w-[72px]"
                             />
                         ))}
                     </div>

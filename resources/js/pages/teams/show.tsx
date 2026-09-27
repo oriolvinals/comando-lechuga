@@ -1,14 +1,21 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowUpRight, Shield } from 'lucide-react';
-import type { ReactElement } from 'react';
+import { Shield } from 'lucide-react';
+import type { ReactElement, ReactNode } from 'react';
 import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqEmptyState } from '@/components/hq-empty-state';
+import { HqLed } from '@/components/hq-led';
 import { HqLineupPitch } from '@/components/hq-lineup-pitch';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
-import { PlayerRow } from '@/components/hq-player-row';
-import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
+import { PlayerRow, PlayerRowHeader } from '@/components/hq-player-row';
+import {
+    HqPlayerStatsModal,
+    lineupPlayerStatsEntry,
+} from '@/components/hq-player-stats-modal';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { HqSection } from '@/components/hq-section';
 import { HqTeamFixtureStrip } from '@/components/hq-team-fixture-strip';
+import { HqTeamFormStrip } from '@/components/hq-team-form-strip';
 import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
 import { POSITION_GROUP_LABELS } from '@/lib/player-labels';
@@ -48,6 +55,42 @@ interface TeamShowProps {
     currentWeek: number;
     weeklyLineups: TeamWeekLineup[];
     [key: string]: unknown;
+}
+
+function signed(value: number): string {
+    return `${value > 0 ? '+' : ''}${value}`;
+}
+
+/** One cell of the KPI strip (mock `.kpi`); the grid draws the rules between cells. */
+function Kpi({
+    label,
+    hot = false,
+    children,
+    sub,
+}: {
+    label: string;
+    hot?: boolean;
+    children: ReactNode;
+    sub?: ReactNode;
+}) {
+    return (
+        <div
+            className={cn(
+                'min-w-0 bg-hq-ink px-3.5 py-3.5 sm:px-4',
+                hot && 'bg-linear-to-b from-hq-lime/6 to-hq-ink',
+            )}
+        >
+            <p className="hq-label">{label}</p>
+            <div className="mt-2 flex min-h-[30px] items-center font-mono text-[19px] leading-[1.1] font-semibold tracking-[-0.02em] whitespace-nowrap text-hq-paper tabular-nums sm:text-[22px] min-[80rem]:text-[19px] min-[90rem]:text-[22px]">
+                {children}
+            </div>
+            {sub && (
+                <div className="mt-1.5 truncate font-mono text-[11.5px] leading-snug text-hq-moss">
+                    {sub}
+                </div>
+            )}
+        </div>
+    );
 }
 
 export default function TeamShow({
@@ -99,122 +142,124 @@ export default function TeamShow({
     );
 
     return (
-        <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
-            <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-9 lg:flex-row lg:items-start">
-                <Head title={team.main_name} />
+        <div className="flex-1">
+            <Head title={team.main_name} />
 
-                <div className="w-full shrink-0 lg:w-[30%]">
-                    <div className="hq-card-cut p-4 text-center">
-                        <EntityImage
-                            src={team.logo}
-                            alt={team.main_name}
-                            fallback={Shield}
-                            shape="square"
-                            className="mx-auto mb-3 h-16 w-16"
-                        />
-                        <h1 className="mb-3 font-display text-xl text-hq-paper uppercase">
-                            {team.main_name}
-                        </h1>
-
-                        {standing && (
-                            <>
-                                <div className="flex items-center justify-between border-t border-hq-border py-1.5">
-                                    <span className="font-mono text-[11px] text-hq-moss">
-                                        POSICIÓN
-                                    </span>
-                                    <span className="bg-hq-border px-1.5 font-mono font-bold text-hq-paper">
-                                        {standing.position}º
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between border-t border-hq-border py-1.5">
-                                    <span className="font-mono text-[11px] text-hq-moss">
-                                        PJ / PG / PE / PP
-                                    </span>
-                                    <span className="font-mono font-bold text-hq-paper">
-                                        {standing.played} / {standing.won} /{' '}
-                                        {standing.drawn} / {standing.lost}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between border-t border-hq-border py-1.5">
-                                    <span className="font-mono text-[11px] text-hq-moss">
-                                        GF-GC
-                                    </span>
-                                    <span className="font-mono font-bold text-hq-paper">
-                                        {standing.goals_for}-
-                                        {standing.goals_against}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between border-t border-hq-border-strong pt-1.5">
-                                    <span className="font-mono text-[11px] text-hq-lime">
-                                        PTS
-                                    </span>
-                                    <span className="font-mono font-bold text-hq-lime">
-                                        {standing.points}
-                                    </span>
-                                </div>
-                            </>
-                        )}
-
-                        <div className="flex items-center justify-between border-t border-hq-border py-1.5">
-                            <span className="font-mono text-[11px] text-hq-moss">
-                                VALOR PLANTILLA
+            <div className="flex items-start gap-3.5 border-b border-hq-border bg-[radial-gradient(ellipse_at_0%_0%,rgba(196,255,61,0.07),transparent_55%)] px-3.5 pt-4 pb-3.5 sm:items-center sm:gap-5 sm:px-5 sm:pt-[22px] sm:pb-[18px]">
+                <span className="flex size-[72px] shrink-0 items-center justify-center border border-hq-border-bright bg-hq-well sm:size-24">
+                    <EntityImage
+                        src={team.logo}
+                        alt={team.main_name}
+                        fallback={Shield}
+                        shape="square"
+                        className="size-14 rounded-none bg-transparent object-contain sm:size-[74px]"
+                    />
+                </span>
+                <div className="min-w-0">
+                    <span className="block font-mono text-[11px] leading-none font-semibold tracking-[0.14em] text-hq-lime">
+                        EQUIPO
+                    </span>
+                    <h1 className="mt-[5px] mb-2.5 font-display text-[30px] leading-[0.92] break-words text-hq-paper uppercase sm:text-[44px]">
+                        {team.main_name}
+                    </h1>
+                    {standing && (
+                        <div className="flex flex-wrap items-center gap-2.5">
+                            <span className="font-mono text-xs text-hq-moss">
+                                {standing.position}º en LaLiga
                             </span>
-                            <div className="text-right">
-                                <p className="font-mono font-bold text-hq-paper">
-                                    {formatCurrency(squadValue)}
-                                </p>
-                                {squadValueDifference !== 0 && (
-                                    <p
-                                        className={cn(
-                                            'font-mono text-[10px] font-bold',
-                                            squadValueDifference > 0
-                                                ? 'text-hq-lime'
-                                                : 'text-hq-live',
-                                        )}
-                                    >
-                                        {squadValueDifference > 0 ? '▲' : '▼'}{' '}
-                                        {formatCurrency(
-                                            Math.abs(squadValueDifference),
-                                        )}
-                                    </p>
-                                )}
-                            </div>
+                            <HqTeamFormStrip row={standing} />
                         </div>
+                    )}
+                </div>
+            </div>
 
-                        <div className="flex items-center justify-between border-t border-hq-border py-1.5">
-                            <span className="font-mono text-[11px] text-hq-moss">
-                                PRÓXIMOS
+            <div
+                className={cn(
+                    'grid grid-cols-2 gap-px border-b border-hq-border bg-hq-border',
+                    standing
+                        ? 'md:grid-cols-3 min-[80rem]:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.4fr)_minmax(0,1fr)]'
+                        : 'md:grid-cols-2',
+                )}
+            >
+                {standing && (
+                    <>
+                        <Kpi
+                            label="Posición"
+                            hot
+                            sub={`${standing.points} pts`}
+                        >
+                            <HqLed tone="lime" glow className="text-[34px]">
+                                {standing.position}º
+                            </HqLed>
+                        </Kpi>
+                        <Kpi
+                            label="PJ / PG / PE / PP"
+                            sub={`DG ${signed(standing.goal_difference)}`}
+                        >
+                            {standing.played} / {standing.won} /{' '}
+                            {standing.drawn} / {standing.lost}
+                        </Kpi>
+                        <Kpi label="GF-GC">
+                            {standing.goals_for}-{standing.goals_against}
+                        </Kpi>
+                        <Kpi label="Pts">
+                            <HqLed tone="lime" className="text-[34px]">
+                                {standing.points}
+                            </HqLed>
+                        </Kpi>
+                    </>
+                )}
+                <Kpi
+                    label="Valor plantilla"
+                    sub={
+                        squadValueDifference !== 0 ? (
+                            <span
+                                className={
+                                    squadValueDifference > 0
+                                        ? 'text-hq-lime'
+                                        : 'text-hq-neg'
+                                }
+                            >
+                                {squadValueDifference > 0 ? '▲' : '▼'}{' '}
+                                {formatCurrency(Math.abs(squadValueDifference))}
                             </span>
-                            <HqNextFixtures fixtures={nextFixtures} />
-                        </div>
-                    </div>
+                        ) : (
+                            'sin cambios hoy'
+                        )
+                    }
+                >
+                    {formatCurrency(squadValue)}
+                </Kpi>
+                <Kpi label="Próximos">
+                    <HqNextFixtures fixtures={nextFixtures} />
+                </Kpi>
+            </div>
 
-                    <div className="mt-6">
-                        <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
-                            Alineación de la jornada
-                        </h2>
-                        <div className="mb-4 min-w-0">
-                            <HqTeamFixtureStrip
-                                fixtures={fixtures}
-                                teamId={team.id}
-                                selectedWeek={selectedWeek}
-                                onSelectWeek={setSelectedWeek}
-                            />
-                        </div>
-                        {selectedFixture && (
-                            <div className="mb-3 flex justify-end">
+            <div className="grid grid-cols-1 min-[80rem]:grid-cols-[430px_minmax(0,1fr)]">
+                <aside className="min-w-0 border-hq-border min-[80rem]:border-r">
+                    <HqSection
+                        title="Alineación de la jornada"
+                        action={
+                            selectedFixture && (
                                 <Link
                                     href={fixturesShow(selectedFixture.id).url}
-                                    className="inline-flex items-center gap-1 border border-hq-lime px-2 py-1 font-mono text-[11px] font-bold text-hq-lime hover:bg-hq-lime/10"
+                                    className="inline-flex min-h-11 items-center font-bold text-hq-lime hover:underline sm:min-h-0"
                                 >
-                                    VER PARTIDO
-                                    <ArrowUpRight className="h-3 w-3" />
+                                    VER PARTIDO →
                                 </Link>
-                            </div>
-                        )}
-                        <div className="mx-auto max-w-[360px]">
-                            {lineupForWeek ? (
-                                <>
+                            )
+                        }
+                        flush
+                    >
+                        <HqTeamFixtureStrip
+                            fixtures={fixtures}
+                            teamId={team.id}
+                            selectedWeek={selectedWeek}
+                            onSelectWeek={setSelectedWeek}
+                        />
+                        {lineupForWeek ? (
+                            <div className="p-3.5 sm:p-4">
+                                <div className="mx-auto max-w-[360px]">
                                     <HqLineupPitch
                                         players={lineupForWeek.players}
                                         substitutes={lineupForWeek.substitutes}
@@ -227,44 +272,58 @@ export default function TeamShow({
                                         teamId={team.id}
                                     />
                                     {lineupForWeek.players.length < 11 && (
-                                        <p className="mt-2 text-center font-mono text-[10px] text-hq-moss-dim">
+                                        <p className="mt-2.5 text-center hq-label">
                                             {lineupForWeek.players.length} de 11
                                             titulares identificados
                                         </p>
                                     )}
-                                </>
-                            ) : (
-                                <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                                    <p className="font-mono text-[11px] text-hq-moss-dim">
-                                        Alineación aún no disponible en esa
-                                        jornada.
-                                    </p>
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                            </div>
+                        ) : (
+                            <HqEmptyState
+                                glyph="▦"
+                                title="Sin alineación"
+                                className="mx-auto max-w-[360px] sm:mx-auto"
+                            >
+                                Alineación aún no disponible en esa jornada.
+                            </HqEmptyState>
+                        )}
+                    </HqSection>
+                </aside>
 
-                <div className="min-w-0 flex-1">
-                    <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
-                        Plantilla
-                    </h2>
+                <HqSection
+                    title="Plantilla"
+                    action={`${squad.length} ${squad.length === 1 ? 'jugador' : 'jugadores'}`}
+                    className="min-w-0"
+                    flush
+                >
                     {groups.length === 0 ? (
-                        <p className="font-mono text-[11px] text-hq-moss-dim">
+                        <p className="p-3.5 font-mono text-[12.5px] text-hq-moss sm:p-4">
                             Este equipo no tiene jugadores en la liga.
                         </p>
                     ) : (
-                        groups.map((group) => (
-                            <div
+                        groups.map((group, index) => (
+                            <section
                                 key={group.position}
-                                className="mt-6 first:mt-0"
+                                aria-label={
+                                    POSITION_GROUP_LABELS[group.position]
+                                }
                             >
-                                <div className="mb-2 flex items-center gap-2">
+                                <div className="flex items-center gap-2 border-b border-hq-border-strong px-3.5 pt-3.5 pb-2 font-mono text-[10.5px] leading-none font-bold tracking-[0.1em] text-hq-moss uppercase sm:px-4">
                                     <HqPositionTag position={group.position} />
-                                    <span className="font-mono text-[10px] tracking-wider text-hq-moss-dim uppercase">
+                                    <span>
                                         {POSITION_GROUP_LABELS[group.position]}
                                     </span>
+                                    <span className="text-hq-moss-dim">
+                                        {group.players.length}
+                                    </span>
                                 </div>
+                                {index === 0 && (
+                                    <PlayerRowHeader
+                                        showTeam={false}
+                                        showPosition={false}
+                                    />
+                                )}
                                 {group.players.map((player) => (
                                     <PlayerRow
                                         key={player.id}
@@ -273,25 +332,17 @@ export default function TeamShow({
                                         showPosition={false}
                                     />
                                 ))}
-                            </div>
+                            </section>
                         ))
                     )}
-                </div>
+                </HqSection>
             </div>
 
             <HqPlayerStatsModal
                 entry={
                     selectedPlayer
                         ? {
-                              player: selectedPlayer.player,
-                              team: selectedPlayer.player.team,
-                              points: selectedPlayer.points ?? 0,
-                              daznPoints:
-                                  selectedPlayer.stats?.mins_played !==
-                                  undefined
-                                      ? selectedPlayer.stats.marca_points?.[1]
-                                      : undefined,
-                              stats: selectedPlayer.stats ?? {},
+                              ...lineupPlayerStatsEntry(selectedPlayer),
                               fixture: lineupForWeek?.fixture ?? null,
                           }
                         : null

@@ -1,16 +1,40 @@
+/*
+ * es-ES leaves 4-digit numbers ungrouped by default ("1570 €");
+ * `useGrouping: 'always'` keeps them consistent with larger ones ("1.570 €").
+ */
+const CURRENCY_FORMAT = new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+    useGrouping: 'always',
+});
+
+const NUMBER_FORMAT = new Intl.NumberFormat('es-ES', {
+    maximumFractionDigits: 1,
+    useGrouping: 'always',
+});
+
 export function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('es-ES', {
-        style: 'currency',
-        currency: 'EUR',
-        maximumFractionDigits: 0,
-    }).format(amount);
+    return CURRENCY_FORMAT.format(amount);
 }
 
-/** One decimal, dropped entirely when it rounds to a whole number (e.g. `11.5` stays, `4` not `4.0`). */
-export function formatAverage(value: number): string {
-    const rounded = Math.round(value * 10) / 10;
+const MILLIONS_FORMAT = new Intl.NumberFormat('es-ES', {
+    maximumFractionDigits: 2,
+});
 
-    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+/** An amount in millions for tight spots (`12,35 M€`). */
+export function formatMillions(amount: number): string {
+    return `${MILLIONS_FORMAT.format(amount / 1_000_000)} M€`;
+}
+
+/** A count with Spanish thousands dots, 4-digit ones included (`1.234`). */
+export function formatNumber(value: number): string {
+    return NUMBER_FORMAT.format(value);
+}
+
+/** One decimal with a Spanish comma, dropped when it rounds to a whole number (`11,5`, `4` not `4,0`). */
+export function formatAverage(value: number): string {
+    return NUMBER_FORMAT.format(Math.round(value * 10) / 10);
 }
 
 export function isFutureDate(isoDate: string): boolean {
@@ -33,6 +57,15 @@ export function formatMatchDateShort(isoDate: string): string {
         month: 'short',
         hour: '2-digit',
         minute: '2-digit',
+    }).format(new Date(isoDate));
+}
+
+/** "sáb, 4 oct" — a kickoff's day without the time. */
+export function formatMatchDay(isoDate: string): string {
+    return new Intl.DateTimeFormat('es-ES', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
     }).format(new Date(isoDate));
 }
 

@@ -1,24 +1,33 @@
 import { Link, router } from '@inertiajs/react';
 import { RefreshCw, Shield, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqLed } from '@/components/hq-led';
 import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
-import {
-    HqPositionTag,
-    POSITION_ACCENT_BORDER_CLASSES,
-} from '@/components/hq-position-tag';
+import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqSection } from '@/components/hq-section';
-import { formatCurrency } from '@/lib/format';
-import { STATUS_BADGE_CLASS, STATUS_SHORT_LABELS } from '@/lib/player-labels';
+import { HqStatusBadge } from '@/components/hq-status-badge';
+import { HqTooltip } from '@/components/hq-tooltip';
+import { formatCurrency, formatMillions } from '@/lib/format';
 import { useCountdown } from '@/lib/use-countdown';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
-import type { MarketPlayer } from '@/types/models';
+import type { MarketPlayer, PlayerPosition } from '@/types/models';
 
 interface MarketPanelProps {
     market: MarketPlayer[];
 }
+
+/** The position colour as a CSS value, for the row's inset accent rule. */
+const POSITION_COLOR_VARS: Record<PlayerPosition, string> = {
+    goalkeeper: 'var(--color-hq-por)',
+    defender: 'var(--color-hq-def)',
+    midfield: 'var(--color-hq-med)',
+    striker: 'var(--color-hq-del)',
+    coach: 'var(--color-hq-ent)',
+};
 
 type RefreshStatus = 'idle' | 'loading' | 'no-news' | 'new-bids';
 
@@ -86,33 +95,34 @@ function RefreshMarketButton({ market }: { market: MarketPlayer[] }) {
             title="Actualizar mercado"
             aria-label="Actualizar mercado"
             className={cn(
-                'hq-tag-cut h-9 w-9 shrink-0 cursor-pointer p-px transition-colors',
+                'inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center border bg-hq-ink transition-colors sm:h-[30px] sm:w-8',
                 status === 'loading' &&
-                    'cursor-not-allowed bg-hq-border-strong',
-                status === 'no-news' && 'bg-hq-lime',
-                status === 'new-bids' && 'bg-hq-ember',
-                status === 'idle' && 'bg-hq-border-strong hover:bg-hq-lime',
+                    'cursor-not-allowed border-hq-border-strong text-hq-moss',
+                status === 'no-news' &&
+                    'border-hq-lime bg-hq-lime/10 text-hq-lime',
+                status === 'new-bids' &&
+                    'border-hq-ember bg-hq-ember/10 text-hq-ember',
+                status === 'idle' &&
+                    'border-hq-border-strong text-hq-moss hover:border-hq-lime hover:text-hq-lime',
             )}
         >
-            <span
+            <RefreshCw
+                aria-hidden="true"
                 className={cn(
-                    'hq-tag-cut flex h-full w-full items-center justify-center',
-                    status === 'loading' && 'bg-hq-panel-alt text-hq-moss',
-                    status === 'no-news' && 'bg-hq-lime/10 text-hq-lime',
-                    status === 'new-bids' && 'bg-hq-ember/10 text-hq-ember',
-                    status === 'idle' && 'bg-hq-panel-alt text-hq-lime',
+                    'h-3.5 w-3.5',
+                    status === 'loading' && 'animate-spin',
                 )}
-            >
-                <RefreshCw
-                    className={cn(
-                        'h-4 w-4',
-                        status === 'loading' && 'animate-spin',
-                    )}
-                />
-            </span>
+            />
         </button>
     );
 }
+
+/**
+ * One grid cell: a player card on desktop, a bordered, snapping slide on
+ * the phone's swipeable strip.
+ */
+const CELL_CLASS =
+    'min-w-0 snap-start max-md:border max-md:border-hq-border-strong md:border-r md:border-b md:border-hq-border';
 
 function MarketCard({ listing }: { listing: MarketPlayer }) {
     const player = listing.player;
@@ -120,67 +130,82 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
     return (
         <Link
             href={playersShow(player.id).url}
+            style={
+                {
+                    '--pc': POSITION_COLOR_VARS[player.position],
+                } as CSSProperties
+            }
             className={cn(
-                'hq-card-cut block border-l-[3px] px-3 py-2.5 transition-[filter] hover:brightness-125',
-                POSITION_ACCENT_BORDER_CLASSES[player.position],
+                CELL_CLASS,
+                'relative flex flex-col bg-hq-ink px-3.5 pt-3.5 pb-[13px] shadow-[inset_0_3px_0_var(--pc)] transition-colors hover:bg-hq-panel',
             )}
         >
-            <div className="flex items-center gap-2">
-                <EntityImage
-                    src={player.image}
-                    alt={player.nickname}
-                    fallback={User}
-                    className="h-[30px] w-[30px] shrink-0 border border-hq-border-strong bg-hq-panel-alt"
-                />
-                <span className="flex-1 truncate text-[13px] font-extrabold text-hq-paper">
-                    {player.nickname}
+            <div className="flex items-start gap-[11px]">
+                <span className="relative shrink-0 pb-2.5">
+                    <EntityImage
+                        src={player.image}
+                        alt={player.nickname}
+                        fallback={User}
+                        shape="square"
+                        className="h-[58px] w-[58px] rounded-none border border-hq-border-strong bg-hq-panel-alt object-cover object-top text-hq-moss-dim"
+                    />
+                    <HqPositionTag
+                        position={player.position}
+                        className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-hq-ink px-[3px] py-0.5 text-[9px]"
+                    />
                 </span>
-                <span className="shrink-0 bg-hq-border px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-moss">
-                    {player.points} PTS
-                </span>
-            </div>
-
-            <div className="mt-1.5 flex items-center gap-1.5">
-                <EntityImage
-                    src={player.team.logo}
-                    alt={player.team.main_name}
-                    fallback={Shield}
-                    shape="square"
-                    className="h-[11px] w-[11px]"
-                />
-                <span className="font-mono text-[10px] text-hq-moss">
-                    {player.team.short_name}
-                </span>
-                <HqPositionTag position={player.position} />
-                {player.status !== 'ok' && (
-                    <span
-                        className={cn(
-                            'border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
-                            STATUS_BADGE_CLASS[player.status],
-                        )}
-                    >
-                        {STATUS_SHORT_LABELS[player.status]}
+                <div className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] leading-[1.1] font-extrabold text-hq-paper">
+                        {player.nickname}
                     </span>
-                )}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-[5px] font-mono text-[10.5px] leading-none text-hq-moss">
+                        <EntityImage
+                            src={player.team.logo}
+                            alt={player.team.main_name}
+                            fallback={Shield}
+                            shape="square"
+                            className="h-[13px] w-[13px] rounded-none"
+                        />
+                        <span>{player.team.short_name}</span>
+                    </div>
+                    {player.status !== 'ok' && (
+                        <div className="mt-1.5 flex">
+                            <HqStatusBadge status={player.status} />
+                        </div>
+                    )}
+                </div>
+                <div className="shrink-0 text-right">
+                    <HqLed
+                        tone={player.points < 0 ? 'live' : 'lime'}
+                        className="block text-[24px]"
+                    >
+                        {player.points}
+                    </HqLed>
+                    <span className="mt-1 block font-mono text-[9.5px] leading-none font-bold tracking-[0.12em] text-hq-moss-dim">
+                        PTS
+                    </span>
+                </div>
             </div>
 
-            <p className="mt-1.5 font-mono text-[12px] font-bold text-hq-paper">
+            <div className="mt-3.5 font-mono text-[15px] leading-none font-semibold text-hq-paper tabular-nums">
                 {formatCurrency(listing.value)}
+            </div>
+            <div className="mt-1.5 min-h-3.5">
                 <HqMarketValueDifference
                     difference={player.market_value_difference}
                     trend={player.market_trend}
-                    className="ml-2 align-middle text-[10px]"
+                    className="text-xs"
                 />
-            </p>
+            </div>
 
-            <div className="mt-1.5 flex items-center justify-between gap-2">
+            <div className="mt-auto flex items-center gap-1.5 pt-3">
                 <HqRecentScores
                     scores={player.recent_scores}
                     finished={player.recent_scores_finished}
                     size="sm"
                 />
                 {listing.bids > 0 && (
-                    <span className="shrink-0 border border-hq-ember bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
+                    <span className="ml-auto inline-flex shrink-0 items-center border border-hq-ember bg-hq-ember/10 px-[5px] py-[3px] font-mono text-[10.5px] leading-none font-bold tracking-[0.04em] text-hq-ember">
                         {listing.bids} {listing.bids === 1 ? 'PUJA' : 'PUJAS'}
                     </span>
                 )}
@@ -189,20 +214,66 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
     );
 }
 
-function MarketCountdown({ market }: { market: MarketPlayer[] }) {
-    // Every listing normally expires at the same time, so one shared
-    // countdown replaces a per-card timer instead of repeating it on
-    // every card.
-    const countdown = useCountdown(
-        market[0]?.expires_at ?? new Date().toISOString(),
+function SummaryRow({
+    label,
+    children,
+}: {
+    label: string;
+    children: ReactNode;
+}) {
+    return (
+        <div className="flex items-baseline justify-between border-t border-dashed border-hq-border-strong pt-[7px] font-mono text-[11.5px] text-hq-moss">
+            <span>{label}</span>
+            {children}
+        </div>
     );
+}
 
-    if (market.length === 0) {
-        return null;
-    }
+function MarketSummaryCard({ market }: { market: MarketPlayer[] }) {
+    // Every listing normally expires at the same time, so this one shared
+    // countdown stands in for a per-card timer.
+    const countdown = useCountdown(market[0].expires_at);
+    const bids = totalBids(market);
+    const listingsWithBids = market.filter(
+        (listing) => listing.bids > 0,
+    ).length;
+    const totalValue = market.reduce((sum, listing) => sum + listing.value, 0);
 
     return (
-        <span className="font-display text-xl text-hq-gold">{countdown}</span>
+        <div
+            className={cn(
+                CELL_CLASS,
+                'flex flex-col justify-between gap-3 bg-hq-well p-3.5',
+            )}
+        >
+            <div>
+                <div className="font-mono text-[10px] font-bold tracking-[0.12em] text-hq-moss-dim uppercase">
+                    Cierran todas en
+                </div>
+                <div className="mt-2">
+                    <HqTooltip label="Todas las ofertas vencen a la vez">
+                        <HqLed tone="gold" className="text-[34px]">
+                            {countdown}
+                        </HqLed>
+                    </HqTooltip>
+                </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <SummaryRow label="En venta">
+                    <b className="text-hq-paper">{market.length}</b>
+                </SummaryRow>
+                <SummaryRow label="Pujas">
+                    <b className={bids > 0 ? 'text-hq-ember' : 'text-hq-paper'}>
+                        {bids} en {listingsWithBids}
+                    </b>
+                </SummaryRow>
+                <SummaryRow label="Valor total">
+                    <b className="text-hq-paper">
+                        {formatMillions(totalValue)}
+                    </b>
+                </SummaryRow>
+            </div>
+        </div>
     );
 }
 
@@ -210,28 +281,32 @@ export function MarketPanel({ market }: MarketPanelProps) {
     return (
         <HqSection
             title="Mercado"
-            action={
-                <div className="flex items-center gap-3">
-                    <MarketCountdown market={market} />
-                    <RefreshMarketButton market={market} />
-                </div>
-            }
+            action={<RefreshMarketButton market={market} />}
+            flush
         >
             {market.length === 0 ? (
-                <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                    <p className="mb-2 text-3xl">🗃️</p>
-                    <p className="font-display text-lg text-hq-paper uppercase">
+                <div className="m-3.5 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 border border-dashed border-hq-border-bright px-4 py-3 font-mono text-[12.5px] text-hq-moss sm:mx-4">
+                    <span
+                        aria-hidden="true"
+                        className="font-dot text-2xl leading-none font-black text-hq-border-bright"
+                    >
+                        ∅
+                    </span>
+                    <h3 className="font-sans text-sm font-extrabold tracking-[0.02em] text-hq-paper uppercase">
                         Sin movimiento en el mercado
-                    </p>
-                    <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
+                    </h3>
+                    <span>
                         Vuelve más tarde para ver nuevos fichajes disponibles
-                    </p>
+                    </span>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                    {market.map((listing) => (
-                        <MarketCard key={listing.id} listing={listing} />
-                    ))}
+                <div className="max-md:pt-3.5">
+                    <div className="grid snap-x snap-mandatory scroll-px-3.5 [scrollbar-width:thin] auto-cols-[76%] grid-flow-col gap-2.5 overflow-x-auto px-3.5 pb-3.5 md:-mb-px md:snap-none md:auto-cols-auto md:grid-flow-row md:grid-cols-4 md:gap-0 md:overflow-visible md:p-0 min-[73.75rem]:grid-cols-6 md:[&>*:nth-child(4n)]:border-r-0 min-[73.75rem]:[&>*:nth-child(4n):not(:nth-child(6n))]:border-r min-[73.75rem]:[&>*:nth-child(6n)]:border-r-0">
+                        {market.map((listing) => (
+                            <MarketCard key={listing.id} listing={listing} />
+                        ))}
+                        <MarketSummaryCard market={market} />
+                    </div>
                 </div>
             )}
         </HqSection>

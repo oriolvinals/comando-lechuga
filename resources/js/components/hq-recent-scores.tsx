@@ -1,3 +1,4 @@
+import { HqTooltip } from '@/components/hq-tooltip';
 import { formatSignedPoints, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import type { Team } from '@/types/models';
@@ -11,16 +12,19 @@ interface HqRecentScoresProps {
     /** Per-slot: the rival the player's team faced in that match — shows a small crest floating at the bottom center when provided. */
     opponents?: (Team | null)[];
     className?: string;
-    size?: 'md' | 'sm';
+    size?: 'md' | 'sm' | 'xs';
+    /** Makes each slot's tooltip keyboard-reachable — off by default, since most rows are already one link. */
+    focusable?: boolean;
     /** Color tier for a slot's value — defaults to the per-player scale; pass {@link teamFormBadgeClass} for team-level totals. */
     badgeClass?: (points: number) => string;
     /** Appends one more slot for the jornada currently in progress — its points are still counting, unlike the rest. Omit (or null) when there's no live jornada. */
     live?: number | null;
 }
 
-const SIZE_CLASSES: Record<'md' | 'sm', string> = {
+const SIZE_CLASSES: Record<'md' | 'sm' | 'xs', string> = {
     md: 'h-8 w-8 text-[13px]',
     sm: 'h-6 w-6 text-[11px]',
+    xs: 'h-[18px] min-w-[22px] px-[3px] text-[11px]',
 };
 
 /**
@@ -41,6 +45,7 @@ export function HqRecentScores({
     size = 'md',
     badgeClass = matchPointsBadgeClass,
     live,
+    focusable = false,
 }: HqRecentScoresProps) {
     const hasLive = live !== undefined && live !== null;
     // Nulls only ever pad the end (see docblock below), so when there's
@@ -75,53 +80,74 @@ export function HqRecentScores({
                 const wasUsed = visibleUsed?.[index];
                 const notCalledUp = points === null && visibleFinished?.[index];
                 const opponent = visibleOpponents?.[index];
+                const label = [
+                    opponent ? `vs ${opponent.main_name}` : null,
+                    points !== null
+                        ? `${points} pts`
+                        : notCalledUp
+                          ? 'No convocado'
+                          : 'Sin partido todavía',
+                    wasUsed === true
+                        ? 'En la alineación del manager'
+                        : wasUsed === false
+                          ? 'Fuera de la alineación'
+                          : null,
+                ]
+                    .filter(Boolean)
+                    .join(' · ');
 
                 return (
-                    <span
-                        key={index}
-                        className={cn(
-                            'relative flex shrink-0 items-center justify-center border font-mono font-bold',
-                            SIZE_CLASSES[size],
-                            points !== null
-                                ? badgeClass(points)
-                                : notCalledUp
-                                  ? 'border-dashed border-hq-live bg-hq-border-strong text-hq-live'
-                                  : 'border-dashed border-hq-border-strong bg-hq-border-strong/40 text-hq-moss-dim',
-                        )}
-                    >
-                        {points ?? (notCalledUp ? 'NC' : '–')}
-                        {wasUsed !== undefined && wasUsed !== null && (
-                            <span
-                                className={cn(
-                                    'absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full',
-                                    wasUsed
-                                        ? 'bg-hq-lime'
-                                        : 'border border-hq-border-strong',
-                                )}
-                            />
-                        )}
-                        {opponent && (
-                            <img
-                                src={opponent.logo}
-                                alt={opponent.main_name}
-                                title={opponent.main_name}
-                                className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
-                            />
-                        )}
-                    </span>
+                    <HqTooltip key={index} label={label} focusable={focusable}>
+                        <span
+                            className={cn(
+                                'relative flex shrink-0 items-center justify-center border font-mono font-bold',
+                                SIZE_CLASSES[size],
+                                points !== null
+                                    ? badgeClass(points)
+                                    : notCalledUp
+                                      ? 'border-dashed border-hq-live bg-hq-border-strong text-hq-live'
+                                      : 'border-dashed border-hq-border-strong bg-hq-border-strong/40 text-hq-moss-dim',
+                            )}
+                        >
+                            {points ?? (notCalledUp ? 'NC' : '–')}
+                            {wasUsed !== undefined && wasUsed !== null && (
+                                <span
+                                    className={cn(
+                                        'absolute -bottom-2 left-1/2 h-[5px] w-[5px] -translate-x-1/2 rounded-full border',
+                                        wasUsed
+                                            ? 'border-hq-lime bg-hq-lime'
+                                            : 'border-hq-border-bright',
+                                    )}
+                                />
+                            )}
+                            {opponent && (
+                                <img
+                                    src={opponent.logo}
+                                    alt={opponent.main_name}
+                                    title={opponent.main_name}
+                                    className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+                                />
+                            )}
+                        </span>
+                    </HqTooltip>
                 );
             })}
             {hasLive && (
-                <span
-                    className={cn(
-                        'relative flex shrink-0 items-center justify-center border font-mono font-bold',
-                        SIZE_CLASSES[size],
-                        badgeClass(live),
-                    )}
+                <HqTooltip
+                    label="Jornada en curso: los puntos siguen contando"
+                    focusable={focusable}
                 >
-                    {formatSignedPoints(live)}
-                    <span className="absolute -top-1.5 -right-1 h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
-                </span>
+                    <span
+                        className={cn(
+                            'relative flex shrink-0 items-center justify-center border font-mono font-bold',
+                            SIZE_CLASSES[size],
+                            badgeClass(live),
+                        )}
+                    >
+                        {formatSignedPoints(live)}
+                        <span className="absolute -top-1.5 -right-1 h-1.5 w-1.5 animate-pulse rounded-full bg-hq-live" />
+                    </span>
+                </HqTooltip>
             )}
         </div>
     );

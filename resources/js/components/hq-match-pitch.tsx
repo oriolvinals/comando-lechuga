@@ -1,42 +1,118 @@
+import { Shield } from 'lucide-react';
+import { EntityImage } from '@/components/entity-image';
 import { HqLineupPlayerToken } from '@/components/hq-lineup-player-token';
-import type { FixtureLineupEntry } from '@/types/models';
+import { cn } from '@/lib/utils';
+import type { FixtureLineupEntry, Team } from '@/types/models';
 
 interface HqMatchPitchProps {
     lineups: FixtureLineupEntry[];
+    localTeam: Team;
+    guestTeam: Team;
     localFormation?: string | null;
     guestFormation?: string | null;
     onSelect?: (entry: FixtureLineupEntry) => void;
 }
 
-export function HqMatchPitch({ lineups, localFormation, guestFormation, onSelect }: HqMatchPitchProps) {
-    const starters = lineups.filter((entry) => entry.starter && entry.x !== null && entry.y !== null);
+/** Horizontal pitch markings (mock PITCH_H) on plain turf: touchlines, halfway line, centre circle, both boxes. */
+function PitchLines() {
+    return (
+        <svg
+            aria-hidden="true"
+            viewBox="0 0 1000 560"
+            preserveAspectRatio="none"
+            className="absolute inset-3.5 h-[calc(100%-28px)] w-[calc(100%-28px)] fill-none stroke-hq-pitch-line [stroke-width:1.2] [&>*]:[vector-effect:non-scaling-stroke]"
+        >
+            <rect x="0" y="0" width="1000" height="560" />
+            <line x1="500" y1="0" x2="500" y2="560" />
+            <circle cx="500" cy="280" r="74" />
+            <rect x="0" y="140" width="130" height="280" />
+            <rect x="0" y="210" width="46" height="140" />
+            <rect x="870" y="140" width="130" height="280" />
+            <rect x="954" y="210" width="46" height="140" />
+        </svg>
+    );
+}
+
+function FormationTag({
+    team,
+    formation,
+    side,
+}: {
+    team: Team;
+    formation: string;
+    side: 'local' | 'guest';
+}) {
+    const crest = (
+        <EntityImage
+            src={team.logo}
+            alt=""
+            fallback={Shield}
+            shape="square"
+            className="h-3.5 w-3.5 rounded-none bg-transparent"
+        />
+    );
 
     return (
-        <div className="relative aspect-[16/9.4] w-full overflow-hidden border border-hq-border-strong bg-hq-pitch">
-            <div className="pointer-events-none absolute inset-3.5 border-[1.5px] border-[#3b4e19] bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.015)_0_6.25%,transparent_6.25%_12.5%)]" />
-            <div className="pointer-events-none absolute top-3.5 bottom-3.5 left-1/2 w-[1.5px] -translate-x-1/2 bg-hq-pitch-line" />
-            <div className="pointer-events-none absolute top-1/2 left-1/2 aspect-square w-[15%] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-hq-pitch-line" />
-            <div className="pointer-events-none absolute top-[26%] bottom-[26%] left-3.5 w-[12.5%] border-[1.5px] border-l-0 border-hq-pitch-line" />
-            <div className="pointer-events-none absolute top-[26%] bottom-[26%] right-3.5 w-[12.5%] border-[1.5px] border-r-0 border-hq-pitch-line" />
+        <span
+            className={cn(
+                'absolute top-2 z-10 flex items-center gap-1.5 border border-hq-border-bright bg-hq-ink px-1.5 py-1 font-mono text-[10.5px] leading-none font-bold text-hq-moss',
+                side === 'local' ? 'left-2' : 'right-2',
+            )}
+        >
+            {side === 'local' && crest}
+            {formation}
+            {side === 'guest' && crest}
+        </span>
+    );
+}
+
+/**
+ * Both starting XIs on one dark horizontal pitch (mock `.mpitch`), each
+ * player at the x/y the backend resolved from their real match role, with
+ * each side's formation tagged in its top corner.
+ */
+export function HqMatchPitch({
+    lineups,
+    localTeam,
+    guestTeam,
+    localFormation,
+    guestFormation,
+    onSelect,
+}: HqMatchPitchProps) {
+    const starters = lineups.filter(
+        (entry) => entry.starter && entry.x !== null && entry.y !== null,
+    );
+
+    return (
+        <div className="relative aspect-[16/9.2] w-full overflow-hidden border-b border-hq-border bg-hq-pitch">
+            <PitchLines />
 
             {localFormation && (
-                <span className="absolute top-2 left-2 z-10 border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-hq-moss uppercase">
-                    {localFormation}
-                </span>
+                <FormationTag
+                    team={localTeam}
+                    formation={localFormation}
+                    side="local"
+                />
             )}
             {guestFormation && (
-                <span className="absolute top-2 right-2 z-10 border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-hq-moss uppercase">
-                    {guestFormation}
-                </span>
+                <FormationTag
+                    team={guestTeam}
+                    formation={guestFormation}
+                    side="guest"
+                />
             )}
 
             {starters.map((entry) => (
                 <div
                     key={entry.id}
-                    className="absolute -translate-x-1/2 -translate-y-1/2"
+                    className="absolute z-[2] -translate-x-1/2 -translate-y-1/2"
                     style={{ left: `${entry.x}%`, top: `${entry.y}%` }}
                 >
-                    <HqLineupPlayerToken entry={entry} variant="pitch" onSelect={onSelect} />
+                    <HqLineupPlayerToken
+                        entry={entry}
+                        variant="pitch"
+                        onSelect={onSelect}
+                    />
                 </div>
             ))}
         </div>

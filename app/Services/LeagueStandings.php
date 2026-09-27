@@ -157,6 +157,20 @@ class LeagueStandings
     }
 
     /**
+     * How hard a rival is by its standings position: −1 for the leader, 0 mid
+     * table, +1 for the last team — `(position − (N+1)/2) / ((N−1)/2)`. Shared
+     * by the max bid model and the "next fixtures" difficulty gauge.
+     */
+    public static function difficulty(int $position, int $teamCount): float
+    {
+        if ($teamCount < 2) {
+            return 0.0;
+        }
+
+        return ((float) $position - ($teamCount + 1) / 2) / (($teamCount - 1) / 2);
+    }
+
+    /**
      * @return array{fixture_id: int, opponent: Team, score: string, result: MatchResult, date: CarbonImmutable}
      */
     private function formEntry(Fixture $fixture, Team $opponent, int $for, int $against): array

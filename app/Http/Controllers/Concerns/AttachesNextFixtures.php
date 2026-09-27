@@ -10,22 +10,23 @@ use App\Models\Fixture;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
+use App\Services\LeagueStandings;
 use Illuminate\Support\Collection;
 
 trait AttachesNextFixtures
 {
     /**
-     * Attaches each player's next 3 upcoming fixtures for their team, soonest
-     * first — only fixtures that haven't started yet (state=Scheduled), never
-     * a live or finished one. Null-padded at the end, mirroring
-     * attachRecentScores(), when fewer than 3 remain on the calendar.
+     * Attaches each player's next $count (3 by default) upcoming fixtures for
+     * their team, soonest first — only fixtures that haven't started yet
+     * (state=Scheduled), never a live or finished one. Null-padded at the end,
+     * mirroring attachRecentScores(), when fewer remain on the calendar.
      *
-     * Out-of-league players always get 3 nulls without querying anything for
-     * them — nobody needs their next match.
+     * Out-of-league players always get $count nulls without querying anything
+     * for them — nobody needs their next match.
      *
      * @param  Collection<int, Player>  $players
      */
-    private function attachNextFixtures(Collection $players, Season $season): void
+    private function attachNextFixtures(Collection $players, Season $season, int $count = 3): void
     {
         $eligiblePlayers = $players->filter(
             fn (Player $player): bool => $player->status !== PlayerStatus::OutOfLeague,
@@ -52,30 +53,62 @@ trait AttachesNextFixtures
                 }
             });
 
-        $players->each(function (Player $player) use ($fixturesByTeam): void {
+        $positions = $fixturesByTeam === [] ? [] : $this->standingsPositions($season);
+
+        $players->each(function (Player $player) use ($fixturesByTeam, $positions, $count): void {
             if ($player->status === PlayerStatus::OutOfLeague) {
-                $player->next_fixtures = [null, null, null];
+                $player->next_fixtures = array_fill(0, $count, null);
 
                 return;
             }
 
             $slots = collect($fixturesByTeam[$player->team_id] ?? [])
                 ->sortBy(fn (Fixture $fixture) => $fixture->date)
-                ->take(3)
-                ->map(fn (Fixture $fixture): array => [
-                    'week_number' => $fixture->week_number,
-                    'opponent' => $fixture->team_local_id === $player->team_id
-                        ? $fixture->guestTeam
-                        : $fixture->localTeam,
-                    'is_home' => $fixture->team_local_id === $player->team_id,
-                ])
+                ->take($count)
+                ->map(fn (Fixture $fixture): array => $this->nextFixtureSlot($fixture, $player->team_id, $positions))
                 ->values()
                 ->all();
 
-            /** @var array<int, array{week_number: int, opponent: Team, is_home: bool}|null> $paddedSlots */
-            $paddedSlots = array_pad($slots, 3, null);
+            /** @var array<int, array{week_number: int, opponent: Team, is_home: bool, rival_position: int, difficulty: float}|null> $paddedSlots */
+            $paddedSlots = array_pad($slots, $count, null);
 
             $player->next_fixtures = $paddedSlots;
         });
+    }
+
+    /**
+     * The current real LaLiga table as each season team's position, keyed by
+     * team id — what nextFixtureSlot() rates each rival against.
+     *
+     * @return array<int, int>
+     */
+    private function standingsPositions(Season $season): array
+    {
+        return app(LeagueStandings::class)->positions($season);
+    }
+
+    /**
+     * One upcoming fixture seen from `$teamId`'s side, with the rival's
+     * current standings position and its difficulty (−1 leader … +1 last,
+     * the same scale the max bid model uses). A rival missing from the table
+     * counts as mid-table.
+     *
+     * @param  array<int, int>  $positions  from standingsPositions()
+     * @return array{week_number: int, opponent: Team, is_home: bool, rival_position: int, difficulty: float}
+     */
+    private function nextFixtureSlot(Fixture $fixture, int $teamId, array $positions): array
+    {
+        $isHome = $fixture->team_local_id === $teamId;
+        $opponent = $isHome ? $fixture->guestTeam : $fixture->localTeam;
+        $teamCount = count($positions);
+        $rivalPosition = $positions[$opponent->id] ?? intdiv($teamCount + 1, 2);
+
+        return [
+            'week_number' => $fixture->week_number,
+            'opponent' => $opponent,
+            'is_home' => $isHome,
+            'rival_position' => $rivalPosition,
+            'difficulty' => round(LeagueStandings::difficulty($rivalPosition, $teamCount), 3),
+        ];
     }
 }

@@ -1,3 +1,4 @@
+import { HqLed } from '@/components/hq-led';
 import { cn } from '@/lib/utils';
 import type { FixtureTeamStat } from '@/types/models';
 
@@ -24,10 +25,8 @@ function leaderOf(local: number, guest: number): Side | null {
     return local > guest ? 'local' : 'guest';
 }
 
-function numberClass(side: Side, leader: Side | null): string {
-    return leader !== null && leader !== side
-        ? 'text-hq-moss-dim'
-        : 'text-hq-paper';
+function isTrailing(side: Side, leader: Side | null): boolean {
+    return leader !== null && leader !== side;
 }
 
 /**
@@ -48,17 +47,20 @@ function DivergingBar({
     const leader = leaderOf(local, guest);
     const width = (value: number) => (max === 0 ? 0 : (value / max) * 100);
     const fill = (side: Side) =>
-        leader !== null && leader !== side ? 'bg-hq-khaki/35' : 'bg-hq-khaki';
+        isTrailing(side, leader) ? 'bg-hq-khaki/32' : 'bg-hq-khaki';
 
     return (
-        <div className={cn('grid grid-cols-2 gap-0.5', className)}>
-            <div className="flex justify-end bg-hq-border">
+        <div
+            aria-hidden="true"
+            className={cn('grid grid-cols-2 gap-0.5', className)}
+        >
+            <div className="flex justify-end bg-[#1b2014]">
                 <span
                     className={fill('local')}
                     style={{ width: `${width(local)}%` }}
                 />
             </div>
-            <div className="flex bg-hq-border">
+            <div className="flex bg-[#1b2014]">
                 <span
                     className={fill('guest')}
                     style={{ width: `${width(guest)}%` }}
@@ -74,21 +76,22 @@ function PossessionBlock({
     possession: { local: number; guest: number };
 }) {
     const leader = leaderOf(possession.local, possession.guest);
+    const reading = (side: Side, value: number) => (
+        <HqLed
+            tone={isTrailing(side, leader) ? 'off' : 'lime'}
+            className="text-[44px]"
+        >
+            {possessionFormat.format(value)}
+            <small className="text-xl opacity-70">%</small>
+        </HqLed>
+    );
 
     return (
-        <div className="mb-4 border-b border-hq-border pb-4">
-            <p className="mb-2 text-center font-mono text-[10px] tracking-wide text-hq-moss uppercase">
-                Posesión
-            </p>
-            <div className="flex items-baseline justify-between font-display text-4xl">
-                <span className={numberClass('local', leader)}>
-                    {possessionFormat.format(possession.local)}
-                    <span className="ml-0.5 text-lg opacity-70">%</span>
-                </span>
-                <span className={numberClass('guest', leader)}>
-                    {possessionFormat.format(possession.guest)}
-                    <span className="ml-0.5 text-lg opacity-70">%</span>
-                </span>
+        <div className="border-b border-hq-border px-4 pt-4 pb-3.5">
+            <p className="mb-1.5 text-center hq-label">Posesión</p>
+            <div className="flex items-baseline justify-between">
+                {reading('local', possession.local)}
+                {reading('guest', possession.guest)}
             </div>
             <DivergingBar
                 local={possession.local}
@@ -99,35 +102,49 @@ function PossessionBlock({
     );
 }
 
+/** Datos del partido: possession as two dot-matrix readouts, then one diverging bar per boxscore stat (leader lit). */
 export function HqFixtureTeamStats({
     stats,
     possession = null,
 }: HqFixtureTeamStatsProps) {
+    if (!possession && stats.length === 0) {
+        return (
+            <p className="m-3.5 border border-dashed border-hq-border-bright px-4 py-6 text-center font-mono text-xs text-hq-moss-dim sm:m-4">
+                Sin datos del partido todavía
+            </p>
+        );
+    }
+
     return (
-        <div className="border border-hq-border bg-hq-panel px-4 py-3.5">
+        <div>
             {possession && <PossessionBlock possession={possession} />}
             {stats.map((stat) => {
                 const leader = leaderOf(stat.local, stat.guest);
 
                 return (
-                    <div key={stat.label} className="mb-3.5 last:mb-0">
-                        <div className="mb-1 flex items-baseline justify-between font-mono text-xs">
+                    <div
+                        key={stat.label}
+                        className="border-b border-hq-border px-4 py-[9px]"
+                    >
+                        <div className="mb-1.5 flex items-baseline justify-between font-mono text-[13px] leading-none font-bold tabular-nums">
                             <span
-                                className={cn(
-                                    'font-bold',
-                                    numberClass('local', leader),
-                                )}
+                                className={
+                                    isTrailing('local', leader)
+                                        ? 'text-hq-moss-dim'
+                                        : 'text-hq-paper'
+                                }
                             >
                                 {stat.local}
                             </span>
-                            <span className="text-[10px] tracking-wide text-hq-moss uppercase">
+                            <span className="text-[10.5px] font-semibold tracking-[0.07em] text-hq-moss uppercase">
                                 {stat.label}
                             </span>
                             <span
-                                className={cn(
-                                    'font-bold',
-                                    numberClass('guest', leader),
-                                )}
+                                className={
+                                    isTrailing('guest', leader)
+                                        ? 'text-hq-moss-dim'
+                                        : 'text-hq-paper'
+                                }
                             >
                                 {stat.guest}
                             </span>

@@ -732,6 +732,11 @@ test('next fixtures are padded to 3, only scheduled, ordered by date, and resolv
         ->where('nextFixtures.1.opponent.id', $rivalB->id)
         ->where('nextFixtures.1.is_home', true)
         ->where('nextFixtures.2', null)
+        // Team 1st (beat rivalA), rivalB 2nd (unplayed), rivalA 3rd.
+        ->where('nextFixtures.0.rival_position', 3)
+        ->where('nextFixtures.0.difficulty', fn (int|float $difficulty): bool => (float) $difficulty === 1.0)
+        ->where('nextFixtures.1.rival_position', 2)
+        ->where('nextFixtures.1.difficulty', fn (int|float $difficulty): bool => (float) $difficulty === 0.0)
     );
 });
 

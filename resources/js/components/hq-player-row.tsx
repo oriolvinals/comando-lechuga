@@ -1,302 +1,224 @@
 import { Link, router } from '@inertiajs/react';
 import { Shield, User } from 'lucide-react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqLed } from '@/components/hq-led';
+import { HqManagerChip } from '@/components/hq-manager-chip';
 import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
+import { HqNextFixtures } from '@/components/hq-next-fixtures';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
+import { HqStatusBadge } from '@/components/hq-status-badge';
 import { formatCurrency } from '@/lib/format';
-import { STATUS_BADGE_CLASS, STATUS_SHORT_LABELS } from '@/lib/player-labels';
-import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
-import { show as seasonManagersShow } from '@/routes/season-managers';
 import { show as teamsShow } from '@/routes/teams';
 import type { Player } from '@/types/models';
 
-interface PlayerRowProps {
-    player: Player;
-    /** Show the player's club under their name. Off on a team's own ficha, where every row is the same club. */
+interface PlayerRowLayout {
+    /** Show the player's club under their name (and the owner in its own column). Off on a team's own ficha, where every row is the same club — the owner moves under the name. */
     showTeam?: boolean;
-    /** Show the position tag. Off when rows are already grouped under a position heading. */
+    /** Show the position column. Off when rows are already grouped under a position heading. */
     showPosition?: boolean;
 }
 
+interface PlayerRowProps extends PlayerRowLayout {
+    player: Player;
+}
+
+/**
+ * Desktop columns (mock `.ptable`): photo · player · pos · estado · pertenece
+ * a · próximos + dificultad · últimas 3 · valor + hoy · pts. Literal class
+ * strings so Tailwind can see them.
+ */
+const ROW_GRID = {
+    full: 'lg:grid-cols-[46px_minmax(140px,1.4fr)_44px_76px_minmax(110px,1fr)_118px_120px_minmax(124px,0.9fr)_48px]',
+    noPosition:
+        'lg:grid-cols-[46px_minmax(140px,1.4fr)_76px_minmax(110px,1fr)_118px_120px_minmax(124px,0.9fr)_48px]',
+    noTeam: 'lg:grid-cols-[46px_minmax(140px,1.4fr)_44px_76px_118px_120px_minmax(124px,0.9fr)_48px]',
+    compact:
+        'lg:grid-cols-[46px_minmax(140px,1.4fr)_76px_118px_120px_minmax(124px,0.9fr)_48px]',
+} as const;
+
+function rowGrid({
+    showTeam = true,
+    showPosition = true,
+}: PlayerRowLayout): string {
+    if (showTeam) {
+        return showPosition ? ROW_GRID.full : ROW_GRID.noPosition;
+    }
+
+    return showPosition ? ROW_GRID.noTeam : ROW_GRID.compact;
+}
+
+/** The column headings for a list of {@link PlayerRow}s (desktop only). */
+export function PlayerRowHeader({
+    showTeam = true,
+    showPosition = true,
+}: PlayerRowLayout) {
+    return (
+        <div
+            aria-hidden="true"
+            className={cn(
+                'hidden items-end gap-3 border-b border-hq-border-strong px-4 py-[9px] font-mono text-[10.5px] leading-[1.2] font-semibold tracking-[0.07em] text-hq-moss-dim uppercase lg:grid',
+                rowGrid({ showTeam, showPosition }),
+            )}
+        >
+            <span />
+            <span>Jugador</span>
+            {showPosition && <span className="text-center">Pos.</span>}
+            <span>Estado</span>
+            {showTeam && <span>Pertenece a</span>}
+            <span>Próximos · dificultad</span>
+            <span>Últimas 3 jornadas</span>
+            <span className="text-right">Valor · hoy</span>
+            <span className="text-right">Pts</span>
+        </div>
+    );
+}
+
+/** Phone-only caption above a folded cell ("Próximos", "Últimas 3"). */
+function MobileCaption({ children }: { children: ReactNode }) {
+    return <span className="hq-label lg:hidden">{children}</span>;
+}
+
+/**
+ * One player in a list (mock `.ptable` row / `.pcard`). The whole row opens
+ * the player ficha — the name is the real link, for keyboard and
+ * middle-click — and the club and owner are links of their own. On phones:
+ * photo · identity · points, then value + today and the owner on a dashed
+ * rule, then last 3 | next fixtures.
+ */
 export function PlayerRow({
     player,
     showTeam = true,
     showPosition = true,
 }: PlayerRowProps) {
+    const playerUrl = playersShow(player.id).url;
     const ownerManager = player.owner_manager;
-    const goToOwnerManager = (event: ReactMouseEvent) => {
-        if (!ownerManager) {
-            return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-        router.visit(seasonManagersShow(ownerManager.id).url);
-    };
-    const goToTeam = (event: ReactMouseEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-        router.visit(teamsShow(player.team.id).url);
-    };
 
     return (
-        <Link href={playersShow(player.id).url} className="block">
-            {/* Desktop / tablet row */}
-            <div className="hq-card-cut mb-1.5 hidden items-center justify-between px-3.5 py-2.5 transition-[filter] hover:brightness-125 xl:flex">
-                <div className="flex min-w-0 items-center gap-3">
-                    <EntityImage
-                        src={player.image}
-                        alt={player.nickname}
-                        fallback={User}
-                        className="h-11 w-11 shrink-0 bg-hq-border"
-                    />
-                    <div className="w-[190px] shrink-0">
-                        <p className="truncate text-sm font-extrabold text-hq-paper">
-                            {player.nickname}
-                        </p>
-                        {showTeam ? (
-                            <span
-                                role="link"
-                                tabIndex={0}
-                                onClick={goToTeam}
-                                className="mt-0.5 flex w-fit cursor-pointer items-center gap-1.5 hover:text-hq-paper"
-                            >
-                                <EntityImage
-                                    src={player.team.logo}
-                                    alt={player.team.main_name}
-                                    fallback={Shield}
-                                    shape="square"
-                                    className="h-3.5 w-3.5"
-                                />
-                                <span className="font-mono text-[10px] text-hq-moss-dim">
-                                    {player.team.short_name}
-                                </span>
-                            </span>
-                        ) : ownerManager ? (
-                            <span
-                                role="link"
-                                tabIndex={0}
-                                onClick={goToOwnerManager}
-                                className="mt-0.5 flex w-fit min-w-0 cursor-pointer items-center gap-1.5 font-mono text-[10px] text-hq-moss hover:text-hq-paper"
-                            >
-                                <span
-                                    className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
-                                    style={{
-                                        backgroundColor: managerColor(
-                                            ownerManager.primary_color,
-                                        ),
-                                    }}
-                                />
-                                <span className="truncate">
-                                    {ownerManager.name}
-                                </span>
-                            </span>
-                        ) : (
-                            <span className="mt-0.5 block font-mono text-[10px] text-hq-moss-dim">
-                                Libre
-                            </span>
-                        )}
-                    </div>
-                    {showPosition && (
-                        <div className="w-11 shrink-0 text-center">
-                            <HqPositionTag position={player.position} />
-                        </div>
-                    )}
-                    <div className="w-16 shrink-0">
-                        {player.status !== 'ok' && (
-                            <span
-                                className={cn(
-                                    'border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
-                                    STATUS_BADGE_CLASS[player.status],
-                                )}
-                            >
-                                {STATUS_SHORT_LABELS[player.status]}
-                            </span>
-                        )}
-                    </div>
-                    {showTeam && (
-                        <div className="flex w-[150px] shrink-0 items-center gap-1.5 font-mono text-[11px] text-hq-moss">
-                            {ownerManager ? (
-                                <span
-                                    role="link"
-                                    tabIndex={0}
-                                    onClick={goToOwnerManager}
-                                    className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
-                                >
-                                    <span
-                                        className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
-                                        style={{
-                                            backgroundColor: managerColor(
-                                                ownerManager.primary_color,
-                                            ),
-                                        }}
-                                    />
-                                    <span className="truncate">
-                                        {ownerManager.name}
-                                    </span>
-                                </span>
-                            ) : (
-                                <span className="text-hq-moss-dim">Libre</span>
-                            )}
-                        </div>
-                    )}
-                </div>
-                <div className="flex shrink-0 items-center gap-6">
-                    <HqRecentScores
-                        scores={player.recent_scores}
-                        finished={player.recent_scores_finished}
-                        opponents={player.recent_scores_opponents}
-                        className="w-[130px]"
-                    />
-                    <div className="w-[130px] shrink-0 text-right">
-                        <p className="font-mono text-[13px] font-bold text-hq-paper">
-                            {formatCurrency(player.market_value)}
-                        </p>
-                        <HqMarketValueDifference
-                            difference={player.market_value_difference}
-                            trend={player.market_trend}
-                            className="text-[10px]"
+        <div
+            onClick={() => router.visit(playerUrl)}
+            className={cn(
+                'grid cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-2.5 border-b border-hq-border px-3.5 py-3 transition-colors hover:bg-hq-panel lg:gap-x-3 lg:px-4 lg:py-2.5',
+                rowGrid({ showTeam, showPosition }),
+            )}
+        >
+            <EntityImage
+                src={player.image}
+                alt=""
+                fallback={User}
+                shape="square"
+                className="h-10 w-10 rounded-none border border-hq-border-strong bg-hq-panel-alt object-cover object-top lg:h-[46px] lg:w-[46px]"
+            />
+
+            <div className="min-w-0">
+                <Link
+                    href={playerUrl}
+                    onClick={(event) => event.stopPropagation()}
+                    className="block truncate text-sm leading-[1.15] font-extrabold text-hq-paper hover:underline"
+                >
+                    {player.nickname}
+                </Link>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[11px] leading-none text-hq-moss-dim">
+                    {showTeam ? (
+                        <Link
+                            href={teamsShow(player.team.id).url}
+                            onClick={(event) => event.stopPropagation()}
+                            className="inline-flex items-center gap-[5px] hover:text-hq-paper"
+                        >
+                            <EntityImage
+                                src={player.team.logo}
+                                alt=""
+                                fallback={Shield}
+                                shape="square"
+                                className="h-3.5 w-3.5 rounded-none bg-transparent"
+                            />
+                            {player.team.short_name}
+                        </Link>
+                    ) : (
+                        <HqManagerChip
+                            manager={ownerManager}
+                            className="text-[11px]"
                         />
-                    </div>
-                    <div className="w-[52px] shrink-0 text-center font-display text-xl text-hq-lime">
-                        {player.points}
-                    </div>
+                    )}
+                    {showPosition && (
+                        <HqPositionTag
+                            position={player.position}
+                            className="lg:hidden"
+                        />
+                    )}
+                    <HqStatusBadge
+                        status={player.status}
+                        className="lg:hidden"
+                    />
                 </div>
             </div>
 
-            {/* Mobile row */}
-            <div className="hq-card-cut mb-2 px-3 py-2.5 transition-[filter] hover:brightness-125 xl:hidden">
-                <div className="flex items-center gap-2.5">
-                    <EntityImage
-                        src={player.image}
-                        alt={player.nickname}
-                        fallback={User}
-                        className="h-9 w-9 shrink-0 bg-hq-border"
-                    />
-                    <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-extrabold text-hq-paper">
-                            {player.nickname}
-                        </p>
-                        <div className="mt-0.5 flex items-center gap-1.5">
-                            {showTeam ? (
-                                <span
-                                    role="link"
-                                    tabIndex={0}
-                                    onClick={goToTeam}
-                                    className="flex w-fit cursor-pointer items-center gap-1.5 hover:text-hq-paper"
-                                >
-                                    <EntityImage
-                                        src={player.team.logo}
-                                        alt={player.team.main_name}
-                                        fallback={Shield}
-                                        shape="square"
-                                        className="h-[10px] w-[10px]"
-                                    />
-                                    <span className="font-mono text-[9px] text-hq-moss-dim">
-                                        {player.team.short_name}
-                                    </span>
-                                </span>
-                            ) : ownerManager ? (
-                                <span
-                                    role="link"
-                                    tabIndex={0}
-                                    onClick={goToOwnerManager}
-                                    className="flex w-fit min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
-                                >
-                                    <span
-                                        className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
-                                        style={{
-                                            backgroundColor: managerColor(
-                                                ownerManager.primary_color,
-                                            ),
-                                        }}
-                                    />
-                                    <span className="max-w-[90px] truncate font-mono text-[9px] text-hq-moss-dim">
-                                        {ownerManager.name}
-                                    </span>
-                                </span>
-                            ) : (
-                                <span className="font-mono text-[9px] text-hq-moss-dim">
-                                    Libre
-                                </span>
-                            )}
-                            {showPosition && (
-                                <HqPositionTag position={player.position} />
-                            )}
-                            {player.status !== 'ok' && (
-                                <span
-                                    className={cn(
-                                        'border px-1 py-0.5 font-mono text-[8px] font-bold uppercase',
-                                        STATUS_BADGE_CLASS[player.status],
-                                    )}
-                                >
-                                    {STATUS_SHORT_LABELS[player.status]}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                    <span className="shrink-0 font-display text-lg text-hq-lime">
-                        {player.points}
-                    </span>
+            {showPosition && (
+                <div className="hidden justify-center lg:flex">
+                    <HqPositionTag position={player.position} />
                 </div>
-                <div className="mt-2 flex items-center justify-between border-t border-hq-ink pt-2">
-                    <p className="font-mono text-[11px] font-bold text-hq-paper">
-                        {formatCurrency(player.market_value)}
-                        <HqMarketValueDifference
-                            difference={player.market_value_difference}
-                            trend={player.market_trend}
-                            className="ml-2 align-middle text-[10px]"
-                        />
-                    </p>
-                    {showTeam ? (
-                        <div className="flex items-center gap-1.5 font-mono text-[10px] text-hq-moss">
-                            {ownerManager ? (
-                                <span
-                                    role="link"
-                                    tabIndex={0}
-                                    onClick={goToOwnerManager}
-                                    className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:text-hq-paper"
-                                >
-                                    <span
-                                        className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
-                                        style={{
-                                            backgroundColor: managerColor(
-                                                ownerManager.primary_color,
-                                            ),
-                                        }}
-                                    />
-                                    <span className="max-w-[110px] truncate">
-                                        {ownerManager.name}
-                                    </span>
-                                </span>
-                            ) : (
-                                <span className="text-hq-moss-dim">Libre</span>
-                            )}
-                        </div>
-                    ) : (
-                        <HqRecentScores
-                            scores={player.recent_scores}
-                            finished={player.recent_scores_finished}
-                            opponents={player.recent_scores_opponents}
-                            size="sm"
-                        />
-                    )}
+            )}
+
+            <div className="hidden min-w-0 lg:block">
+                <HqStatusBadge status={player.status} />
+            </div>
+
+            {showTeam && (
+                <div className="hidden min-w-0 lg:block">
+                    <HqManagerChip manager={ownerManager} />
                 </div>
+            )}
+
+            <div className="order-9 flex flex-col items-end gap-[5px] justify-self-end lg:order-none lg:items-start lg:justify-self-auto">
+                <MobileCaption>Próximos</MobileCaption>
+                <HqNextFixtures
+                    fixtures={player.next_fixtures}
+                    size="sm"
+                    focusable={false}
+                />
+            </div>
+
+            <div className="order-8 col-span-2 flex flex-col gap-[5px] lg:order-none lg:col-span-1">
+                <MobileCaption>Últimas 3</MobileCaption>
+                <HqRecentScores
+                    scores={player.recent_scores}
+                    finished={player.recent_scores_finished}
+                    opponents={player.recent_scores_opponents}
+                    size="sm"
+                    className="pb-2 lg:hidden"
+                />
+                <HqRecentScores
+                    scores={player.recent_scores}
+                    finished={player.recent_scores_finished}
+                    opponents={player.recent_scores_opponents}
+                    className="hidden pb-2 lg:flex"
+                />
+            </div>
+
+            <div className="col-span-full flex min-w-0 items-center gap-2 border-t border-dashed border-hq-border pt-2.5 lg:col-span-1 lg:flex-col lg:items-end lg:justify-center lg:gap-1 lg:border-0 lg:pt-0">
+                <span className="font-mono text-[13px] font-semibold text-hq-paper tabular-nums">
+                    {formatCurrency(player.market_value)}
+                </span>
+                <HqMarketValueDifference
+                    difference={player.market_value_difference}
+                    trend={player.market_trend}
+                    className="text-xs"
+                />
                 {showTeam && (
-                    <div className="mt-2 border-t border-hq-ink pt-2">
-                        <HqRecentScores
-                            scores={player.recent_scores}
-                            finished={player.recent_scores_finished}
-                            opponents={player.recent_scores_opponents}
-                            size="sm"
-                        />
-                    </div>
+                    <span className="ml-auto min-w-0 lg:hidden">
+                        <HqManagerChip manager={ownerManager} />
+                    </span>
                 )}
             </div>
-        </Link>
+
+            <div className="col-start-3 row-start-1 justify-self-end lg:col-start-auto lg:row-start-auto">
+                <HqLed tone="lime" className="text-[22px] lg:text-2xl">
+                    {player.points}
+                </HqLed>
+            </div>
+        </div>
     );
 }

@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import type {
     Fixture,
+    JornadaMatches,
     MarketPlayer,
     Season,
     Activity,
@@ -11,14 +12,16 @@ import type {
 } from '@/types/models';
 import { ActivityPanel } from './home/activity-panel';
 import { FixturesPanel } from './home/fixtures-panel';
-import { HeroPanel } from './home/hero-panel';
 import { MarketPanel } from './home/market-panel';
+import { NowPanel } from './home/now-panel';
 import { StandingsTable } from './home/standings-table';
 
 interface HomeProps {
     season: Season;
     filters: { week: number };
     fixtures: Fixture[];
+    nextFixture: Fixture | null;
+    jornadaMatches: JornadaMatches;
     standings: SeasonManager[];
     weekProgress: WeekProgressMap;
     market: MarketPlayer[];
@@ -30,6 +33,8 @@ export default function Home({
     season,
     filters,
     fixtures,
+    nextFixture,
+    jornadaMatches,
     standings,
     weekProgress,
     market,
@@ -38,20 +43,23 @@ export default function Home({
     return (
         <>
             <Head title="Inicio" />
-            <div className="hq-texture hq-bleed border-y border-hq-border">
-                <div className="mx-auto max-w-7xl px-6">
-                    <HeroPanel week={filters.week} standings={standings} />
-                    <FixturesPanel
-                        fixtures={fixtures}
-                        season={season}
-                        week={filters.week}
-                        weekProgress={weekProgress}
-                    />
-                    <StandingsTable standings={standings} />
-                    <MarketPanel market={market} />
-                    <ActivityPanel activity={activity} />
-                </div>
-            </div>
+            <NowPanel
+                season={season}
+                standings={standings}
+                weekProgress={weekProgress}
+                market={market}
+                nextFixture={nextFixture}
+                jornadaMatches={jornadaMatches}
+            />
+            <StandingsTable season={season} standings={standings} />
+            <MarketPanel market={market} />
+            <FixturesPanel
+                fixtures={fixtures}
+                season={season}
+                week={filters.week}
+                weekProgress={weekProgress}
+            />
+            <ActivityPanel activity={activity} />
         </>
     );
 }

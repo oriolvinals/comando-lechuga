@@ -57,13 +57,17 @@ export function HqFixtureRefreshButton({ only }: { only: string[] }) {
             title="Actualizar partido"
             aria-label="Actualizar partido"
             className={cn(
-                'flex h-6 w-7 items-center justify-center border border-hq-border-strong bg-hq-panel transition-colors',
-                status === 'loading' && 'cursor-not-allowed text-hq-moss',
-                status === 'refreshed' && 'border-hq-lime text-hq-lime',
-                status === 'idle' && 'text-hq-moss hover:text-hq-paper',
+                'inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center border bg-hq-ink transition-colors sm:h-[30px] sm:w-8',
+                status === 'loading' &&
+                    'cursor-not-allowed border-hq-border-strong text-hq-moss',
+                status === 'refreshed' &&
+                    'border-hq-lime bg-hq-lime/10 text-hq-lime',
+                status === 'idle' &&
+                    'border-hq-border-strong text-hq-moss hover:border-hq-lime hover:text-hq-lime',
             )}
         >
             <RefreshCw
+                aria-hidden="true"
                 className={cn(
                     'h-3.5 w-3.5',
                     status === 'loading' && 'animate-spin',

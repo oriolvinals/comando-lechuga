@@ -1,13 +1,21 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqEmptyState } from '@/components/hq-empty-state';
+import { HqLed } from '@/components/hq-led';
 import { HqLineupPitch } from '@/components/hq-lineup-pitch';
-import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
-import { HqWeekScrollPicker } from '@/components/hq-week-scroll-picker';
+import { HqPageHeader } from '@/components/hq-page-header';
+import {
+    HqPlayerStatsModal,
+    lineupPlayerStatsEntry,
+} from '@/components/hq-player-stats-modal';
+import { HqTooltip } from '@/components/hq-tooltip';
+import { HqWeekPickerBand } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
-import { crestTintStyle } from '@/lib/season-manager-colors';
+import { teamFormTextClass } from '@/lib/points';
+import { crestTintStyle, managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import {
     index as seasonManagersIndex,
@@ -20,11 +28,13 @@ import type {
     WeekProgressMap,
 } from '@/types/models';
 
-const MEDAL_BORDERS = [
-    'border-l-hq-gold',
-    'border-l-hq-silver',
-    'border-l-hq-bronze',
+const MEDAL_VARS = [
+    'var(--color-hq-gold)',
+    'var(--color-hq-silver)',
+    'var(--color-hq-bronze)',
 ];
+
+const MEDAL_TEXT_CLASSES = ['text-hq-gold', 'text-hq-silver', 'text-hq-bronze'];
 
 interface SeasonManagersIndexProps {
     season: Season;
@@ -32,6 +42,50 @@ interface SeasonManagersIndexProps {
     lineups: ManagerLineup[];
     weekProgress: WeekProgressMap;
     [key: string]: unknown;
+}
+
+/**
+ * The jornada's ranking at a glance (mock `.rankstrip`): every manager with a
+ * lineup, in lineup-points order, as one scrollable ruled strip.
+ */
+function RankStrip({ lineups }: { lineups: ManagerLineup[] }) {
+    return (
+        <nav
+            aria-label="Clasificación de la jornada"
+            className="hq-no-scrollbar flex overflow-x-auto border-b border-hq-border"
+        >
+            {lineups.map((lineup, index) => (
+                <Link
+                    key={lineup.id}
+                    href={seasonManagersShow(lineup.season_manager.id).url}
+                    className="flex min-h-11 flex-[1_0_auto] items-center gap-[7px] border-r border-hq-border px-3 py-2 font-mono text-xs leading-none font-semibold whitespace-nowrap text-hq-paper last:border-r-0 hover:bg-hq-panel sm:px-3.5"
+                >
+                    <span
+                        className={
+                            index < 3
+                                ? MEDAL_TEXT_CLASSES[index]
+                                : 'text-hq-moss-dim'
+                        }
+                    >
+                        {index + 1}º
+                    </span>
+                    <span
+                        aria-hidden="true"
+                        className="h-2 w-2 shrink-0"
+                        style={{
+                            backgroundColor: managerColor(
+                                lineup.season_manager.primary_color,
+                            ),
+                        }}
+                    />
+                    <span>{lineup.season_manager.name}</span>
+                    <b className={cn('ml-1', teamFormTextClass(lineup.points))}>
+                        {lineup.points}
+                    </b>
+                </Link>
+            ))}
+        </nav>
+    );
 }
 
 export default function SeasonManagersIndex({
@@ -51,75 +105,105 @@ export default function SeasonManagersIndex({
         );
     };
 
+    // Before any pick has a score the jornada ranking is meaningless (all
+    // zero), so cards fall back to the general standings position instead.
+    const anyPlayed = lineups.some((lineup) =>
+        lineup.players.some((entry) => entry.points !== null),
+    );
+
     return (
         <>
-            <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
-                <div className="mx-auto max-w-7xl px-6 py-9">
-                    <Head title="Managers" />
+            <Head title="Managers" />
 
-                    <h1 className="mb-6 font-display text-3xl text-hq-paper uppercase">
-                        Managers
-                    </h1>
+            <HqPageHeader
+                code="ALINEACIONES"
+                title="Managers"
+                meta={[{ label: 'Jornada', value: filters.week }]}
+            />
 
-                    <div className="mb-6">
-                        <HqWeekScrollPicker
-                            week={filters.week}
-                            maxWeek={season.total_weeks}
-                            playedThroughWeek={season.current_week}
-                            weekProgress={weekProgress}
-                            onChange={goToWeek}
-                        />
-                    </div>
+            <HqWeekPickerBand
+                week={filters.week}
+                maxWeek={season.total_weeks}
+                playedThroughWeek={season.current_week}
+                weekProgress={weekProgress}
+                onChange={goToWeek}
+            />
 
-                    {lineups.length === 0 ? (
-                        <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                            <p className="mb-2 text-3xl">📋</p>
-                            <p className="font-display text-lg text-hq-paper uppercase">
-                                Sin alineaciones
-                            </p>
-                            <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
-                                Nadie tenía alineación registrada esta jornada.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                            {lineups.map((lineup, index) => (
-                                <div
+            {lineups.length > 0 && anyPlayed && <RankStrip lineups={lineups} />}
+
+            {lineups.length === 0 ? (
+                <HqEmptyState glyph="▦" title="Sin alineaciones">
+                    Nadie tenía alineación registrada esta jornada.
+                </HqEmptyState>
+            ) : (
+                <div className="overflow-hidden">
+                    <div className="-mr-px grid grid-cols-1 md:grid-cols-2 min-[73.75rem]:grid-cols-3">
+                        {lineups.map((lineup, index) => {
+                            const isMedal = anyPlayed && index < 3;
+
+                            return (
+                                <article
                                     key={lineup.id}
+                                    style={
+                                        isMedal
+                                            ? ({
+                                                  '--medal': MEDAL_VARS[index],
+                                              } as CSSProperties)
+                                            : undefined
+                                    }
                                     className={cn(
-                                        'border border-l-4 border-hq-border bg-hq-panel p-4',
-                                        index < 3 && MEDAL_BORDERS[index],
-                                        index === 0 && 'bg-hq-panel-alt',
+                                        'min-w-0 border-r border-b border-hq-border px-3.5 pt-3.5 pb-[18px] sm:px-4',
+                                        isMedal &&
+                                            'shadow-[inset_0_3px_0_var(--medal)]',
                                     )}
                                 >
-                                    <div className="mb-3 flex items-center gap-2.5">
+                                    <header className="mb-3.5 flex items-center gap-2.5">
                                         <Link
                                             href={
                                                 seasonManagersShow(
                                                     lineup.season_manager.id,
                                                 ).url
                                             }
-                                            className="flex min-w-0 flex-1 items-center gap-2.5 hover:opacity-80"
+                                            className="group flex min-w-0 flex-1 items-center gap-2.5"
                                         >
                                             <EntityImage
                                                 src={lineup.season_manager.logo}
-                                                alt={lineup.season_manager.name}
+                                                alt=""
                                                 fallback={Shield}
                                                 shape="square"
                                                 style={crestTintStyle(
                                                     lineup.season_manager
                                                         .primary_color,
                                                 )}
-                                                className="hq-crest-cut h-16 w-16 shrink-0 bg-hq-border p-2 text-hq-khaki"
+                                                className="h-[46px] w-[46px] shrink-0 rounded-none border border-hq-border-strong bg-hq-panel-alt p-1 text-hq-khaki"
                                             />
-                                            <span className="flex-1 truncate text-sm font-extrabold text-hq-paper">
-                                                {lineup.season_manager.name}
+                                            <span className="min-w-0">
+                                                <span className="block truncate text-base leading-tight font-extrabold text-hq-paper uppercase group-hover:underline">
+                                                    {lineup.season_manager.name}
+                                                </span>
+                                                <span className="mt-[5px] block font-mono text-xs text-hq-moss-dim">
+                                                    {anyPlayed
+                                                        ? `${index + 1}º de la jornada`
+                                                        : `${lineup.season_manager.position}º en la general`}
+                                                </span>
                                             </span>
                                         </Link>
-                                        <span className="shrink-0 font-display text-2xl text-hq-lime">
-                                            {lineup.points}
-                                        </span>
-                                    </div>
+                                        <HqTooltip
+                                            label={`Puntos de la jornada ${filters.week}`}
+                                            focusable
+                                        >
+                                            <HqLed
+                                                tone={
+                                                    lineup.points
+                                                        ? 'lime'
+                                                        : 'off'
+                                                }
+                                                className="text-[34px]"
+                                            >
+                                                {lineup.points}
+                                            </HqLed>
+                                        </HqTooltip>
+                                    </header>
 
                                     <HqLineupPitch
                                         players={lineup.players}
@@ -128,28 +212,17 @@ export default function SeasonManagersIndex({
                                         }
                                         onSelectPlayer={setSelectedPlayer}
                                     />
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                </article>
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
+            )}
 
             <HqPlayerStatsModal
                 entry={
                     selectedPlayer
-                        ? {
-                              player: selectedPlayer.player,
-                              team: selectedPlayer.player.team,
-                              points: selectedPlayer.points ?? 0,
-                              daznPoints:
-                                  selectedPlayer.stats?.mins_played !==
-                                  undefined
-                                      ? selectedPlayer.stats.marca_points?.[1]
-                                      : undefined,
-                              stats: selectedPlayer.stats ?? {},
-                              fixture: selectedPlayer.fixture,
-                          }
+                        ? lineupPlayerStatsEntry(selectedPlayer)
                         : null
                 }
                 onClose={() => setSelectedPlayer(null)}

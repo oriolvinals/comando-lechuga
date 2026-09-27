@@ -59,6 +59,7 @@ trait AttachesRecentScores
 
         /** @var array<int, Collection<int, Fixture>> $fixturesByTeam */
         $fixturesByTeam = [];
+
         /** @var array<int, Fixture> $fixturesById */
         $fixturesById = [];
 

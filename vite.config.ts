@@ -3,7 +3,7 @@ import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
+import { google } from 'laravel-vite-plugin/fonts';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -12,26 +12,40 @@ export default defineConfig({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
             fonts: [
-                bunny('Inter', {
-                    weights: [500, 600, 700, 800]
+                google('Chivo', {
+                    optimizedFallbacks: false,
+                    weights: [400, 500, 600, 700, 800, 900],
+                    preload: [
+                        { weight: 400 },
+                        { weight: 700 },
+                        { weight: 900 },
+                    ],
                 }),
-                bunny('Anton', {
-                    weights: [400]
+                google('Chivo Mono', {
+                    optimizedFallbacks: false,
+                    weights: [400, 500, 600, 700],
+                    preload: [{ weight: 500 }, { weight: 700 }],
                 }),
-                bunny('JetBrains Mono', {
-                    weights: [500, 700]
-                })
-            ]
+                google('Doto', {
+                    optimizedFallbacks: false,
+                    weights: [700, 900],
+                    preload: [{ weight: 900 }],
+                }),
+                google('Anton', {
+                    optimizedFallbacks: false,
+                    weights: [400],
+                }),
+            ],
         }),
         inertia({ ssr: false }),
         react({
             babel: {
-                plugins: ['babel-plugin-react-compiler']
-            }
+                plugins: ['babel-plugin-react-compiler'],
+            },
         }),
         tailwindcss(),
         wayfinder({
-            formVariants: true
-        })
-    ]
+            formVariants: true,
+        }),
+    ],
 });

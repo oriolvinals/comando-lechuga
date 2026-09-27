@@ -21,11 +21,13 @@ export function HqFixtureMatchDetails({ fixture }: { fixture: Fixture }) {
     }
 
     return (
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 border-t border-hq-border bg-hq-ink/40 px-4 py-2.5 font-mono text-[11px] text-hq-moss">
+        <div className="relative z-[1] flex flex-wrap items-center justify-center gap-x-[26px] gap-y-1.5 border-t border-hq-border px-4 py-2.5 font-mono text-xs leading-tight text-hq-moss">
             {hasVenue && (
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-[7px]">
                     <MapPin className="h-3.5 w-3.5 text-hq-khaki" />
-                    <b className="font-medium text-hq-paper">{fixture.venue}</b>
+                    <b className="font-semibold text-hq-paper">
+                        {fixture.venue}
+                    </b>
                     {fixture.venue_city !== '' && (
                         <span className="text-hq-moss-dim">
                             {fixture.venue_city}
@@ -34,19 +36,19 @@ export function HqFixtureMatchDetails({ fixture }: { fixture: Fixture }) {
                 </span>
             )}
             {hasAttendance && (
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-[7px]">
                     <Users className="h-3.5 w-3.5 text-hq-khaki" />
-                    <b className="font-medium text-hq-paper">
+                    <b className="font-semibold text-hq-paper">
                         {attendanceFormat.format(attendance)}
                     </b>
                     <span className="text-hq-moss-dim">espectadores</span>
                 </span>
             )}
             {hasReferee && (
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-[7px]">
                     <Flag className="h-3.5 w-3.5 text-hq-khaki" />
                     <span className="text-hq-moss-dim">Árbitro</span>
-                    <b className="font-medium text-hq-paper">
+                    <b className="font-semibold text-hq-paper">
                         {fixture.referee}
                     </b>
                 </span>

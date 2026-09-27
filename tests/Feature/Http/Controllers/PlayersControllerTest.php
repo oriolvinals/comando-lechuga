@@ -516,7 +516,7 @@ test('shows the next 3 scheduled fixtures for a player, soonest first, with oppo
     );
 });
 
-test('gives an out-of-league player 3 null next_fixtures on their own ficha', function (): void {
+test('gives an out-of-league player 5 null next_fixtures on their own ficha', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -536,7 +536,7 @@ test('gives an out-of-league player 3 null next_fixtures on their own ficha', fu
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('player.next_fixtures', [null, null, null])
+        ->where('player.next_fixtures', [null, null, null, null, null])
     );
 });
 

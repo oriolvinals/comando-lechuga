@@ -1,6 +1,4 @@
 import { Link } from '@inertiajs/react';
-import type { CSSProperties } from 'react';
-import { activityTypeTintStyle } from '@/components/activity-helpers';
 import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
 import { HqSection } from '@/components/hq-section';
 import { index as activityIndex } from '@/routes/activity';
@@ -17,30 +15,24 @@ export function ActivityPanel({ activity }: ActivityPanelProps) {
             action={
                 <Link
                     href={activityIndex().url}
-                    className="shrink-0 font-mono text-[11px] font-bold text-hq-lime hover:underline"
+                    className="inline-flex min-h-11 items-center font-bold text-hq-lime hover:underline sm:min-h-0"
                 >
                     VER TODO →
                 </Link>
             }
+            flush
         >
             {activity.length === 0 ? (
-                <p className="text-sm text-hq-moss">
+                <p className="p-4 text-sm text-hq-moss">
                     Todavía no hay actividad esta temporada.
                 </p>
             ) : (
-                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+                <div className="-mb-px grid grid-cols-1 md:grid-cols-2 md:[&>*:nth-child(odd)]:border-r md:[&>*:nth-child(odd)]:border-hq-border">
                     {activity.map((entry) => (
-                        <div
+                        <HqActivityTimelineEntry
                             key={entry.id}
-                            className="hq-card-cut px-4 py-1"
-                            style={
-                                activityTypeTintStyle(
-                                    entry.type,
-                                ) as CSSProperties
-                            }
-                        >
-                            <HqActivityTimelineEntry activity={entry} />
-                        </div>
+                            activity={entry}
+                        />
                     ))}
                 </div>
             )}

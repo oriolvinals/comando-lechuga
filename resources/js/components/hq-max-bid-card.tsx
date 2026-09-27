@@ -1,21 +1,21 @@
 import { router } from '@inertiajs/react';
 import { Info } from 'lucide-react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { HqLed } from '@/components/hq-led';
 import { HqTooltip } from '@/components/hq-tooltip';
-import { formatCurrency } from '@/lib/format';
 import { STATUS_LABELS } from '@/lib/player-labels';
 import { cn } from '@/lib/utils';
 import type { MaxBidEstimate, MaxBidRival, PlayerStatus } from '@/types/models';
 
 const OFFER_SPREAD = 0.1;
-/** Rough JetBrains Mono advance width at 11px — used only to keep the chart's
+/** Rough Chivo Mono advance width at 11px — used only to keep the chart's
  * three axis labels from overlapping at narrow widths, never to size text. */
-const MONO_CHAR_PX = 6.6;
+const MONO_CHAR_PX = 7.2;
 /** Matches the card's own `min-[1100px]:` breakpoint for the two-tier layout,
  * so the chart's plot height tracks the same desktop/mobile split. */
-const DESKTOP_QUERY = '(min-width: 1100px)';
+const DESKTOP_QUERY = '(min-width: 68.75rem)';
 const CHART_HEIGHT_DESKTOP = 160;
 const CHART_HEIGHT_MOBILE = 110;
 const CHART_PAD = 4;
@@ -47,6 +47,14 @@ function formatReferenceDate(isoDate: string): string {
     return `${day}/${month}`;
 }
 
+/** Two decimals with a comma, the Spanish way (`0,28`). */
+function formatDecimal(value: number): string {
+    return value.toLocaleString('es-ES', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
 function formatSigned(value: number): string {
     return value.toLocaleString('es-ES', {
         minimumFractionDigits: 2,
@@ -60,7 +68,7 @@ function toneClass(value: number): string {
         return 'text-hq-lime';
     }
 
-    return value < 0 ? 'text-hq-live' : 'text-hq-paper';
+    return value < 0 ? 'text-hq-neg' : 'text-hq-paper';
 }
 
 function textWidth(text: string): number {
@@ -245,7 +253,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
             <svg
                 ref={svgRef}
                 viewBox={`0 0 ${width} ${chartHeight + 16}`}
-                className="block w-full cursor-crosshair touch-none"
+                className="block w-full cursor-crosshair touch-pan-y"
                 role="img"
                 aria-label={`Proyección: ${formatMillions(projection[14])} en 14 días`}
                 onMouseMove={(event) => handleMove(event.clientX)}
@@ -264,10 +272,21 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                         />
                     </clipPath>
                 </defs>
+                {Array.from({ length: 15 }, (_, day) => (
+                    <line
+                        key={day}
+                        x1={x(day)}
+                        x2={x(day)}
+                        y1={CHART_PAD}
+                        y2={chartHeight - CHART_PAD}
+                        stroke="var(--color-hq-border)"
+                        opacity={0.6}
+                    />
+                ))}
                 <polygon
                     points={band}
                     fill={stroke}
-                    opacity={0.08}
+                    opacity={0.09}
                     clipPath={`url(#${clipId})`}
                 />
                 <line
@@ -275,7 +294,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                     x2={width - CHART_PAD}
                     y1={y(estimate.value)}
                     y2={y(estimate.value)}
-                    stroke="var(--color-hq-border-strong)"
+                    stroke="var(--color-hq-border-bright)"
                 />
                 {estimate.bid !== null && (
                     <>
@@ -306,7 +325,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                 <circle
                     cx={x(0)}
                     cy={y(estimate.value)}
-                    r={2.5}
+                    r={2.8}
                     className="fill-hq-paper"
                 />
                 {tooltip !== null && (
@@ -362,7 +381,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                 createPortal(
                     <div
                         ref={tooltipRef}
-                        className="pointer-events-none fixed z-[999] min-w-[160px] border border-hq-gold bg-hq-panel-alt px-3 py-2 font-mono text-[11px] whitespace-nowrap text-hq-paper"
+                        className="pointer-events-none fixed z-[999] min-w-[160px] border border-hq-gold bg-hq-panel-alt px-3 py-2 font-mono text-[11px] whitespace-nowrap text-hq-paper shadow-[0_10px_28px_rgba(0,0,0,0.55)]"
                         style={{ left: tooltip.x, top: tooltip.y }}
                     >
                         <div className="text-[11px] tracking-wide text-hq-moss uppercase">
@@ -403,7 +422,7 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
 
 function ColumnHeading({ children }: { children: ReactNode }) {
     return (
-        <div className="mb-1 font-mono text-[11px] tracking-wide text-hq-moss uppercase">
+        <div className="mb-1.5 font-mono text-[11px] leading-none font-bold tracking-[0.07em] text-hq-moss uppercase">
             {children}
         </div>
     );
@@ -414,43 +433,44 @@ function BreakdownRow({
     value,
     valueClass,
 }: {
-    label: string;
+    label: ReactNode;
     value: string;
     valueClass: string;
 }) {
     return (
-        <div className="flex items-center justify-between gap-2 border-t border-hq-border py-1.5 font-mono text-[11px]">
-            <span className="text-hq-moss">{label}</span>
-            <span className={cn('text-right font-bold', valueClass)}>
+        <div className="flex items-center justify-between gap-2.5 border-t border-hq-border py-[7px] font-mono text-[11.5px] leading-tight text-hq-moss">
+            <span className="min-w-0">{label}</span>
+            <b
+                className={cn(
+                    'shrink-0 text-right font-bold whitespace-nowrap tabular-nums',
+                    valueClass,
+                )}
+            >
                 {value}
-            </span>
+            </b>
         </div>
     );
 }
 
 function RivalRow({ rival }: { rival: MaxBidRival }) {
     return (
-        <div className="flex items-center justify-between gap-2 border-t border-hq-border py-1.5 font-mono text-[11px]">
-            <span className="flex items-center gap-1.5 text-hq-moss">
-                <img
-                    src={rival.team.logo}
-                    alt=""
-                    className="h-4 w-4 shrink-0 object-contain"
-                />
-                <span>
-                    {rival.team.short_name} ({rival.position}º) · en{' '}
-                    {rival.days_until} días
+        <BreakdownRow
+            label={
+                <span className="flex items-center gap-1.5">
+                    <img
+                        src={rival.team.logo}
+                        alt=""
+                        className="size-4 shrink-0 object-contain"
+                    />
+                    <span>
+                        {rival.team.short_name} ({rival.position}º) · en{' '}
+                        {rival.days_until} días
+                    </span>
                 </span>
-            </span>
-            <span
-                className={cn(
-                    'shrink-0 font-bold',
-                    toneClass(rival.difficulty),
-                )}
-            >
-                {formatSigned(rival.difficulty)} × {rival.weight.toFixed(2)}
-            </span>
-        </div>
+            }
+            value={`${formatSigned(rival.difficulty)} × ${formatDecimal(rival.weight)}`}
+            valueClass={toneClass(rival.difficulty)}
+        />
     );
 }
 
@@ -461,8 +481,11 @@ function ConfidenceStepper({
     percent: number;
     onChange: (next: number) => void;
 }) {
+    const buttonClass =
+        'flex h-11 w-11 cursor-pointer items-center justify-center font-mono text-base leading-none font-bold text-hq-moss hover:bg-hq-panel-alt hover:text-hq-paper disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent sm:h-8 sm:w-[34px]';
+
     return (
-        <div className="mt-2 inline-flex items-center border border-hq-border-strong font-mono text-[11px] font-bold text-hq-paper">
+        <div className="mt-3.5 inline-flex items-center border border-hq-border-bright font-mono text-[13px] font-bold text-hq-paper">
             <button
                 type="button"
                 onClick={() =>
@@ -472,11 +495,14 @@ function ConfidenceStepper({
                 }
                 disabled={percent <= CONFIDENCE_MIN}
                 aria-label="Bajar confianza"
-                className="px-2 py-1 text-hq-moss hover:text-hq-paper disabled:cursor-not-allowed disabled:text-hq-moss-dim disabled:opacity-50"
+                className={buttonClass}
             >
                 −
             </button>
-            <span className="border-x border-hq-border-strong px-2 py-1 tabular-nums">
+            <span
+                aria-live="polite"
+                className="flex h-11 min-w-[62px] items-center justify-center border-x border-hq-border-bright tabular-nums sm:h-8"
+            >
                 {percent} %
             </span>
             <button
@@ -488,7 +514,7 @@ function ConfidenceStepper({
                 }
                 disabled={percent >= CONFIDENCE_MAX}
                 aria-label="Subir confianza"
-                className="px-2 py-1 text-hq-moss hover:text-hq-paper disabled:cursor-not-allowed disabled:text-hq-moss-dim disabled:opacity-50"
+                className={buttonClass}
             >
                 +
             </button>
@@ -526,23 +552,47 @@ function ConfidenceExplanation({ lockDays }: { lockDays: number }) {
 
 function ConfidenceLabel({ lockDays }: { lockDays: number }) {
     return (
-        <div className="mt-1.5 flex items-center gap-1.5">
-            <span className="font-mono text-[11px] tracking-wide text-hq-moss uppercase">
-                Confianza
-            </span>
+        <div className="mt-[7px] flex items-center gap-1.5">
+            <span className="hq-label">Confianza</span>
             <HqTooltip
                 label={<ConfidenceExplanation lockDays={lockDays} />}
+                tone="gold"
                 wrap
             >
                 <button
                     type="button"
                     aria-label="Qué significa la confianza"
-                    className="text-hq-moss transition-colors hover:text-hq-paper focus-visible:text-hq-paper"
+                    className="flex size-11 cursor-help items-center justify-center text-hq-moss transition-colors hover:text-hq-paper focus-visible:text-hq-paper sm:size-6"
                 >
-                    <Info className="h-3.5 w-3.5" />
+                    <Info className="size-3.5" />
                 </button>
             </HqTooltip>
         </div>
+    );
+}
+
+/** The bid as a dot-matrix readout, its thousands dots set in mono so they stay legible. */
+function BidReadout({ bid }: { bid: number }) {
+    const groups = Math.round(bid).toLocaleString('es-ES').split('.');
+
+    return (
+        <HqLed
+            tone="lime"
+            glow
+            className="mt-2.5 block text-[34px] whitespace-nowrap sm:text-[40px]"
+        >
+            {groups.map((group, index) => (
+                <span key={index}>
+                    {index > 0 && (
+                        <i className="mx-px font-mono text-[0.55em] font-bold not-italic">
+                            .
+                        </i>
+                    )}
+                    {group}
+                </span>
+            ))}
+            <span className="text-[24px]"> €</span>
+        </HqLed>
     );
 }
 
@@ -553,20 +603,21 @@ function Headline({
     estimate: MaxBidEstimate;
     playerStatus: PlayerStatus;
 }) {
+    const label = <p className="hq-label">Puja máxima rentable</p>;
+
     if (estimate.status === 'profitable' && estimate.bid !== null) {
         return (
             <>
-                <p className="mt-2 font-mono text-2xl font-bold text-hq-lime">
-                    {formatCurrency(estimate.bid)}
-                </p>
-                <p className="font-mono text-[11px] text-hq-moss">
-                    <span className="font-bold text-hq-lime">
+                {label}
+                <BidReadout bid={estimate.bid} />
+                <p className="mt-1.5 font-mono text-xs text-hq-moss">
+                    <b className="font-bold text-hq-lime">
                         {((estimate.bid_premium ?? 0) * 100).toLocaleString(
                             'es-ES',
                             { maximumFractionDigits: 1, signDisplay: 'always' },
                         )}{' '}
                         %
-                    </span>{' '}
+                    </b>{' '}
                     sobre su valor ({formatMillions(estimate.value)})
                 </p>
             </>
@@ -575,9 +626,12 @@ function Headline({
 
     if (estimate.status === 'no_data') {
         return (
-            <p className="mt-2 font-mono text-sm font-bold text-hq-moss uppercase">
-                Sin datos suficientes
-            </p>
+            <>
+                {label}
+                <p className="mt-2.5 font-mono text-base leading-tight font-bold text-hq-moss uppercase">
+                    Sin datos suficientes
+                </p>
+            </>
         );
     }
 
@@ -588,10 +642,11 @@ function Headline({
 
     return (
         <>
-            <p className="mt-2 font-mono text-lg font-bold text-hq-live uppercase">
+            {label}
+            <p className="mt-2.5 text-[22px] leading-none font-extrabold text-hq-live uppercase">
                 Sin rentabilidad
             </p>
-            <p className="font-mono text-[11px] text-hq-moss">{reason}</p>
+            <p className="mt-1.5 font-mono text-xs text-hq-moss">{reason}</p>
         </>
     );
 }
@@ -602,13 +657,12 @@ interface HqMaxBidCardProps {
 }
 
 /**
- * Hidden "puja máxima rentable" card: the bid the best daily league offer
- * beats with the chosen confidence probability (default 75 %, adjustable via
- * the stepper) during the clause lock, the projected value, and the factors
- * behind it. Full-width, above "Evolución" (whose section title already
- * labels this card, so no inner label is repeated here). In no_data/
- * unavailable states only the headline renders — no chart, no breakdown,
- * since there is nothing to project.
+ * Hidden "puja máxima rentable" panel, fenced by the god-mode amber hazard
+ * strip (mock `.god`): the bid the best daily league offer beats with the
+ * chosen confidence probability (default 75 %, adjustable via the stepper)
+ * during the clause lock, the 14-day projection, and the factors behind it
+ * in three columns. In no_data/unavailable states only the headline renders
+ * — no chart, no breakdown, since there is nothing to project.
  */
 export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
     const hasProjection = estimate.projection !== null;
@@ -652,21 +706,26 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
     }
 
     return (
-        <div
-            className="hq-card-cut p-4 md:p-5"
-            style={
-                {
-                    '--hq-card-tint': profitable
-                        ? 'rgb(196 255 61 / 0.05)'
-                        : 'rgb(255 61 90 / 0.05)',
-                } as CSSProperties
-            }
+        <section
+            aria-label="God mode: puja máxima rentable"
+            className={cn(
+                'border-b border-hq-border',
+                profitable
+                    ? 'bg-linear-to-b from-hq-amber/5 to-transparent to-60%'
+                    : 'bg-linear-to-b from-hq-live/5 to-transparent to-60%',
+            )}
         >
+            <div className="flex min-h-[38px] items-center gap-3 border-b border-hq-amber/35 px-3.5 font-mono text-xs leading-none font-bold tracking-[0.09em] text-hq-amber uppercase hq-hazard sm:px-4">
+                <span className="bg-hq-amber px-1.5 py-1 tracking-[0.14em] text-[#1a1405]">
+                    God mode
+                </span>
+            </div>
+
             <div
                 className={cn(
-                    'flex flex-col gap-6',
+                    'grid grid-cols-1 gap-3.5 p-3.5 sm:px-5 sm:py-[18px]',
                     hasProjection &&
-                        'min-[1100px]:grid min-[1100px]:grid-cols-[240px_minmax(0,1fr)] min-[1100px]:items-center min-[1100px]:gap-7',
+                        'min-[68.75rem]:grid-cols-[270px_minmax(0,1fr)] min-[68.75rem]:items-center min-[68.75rem]:gap-7',
                 )}
             >
                 <div>
@@ -686,8 +745,8 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
             </div>
 
             {hasProjection && (
-                <div className="mt-4 grid grid-cols-1 gap-6 border-t border-hq-border-strong pt-4 min-[1100px]:grid-cols-3">
-                    <div>
+                <div className="grid grid-cols-1 border-t border-hq-amber/25 min-[68.75rem]:grid-cols-3">
+                    <div className="border-b border-hq-border px-3.5 py-3 sm:px-4 min-[68.75rem]:border-r min-[68.75rem]:border-b-0">
                         <ColumnHeading>Mercado</ColumnHeading>
                         <BreakdownRow
                             label="Momentum (3 días)"
@@ -721,7 +780,7 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                         />
                     </div>
 
-                    <div>
+                    <div className="border-b border-hq-border px-3.5 py-3 sm:px-4 min-[68.75rem]:border-r min-[68.75rem]:border-b-0">
                         <ColumnHeading>
                             Deportivo · S{' '}
                             {formatSigned(estimate.sport_score ?? 0)}
@@ -735,19 +794,19 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                             label={`Participación ${estimate.recent_participation
                                 .map((match) => `${match.minutes}'`)
                                 .join(' · ')}`}
-                            value={(estimate.participation ?? 0).toFixed(2)}
+                            value={formatDecimal(estimate.participation ?? 0)}
                             valueClass="text-hq-paper"
                         />
                         {firstRival !== null && (
                             <BreakdownRow
                                 label={`Próximo partido en ${firstRival.days_until} días`}
-                                value={`peso ${firstRival.weight.toFixed(2)}`}
+                                value={`peso ${formatDecimal(firstRival.weight)}`}
                                 valueClass="text-hq-paper"
                             />
                         )}
                     </div>
 
-                    <div>
+                    <div className="px-3.5 py-3 sm:px-4">
                         <ColumnHeading>
                             Rivales ·{' '}
                             {formatSigned(estimate.rivals_effect ?? 0)}
@@ -762,13 +821,13 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                 </div>
             )}
 
-            <p className="mt-4 border-t border-hq-border pt-2 font-mono text-[11px] leading-snug text-hq-moss-dim">
+            <p className="border-t border-hq-border px-3.5 py-2.5 font-mono text-[11.5px] leading-snug text-hq-moss-dim sm:px-4">
                 Mejor oferta esperada durante los {estimate.lock_days} días de
                 blindaje · {Math.round(estimate.confidence * 100)} % de
                 confianza
                 {estimate.reference_date !== null &&
                     ` · Datos del ${formatReferenceDate(estimate.reference_date)}`}
             </p>
-        </div>
+        </section>
     );
 }

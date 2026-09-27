@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TYPE_COLORS, TYPE_LABELS } from '@/components/activity-helpers';
+import { HqEmptyState } from '@/components/hq-empty-state';
 import { formatCurrency } from '@/lib/format';
 import type { OwnershipSegment } from '@/lib/ownership-timeline';
 import {
@@ -35,12 +36,56 @@ const VIEW_HEIGHT = 302;
 const HIT_HEIGHT = 246;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SNAP_RADIUS = 12;
+/** Side inset of the first/last day, so edge jornada bars aren't clipped in half. */
+const X_PADDING = 16;
 const TOOLTIP_VIEWPORT_MARGIN = 8;
 const TOOLTIP_BELOW_OFFSET = 14;
 
-type Range = 10 | 30 | 'all';
+export type ValueChartRange = 10 | 30 | 'all';
+
+const RANGE_OPTIONS: ValueChartRange[] = [10, 30, 'all'];
+
+/** The 10D / 30D / TODO segmented control (mock `.seg`), for the Evolución section header. */
+export function HqValueChartRangeToggle({
+    range,
+    onChange,
+}: {
+    range: ValueChartRange;
+    onChange: (next: ValueChartRange) => void;
+}) {
+    return (
+        <div
+            role="group"
+            aria-label="Rango del gráfico"
+            className="inline-flex shrink-0 border border-hq-border-strong bg-hq-ink"
+        >
+            {RANGE_OPTIONS.map((option) => (
+                <button
+                    key={option}
+                    type="button"
+                    onClick={() => onChange(option)}
+                    aria-pressed={range === option}
+                    className={cn(
+                        'min-h-11 cursor-pointer border-l border-hq-border-strong px-3 font-mono text-[11px] leading-none font-bold tracking-[0.05em] uppercase first:border-l-0 sm:min-h-[28px] sm:px-2.5',
+                        range === option
+                            ? 'bg-hq-lime text-hq-ink'
+                            : 'text-hq-moss hover:text-hq-paper',
+                    )}
+                >
+                    {option === 'all' ? 'Todo' : `${option}D`}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function formatMillionsShort(amount: number): string {
+    return `${(amount / 1_000_000).toLocaleString('es-ES', { maximumFractionDigits: 2 })} M€`;
+}
 
 interface HqPlayerValueChartProps {
+    /** Controlled from the section header's {@link HqValueChartRangeToggle}. */
+    range: ValueChartRange;
     marketHistory: PlayerMarketPoint[];
     scores: PlayerFichaScore[];
     missedFixtures: PlayerMissedFixture[];
@@ -91,7 +136,8 @@ function describeDeal(
 
     return {
         type,
-        label: type === 'joined_league' ? 'Se unió a la liga' : TYPE_LABELS[type],
+        label:
+            type === 'joined_league' ? 'Se unió a la liga' : TYPE_LABELS[type],
         seller: describeParty(seller),
         buyer: describeParty(segment.seasonManager),
         amount,
@@ -139,14 +185,17 @@ interface TooltipState {
 }
 
 export function HqPlayerValueChart({
+    range,
     marketHistory,
     scores,
     missedFixtures,
     ownershipSegments,
 }: HqPlayerValueChartProps) {
-    const [range, setRange] = useState<Range>(30);
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-    const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number } | null>(null);
+    const [hoverPoint, setHoverPoint] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
@@ -212,11 +261,15 @@ export function HqPlayerValueChart({
         const values = visibleHistory.map((point) => point.value);
         const min = Math.min(...values);
         const max = Math.max(...values);
-        const xAt = (index: number) => (n === 1 ? width / 2 : (index / (n - 1)) * width);
+        const xAt = (index: number) =>
+            n === 1
+                ? width / 2
+                : X_PADDING + (index / (n - 1)) * (width - 2 * X_PADDING);
         const yAt = (value: number) =>
             max === min
                 ? (VALUE_TOP + VALUE_BOTTOM) / 2
-                : VALUE_BOTTOM - ((value - min) / (max - min)) * (VALUE_BOTTOM - VALUE_TOP);
+                : VALUE_BOTTOM -
+                  ((value - min) / (max - min)) * (VALUE_BOTTOM - VALUE_TOP);
 
         // Catmull-Rom-to-Bezier: each segment's control points lean on the
         // neighboring points (clamped at the ends), so the curve passes
@@ -246,23 +299,32 @@ export function HqPlayerValueChart({
                 color:
                     point.value >= previous.value
                         ? 'var(--color-hq-lime)'
-                        : 'var(--color-hq-live)',
+                        : 'var(--color-hq-neg)',
             };
         });
 
         const bandSegments: { x: number; width: number; color: string }[] = [];
         const boundaries: number[] = [];
         let segmentStartX = 0;
-        let segmentOwner = ownerAtDate(ownershipSegments, visibleHistory[0].date);
+        let segmentOwner = ownerAtDate(
+            ownershipSegments,
+            visibleHistory[0].date,
+        );
 
         for (let index = 1; index < n; index++) {
-            const owner = ownerAtDate(ownershipSegments, visibleHistory[index].date);
+            const owner = ownerAtDate(
+                ownershipSegments,
+                visibleHistory[index].date,
+            );
 
             if (owner?.id !== segmentOwner?.id) {
                 bandSegments.push({
                     x: segmentStartX,
                     width: xAt(index) - segmentStartX,
-                    color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : managerColor(segmentOwner.primary_color),
+                    color:
+                        segmentOwner === null
+                            ? 'var(--color-hq-moss-dim)'
+                            : managerColor(segmentOwner.primary_color),
                 });
                 boundaries.push(xAt(index));
                 segmentStartX = xAt(index);
@@ -273,7 +335,10 @@ export function HqPlayerValueChart({
         bandSegments.push({
             x: segmentStartX,
             width: width - segmentStartX,
-            color: segmentOwner === null ? 'var(--color-hq-moss-dim)' : managerColor(segmentOwner.primary_color),
+            color:
+                segmentOwner === null
+                    ? 'var(--color-hq-moss-dim)'
+                    : managerColor(segmentOwner.primary_color),
         });
 
         // Each jornada's bar sits on the market-history day its fixture was
@@ -284,7 +349,9 @@ export function HqPlayerValueChart({
         // A jornada the player has no points for — no lineup row for the
         // finished fixture, or a row without points — is marked "-" instead of
         // a bar, so it stays distinct from a real 0.
-        const days = visibleHistory.map((point) => Date.parse(localDateKey(point.date)));
+        const days = visibleHistory.map((point) =>
+            Date.parse(localDateKey(point.date)),
+        );
         const jornadas = [
             ...scores.map((score) => ({
                 key: `score-${score.id}`,
@@ -329,9 +396,12 @@ export function HqPlayerValueChart({
         // Only carve out label space below the baseline when there's a
         // negative bar to label.
         const plotTop = POINTS_TOP + BAR_LABEL_SPACE;
-        const plotBottom = POINTS_BOTTOM - (minPoints < 0 ? BAR_LABEL_SPACE : 0);
+        const plotBottom =
+            POINTS_BOTTOM - (minPoints < 0 ? BAR_LABEL_SPACE : 0);
         const pointsToY = (points: number) =>
-            plotBottom - ((points - minPoints) / (maxPoints - minPoints)) * (plotBottom - plotTop);
+            plotBottom -
+            ((points - minPoints) / (maxPoints - minPoints)) *
+                (plotBottom - plotTop);
         const zeroY = pointsToY(0);
 
         const marks = placed.map(({ jornada, index }) => {
@@ -357,14 +427,27 @@ export function HqPlayerValueChart({
             };
         });
 
-        return { xAt, yAt, lineSegments, bandSegments, boundaries, marks, barWidth, zeroY };
+        return {
+            xAt,
+            yAt,
+            lineSegments,
+            bandSegments,
+            boundaries,
+            marks,
+            barWidth,
+            zeroY,
+            min,
+            max,
+        };
     }, [visibleHistory, scores, missedFixtures, ownershipSegments, width]);
 
     const legend = useMemo(() => {
         const seen = new Map<string, { label: string; color: string }>();
 
         for (const segment of ownershipSegments) {
-            const key = segment.seasonManager ? `team-${segment.seasonManager.id}` : 'libre';
+            const key = segment.seasonManager
+                ? `team-${segment.seasonManager.id}`
+                : 'libre';
 
             if (!seen.has(key)) {
                 seen.set(key, {
@@ -384,7 +467,10 @@ export function HqPlayerValueChart({
             const key = `team-${mark.managerId}`;
 
             if (!seen.has(key)) {
-                seen.set(key, { label: mark.managerName, color: mark.managerColor });
+                seen.set(key, {
+                    label: mark.managerName,
+                    color: mark.managerColor,
+                });
             }
         }
 
@@ -405,11 +491,22 @@ export function HqPlayerValueChart({
         // Hovering near a jornada's bar (or its "-") snaps to that day, so its
         // points and the manager they belonged to are easy to hit.
         const snapped = geometry.marks.find(
-            (mark) => Math.abs(mark.cx - relX) <= Math.max(SNAP_RADIUS, geometry.barWidth / 2),
+            (mark) =>
+                Math.abs(mark.cx - relX) <=
+                Math.max(SNAP_RADIUS, geometry.barWidth / 2),
         );
         const index = snapped
             ? snapped.index
-            : Math.max(0, Math.min(n - 1, Math.round((relX / width) * (n - 1))));
+            : Math.max(
+                  0,
+                  Math.min(
+                      n - 1,
+                      Math.round(
+                          ((relX - X_PADDING) / (width - 2 * X_PADDING)) *
+                              (n - 1),
+                      ),
+                  ),
+              );
         const point = visibleHistory[index];
         const previous = index > 0 ? visibleHistory[index - 1] : null;
         const segment = segmentAtDate(ownershipSegments, point.date);
@@ -449,64 +546,63 @@ export function HqPlayerValueChart({
 
     return (
         <div>
-            <div className="mb-3">
-                <div className="flex items-center justify-between gap-2">
-                    <h2 className="font-display text-lg tracking-wide text-hq-paper uppercase">
-                        Evolución
-                    </h2>
-                    <div className="inline-flex shrink-0 border border-hq-border-strong">
-                        {([10, 30, 'all'] as const).map((option) => (
-                            <button
-                                key={option}
-                                type="button"
-                                onClick={() => setRange(option)}
-                                className={cn(
-                                    'px-3 py-1.5 font-mono text-[11px] font-bold',
-                                    range === option
-                                        ? 'bg-hq-lime text-hq-ink'
-                                        : 'text-hq-moss',
-                                )}
-                            >
-                                {option === 'all' ? 'TODO' : `${option}D`}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <div ref={containerRef} className="hq-card-cut p-4">
+            <div ref={containerRef}>
                 {geometry === null ? (
-                    <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                        <p className="font-mono text-[11px] text-hq-moss-dim">
-                            Todavía no hay histórico de valor.
-                        </p>
-                    </div>
+                    <HqEmptyState
+                        glyph="▁"
+                        title="Sin histórico"
+                        className="m-0 sm:m-0"
+                    >
+                        Todavía no hay histórico de valor.
+                    </HqEmptyState>
                 ) : (
                     <svg
                         ref={svgRef}
                         viewBox={`0 0 ${width} ${VIEW_HEIGHT}`}
-                        className="w-full cursor-crosshair overflow-visible touch-none"
+                        className="block w-full cursor-crosshair touch-pan-y overflow-visible"
+                        role="img"
+                        aria-label="Evolución del valor de mercado, puntos por jornada y propietario"
                         onMouseLeave={clearHover}
                     >
+                        {[0, 1, 2, 3, 4].map((step) => {
+                            const gridY =
+                                VALUE_TOP +
+                                ((VALUE_BOTTOM - VALUE_TOP) * step) / 4;
+
+                            return (
+                                <line
+                                    key={step}
+                                    x1={0}
+                                    x2={width}
+                                    y1={gridY}
+                                    y2={gridY}
+                                    stroke="var(--color-hq-border)"
+                                    strokeDasharray={
+                                        step % 4 === 0 ? undefined : '2 4'
+                                    }
+                                />
+                            );
+                        })}
                         <text
                             x={4}
-                            y={12}
-                            className="font-mono"
-                            fontSize={9}
-                            letterSpacing={1.5}
-                            fill="var(--color-hq-moss-dim)"
+                            y={VALUE_TOP - 8}
+                            className="fill-hq-moss-dim font-mono text-[10px] tracking-[0.04em]"
                         >
-                            VALOR
+                            {formatMillionsShort(geometry.max)}
+                        </text>
+                        <text
+                            x={4}
+                            y={VALUE_BOTTOM + 14}
+                            className="fill-hq-moss-dim font-mono text-[10px] tracking-[0.04em]"
+                        >
+                            {formatMillionsShort(geometry.min)}
                         </text>
                         <text
                             x={4}
                             y={POINTS_CAPTION_Y}
-                            className="font-mono"
-                            fontSize={9}
-                            letterSpacing={1.5}
-                            fill="var(--color-hq-moss-dim)"
+                            className="fill-hq-moss-dim font-mono text-[10px] tracking-[0.04em]"
                         >
-                            PUNTOS
+                            PUNTOS POR JORNADA
                         </text>
 
                         {geometry.lineSegments.map((segment, index) => (
@@ -525,7 +621,7 @@ export function HqPlayerValueChart({
                             y1={geometry.zeroY}
                             x2={width}
                             y2={geometry.zeroY}
-                            stroke="var(--color-hq-border-strong)"
+                            stroke="var(--color-hq-border-bright)"
                             strokeWidth={1}
                         />
                         {geometry.marks.map((mark) => (
@@ -535,7 +631,7 @@ export function HqPlayerValueChart({
                                         x={mark.cx}
                                         y={mark.y - 5}
                                         textAnchor="middle"
-                                        className="font-display"
+                                        className="font-dot font-black"
                                         fontSize={13}
                                         fill="var(--color-hq-moss-dim)"
                                     >
@@ -549,16 +645,20 @@ export function HqPlayerValueChart({
                                             width={geometry.barWidth}
                                             height={mark.height}
                                             fill={matchPointsColor(mark.points)}
-                                            opacity={0.55}
+                                            opacity={0.6}
                                         />
                                         <text
                                             x={mark.cx}
-                                            y={mark.isNegative ? mark.y + mark.height + 14 : mark.y - 5}
+                                            y={
+                                                mark.isNegative
+                                                    ? mark.y + mark.height + 14
+                                                    : mark.y - 5
+                                            }
                                             textAnchor="middle"
-                                            className="font-display"
+                                            className="font-dot font-black"
                                             fontSize={13}
                                             fill={matchPointsColor(mark.points)}
-                                            stroke="var(--color-hq-panel)"
+                                            stroke="var(--color-hq-ink)"
                                             strokeWidth={3}
                                             paintOrder="stroke"
                                         >
@@ -570,9 +670,7 @@ export function HqPlayerValueChart({
                                     x={mark.cx}
                                     y={JORNADA_LABEL_Y}
                                     textAnchor="middle"
-                                    className="font-mono"
-                                    fontSize={9}
-                                    fill="var(--color-hq-moss)"
+                                    className="fill-hq-moss-dim font-mono text-[10px]"
                                 >
                                     J{mark.week}
                                 </text>
@@ -583,9 +681,7 @@ export function HqPlayerValueChart({
                                 x={width / 2}
                                 y={(POINTS_TOP + POINTS_BOTTOM) / 2}
                                 textAnchor="middle"
-                                className="font-mono"
-                                fontSize={10}
-                                fill="var(--color-hq-moss-dim)"
+                                className="fill-hq-moss-dim font-mono text-[10px]"
                             >
                                 Sin jornadas jugadas en este rango
                             </text>
@@ -599,7 +695,7 @@ export function HqPlayerValueChart({
                                 width={Math.max(0, segment.width)}
                                 height={BAND_HEIGHT}
                                 fill={segment.color}
-                                opacity={0.75}
+                                opacity={0.8}
                             />
                         ))}
 
@@ -641,9 +737,7 @@ export function HqPlayerValueChart({
                         <text
                             x={4}
                             y={DATE_Y}
-                            className="font-mono"
-                            fontSize={10}
-                            fill="var(--color-hq-moss)"
+                            className="fill-hq-moss-dim font-mono text-[10px] tracking-[0.04em]"
                         >
                             {formatDateLabel(visibleHistory[0].date)}
                         </text>
@@ -651,9 +745,7 @@ export function HqPlayerValueChart({
                             x={width - 4}
                             y={DATE_Y}
                             textAnchor="end"
-                            className="font-mono"
-                            fontSize={10}
-                            fill="var(--color-hq-moss)"
+                            className="fill-hq-moss-dim font-mono text-[10px] tracking-[0.04em]"
                         >
                             {formatDateLabel(
                                 visibleHistory[visibleHistory.length - 1].date,
@@ -667,8 +759,12 @@ export function HqPlayerValueChart({
                             height={HIT_HEIGHT}
                             fill="transparent"
                             onMouseMove={(event) => handleMove(event.clientX)}
-                            onTouchStart={(event) => handleMove(event.touches[0].clientX)}
-                            onTouchMove={(event) => handleMove(event.touches[0].clientX)}
+                            onTouchStart={(event) =>
+                                handleMove(event.touches[0].clientX)
+                            }
+                            onTouchMove={(event) =>
+                                handleMove(event.touches[0].clientX)
+                            }
                             onTouchEnd={clearHover}
                         />
                     </svg>
@@ -676,19 +772,29 @@ export function HqPlayerValueChart({
             </div>
 
             {legend.length > 0 && (
-                <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
+                <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5">
                     {legend.map((entry) => (
                         <span
                             key={entry.label}
-                            className="flex items-center gap-1.5 font-mono text-[11px] text-hq-moss"
+                            className="flex items-center gap-1.5 font-mono text-xs text-hq-moss"
                         >
-                            <span
-                                className="h-2 w-2 shrink-0 rounded-[1px]"
+                            <i
+                                aria-hidden="true"
+                                className="block size-[9px] shrink-0 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]"
                                 style={{ backgroundColor: entry.color }}
                             />
                             {entry.label}
                         </span>
                     ))}
+                    {geometry !== null && geometry.boundaries.length > 0 && (
+                        <span className="flex items-center gap-1.5 font-mono text-xs text-hq-moss">
+                            <i
+                                aria-hidden="true"
+                                className="block w-3 shrink-0 border-t-2 border-dashed border-hq-ember"
+                            />
+                            cambio de dueño
+                        </span>
+                    )}
                 </div>
             )}
 
@@ -696,7 +802,7 @@ export function HqPlayerValueChart({
                 createPortal(
                     <div
                         ref={tooltipRef}
-                        className="pointer-events-none fixed z-[999] min-w-[210px] border border-hq-lime bg-hq-panel-alt px-3 py-2 font-mono text-xs whitespace-nowrap"
+                        className="pointer-events-none fixed z-[999] min-w-[210px] border border-hq-lime bg-hq-panel-alt px-3 py-2 font-mono text-xs whitespace-nowrap text-hq-paper shadow-[0_10px_28px_rgba(0,0,0,0.55)]"
                         style={{ left: tooltip.x, top: tooltip.y }}
                     >
                         <div className="flex items-center justify-between gap-4 text-[10px] tracking-wide text-hq-moss uppercase">
@@ -716,7 +822,7 @@ export function HqPlayerValueChart({
                                     'mt-0.5 font-bold',
                                     tooltip.diff > 0
                                         ? 'text-hq-lime'
-                                        : 'text-hq-live',
+                                        : 'text-hq-neg',
                                 )}
                             >
                                 {tooltip.diff > 0 ? '▲' : '▼'}{' '}
@@ -731,7 +837,9 @@ export function HqPlayerValueChart({
                                         color:
                                             tooltip.jornada.points === null
                                                 ? 'var(--color-hq-moss)'
-                                                : matchPointsColor(tooltip.jornada.points),
+                                                : matchPointsColor(
+                                                      tooltip.jornada.points,
+                                                  ),
                                     }}
                                 >
                                     {tooltip.jornada.points === null
@@ -743,7 +851,9 @@ export function HqPlayerValueChart({
                                         <span
                                             className="h-2 w-2 shrink-0 rounded-[1px]"
                                             style={{
-                                                backgroundColor: tooltip.jornada.managerColor,
+                                                backgroundColor:
+                                                    tooltip.jornada
+                                                        .managerColor,
                                             }}
                                         />
                                         {tooltip.jornada.managerName}
@@ -764,11 +874,17 @@ export function HqPlayerValueChart({
                                 <div className="mt-1 flex items-center gap-1.5 text-hq-khaki">
                                     {tooltip.deal.type !== 'joined_league' && (
                                         <>
-                                            <TooltipPartyLabel party={tooltip.deal.seller} />
-                                            <span className="text-hq-moss-dim">→</span>
+                                            <TooltipPartyLabel
+                                                party={tooltip.deal.seller}
+                                            />
+                                            <span className="text-hq-moss-dim">
+                                                →
+                                            </span>
                                         </>
                                     )}
-                                    <TooltipPartyLabel party={tooltip.deal.buyer} />
+                                    <TooltipPartyLabel
+                                        party={tooltip.deal.buyer}
+                                    />
                                 </div>
                                 {tooltip.deal.amount !== null && (
                                     <div className="mt-1 text-sm font-bold text-hq-paper">
@@ -782,11 +898,17 @@ export function HqPlayerValueChart({
                                                 'font-bold',
                                                 tooltip.deal.difference > 0
                                                     ? 'text-hq-lime'
-                                                    : 'text-hq-live',
+                                                    : 'text-hq-neg',
                                             )}
                                         >
-                                            {tooltip.deal.difference > 0 ? '▲' : '▼'}{' '}
-                                            {formatCurrency(Math.abs(tooltip.deal.difference))}{' '}
+                                            {tooltip.deal.difference > 0
+                                                ? '▲'
+                                                : '▼'}{' '}
+                                            {formatCurrency(
+                                                Math.abs(
+                                                    tooltip.deal.difference,
+                                                ),
+                                            )}{' '}
                                             <span className="font-normal text-hq-moss">
                                                 {tooltip.deal.difference > 0
                                                     ? 'sobre su valor'

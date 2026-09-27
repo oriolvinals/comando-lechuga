@@ -82,6 +82,15 @@ export function formatSignedPoints(points: number): string {
     return points >= 0 ? `+${points}` : `${points}`;
 }
 
+/** Text tone for a signed points delta: lime above zero, red below, dim at zero. */
+export function pointsToneClass(points: number): string {
+    if (points > 0) {
+        return 'text-hq-lime';
+    }
+
+    return points < 0 ? 'text-hq-live' : 'text-hq-moss-dim';
+}
+
 /**
  * Color tier for a season team's weekly points total (the "forma" column in
  * the home standings) — same six-color palette as {@link matchPointsBadgeClass}

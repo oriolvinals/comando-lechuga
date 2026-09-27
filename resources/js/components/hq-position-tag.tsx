@@ -1,4 +1,4 @@
-import { POSITION_ABBREVIATIONS } from '@/lib/player-labels';
+import { POSITION_ABBREVIATIONS, POSITION_LABELS } from '@/lib/player-labels';
 import { cn } from '@/lib/utils';
 import type { PlayerPosition } from '@/types/models';
 
@@ -8,20 +8,20 @@ import type { PlayerPosition } from '@/types/models';
  * these per page, use this component everywhere a position is shown.
  */
 const POSITION_COLOR_CLASSES: Record<PlayerPosition, string> = {
-    goalkeeper: 'border-hq-por/40 bg-hq-por/10 text-hq-por',
-    defender: 'border-hq-def/40 bg-hq-def/10 text-hq-def',
-    midfield: 'border-hq-med/40 bg-hq-med/10 text-hq-med',
-    striker: 'border-hq-del/40 bg-hq-del/10 text-hq-del',
-    coach: 'border-hq-border-strong bg-hq-border/40 text-hq-moss',
+    goalkeeper: 'bg-hq-por/10 text-hq-por',
+    defender: 'bg-hq-def/10 text-hq-def',
+    midfield: 'bg-hq-med/10 text-hq-med',
+    striker: 'bg-hq-del/10 text-hq-del',
+    coach: 'bg-hq-ent/10 text-hq-ent',
 };
 
-/** Solid (non-translucent) position accent — e.g. a colored side border on a card. */
+/** Solid (non-translucent) position accent — e.g. a colored side border on a row. */
 export const POSITION_ACCENT_BORDER_CLASSES: Record<PlayerPosition, string> = {
     goalkeeper: 'border-hq-por',
     defender: 'border-hq-def',
     midfield: 'border-hq-med',
     striker: 'border-hq-del',
-    coach: 'border-hq-border-strong',
+    coach: 'border-hq-ent',
 };
 
 interface HqPositionTagProps {
@@ -29,11 +29,13 @@ interface HqPositionTagProps {
     className?: string;
 }
 
+/** POR / DEF / MED / DEL / ENT in a 1px frame of the position colour. */
 export function HqPositionTag({ position, className }: HqPositionTagProps) {
     return (
         <span
+            title={POSITION_LABELS[position]}
             className={cn(
-                'border px-1.5 py-0.5 font-mono text-[9px] font-bold',
+                'inline-flex shrink-0 items-center justify-center border border-current px-[5px] py-[3px] font-mono text-[10px] leading-none font-bold tracking-[0.04em]',
                 POSITION_COLOR_CLASSES[position],
                 className,
             )}

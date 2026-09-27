@@ -1,17 +1,34 @@
 import { Link } from '@inertiajs/react';
-import { ArrowUpRight, Armchair } from 'lucide-react';
+import {
+    ArrowUpRight,
+    Armchair,
+    ChevronDown,
+    Home,
+    Plane,
+    Shield,
+} from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { EntityImage } from '@/components/entity-image';
 import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
-import { HqScrollRow } from '@/components/hq-scroll-row';
-import { MatchEventIcons } from '@/components/match-event-icons';
+import { HqLed } from '@/components/hq-led';
+import { HqManagerChip } from '@/components/hq-manager-chip';
+import { HqTooltip } from '@/components/hq-tooltip';
+import {
+    hasMatchEvents,
+    MatchEventIcons,
+} from '@/components/match-event-icons';
 import { formatMatchDateTime } from '@/lib/format';
 import { didNotPlayMatch } from '@/lib/player-labels';
-import { matchPointsBadgeClass } from '@/lib/points';
-import { managerColor } from '@/lib/season-manager-colors';
+import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
-import { show as seasonManagersShow } from '@/routes/season-managers';
-import type { Fixture, PlayerFichaScore, PlayerPosition } from '@/types/models';
+import type {
+    Fixture,
+    FixtureState,
+    PlayerFichaScore,
+    PlayerPosition,
+} from '@/types/models';
 
 interface HqPlayerMatchTimelineProps {
     scores: PlayerFichaScore[];
@@ -21,6 +38,536 @@ interface HqPlayerMatchTimelineProps {
     teamId: number;
 }
 
+type MatchResult = 'win' | 'draw' | 'loss';
+
+const RESULT_LABELS: Record<MatchResult, string> = {
+    win: 'V',
+    draw: 'E',
+    loss: 'D',
+};
+
+const RESULT_NAMES: Record<MatchResult, string> = {
+    win: 'Victoria',
+    draw: 'Empate',
+    loss: 'Derrota',
+};
+
+const RESULT_CLASSES: Record<MatchResult, string> = {
+    win: 'bg-hq-lime/15 text-hq-lime',
+    draw: 'bg-hq-gold/15 text-hq-gold',
+    loss: 'bg-hq-live/15 text-hq-live',
+};
+
+const LIVE_STATES: FixtureState[] = ['first_half', 'half_time', 'second_half'];
+
+/**
+ * Desktop columns (mock `.mlh`/`.lr`): jornada · rival · resultado ·
+ * titularidad + minutos · DAZN · puntos · chevron. Below `md` each row folds
+ * into two lines: jornada | rival · resultado · puntos, then titularidad |
+ * DAZN — every cell is placed explicitly there and falls back to source
+ * order from `md`.
+ */
+const ROW_GRID =
+    'grid grid-cols-[34px_minmax(0,1fr)_auto_auto] items-center gap-x-2.5 gap-y-1.5 px-3.5 py-[11px] md:grid-cols-[40px_minmax(150px,1.5fr)_92px_minmax(170px,1.3fr)_58px_62px_22px] md:gap-x-2.5 md:px-4 md:py-2.5';
+
+const CELL_WEEK =
+    'col-start-1 row-span-2 row-start-1 self-start pt-[3px] md:col-auto md:row-auto md:row-span-1 md:self-center md:pt-0';
+const CELL_RIVAL = 'col-start-2 row-start-1 md:col-auto md:row-auto';
+const CELL_RESULT = 'col-start-3 row-start-1 md:col-auto md:row-auto';
+const CELL_ROLE =
+    'col-span-2 col-start-2 row-start-2 md:col-auto md:col-span-1 md:row-auto';
+const CELL_DAZN =
+    'col-start-4 row-start-2 flex items-center justify-end md:col-auto md:row-auto';
+const CELL_POINTS =
+    'col-start-4 row-start-1 flex justify-end md:col-auto md:row-auto';
+const CELL_CHEVRON = 'hidden justify-center text-hq-moss-dim md:flex';
+
+const TAG_CLASS =
+    'border px-[5px] py-[3px] font-mono text-[10px] leading-none font-bold tracking-[0.06em] uppercase';
+
+function isLive(state: FixtureState): boolean {
+    return LIVE_STATES.includes(state);
+}
+
+function resultFor(fixture: Fixture, teamId: number): MatchResult | null {
+    if (fixture.local_score === null || fixture.guest_score === null) {
+        return null;
+    }
+
+    const isHome = fixture.local_team.id === teamId;
+    const own = isHome ? fixture.local_score : fixture.guest_score;
+    const rival = isHome ? fixture.guest_score : fixture.local_score;
+
+    if (own === rival) {
+        return 'draw';
+    }
+
+    return own > rival ? 'win' : 'loss';
+}
+
+function formatWeekdayDate(isoDate: string): string {
+    return new Intl.DateTimeFormat('es-ES', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        timeZone: 'Europe/Madrid',
+    }).format(new Date(isoDate));
+}
+
+function WeekCell({ week }: { week: number }) {
+    return (
+        <span
+            className={cn(
+                'font-mono text-xs leading-none font-bold text-hq-moss',
+                CELL_WEEK,
+            )}
+        >
+            J{week}
+        </span>
+    );
+}
+
+/** Rival crest, name and "Casa/Fuera · fecha" (mock `.rv`). */
+function RivalCell({ fixture, teamId }: { fixture: Fixture; teamId: number }) {
+    const isHome = fixture.local_team.id === teamId;
+    const rival = isHome ? fixture.guest_team : fixture.local_team;
+    const VenueIcon = isHome ? Home : Plane;
+
+    return (
+        <span className={cn('flex min-w-0 items-center gap-[9px]', CELL_RIVAL)}>
+            <EntityImage
+                src={rival.logo}
+                alt=""
+                fallback={Shield}
+                shape="square"
+                className="size-[26px] shrink-0 rounded-none bg-transparent"
+            />
+            <span className="min-w-0">
+                <span className="block truncate text-[13.5px] leading-[1.15] font-extrabold text-hq-paper">
+                    {rival.main_name}
+                </span>
+                <span className="mt-1 flex items-center gap-1 font-mono text-[10.5px] leading-none whitespace-nowrap text-hq-moss-dim">
+                    <VenueIcon
+                        aria-hidden="true"
+                        className="size-[11px] shrink-0"
+                    />
+                    {isHome ? 'Casa' : 'Fuera'} ·{' '}
+                    {formatWeekdayDate(fixture.date)}
+                </span>
+            </span>
+        </span>
+    );
+}
+
+/** V/E/D square and the own–rival score; a pulsing frame while live. */
+function ResultCell({ fixture, teamId }: { fixture: Fixture; teamId: number }) {
+    const result = resultFor(fixture, teamId);
+
+    if (result === null) {
+        return (
+            <span
+                className={cn(
+                    'font-mono text-xs text-hq-moss-dim',
+                    CELL_RESULT,
+                )}
+            >
+                {fixture.state === 'postponed' ? 'Aplazado' : 'vs'}
+            </span>
+        );
+    }
+
+    const isHome = fixture.local_team.id === teamId;
+    const own = isHome ? fixture.local_score : fixture.guest_score;
+    const rival = isHome ? fixture.guest_score : fixture.local_score;
+    const live = isLive(fixture.state);
+
+    return (
+        <span className={cn('inline-flex items-center gap-[7px]', CELL_RESULT)}>
+            <span
+                aria-label={
+                    live
+                        ? `${RESULT_NAMES[result]} en juego`
+                        : RESULT_NAMES[result]
+                }
+                className={cn(
+                    'relative inline-flex size-[22px] shrink-0 items-center justify-center font-mono text-[11px] leading-none font-bold',
+                    RESULT_CLASSES[result],
+                    live && 'border border-hq-live',
+                )}
+            >
+                {RESULT_LABELS[result]}
+                {live && (
+                    <span
+                        aria-hidden="true"
+                        className="absolute -top-[3px] -right-[3px] size-1.5 animate-hq-pulse rounded-full bg-hq-live shadow-[0_0_0_2px_var(--color-hq-ink)]"
+                    />
+                )}
+            </span>
+            <b className="font-mono text-sm leading-none font-bold text-hq-paper tabular-nums">
+                {own}–{rival}
+            </b>
+        </span>
+    );
+}
+
+function PointsChip({
+    children,
+    className,
+}: {
+    children: ReactNode;
+    className?: string;
+}) {
+    return (
+        <span
+            className={cn(
+                'inline-flex h-7 min-w-[34px] items-center justify-center border border-transparent px-[5px] font-mono text-sm leading-none font-bold tabular-nums md:h-8 md:min-w-10 md:text-base',
+                className,
+            )}
+        >
+            {children}
+        </span>
+    );
+}
+
+/** TITULAR / SUPLENTE, the substitution minute or the bench glyph, and minutes played. */
+function RoleCell({ score }: { score: PlayerFichaScore }) {
+    const minutes = score.stats?.mins_played?.[0] ?? 0;
+    const subMinute = score.sub_minute;
+
+    return (
+        <span
+            className={cn('flex flex-wrap items-center gap-[7px]', CELL_ROLE)}
+        >
+            <span
+                className={cn(
+                    TAG_CLASS,
+                    score.starter
+                        ? 'border-hq-border-bright text-hq-paper'
+                        : 'border-hq-khaki text-hq-khaki',
+                )}
+            >
+                {score.starter ? 'Titular' : 'Suplente'}
+            </span>
+            {subMinute !== null ? (
+                <HqTooltip
+                    label={
+                        score.subbed_out
+                            ? `Sustituido en el ${subMinute}'`
+                            : `Entró en el ${subMinute}'`
+                    }
+                >
+                    <span
+                        className={cn(
+                            'border border-current px-1 py-0.5 font-mono text-[10px] leading-none font-bold whitespace-nowrap',
+                            score.subbed_out ? 'text-hq-live' : 'text-hq-lime',
+                        )}
+                    >
+                        ↳{subMinute}'
+                    </span>
+                </HqTooltip>
+            ) : (
+                !score.starter && (
+                    <HqTooltip label="Suplente, no llegó a jugar">
+                        <Armchair
+                            aria-label="Suplente, no llegó a jugar"
+                            className="size-3.5 text-hq-moss-dim"
+                        />
+                    </HqTooltip>
+                )
+            )}
+            <HqTooltip label="Minutos jugados" className="ml-auto">
+                <span className="font-mono text-xs leading-none text-hq-moss">
+                    <HqLed className="text-[17px]">{minutes}</HqLed>'
+                </span>
+            </HqTooltip>
+        </span>
+    );
+}
+
+/** A jornada the player has a lineup row for: a button that expands every stat. */
+function ScoreRow({
+    week,
+    score,
+    playerPosition,
+    isOpen,
+    onToggle,
+}: {
+    week: number;
+    score: PlayerFichaScore;
+    playerPosition: PlayerPosition;
+    isOpen: boolean;
+    onToggle: () => void;
+}) {
+    const fixture = score.fixture;
+    const stats = score.stats ?? {};
+    const didNotPlay = didNotPlayMatch(stats, fixture.state);
+    const dazn = score.stats?.marca_points?.[1] ?? null;
+    const panelId = `match-log-${score.id}`;
+
+    return (
+        <div
+            className={cn(
+                'border-b border-hq-border',
+                isOpen &&
+                    'bg-hq-panel shadow-[inset_3px_0_0_var(--color-hq-lime)]',
+            )}
+        >
+            <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                className={cn(
+                    ROW_GRID,
+                    'w-full cursor-pointer text-left transition-colors hover:bg-hq-panel focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-hq-lime',
+                    isOpen && 'bg-hq-panel-alt hover:bg-hq-panel-alt',
+                )}
+            >
+                <WeekCell week={week} />
+                <RivalCell fixture={fixture} teamId={score.team_id} />
+                <ResultCell fixture={fixture} teamId={score.team_id} />
+                <RoleCell score={score} />
+                <span className={CELL_DAZN}>
+                    <span className="mr-1.5 hq-label md:hidden">DAZN</span>
+                    {dazn !== null && !didNotPlay ? (
+                        <HqTooltip label="Puntos DAZN">
+                            <span
+                                className={cn(
+                                    'inline-flex h-[22px] min-w-[30px] items-center justify-center px-[5px] font-mono text-xs leading-none font-bold tabular-nums',
+                                    daznPointsBadgeClass(dazn),
+                                )}
+                            >
+                                {dazn}
+                            </span>
+                        </HqTooltip>
+                    ) : (
+                        <span className="font-mono text-xs text-hq-moss-dim">
+                            –
+                        </span>
+                    )}
+                </span>
+                <span className={CELL_POINTS}>
+                    {score.points !== null ? (
+                        <PointsChip
+                            className={matchPointsBadgeClass(score.points)}
+                        >
+                            {score.points}
+                        </PointsChip>
+                    ) : (
+                        <PointsChip className="border-dashed border-hq-border-bright text-hq-moss-dim">
+                            —
+                        </PointsChip>
+                    )}
+                </span>
+                <span className="sr-only">
+                    {isOpen ? 'Ocultar' : 'Ver'} todas las estadísticas
+                </span>
+                <span className={CELL_CHEVRON}>
+                    <ChevronDown
+                        aria-hidden="true"
+                        className={cn(
+                            'size-4 transition-transform',
+                            isOpen && 'rotate-180 text-hq-lime',
+                        )}
+                    />
+                </span>
+            </button>
+
+            {isOpen && (
+                <div id={panelId}>
+                    <div className="flex flex-wrap items-center gap-2.5 border-t border-hq-border px-3.5 py-3 md:px-4">
+                        {hasMatchEvents(stats, playerPosition) ? (
+                            <MatchEventIcons
+                                stats={stats}
+                                position={playerPosition}
+                                className="mb-0"
+                            />
+                        ) : (
+                            <span className="font-mono text-[11.5px] text-hq-moss-dim">
+                                Sin goles, tarjetas ni penaltis
+                            </span>
+                        )}
+                        {didNotPlay && (
+                            <span
+                                className={cn(
+                                    TAG_CLASS,
+                                    'border-hq-olive bg-hq-olive/10 text-hq-olive',
+                                )}
+                            >
+                                No jugó
+                            </span>
+                        )}
+                        <span className="flex min-w-0 flex-wrap items-center gap-2.5 md:ml-auto">
+                            {score.lineup_manager ? (
+                                <>
+                                    <span className="hq-label">
+                                        Alineado por
+                                    </span>
+                                    <HqManagerChip
+                                        manager={score.lineup_manager}
+                                    />
+                                </>
+                            ) : (
+                                <span className="hq-label">
+                                    Ningún manager lo alineó
+                                </span>
+                            )}
+                            <Link
+                                href={fixturesShow(fixture.id).url}
+                                className="inline-flex min-h-11 items-center gap-1 border border-hq-lime px-2.5 font-mono text-[11px] font-bold tracking-[0.05em] text-hq-lime uppercase hover:bg-hq-lime/10 sm:min-h-8"
+                            >
+                                Ver partido
+                                <ArrowUpRight
+                                    aria-hidden="true"
+                                    className="size-3.5"
+                                />
+                            </Link>
+                        </span>
+                    </div>
+                    <p className="px-3.5 pb-3 font-mono text-[11.5px] leading-snug text-hq-moss-dim md:px-4">
+                        {fixture.local_team.main_name} {fixture.local_score}–
+                        {fixture.guest_score} {fixture.guest_team.main_name} ·{' '}
+                        {formatMatchDateTime(fixture.date)}
+                        {fixture.venue ? ` · ${fixture.venue}` : ''}
+                    </p>
+                    <div className="border-t border-hq-border">
+                        <HqJornadaStatsGrid stats={score.stats} columns={3} />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** A finished jornada of the player's club without a lineup row for them. */
+function NotCalledUpRow({
+    week,
+    fixture,
+    teamId,
+}: {
+    week: number;
+    fixture: Fixture;
+    teamId: number;
+}) {
+    return (
+        <div className="border-b border-hq-border">
+            <Link
+                href={fixturesShow(fixture.id).url}
+                aria-label={`Jornada ${week}: no convocado. Ver partido`}
+                className={cn(
+                    ROW_GRID,
+                    'opacity-80 transition-colors hover:bg-hq-panel hover:opacity-100',
+                )}
+            >
+                <WeekCell week={week} />
+                <RivalCell fixture={fixture} teamId={teamId} />
+                <ResultCell fixture={fixture} teamId={teamId} />
+                <span className={cn('flex items-center', CELL_ROLE)}>
+                    <span
+                        className={cn(
+                            TAG_CLASS,
+                            'border-dashed border-hq-live text-hq-live',
+                        )}
+                    >
+                        No convocado
+                    </span>
+                </span>
+                <span className={CELL_DAZN}>
+                    <span className="font-mono text-xs text-hq-moss-dim">
+                        –
+                    </span>
+                </span>
+                <span className={CELL_POINTS}>
+                    <PointsChip className="border-dashed border-hq-live bg-hq-live/5 text-hq-live">
+                        NC
+                    </PointsChip>
+                </span>
+                <span className={CELL_CHEVRON}>
+                    <ArrowUpRight aria-hidden="true" className="size-4" />
+                </span>
+            </Link>
+        </div>
+    );
+}
+
+/** A jornada not played yet (or still being played without a lineup row), or with no fixture at all. */
+function UpcomingRow({
+    week,
+    fixture,
+    teamId,
+}: {
+    week: number;
+    fixture: Fixture | null;
+    teamId: number;
+}) {
+    if (fixture === null) {
+        return (
+            <div className={cn(ROW_GRID, 'border-b border-hq-border')}>
+                <WeekCell week={week} />
+                <span className="col-span-3 col-start-2 row-start-1 font-mono text-xs text-hq-moss-dim md:col-span-6 md:col-start-2">
+                    Todavía no hay datos de este jugador para esta jornada
+                </span>
+            </div>
+        );
+    }
+
+    const live = isLive(fixture.state);
+
+    return (
+        <div className="border-b border-hq-border">
+            <Link
+                href={fixturesShow(fixture.id).url}
+                aria-label={`Jornada ${week}: ${live ? 'en juego' : 'aún no jugada'}. Ver partido`}
+                className={cn(
+                    ROW_GRID,
+                    'opacity-80 transition-colors hover:bg-hq-panel hover:opacity-100',
+                )}
+            >
+                <WeekCell week={week} />
+                <RivalCell fixture={fixture} teamId={teamId} />
+                <ResultCell fixture={fixture} teamId={teamId} />
+                <span
+                    className={cn(
+                        'flex flex-wrap items-center gap-[7px]',
+                        CELL_ROLE,
+                    )}
+                >
+                    <span
+                        className={cn(
+                            TAG_CLASS,
+                            live
+                                ? 'border-hq-live text-hq-live'
+                                : 'border-hq-azure text-hq-azure',
+                        )}
+                    >
+                        {live ? 'En juego' : 'Aún no jugada'}
+                    </span>
+                    <span className="font-mono text-[11.5px] text-hq-moss-dim">
+                        {formatMatchDateTime(fixture.date)}
+                    </span>
+                </span>
+                <span className={CELL_DAZN} />
+                <span className={CELL_POINTS}>
+                    <PointsChip className="border-dashed border-hq-border-bright text-hq-moss-dim">
+                        —
+                    </PointsChip>
+                </span>
+                <span className={CELL_CHEVRON}>
+                    <ArrowUpRight aria-hidden="true" className="size-4" />
+                </span>
+            </Link>
+        </div>
+    );
+}
+
+/**
+ * The player's match log (mock `.mlog`), newest jornada first: one row per
+ * jornada up to the current one with rival (home/away, date), result,
+ * titular/suplente + substitution minute, minutes, DAZN and points. A row
+ * the player has a lineup for is a button: it expands every stat with its
+ * fantasy points, the event icons, the manager who fielded them and a link
+ * to the match. "No convocado" and not-yet-played rows link to the match.
+ */
 export function HqPlayerMatchTimeline({
     scores,
     teamFixtures,
@@ -28,310 +575,103 @@ export function HqPlayerMatchTimeline({
     playerPosition,
     teamId,
 }: HqPlayerMatchTimelineProps) {
-    const [selectedWeek, setSelectedWeek] = useState(currentWeek);
+    const [openWeeks, setOpenWeeks] = useState<Set<number>>(() => new Set());
     const scoresByWeek = new Map(
         scores.map((score) => [score.fixture.week_number, score]),
     );
     const fixturesByWeek = new Map(
         teamFixtures.map((fixture) => [fixture.week_number, fixture]),
     );
-    const selectedScore = scoresByWeek.get(selectedWeek) ?? null;
-    const selectedFixture = fixturesByWeek.get(selectedWeek) ?? null;
+
+    const toggleWeek = (week: number) => {
+        setOpenWeeks((previous) => {
+            const next = new Set(previous);
+
+            if (next.has(week)) {
+                next.delete(week);
+            } else {
+                next.add(week);
+            }
+
+            return next;
+        });
+    };
+
+    const weeks = Array.from(
+        { length: currentWeek },
+        (_, index) => currentWeek - index,
+    );
 
     return (
         <div>
-            <h2 className="mb-3 font-display text-lg tracking-wide text-hq-paper uppercase">
-                Partidos
-            </h2>
+            <div
+                aria-hidden="true"
+                className="hidden grid-cols-[40px_minmax(150px,1.5fr)_92px_minmax(170px,1.3fr)_58px_62px_22px] items-center gap-x-2.5 border-b border-hq-border-strong px-4 py-[9px] font-mono text-[10.5px] leading-[1.2] font-semibold tracking-[0.07em] text-hq-moss-dim uppercase md:grid"
+            >
+                <span>Jor.</span>
+                <span>Rival</span>
+                <span>Resultado</span>
+                <span>Titularidad · minutos</span>
+                <span className="text-right">DAZN</span>
+                <span className="text-right">Puntos</span>
+                <span />
+            </div>
 
-            <HqScrollRow contentClassName="px-2 pt-2.5 pb-3">
-                {Array.from(
-                    { length: currentWeek },
-                    (_, index) => index + 1,
-                ).map((week) => {
-                    const score = scoresByWeek.get(week);
-                    const fixture = fixturesByWeek.get(week);
-                    const notCalledUp = !score && fixture?.state === 'finished';
-                    // A scored week uses the match the player actually appeared in —
-                    // which, around a mid-season transfer, can differ from the current
-                    // team's own fixture for that same week number. Only fall back to
-                    // the current team's fixture when there's no score to go off of.
-                    const matchFixture = score ? score.fixture : fixture;
-                    const matchTeamId = score ? score.team_id : teamId;
-                    const opponent = matchFixture
-                        ? matchFixture.local_team.id === matchTeamId
-                            ? matchFixture.guest_team
-                            : matchFixture.local_team
-                        : null;
+            {weeks.map((week) => {
+                const score = scoresByWeek.get(week);
+                const teamFixture = fixturesByWeek.get(week) ?? null;
 
+                // A scored week uses the match the player actually appeared
+                // in — around a mid-season transfer it can differ from the
+                // current club's fixture for that week number.
+                if (
+                    score &&
+                    score.fixture.state !== 'scheduled' &&
+                    score.fixture.state !== 'postponed'
+                ) {
                     return (
-                        <button
+                        <ScoreRow
                             key={week}
-                            type="button"
-                            onClick={() => setSelectedWeek(week)}
-                            className={cn(
-                                'relative flex h-14 w-14 shrink-0 cursor-pointer flex-col items-center justify-center border-2 font-mono',
-                                selectedWeek === week
-                                    ? 'border-hq-paper'
-                                    : 'border-transparent hover:border-hq-border-strong',
-                                score && score.points !== null
-                                    ? matchPointsBadgeClass(score.points)
-                                    : notCalledUp
-                                      ? 'border-dashed border-hq-live text-hq-live'
-                                      : 'border-dashed border-hq-border-strong text-hq-moss-dim',
-                            )}
-                        >
-                            <span className="text-[10px] font-bold opacity-80">
-                                J{week}
-                            </span>
-                            <span className="font-display text-lg leading-none">
-                                {score && score.points !== null
-                                    ? score.points
-                                    : notCalledUp
-                                      ? 'NC'
-                                      : '—'}
-                            </span>
-                            {opponent && (
-                                <img
-                                    src={opponent.logo}
-                                    alt={opponent.main_name}
-                                    title={opponent.main_name}
-                                    className="absolute -bottom-2 left-1/2 h-3.5 w-3.5 -translate-x-1/2 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
-                                />
-                            )}
-                            {score && score.sub_minute !== null && (
-                                <span
-                                    className={cn(
-                                        'absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full border bg-hq-ink font-mono text-[8px] font-bold',
-                                        score.subbed_out
-                                            ? 'border-hq-live text-hq-live'
-                                            : 'border-hq-lime text-hq-lime',
-                                    )}
-                                    title={`Cambio min. ${score.sub_minute}`}
-                                >
-                                    ↳
-                                </span>
-                            )}
-                            {score && score.starter && score.sub_minute === null && (
-                                <span
-                                    className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-hq-lime bg-hq-ink font-mono text-[8px] font-bold text-hq-lime"
-                                    title="Jugó el partido completo"
-                                >
-                                    ✓
-                                </span>
-                            )}
-                            {score && !score.starter && score.sub_minute === null && (
-                                <span
-                                    className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-hq-moss-dim bg-hq-ink text-hq-moss-dim"
-                                    title="Suplente, no llegó a jugar"
-                                >
-                                    <Armchair className="h-3 w-3" />
-                                </span>
-                            )}
-                        </button>
+                            week={week}
+                            score={score}
+                            playerPosition={playerPosition}
+                            isOpen={openWeeks.has(week)}
+                            onToggle={() => toggleWeek(week)}
+                        />
                     );
-                })}
-            </HqScrollRow>
+                }
 
-            {selectedScore ? (
-                (() => {
-                    const isHome =
-                        selectedScore.team_id ===
-                        selectedScore.fixture.local_team.id;
-                    const scoreOpponent = isHome
-                        ? selectedScore.fixture.guest_team
-                        : selectedScore.fixture.local_team;
-
+                if (score) {
                     return (
-                        <div className="hq-card-cut">
-                            <div className="flex items-center gap-3.5 border-b border-hq-border bg-gradient-to-br from-hq-lime/5 to-transparent p-4">
-                                <img
-                                    src={scoreOpponent.logo}
-                                    alt={scoreOpponent.main_name}
-                                    className="h-11 w-11 shrink-0 object-contain"
-                                />
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="font-display text-xs tracking-wide text-hq-moss uppercase">
-                                            J{selectedWeek}
-                                        </span>
-                                        <span className="truncate font-mono text-[13px] font-bold text-hq-paper">
-                                            vs {scoreOpponent.main_name}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2 font-mono text-[11px] text-hq-moss-dim">
-                                        <span className="font-bold text-hq-khaki">
-                                            {
-                                                selectedScore.fixture.local_team
-                                                    .short_name
-                                            }{' '}
-                                            {selectedScore.fixture.local_score}–
-                                            {selectedScore.fixture.guest_score}{' '}
-                                            {
-                                                selectedScore.fixture.guest_team
-                                                    .short_name
-                                            }
-                                        </span>
-                                        <span className="border border-hq-border-strong px-1 py-px text-[9px] font-bold tracking-wide uppercase">
-                                            {isHome ? 'Casa' : 'Fuera'}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="shrink-0 text-right">
-                                    <p
-                                        className={cn(
-                                            'font-display text-3xl leading-none',
-                                            selectedScore.points !== null
-                                                ? 'text-hq-lime'
-                                                : 'text-hq-moss-dim',
-                                        )}
-                                    >
-                                        {selectedScore.points ?? '—'}
-                                    </p>
-                                    {selectedScore.stats?.marca_points && (
-                                        <p className="mt-0.5 flex items-center justify-end gap-1 font-mono text-xs text-hq-moss-dim">
-                                            <img
-                                                src="/images/dazn-logo.png"
-                                                alt="DAZN"
-                                                className="h-3.5 w-3.5"
-                                            />
-                                            {
-                                                selectedScore.stats
-                                                    .marca_points[1]
-                                            }
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2.5 border-b border-hq-border px-4 py-2.5">
-                                <span
-                                    className={cn(
-                                        'border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase',
-                                        selectedScore.starter
-                                            ? 'border-hq-border-strong text-hq-paper'
-                                            : 'border-hq-khaki text-hq-khaki',
-                                    )}
-                                >
-                                    {selectedScore.starter ? 'Titular' : 'Suplente'}
-                                </span>
-                                {selectedScore.sub_minute !== null && (
-                                    <span
-                                        className={cn(
-                                            'border bg-hq-ink px-1.5 py-0.5 font-mono text-[10px] font-bold',
-                                            selectedScore.subbed_out
-                                                ? 'border-hq-live text-hq-live'
-                                                : 'border-hq-lime text-hq-lime',
-                                        )}
-                                    >
-                                        ↳{selectedScore.sub_minute}'
-                                    </span>
-                                )}
-                                <MatchEventIcons
-                                    stats={selectedScore.stats ?? {}}
-                                    position={playerPosition}
-                                />
-                                {didNotPlayMatch(
-                                    selectedScore.stats ?? {},
-                                    selectedScore.fixture.state,
-                                ) && (
-                                    <span className="border border-hq-moss-dim px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-moss-dim uppercase">
-                                        No jugó
-                                    </span>
-                                )}
-                                <div className="ml-auto flex items-center gap-2.5">
-                                    {selectedScore.lineup_manager && (
-                                        <Link
-                                            href={
-                                                seasonManagersShow(
-                                                    selectedScore.lineup_manager
-                                                        .id,
-                                                ).url
-                                            }
-                                            className="flex items-center gap-1.5 border border-hq-border-strong bg-hq-panel-alt px-1.5 py-0.5 font-mono text-[11px] text-hq-paper hover:bg-hq-panel"
-                                        >
-                                            <span
-                                                className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
-                                                style={{
-                                                    backgroundColor:
-                                                        managerColor(
-                                                            selectedScore
-                                                                .lineup_manager
-                                                                .primary_color,
-                                                        ),
-                                                }}
-                                            />
-                                            {selectedScore.lineup_manager.name}
-                                        </Link>
-                                    )}
-                                    <Link
-                                        href={
-                                            fixturesShow(
-                                                selectedScore.fixture.id,
-                                            ).url
-                                        }
-                                        className="flex items-center gap-1 border border-hq-lime px-2 py-1 font-mono text-[11px] font-bold text-hq-lime hover:bg-hq-lime/10"
-                                    >
-                                        VER PARTIDO
-                                        <ArrowUpRight className="h-3 w-3" />
-                                    </Link>
-                                </div>
-                            </div>
-
-                            <HqJornadaStatsGrid
-                                stats={selectedScore.stats}
-                                columns={3}
-                            />
-                        </div>
+                        <UpcomingRow
+                            key={week}
+                            week={week}
+                            fixture={score.fixture}
+                            teamId={score.team_id}
+                        />
                     );
-                })()
-            ) : selectedFixture?.state === 'finished' ? (
-                <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                    <p className="font-display text-lg text-hq-paper uppercase">
-                        Jornada {selectedWeek} — no convocado
-                    </p>
-                    <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
-                        {selectedFixture.local_team.short_name}{' '}
-                        {selectedFixture.local_score}–
-                        {selectedFixture.guest_score}{' '}
-                        {selectedFixture.guest_team.short_name}
-                    </p>
-                    <Link
-                        href={fixturesShow(selectedFixture.id).url}
-                        className="mt-3 inline-flex items-center gap-1 border border-hq-lime px-2 py-1 font-mono text-[11px] font-bold text-hq-lime hover:bg-hq-lime/10"
-                    >
-                        VER PARTIDO
-                        <ArrowUpRight className="h-3 w-3" />
-                    </Link>
-                </div>
-            ) : (
-                <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                    <p className="font-display text-lg text-hq-paper uppercase">
-                        Jornada {selectedWeek} — aún no jugada
-                    </p>
-                    {selectedFixture ? (
-                        <>
-                            <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
-                                {selectedFixture.local_team.short_name} vs{' '}
-                                {selectedFixture.guest_team.short_name} ·{' '}
-                                {formatMatchDateTime(selectedFixture.date)}
-                            </p>
-                            <Link
-                                href={fixturesShow(selectedFixture.id).url}
-                                className="mt-3 inline-flex items-center gap-1 border border-hq-lime px-2 py-1 font-mono text-[11px] font-bold text-hq-lime hover:bg-hq-lime/10"
-                            >
-                                VER PARTIDO
-                                <ArrowUpRight className="h-3 w-3" />
-                            </Link>
-                        </>
-                    ) : (
-                        <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
-                            Todavía no hay datos de este jugador para esta
-                            jornada
-                        </p>
-                    )}
-                </div>
-            )}
+                }
+
+                if (teamFixture?.state === 'finished') {
+                    return (
+                        <NotCalledUpRow
+                            key={week}
+                            week={week}
+                            fixture={teamFixture}
+                            teamId={teamId}
+                        />
+                    );
+                }
+
+                return (
+                    <UpcomingRow
+                        key={week}
+                        week={week}
+                        fixture={teamFixture}
+                        teamId={teamId}
+                    />
+                );
+            })}
         </div>
     );
 }

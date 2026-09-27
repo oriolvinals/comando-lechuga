@@ -147,7 +147,7 @@ class PlayersController extends Controller
         $season = Season::current();
 
         $this->attachCurrentSeason(new Collection([$player]), $season->id);
-        $this->attachNextFixtures(new Collection([$player]), $season);
+        $this->attachNextFixtures(new Collection([$player]), $season, count: 5);
 
         $owner = ManagerPlayer::query()
             ->where('player_id', $player->id)

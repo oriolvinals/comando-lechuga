@@ -19,9 +19,10 @@ interface TrendDisplay {
 }
 
 /**
- * The icon always reads "up = improving, down = worsening" (right = same pace): a fall that slows
- * down points up, a fall that speeds up points down. The color tells whether
- * the value is rising (lime) or falling (red).
+ * The icon always reads "up = improving, down = worsening" (right = same
+ * pace): a fall that slows down points up, a fall that speeds up points down.
+ * The colour tells whether the value is rising (lime) or falling (red); an
+ * inflection is a warning triangle.
  */
 const TREND_DISPLAY: Record<MarketTrend, TrendDisplay> = {
     positive_inflection: {
@@ -86,12 +87,26 @@ const TREND_DISPLAY: Record<MarketTrend, TrendDisplay> = {
     },
 };
 
+/** The trend spelled out in Spanish ("Sube a ritmo constante"), and whether the value is rising. */
+export function describeMarketTrend(trend: MarketTrend): {
+    label: string;
+    rising: boolean;
+} {
+    const { label, rising } = TREND_DISPLAY[trend];
+
+    return { label, rising };
+}
+
 interface HqMarketTrendIconProps {
     trend: MarketTrend | null;
     className?: string;
 }
 
-/** A player's market trend as a colored Lucide icon, with the trend spelled out on hover. Renders nothing without a trend. */
+/**
+ * A player's market trend (all 12 states) as a coloured Lucide icon, with the
+ * trend spelled out in Spanish on hover or keyboard focus. Renders nothing
+ * without a trend.
+ */
 export function HqMarketTrendIcon({
     trend,
     className,
@@ -105,15 +120,16 @@ export function HqMarketTrendIcon({
     return (
         <HqTooltip
             label={label}
-            className="align-middle"
-            borderClassName={rising ? 'border-hq-lime' : 'border-hq-live'}
+            tone={rising ? 'lime' : 'neg'}
+            className="shrink-0 align-middle"
+            focusable
         >
             <Icon
                 aria-label={label}
                 strokeWidth={2.75}
                 className={cn(
                     'size-3.5 shrink-0',
-                    rising ? 'text-hq-lime' : 'text-hq-live',
+                    rising ? 'text-hq-lime' : 'text-hq-neg',
                     className,
                 )}
             />
@@ -129,9 +145,9 @@ interface HqMarketValueDifferenceProps {
 }
 
 /**
- * The market trend icon next to yesterday's signed value change. Both share a
- * color: the backend turns a last day that moved against the trend into an
- * inflection in that day's direction.
+ * The market trend icon next to yesterday's signed value change. Both share
+ * a colour: the backend turns a last day that moved against the trend into
+ * an inflection in that day's direction.
  */
 export function HqMarketValueDifference({
     difference,
@@ -145,14 +161,14 @@ export function HqMarketValueDifference({
     return (
         <span
             className={cn(
-                'inline-flex items-center gap-1 font-mono font-bold whitespace-nowrap',
+                'inline-flex items-center gap-[5px] font-mono text-xs leading-none font-semibold whitespace-nowrap tabular-nums',
                 className,
             )}
         >
             <HqMarketTrendIcon trend={trend} />
             {difference !== 0 && (
                 <span
-                    className={difference > 0 ? 'text-hq-lime' : 'text-hq-live'}
+                    className={difference > 0 ? 'text-hq-lime' : 'text-hq-neg'}
                 >
                     {difference > 0 ? '+' : '−'}
                     {formatCurrency(Math.abs(difference))}

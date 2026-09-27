@@ -1,11 +1,17 @@
 import { Head } from '@inertiajs/react';
-import type { CSSProperties, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
+import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqLineupPitch } from '@/components/hq-lineup-pitch';
-import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
+import {
+    HqPlayerStatsModal,
+    lineupPlayerStatsEntry,
+} from '@/components/hq-player-stats-modal';
+import { HqChannelHeader, HqSection } from '@/components/hq-section';
 import { HqTeamPointsChart } from '@/components/hq-team-points-chart';
-import { HqWeekScrollPicker } from '@/components/hq-week-scroll-picker';
+import { HqTooltip } from '@/components/hq-tooltip';
+import { HqWeekPickerBand } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -69,164 +75,126 @@ export default function SeasonManagerShow({
     );
 
     return (
-        <div
-            className="hq-texture hq-bleed relative flex-1 border-y border-hq-border"
-            style={
-                {
-                    '--pc': seasonManager.primary_color ?? 'transparent',
-                    '--sc': seasonManager.secondary_color ?? 'transparent',
-                } as CSSProperties
-            }
-        >
+        <>
             <Head title={seasonManager.name} />
 
-            <div
-                className="pointer-events-none absolute inset-0 opacity-25"
-                style={{
-                    background:
-                        'linear-gradient(100deg, var(--pc) 0%, var(--sc) 100%)',
-                    maskImage:
-                        'linear-gradient(to bottom, black 0%, black 12%, transparent 55%)',
-                    WebkitMaskImage:
-                        'linear-gradient(to bottom, black 0%, black 12%, transparent 55%)',
-                }}
+            <ManagerHero
+                seasonManager={seasonManager}
+                season={season}
+                wonWeeks={wonWeeks}
+                lostWeeks={lostWeeks}
             />
 
-            <div className="relative mx-auto max-w-7xl px-6 pb-9">
-                <ManagerHero
-                    seasonManager={seasonManager}
-                    season={season}
+            <HqSection title="Evolución de puntos">
+                <HqTeamPointsChart
+                    lineupHistory={lineupHistory}
+                    startedWeeks={startedWeeks}
                     wonWeeks={wonWeeks}
                     lostWeeks={lostWeeks}
                 />
+            </HqSection>
 
-                <div className="mt-6">
-                    <h2 className="mb-3 font-display text-lg text-hq-paper uppercase">
-                        Evolución de puntos
-                    </h2>
-                    <HqTeamPointsChart
-                        lineupHistory={lineupHistory}
-                        startedWeeks={startedWeeks}
-                    />
-
-                    <div className="mt-8 flex flex-col gap-5 lg:flex-row lg:items-start">
-                        <section
-                            aria-labelledby="roster-heading"
-                            className="min-w-0 flex-1"
-                        >
-                            <div className="mb-3 flex items-center gap-2.5">
-                                <h2
-                                    id="roster-heading"
-                                    className="font-display text-lg text-hq-paper uppercase"
-                                >
-                                    Plantilla actual
-                                </h2>
-                                <span className="border border-hq-border-strong bg-hq-panel px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-hq-moss">
+            <div className="grid grid-cols-1 min-[80rem]:grid-cols-[minmax(0,1fr)_400px]">
+                <section
+                    aria-labelledby="roster-heading"
+                    className="min-w-0 border-b border-hq-border min-[80rem]:border-r min-[80rem]:border-b-0"
+                >
+                    <HqChannelHeader
+                        title={
+                            <span id="roster-heading">Plantilla actual</span>
+                        }
+                        action={
+                            <>
+                                <span className="border border-hq-border-strong bg-hq-panel px-1.5 py-[3px] font-mono text-xs leading-none font-bold text-hq-moss">
                                     {roster.length}/{MAX_ROSTER_SIZE}
                                 </span>
                                 {rosterValueDifference !== 0 && (
-                                    <span
+                                    <HqTooltip
+                                        label="Variación de valor de la plantilla hoy"
+                                        tone={
+                                            rosterValueDifference > 0
+                                                ? 'lime'
+                                                : 'neg'
+                                        }
+                                        focusable
                                         className={cn(
-                                            'font-mono text-xs font-bold whitespace-nowrap',
+                                            'font-mono font-bold whitespace-nowrap',
                                             rosterValueDifference > 0
                                                 ? 'text-hq-lime'
-                                                : 'text-hq-live',
+                                                : 'text-hq-neg',
                                         )}
                                     >
                                         {rosterValueDifference > 0 ? '▲' : '▼'}{' '}
                                         {formatCurrency(
                                             Math.abs(rosterValueDifference),
                                         )}
-                                    </span>
+                                    </HqTooltip>
                                 )}
-                            </div>
-                            <RosterList roster={roster} />
-                        </section>
+                            </>
+                        }
+                    />
+                    <RosterList roster={roster} />
+                </section>
 
-                        <section
-                            aria-labelledby="activity-heading"
-                            className="w-full shrink-0 lg:w-[400px]"
-                        >
-                            <div className="mb-4 flex flex-col gap-2.5">
-                                <h2 className="font-display text-lg text-hq-paper uppercase">
-                                    Alineación de la jornada
-                                </h2>
-                                <div className="min-w-0">
-                                    <HqWeekScrollPicker
-                                        week={selectedWeek}
-                                        maxWeek={season.total_weeks}
-                                        playedThroughWeek={season.current_week}
-                                        weekProgress={weekProgress}
-                                        weekPoints={weekPoints}
-                                        onChange={setSelectedWeek}
-                                    />
-                                </div>
-                            </div>
-
+                <aside className="min-w-0">
+                    <HqChannelHeader title="Alineación de la jornada" />
+                    <HqWeekPickerBand
+                        week={selectedWeek}
+                        maxWeek={season.total_weeks}
+                        playedThroughWeek={season.current_week}
+                        weekProgress={weekProgress}
+                        weekPoints={weekPoints}
+                        onChange={setSelectedWeek}
+                    />
+                    <div className="border-b border-hq-border p-3.5 sm:p-4">
+                        {lineupForWeek ? (
                             <div className="mx-auto max-w-[360px]">
-                                {lineupForWeek ? (
-                                    <HqLineupPitch
-                                        players={lineupForWeek.players}
-                                        tacticalFormation={
-                                            lineupForWeek.tactical_formation
-                                        }
-                                        onSelectPlayer={setSelectedPlayer}
-                                    />
-                                ) : (
-                                    <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                                        <p className="font-mono text-[11px] text-hq-moss-dim">
-                                            Sin alineación registrada esa
-                                            jornada.
-                                        </p>
-                                    </div>
-                                )}
+                                <HqLineupPitch
+                                    players={lineupForWeek.players}
+                                    tacticalFormation={
+                                        lineupForWeek.tactical_formation
+                                    }
+                                    onSelectPlayer={setSelectedPlayer}
+                                />
                             </div>
-
-                            <h2
-                                id="activity-heading"
-                                className="mt-8 mb-3 font-display text-lg text-hq-paper uppercase"
+                        ) : (
+                            <HqEmptyState
+                                glyph="▦"
+                                title="Sin alineación"
+                                className="m-0 sm:m-0"
                             >
-                                Actividad
-                            </h2>
-                            {activity.length === 0 ? (
-                                <p className="font-mono text-[11px] text-hq-moss-dim">
-                                    Todavía no hay actividad de este manager.
-                                </p>
-                            ) : (
-                                <div className="hq-card-cut px-4 py-1">
-                                    {activity.map((entry) => (
-                                        <HqActivityTimelineEntry
-                                            key={entry.id}
-                                            activity={entry}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </section>
+                                Sin alineación registrada esa jornada.
+                            </HqEmptyState>
+                        )}
                     </div>
-                </div>
+
+                    <HqChannelHeader title="Actividad" />
+                    {activity.length === 0 ? (
+                        <p className="p-4 text-sm text-hq-moss">
+                            Todavía no hay actividad de este manager.
+                        </p>
+                    ) : (
+                        <div>
+                            {activity.map((entry) => (
+                                <HqActivityTimelineEntry
+                                    key={entry.id}
+                                    activity={entry}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </aside>
             </div>
 
             <HqPlayerStatsModal
                 entry={
                     selectedPlayer
-                        ? {
-                              player: selectedPlayer.player,
-                              team: selectedPlayer.player.team,
-                              points: selectedPlayer.points ?? 0,
-                              daznPoints:
-                                  selectedPlayer.stats?.mins_played !==
-                                  undefined
-                                      ? selectedPlayer.stats.marca_points?.[1]
-                                      : undefined,
-                              stats: selectedPlayer.stats ?? {},
-                              fixture: selectedPlayer.fixture,
-                          }
+                        ? lineupPlayerStatsEntry(selectedPlayer)
                         : null
                 }
                 onClose={() => setSelectedPlayer(null)}
             />
-        </div>
+        </>
     );
 }
 

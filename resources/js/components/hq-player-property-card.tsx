@@ -1,11 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { Lock, Shield, ShieldCheck, UserX } from 'lucide-react';
+import { Lock, LockOpen, Shield, ShieldCheck, UserX } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqLed } from '@/components/hq-led';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { resolveClauseStatus } from '@/lib/clause-status';
 import { formatCurrency, formatFullDateTime } from '@/lib/format';
-import { cardTintStyle } from '@/lib/season-manager-colors';
+import { managerColor } from '@/lib/season-manager-colors';
 import { useCountdown } from '@/lib/use-countdown';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
 import { useNow } from '@/lib/use-now';
@@ -23,14 +24,22 @@ export function ClauseDifference({
     clause,
     marketValue,
     valueColorClass = 'text-hq-khaki',
+    className,
 }: {
     clause: number;
     marketValue: number;
     valueColorClass?: string;
+    /** Overrides the default 10px mono line (e.g. the roster's larger clause column). */
+    className?: string;
 }) {
     if (clause === marketValue) {
         return (
-            <p className="mt-0.5 truncate font-mono text-[10px] text-hq-moss-dim">
+            <p
+                className={cn(
+                    'mt-0.5 truncate font-mono text-[10px] text-hq-moss-dim',
+                    className,
+                )}
+            >
                 {formatCurrency(clause)} (=)
             </p>
         );
@@ -43,6 +52,7 @@ export function ClauseDifference({
             className={cn(
                 'mt-0.5 truncate font-mono text-[10px]',
                 valueColorClass,
+                className,
             )}
         >
             {formatCurrency(clause)}{' '}
@@ -54,6 +64,15 @@ export function ClauseDifference({
     );
 }
 
+const LABEL_CLASS =
+    'font-mono text-[11px] leading-tight font-medium tracking-[0.07em] uppercase';
+
+/**
+ * Who holds the player (mock `.prop`): the owning manager — washed in their
+ * colour — with the clause state (shielded / locked with countdown, or open)
+ * and the clause against the value; or the market listing (countdown, sale
+ * price, bids); or "Libre".
+ */
 export function HqPlayerPropertyCard({
     owner,
     marketListing,
@@ -68,12 +87,13 @@ export function HqPlayerPropertyCard({
     }
 
     return (
-        <div className="hq-card-cut p-4 text-center">
-            <UserX className="mx-auto mb-1.5 h-5 w-5 text-hq-moss-dim" />
-            <p className="font-mono text-[11px] font-bold tracking-wide text-hq-moss uppercase">
-                Libre
-            </p>
-            <p className="mt-1 font-mono text-[10px] text-hq-moss-dim">
+        <div className="border border-hq-border-strong px-3.5 py-[22px] text-center">
+            <UserX
+                aria-hidden="true"
+                className="mx-auto size-[22px] text-hq-moss-dim"
+            />
+            <p className={cn(LABEL_CLASS, 'mt-1.5 text-hq-moss')}>Libre</p>
+            <p className="mt-1 font-mono text-[11.5px] text-hq-moss-dim">
                 sin manager fantasy
             </p>
         </div>
@@ -93,76 +113,77 @@ function OwnedStatus({
         owner.buyout_clause_locked_until,
         now,
     );
+    const tint = owner.season_manager.primary_color
+        ? managerColor(owner.season_manager.primary_color)
+        : 'transparent';
 
     return (
         <div
-            className="hq-card-cut p-4"
-            style={
-                cardTintStyle(
-                    owner.season_manager.primary_color,
-                ) as CSSProperties
-            }
+            className="border border-hq-border-strong bg-[linear-gradient(135deg,color-mix(in_srgb,var(--prop-tint)_18%,transparent),transparent_70%)] p-3.5"
+            style={{ '--prop-tint': tint } as CSSProperties}
         >
-            <p className="mb-2 font-mono text-[10px] tracking-wide text-hq-moss uppercase">
-                Propiedad
-            </p>
+            <p className={cn(LABEL_CLASS, 'text-hq-moss-dim')}>Propiedad</p>
             <Link
                 href={seasonManagersShow(owner.season_manager.id).url}
-                className="mb-2.5 inline-flex items-center gap-2 hover:opacity-80"
+                className="mt-2.5 mb-3 flex min-h-11 min-w-0 items-center gap-2.5 hover:opacity-80 sm:min-h-0"
             >
                 <EntityImage
                     src={owner.season_manager.logo}
-                    alt={owner.season_manager.name}
+                    alt=""
                     fallback={Shield}
                     shape="square"
-                    className="h-7 w-7"
+                    className="size-[34px] rounded-none"
                 />
-                <span className="text-sm font-bold text-hq-paper">
+                <span className="truncate text-[15px] leading-tight font-bold text-hq-paper">
                     {owner.season_manager.name}
                 </span>
             </Link>
 
             {status === 'shielded' ? (
                 <LockStatus
-                    icon={<ShieldCheck className="h-[13px] w-[13px]" />}
+                    icon={<ShieldCheck className="size-3.5" />}
                     label="Blindado"
-                    colorClass="text-hq-def"
-                    borderClass="border-hq-def"
-                    bgClass="bg-hq-def/10"
+                    frameClass="border-hq-def bg-hq-def/10"
+                    labelClass="text-hq-def"
+                    countdownClass="text-hq-paper"
                     targetIso={owner.shielded_until}
                     now={now}
                 >
                     <ClauseDifference
                         clause={owner.buyout_clause}
                         marketValue={marketValue}
+                        className="mt-1.5 text-[11.5px] leading-tight"
                     />
                 </LockStatus>
             ) : status === 'locked' ? (
                 <LockStatus
-                    icon={<Lock className="h-[13px] w-[13px]" />}
+                    icon={<Lock className="size-3.5" />}
                     label="Cláusula bloqueada"
-                    colorClass="text-hq-moss"
-                    borderClass="border-hq-border-strong"
-                    bgClass="bg-hq-moss/10"
-                    countdownColorClass="text-hq-gold"
+                    frameClass="border-hq-border-bright bg-hq-moss/10"
+                    labelClass="text-hq-moss"
+                    countdownClass="text-hq-gold"
                     targetIso={owner.buyout_clause_locked_until}
                     now={now}
                 >
                     <ClauseDifference
                         clause={owner.buyout_clause}
                         marketValue={marketValue}
+                        className="mt-1.5 text-[11.5px] leading-tight"
                     />
                 </LockStatus>
             ) : (
-                <div className="border border-hq-lime bg-hq-lime/10 px-2.5 py-2">
-                    <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold text-hq-lime uppercase">
-                        <Lock className="h-[13px] w-[13px] rotate-45" />
+                <div className="border border-hq-lime bg-hq-lime/10 px-[11px] py-[9px]">
+                    <div className="flex items-center gap-1.5 font-mono text-[10.5px] leading-none font-bold tracking-[0.05em] text-hq-lime uppercase">
+                        <LockOpen
+                            aria-hidden="true"
+                            className="size-3.5 rotate-12"
+                        />
                         Cláusula abierta
                     </div>
-                    <p className="mt-0.5 font-mono text-xs font-bold whitespace-nowrap text-hq-paper">
+                    <p className="mt-[7px] font-mono text-sm leading-none font-bold whitespace-nowrap text-hq-paper tabular-nums">
                         {formatCurrency(owner.buyout_clause)}{' '}
                         {owner.buyout_clause !== marketValue && (
-                            <span className="text-[10px] font-bold text-hq-khaki">
+                            <span className="text-[11px] text-hq-khaki">
                                 (+
                                 {formatCurrency(
                                     owner.buyout_clause - marketValue,
@@ -185,22 +206,34 @@ function MarketListingStatus({
     const countdown = useCountdown(marketListing.expires_at);
 
     return (
-        <div className="hq-card-cut relative p-4 text-center">
-            {marketListing.bids > 0 && (
-                <span className="absolute top-2.5 right-2.5 border border-hq-ember bg-hq-ember/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-hq-ember">
-                    {marketListing.bids}{' '}
-                    {marketListing.bids === 1 ? 'PUJA' : 'PUJAS'}
-                </span>
-            )}
-            <p className="mb-2 font-mono text-[10px] font-bold tracking-wide text-hq-moss uppercase">
-                En el mercado
-            </p>
-            <p className="my-1 font-mono text-2xl font-bold text-hq-gold">
-                {countdown}
-            </p>
-            <span className="hq-tag-cut inline-block bg-hq-khaki px-3 py-1.5 font-mono text-sm font-bold text-hq-ink">
+        <div className="border border-hq-border-strong p-3.5 text-center">
+            <div className="flex items-center justify-between gap-2">
+                <p className={cn(LABEL_CLASS, 'text-hq-moss-dim')}>
+                    En el mercado
+                </p>
+                {marketListing.bids > 0 && (
+                    <span className="border border-hq-ember bg-hq-ember/10 px-1.5 py-[3px] font-mono text-[10px] leading-none font-bold text-hq-ember">
+                        {marketListing.bids}{' '}
+                        {marketListing.bids === 1 ? 'PUJA' : 'PUJAS'}
+                    </span>
+                )}
+            </div>
+            <HqTooltip
+                label={`Cierra ${formatFullDateTime(marketListing.expires_at)}`}
+                tone="gold"
+                focusable
+                className="mt-3 mb-2.5 justify-center"
+            >
+                <HqLed tone="gold" className="text-[30px]">
+                    {countdown}
+                </HqLed>
+            </HqTooltip>
+            <span className="inline-block bg-hq-khaki px-[9px] py-1.5 font-mono text-sm leading-none font-bold whitespace-nowrap text-[#16140c]">
                 {formatCurrency(marketListing.sale_price)}
             </span>
+            <p className={cn(LABEL_CLASS, 'mt-2.5 text-hq-moss-dim')}>
+                Precio de salida · valor {formatCurrency(marketListing.value)}
+            </p>
         </div>
     );
 }
@@ -208,20 +241,18 @@ function MarketListingStatus({
 function LockStatus({
     icon,
     label,
-    colorClass,
-    borderClass,
-    bgClass,
-    countdownColorClass = 'text-hq-paper',
+    frameClass,
+    labelClass,
+    countdownClass,
     targetIso,
     now,
     children,
 }: {
     icon: ReactNode;
     label: string;
-    colorClass: string;
-    borderClass: string;
-    bgClass: string;
-    countdownColorClass?: string;
+    frameClass: string;
+    labelClass: string;
+    countdownClass: string;
     targetIso: string | null;
     now: number;
     children: ReactNode;
@@ -229,19 +260,24 @@ function LockStatus({
     const countdown = useLockCountdown(targetIso, now);
 
     return (
-        <div className={cn('border px-2.5 py-2', borderClass, bgClass)}>
+        <div className={cn('border px-[11px] py-[9px]', frameClass)}>
             <div
                 className={cn(
-                    'flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase',
-                    colorClass,
+                    'flex items-center gap-1.5 font-mono text-[10.5px] leading-none font-bold tracking-[0.05em] uppercase',
+                    labelClass,
                 )}
             >
                 {icon}
                 {label}
             </div>
-            <p className={cn('mt-0.5 font-mono text-xs', countdownColorClass)}>
+            <p
+                className={cn(
+                    'mt-[7px] font-mono text-sm leading-none font-semibold tabular-nums',
+                    countdownClass,
+                )}
+            >
                 {targetIso !== null ? (
-                    <HqTooltip label={formatFullDateTime(targetIso)}>
+                    <HqTooltip label={formatFullDateTime(targetIso)} focusable>
                         {countdown}
                     </HqTooltip>
                 ) : (

@@ -15,6 +15,7 @@ use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Season;
+use App\Services\FixtureFantasyScoreboard;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -72,7 +73,7 @@ class FixturesController extends Controller
         ]);
     }
 
-    public function show(Fixture $fixture): Response
+    public function show(Fixture $fixture, FixtureFantasyScoreboard $fantasyScoreboard): Response
     {
         $fixture->load(['localTeam', 'guestTeam']);
 
@@ -130,6 +131,7 @@ class FixturesController extends Controller
             'lineups' => $lineups,
             'events' => $events,
             'team_stats' => $this->teamStats($fixtureLineups, $fixture),
+            'fantasy_scoreboard' => $fantasyScoreboard->forFixture($fixture, $fixtureLineups, $weekFixtures),
         ]);
     }
 

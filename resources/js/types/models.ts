@@ -37,6 +37,10 @@ export interface NextFixtureSlot {
     week_number: number;
     opponent: Team;
     is_home: boolean;
+    /** The rival's current real LaLiga standings position (1 = leader). */
+    rival_position: number;
+    /** −1 against the leader, 0 mid table, +1 against the last team — see `@/lib/rival-difficulty`. */
+    difficulty: number;
 }
 
 export interface Player {
@@ -118,6 +122,24 @@ export interface FixtureLineupEntry {
     lineup_manager: SeasonManager | null;
 }
 
+export interface FixtureFantasySide {
+    points: number;
+    /** The FixtureLineupEntry id of the side's best fantasy player. */
+    best_lineup_id: number | null;
+}
+
+/** The match page's "Marcador fantasy" — only sent for finished fixtures. */
+export interface FixtureFantasyScoreboard {
+    local: FixtureFantasySide;
+    guest: FixtureFantasySide;
+    managers: {
+        id: number;
+        name: string;
+        primary_color: string | null;
+        points: number;
+    }[];
+}
+
 export type FixtureEventType =
     'goal' | 'yellow_card' | 'red_card' | 'penalty_missed' | 'var';
 
@@ -163,6 +185,8 @@ export interface SeasonManager {
     last_position: number;
     value: number;
     recent_form: (number | null)[];
+    /** What the current squad gained or lost in the latest daily market update (sum of its players' daily value differences). */
+    daily_value_difference: number;
 }
 
 export interface MarketPlayer {
@@ -396,4 +420,99 @@ export interface MaxBidEstimate {
     upcoming_rivals: MaxBidRival[];
     /** The market day the values come from (Y-m-d): the latest published day, null without market data. */
     reference_date: string | null;
+}
+
+/** A team as the shell's teletipo shows it: crest and short name. */
+export interface TickerTeam {
+    id: number;
+    short_name: string;
+    main_name: string;
+    logo: string;
+}
+
+export interface TickerFixture {
+    id: number;
+    state: FixtureState;
+    display_clock: string | null;
+    local_score: number | null;
+    guest_score: number | null;
+    local_team: TickerTeam;
+    guest_team: TickerTeam;
+}
+
+/** A listing of the current daily market, with its player's daily value move. */
+export interface TickerListing {
+    id: number;
+    player_id: number;
+    nickname: string;
+    value: number;
+    bids: number;
+    market_value_difference: number;
+    market_trend: MarketTrend | null;
+}
+
+export interface TickerActivity {
+    id: number;
+    type: SeasonActivityType;
+    manager_name: string;
+    player_nickname: string | null;
+    amount: number | null;
+}
+
+/** The shell's "Teletipo" strip, shared with every page (remembered for a minute). */
+export interface Ticker {
+    live: TickerFixture[];
+    /** The last jornada whose fixtures have all been played — null before the first one ends. */
+    finished_week: number | null;
+    results: TickerFixture[];
+    market: TickerListing[];
+    activities: TickerActivity[];
+}
+
+export interface JornadaMatchTeam {
+    id: number;
+    short_name: string;
+    logo: string;
+}
+
+export interface JornadaMatchPlayer {
+    id: number;
+    nickname: string;
+    image: string;
+    position: PlayerPosition;
+    /** Live or final points in this match — null while it hasn't kicked off. */
+    points: number | null;
+}
+
+/** A manager whose jornada lineup has players in one match. */
+export interface JornadaMatchManager {
+    id: number;
+    name: string;
+    primary_color: string | null;
+    /** Sum of the players' points in this match — null while it hasn't kicked off. */
+    points: number | null;
+    players: JornadaMatchPlayer[];
+}
+
+export interface JornadaMatch {
+    id: number;
+    state: FixtureState;
+    date: string;
+    display_clock: string | null;
+    local_score: number | null;
+    guest_score: number | null;
+    local_team: JornadaMatchTeam;
+    guest_team: JornadaMatchTeam;
+    /** Null before the jornada starts (no lineups yet). */
+    managers: JornadaMatchManager[] | null;
+}
+
+export type JornadaMatchesStatus =
+    'not_started' | 'started' | 'live' | 'finished';
+
+/** The "Ahora" block's matches strip: a few of the current jornada's matches. */
+export interface JornadaMatches {
+    week: number;
+    status: JornadaMatchesStatus;
+    matches: JornadaMatch[];
 }

@@ -1,11 +1,16 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, Search, X } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqMultiSelect } from '@/components/hq-multi-select';
-import { PlayerRow } from '@/components/hq-player-row';
+import { HqPageHeader } from '@/components/hq-page-header';
+import { PlayerRow, PlayerRowHeader } from '@/components/hq-player-row';
+import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
+import { formatNumber } from '@/lib/format';
 import { POSITION_LABELS, STATUS_LABELS } from '@/lib/player-labels';
+import { PLAYER_SEARCH_INPUT_ID } from '@/lib/player-search';
 import { cn } from '@/lib/utils';
 import { index as playersIndex } from '@/routes/players';
 import type {
@@ -54,11 +59,20 @@ interface FilterOverrides {
     direction: SortDirection;
 }
 
+interface ActiveFilterChip {
+    key: string;
+    label: string;
+    remove: Partial<FilterOverrides>;
+}
+
 const SORT_LABELS: Record<PlayerSort, string> = {
     points: 'Puntos',
     value: 'Valor',
     difference: 'Diferencia',
 };
+
+/** Half the filter bar on phones (two per row), natural width from `sm` up. */
+const FILTER_ITEM_CLASS = 'w-[calc(50%-3px)] sm:w-auto';
 
 export default function PlayersIndex({
     players,
@@ -129,68 +143,127 @@ export default function PlayersIndex({
         .filter(([status]) => status !== 'out_of_league')
         .map(([value, label]) => ({ value, label }));
 
+    const activeChips: ActiveFilterChip[] = [
+        ...filters.position.map((position) => ({
+            key: `position-${position}`,
+            label: POSITION_LABELS[position],
+            remove: {
+                position: filters.position.filter((item) => item !== position),
+            },
+        })),
+        ...filters.team.map((teamId) => ({
+            key: `team-${teamId}`,
+            label:
+                teams.find((team) => team.id === teamId)?.main_name ??
+                String(teamId),
+            remove: { team: filters.team.filter((item) => item !== teamId) },
+        })),
+        ...filters.seasonManager.map((managerId) => ({
+            key: `manager-${managerId}`,
+            label:
+                seasonManagers.find((manager) => manager.id === managerId)
+                    ?.name ?? String(managerId),
+            remove: {
+                seasonManager: filters.seasonManager.filter(
+                    (item) => item !== managerId,
+                ),
+            },
+        })),
+        ...filters.status.map((status) => ({
+            key: `status-${status}`,
+            label: STATUS_LABELS[status],
+            remove: {
+                status: filters.status.filter((item) => item !== status),
+            },
+        })),
+    ];
+
+    const directionLabel =
+        filters.direction === 'asc' ? 'Ascendente' : 'Descendente';
+
     return (
-        <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
-            <div className="mx-auto max-w-7xl px-6 py-9">
-                <Head title="Jugadores" />
+        <div className="flex-1">
+            <Head title="Jugadores" />
 
-                <h1 className="mb-6 font-display text-3xl text-hq-paper uppercase">
-                    Jugadores
-                </h1>
+            <HqPageHeader
+                code="BASE DE DATOS"
+                title="Jugadores"
+                meta={[
+                    {
+                        label: 'Resultados',
+                        value: formatNumber(players.total),
+                    },
+                ]}
+            />
 
-                <div className="mb-5 flex flex-wrap gap-2.5">
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-hq-border bg-hq-panel px-3.5 py-2.5 sm:gap-2 sm:px-4 sm:py-3">
+                <label className="flex h-11 w-full items-center gap-2 border border-hq-border-strong bg-hq-ink px-2.5 text-hq-moss focus-within:border-hq-lime sm:h-[34px] sm:w-auto sm:min-w-[230px]">
+                    <Search aria-hidden="true" className="size-4 shrink-0" />
                     <input
-                        type="text"
+                        id={PLAYER_SEARCH_INPUT_ID}
+                        type="search"
+                        aria-label="Buscar jugador"
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                         placeholder="Buscar jugador…"
-                        className="border border-hq-border bg-hq-panel px-3 py-2 font-mono text-[11px] text-hq-paper placeholder-hq-moss-dim focus:border-hq-lime focus:outline-none"
+                        autoComplete="off"
+                        className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-hq-paper placeholder-hq-moss-dim outline-none"
                     />
+                    <kbd className="hidden border border-hq-border-strong px-1.5 py-0.5 font-mono text-[10px] leading-none text-hq-moss-dim sm:inline-block">
+                        /
+                    </kbd>
+                </label>
 
-                    <HqMultiSelect
-                        label="Posición"
-                        options={positionOptions}
-                        selected={filters.position}
-                        onChange={(next) =>
-                            applyFilters({ position: next as PlayerPosition[] })
-                        }
-                    />
+                <HqMultiSelect
+                    label="Posición"
+                    options={positionOptions}
+                    selected={filters.position}
+                    onChange={(next) =>
+                        applyFilters({ position: next as PlayerPosition[] })
+                    }
+                    className={FILTER_ITEM_CLASS}
+                />
 
-                    <HqMultiSelect
-                        label="Equipo"
-                        options={teamOptions}
-                        selected={filters.team.map(String)}
-                        onChange={(next) =>
-                            applyFilters({ team: next.map(Number) })
-                        }
-                    />
+                <HqMultiSelect
+                    label="Equipo"
+                    options={teamOptions}
+                    selected={filters.team.map(String)}
+                    onChange={(next) =>
+                        applyFilters({ team: next.map(Number) })
+                    }
+                    className={FILTER_ITEM_CLASS}
+                />
 
-                    <HqMultiSelect
-                        label="Manager"
-                        options={seasonManagerOptions}
-                        selected={filters.seasonManager.map(String)}
-                        onChange={(next) =>
-                            applyFilters({ seasonManager: next.map(Number) })
-                        }
-                    />
+                <HqMultiSelect
+                    label="Manager"
+                    options={seasonManagerOptions}
+                    selected={filters.seasonManager.map(String)}
+                    onChange={(next) =>
+                        applyFilters({ seasonManager: next.map(Number) })
+                    }
+                    className={FILTER_ITEM_CLASS}
+                />
 
-                    <HqMultiSelect
-                        label="Estado"
-                        options={statusOptions}
-                        selected={filters.status}
-                        onChange={(next) =>
-                            applyFilters({ status: next as PlayerStatus[] })
-                        }
-                    />
+                <HqMultiSelect
+                    label="Estado"
+                    options={statusOptions}
+                    selected={filters.status}
+                    onChange={(next) =>
+                        applyFilters({ status: next as PlayerStatus[] })
+                    }
+                    className={FILTER_ITEM_CLASS}
+                />
 
+                <div className="flex w-full gap-1.5 sm:w-auto sm:gap-2">
                     <select
                         value={filters.sort}
+                        aria-label="Ordenar"
                         onChange={(event) =>
                             applyFilters({
                                 sort: event.target.value as PlayerSort,
                             })
                         }
-                        className="border border-hq-border bg-hq-panel px-3 py-2 font-mono text-[11px] font-bold tracking-wide text-hq-moss uppercase focus:border-hq-lime focus:outline-none"
+                        className="h-11 min-w-0 flex-1 cursor-pointer border border-hq-border-strong bg-hq-ink px-2 font-mono text-[11.5px] font-bold tracking-[0.05em] text-hq-moss uppercase focus:border-hq-lime focus:outline-none sm:h-[34px] sm:flex-none"
                     >
                         {(
                             Object.entries(SORT_LABELS) as [
@@ -204,107 +277,94 @@ export default function PlayersIndex({
                         ))}
                     </select>
 
-                    <button
-                        type="button"
-                        onClick={() =>
-                            applyFilters({
-                                direction:
-                                    filters.direction === 'asc'
-                                        ? 'desc'
-                                        : 'asc',
-                            })
-                        }
-                        title={
-                            filters.direction === 'asc'
-                                ? 'Ascendente'
-                                : 'Descendente'
-                        }
-                        className="flex items-center border border-hq-border bg-hq-panel px-2.5 py-2 text-hq-moss hover:border-hq-border-strong"
-                    >
-                        {filters.direction === 'asc' ? (
-                            <ArrowUp className="h-3.5 w-3.5" />
-                        ) : (
-                            <ArrowDown className="h-3.5 w-3.5" />
-                        )}
-                    </button>
+                    <HqTooltip label={directionLabel}>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                applyFilters({
+                                    direction:
+                                        filters.direction === 'asc'
+                                            ? 'desc'
+                                            : 'asc',
+                                })
+                            }
+                            aria-label={`Cambiar dirección (ahora ${directionLabel.toLowerCase()})`}
+                            className="flex size-11 cursor-pointer items-center justify-center border border-hq-border-strong bg-hq-ink text-hq-moss transition-colors hover:border-hq-lime hover:text-hq-lime sm:h-[34px] sm:w-8"
+                        >
+                            {filters.direction === 'asc' ? (
+                                <ArrowUp className="size-3.5" />
+                            ) : (
+                                <ArrowDown className="size-3.5" />
+                            )}
+                        </button>
+                    </HqTooltip>
                 </div>
 
-                {players.data.length === 0 ? (
-                    <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                        <p className="mb-2 text-3xl">🔍</p>
-                        <p className="font-display text-lg text-hq-paper uppercase">
-                            Sin resultados
-                        </p>
-                        <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
-                            No hay jugadores que coincidan con estos filtros.
-                        </p>
-                    </div>
-                ) : (
-                    <>
-                        <div className="mb-2 hidden items-center justify-between px-3.5 font-mono text-[10px] text-hq-moss-dim uppercase xl:flex">
-                            <div className="flex items-center gap-3">
-                                <span className="w-11 shrink-0" />
-                                <span className="w-[190px] shrink-0">
-                                    Jugador
-                                </span>
-                                <span className="w-11 shrink-0 text-center">
-                                    Pos.
-                                </span>
-                                <span className="w-16 shrink-0">Estado</span>
-                                <span className="w-[150px] shrink-0">
-                                    Pertenece a
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-6">
-                                <span className="shrink-0">
-                                    Siguientes partidos
-                                </span>
-                                <span className="w-[130px] shrink-0">
-                                    Últimas 3 jornadas
-                                </span>
-                                <span className="w-[130px] shrink-0 text-right">
-                                    Valor
-                                </span>
-                                <span className="w-[52px] shrink-0 text-center">
-                                    Pts
-                                </span>
-                            </div>
-                        </div>
-
-                        <div>
-                            {players.data.map((player) => (
-                                <PlayerRow key={player.id} player={player} />
-                            ))}
-                        </div>
-                    </>
-                )}
-
-                {players.last_page > 1 && (
-                    <nav
-                        aria-label="Paginación"
-                        className="mt-6 flex flex-wrap gap-1.5"
-                    >
-                        {players.links.map((link, index) => (
-                            <Link
-                                key={index}
-                                href={link.url ?? '#'}
-                                preserveScroll
-                                className={cn(
-                                    'border px-3 py-1.5 font-mono text-[11px] font-bold',
-                                    link.active
-                                        ? 'border-hq-lime bg-hq-lime text-hq-ink'
-                                        : 'border-hq-border text-hq-moss hover:border-hq-border-strong',
-                                    !link.url &&
-                                        'pointer-events-none opacity-40',
-                                )}
-                                dangerouslySetInnerHTML={{
-                                    __html: link.label,
-                                }}
-                            />
+                {activeChips.length > 0 && (
+                    <div className="flex w-full flex-wrap gap-1.5">
+                        {activeChips.map((chip) => (
+                            <button
+                                key={chip.key}
+                                type="button"
+                                onClick={() => applyFilters(chip.remove)}
+                                aria-label={`Quitar filtro ${chip.label}`}
+                                className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 border border-hq-border-strong bg-hq-ink px-2 font-mono text-[11px] font-semibold text-hq-moss transition-colors hover:border-hq-live hover:text-hq-live sm:min-h-0 sm:py-1"
+                            >
+                                {chip.label}
+                                <X aria-hidden="true" className="size-3" />
+                            </button>
                         ))}
-                    </nav>
+                    </div>
                 )}
             </div>
+
+            {players.data.length === 0 ? (
+                <HqEmptyState glyph="?" title="Sin resultados">
+                    No hay jugadores que coincidan con estos filtros.
+                </HqEmptyState>
+            ) : (
+                <>
+                    <p className="border-b border-hq-border px-3.5 py-2.5 hq-label sm:px-4">
+                        {formatNumber(players.total)} jugadores · página{' '}
+                        {players.current_page} de {players.last_page}
+                    </p>
+                    <PlayerRowHeader />
+                    <div>
+                        {players.data.map((player) => (
+                            <PlayerRow key={player.id} player={player} />
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {players.last_page > 1 && (
+                <nav
+                    aria-label="Paginación"
+                    className="flex flex-wrap items-center gap-1 px-3.5 py-3.5 sm:px-4"
+                >
+                    {players.links.map((link, index) => (
+                        <Link
+                            key={index}
+                            href={link.url ?? '#'}
+                            preserveScroll
+                            aria-current={link.active ? 'page' : undefined}
+                            className={cn(
+                                'inline-flex h-11 min-w-11 items-center justify-center border px-2 font-mono text-xs font-bold sm:h-8 sm:min-w-[34px]',
+                                link.active
+                                    ? 'border-hq-lime bg-hq-lime text-hq-ink'
+                                    : 'border-hq-border-strong text-hq-moss hover:border-hq-border-bright hover:text-hq-paper',
+                                !link.url && 'pointer-events-none opacity-35',
+                            )}
+                            dangerouslySetInnerHTML={{
+                                __html: link.label,
+                            }}
+                        />
+                    ))}
+                    <span className="ml-auto font-mono text-xs text-hq-moss-dim">
+                        {players.per_page} por página
+                    </span>
+                </nav>
+            )}
         </div>
     );
 }
