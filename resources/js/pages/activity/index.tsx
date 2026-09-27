@@ -1,11 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
-import type { CSSProperties, ReactElement } from 'react';
-import {
-    activityTypeTintStyle,
-    TYPE_LABELS,
-} from '@/components/activity-helpers';
+import type { ReactElement } from 'react';
+import { TYPE_LABELS } from '@/components/activity-helpers';
 import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
+import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqMultiSelect } from '@/components/hq-multi-select';
+import { HqPageHeader } from '@/components/hq-page-header';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { index as activityIndex } from '@/routes/activity';
@@ -27,9 +26,7 @@ interface ActivityIndexProps {
     [key: string]: unknown;
 }
 
-function groupByDay(
-    activities: Activity[],
-): [string, Activity[]][] {
+function groupByDay(activities: Activity[]): [string, Activity[]][] {
     const groups = new Map<string, Activity[]>();
 
     for (const activity of activities) {
@@ -71,102 +68,102 @@ export default function ActivityIndex({
     ).map(([value, label]) => ({ value, label }));
 
     return (
-        <div className="hq-texture hq-bleed flex-1 border-y border-hq-border">
-            <div className="mx-auto max-w-7xl px-6 py-9">
-                <Head title="Actividad" />
+        <div className="flex-1">
+            <Head title="Actividad" />
 
-                <h1 className="mb-6 font-display text-3xl text-hq-paper uppercase">
-                    Actividad
-                </h1>
+            <HqPageHeader
+                code="CH·A · REGISTRO DE MERCADO"
+                title="Actividad"
+                meta={[
+                    {
+                        label: 'Movimientos',
+                        value: activities.total.toLocaleString('es-ES'),
+                    },
+                ]}
+            />
 
-                <div className="mb-7 flex flex-wrap gap-2.5">
-                    <HqMultiSelect
-                        label="Manager"
-                        options={managerOptions}
-                        selected={filters.manager.map(String)}
-                        onChange={(next) =>
-                            applyFilters(next.map(Number), filters.type)
-                        }
-                    />
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-hq-border bg-hq-panel px-3.5 py-2.5 sm:gap-2 sm:px-4 sm:py-3">
+                <HqMultiSelect
+                    label="Manager"
+                    options={managerOptions}
+                    selected={filters.manager.map(String)}
+                    onChange={(next) =>
+                        applyFilters(next.map(Number), filters.type)
+                    }
+                />
 
-                    <HqMultiSelect
-                        label="Tipo"
-                        options={typeOptions}
-                        selected={filters.type}
-                        onChange={(next) =>
-                            applyFilters(
-                                filters.manager,
-                                next as SeasonActivityType[],
-                            )
-                        }
-                    />
-                </div>
-
-                {activities.data.length === 0 ? (
-                    <div className="border border-dashed border-hq-border-strong px-6 py-9 text-center">
-                        <p className="mb-2 text-3xl">📋</p>
-                        <p className="font-display text-lg text-hq-paper uppercase">
-                            Sin actividad
-                        </p>
-                        <p className="mt-1.5 font-mono text-[11px] text-hq-moss-dim">
-                            No hay actividad que coincida con estos filtros.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-7">
-                        {groups.map(([day, entries]) => (
-                            <section key={day}>
-                                <h2 className="mb-2.5 border-b border-hq-border pb-1.5 font-mono text-[10px] tracking-widest text-hq-moss-dim uppercase">
-                                    {day}
-                                </h2>
-                                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
-                                    {entries.map((entry) => (
-                                        <div
-                                            key={entry.id}
-                                            className="hq-card-cut px-4 py-1"
-                                            style={
-                                                activityTypeTintStyle(
-                                                    entry.type,
-                                                ) as CSSProperties
-                                            }
-                                        >
-                                            <HqActivityTimelineEntry
-                                                activity={entry}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        ))}
-                    </div>
-                )}
-
-                {activities.last_page > 1 && (
-                    <nav
-                        aria-label="Paginación"
-                        className="mt-8 flex flex-wrap gap-1.5"
-                    >
-                        {activities.links.map((link, index) => (
-                            <Link
-                                key={index}
-                                href={link.url ?? '#'}
-                                preserveScroll
-                                className={cn(
-                                    'border px-3 py-1.5 font-mono text-[11px] font-bold',
-                                    link.active
-                                        ? 'border-hq-lime bg-hq-lime text-hq-ink'
-                                        : 'border-hq-border text-hq-moss hover:border-hq-border-strong',
-                                    !link.url &&
-                                        'pointer-events-none opacity-40',
-                                )}
-                                dangerouslySetInnerHTML={{
-                                    __html: link.label,
-                                }}
-                            />
-                        ))}
-                    </nav>
-                )}
+                <HqMultiSelect
+                    label="Tipo"
+                    options={typeOptions}
+                    selected={filters.type}
+                    onChange={(next) =>
+                        applyFilters(
+                            filters.manager,
+                            next as SeasonActivityType[],
+                        )
+                    }
+                />
             </div>
+
+            {activities.data.length === 0 ? (
+                <HqEmptyState glyph="∅" title="Sin actividad">
+                    No hay actividad que coincida con estos filtros.
+                </HqEmptyState>
+            ) : (
+                <>
+                    <p className="border-b border-hq-border px-3.5 py-2.5 hq-label sm:px-4">
+                        {activities.total.toLocaleString('es-ES')}{' '}
+                        movimientos · página {activities.current_page} de{' '}
+                        {activities.last_page}
+                    </p>
+
+                    {groups.map(([day, entries]) => (
+                        <section key={day}>
+                            <h2 className="flex items-center justify-between border-b border-hq-border-strong bg-hq-ink px-3.5 py-2.5 font-mono text-[11px] font-bold tracking-[0.14em] text-hq-moss-dim uppercase sm:px-4">
+                                <span>{day}</span>
+                                <span>{entries.length}</span>
+                            </h2>
+                            <div className="-mb-px grid grid-cols-1 md:grid-cols-2 md:[&>*:nth-child(odd)]:border-r md:[&>*:nth-child(odd)]:border-hq-border">
+                                {entries.map((entry) => (
+                                    <HqActivityTimelineEntry
+                                        key={entry.id}
+                                        activity={entry}
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    ))}
+                </>
+            )}
+
+            {activities.last_page > 1 && (
+                <nav
+                    aria-label="Paginación"
+                    className="flex flex-wrap items-center gap-1 px-3.5 py-3.5 sm:px-4"
+                >
+                    {activities.links.map((link, index) => (
+                        <Link
+                            key={index}
+                            href={link.url ?? '#'}
+                            preserveScroll
+                            aria-current={link.active ? 'page' : undefined}
+                            className={cn(
+                                'inline-flex h-11 min-w-11 items-center justify-center border px-2 font-mono text-xs font-bold sm:h-8 sm:min-w-[34px]',
+                                link.active
+                                    ? 'border-hq-lime bg-hq-lime text-hq-ink'
+                                    : 'border-hq-border-strong text-hq-moss hover:border-hq-border-bright hover:text-hq-paper',
+                                !link.url && 'pointer-events-none opacity-35',
+                            )}
+                            dangerouslySetInnerHTML={{
+                                __html: link.label,
+                            }}
+                        />
+                    ))}
+                    <span className="ml-auto font-mono text-xs text-hq-moss-dim">
+                        {activities.per_page} por página
+                    </span>
+                </nav>
+            )}
         </div>
     );
 }
