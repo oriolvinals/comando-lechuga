@@ -14,8 +14,8 @@ kickoff); this feature adds the **predicted** part before that.
   HTML, ~2.4 MB each). Each player block: `<div class="jugador_{ffId}" data-probabilidad="NN%"
   data-valor-laliga-fantasy="…" data-puntos-totales-laliga-fantasy="…" data-rival="…">` plus status
   flags. Blocks appear twice (desktop + mobile) → dedupe by `ffId`. Pre-season pages have no %;
-  once a lineup is known the value becomes `Titular` / `Suplente` (ignored: worldcup26 owns confirmed
-  lineups).
+  once a lineup is known the value becomes `Titular` / `Suplente` (stored as a fallback confirmation;
+  worldcup26 stays the primary confirmed-lineup source — see Sync).
 - Same source LaLigaApp (GPL) uses; we take the idea, not its code.
 - Injury / suspension status keeps coming from LaLiga Fantasy (`players.status`), not from FF.
 - Attribution on every surface: "Probabilidades: FútbolFantasy" linking to the team page.
@@ -36,13 +36,17 @@ logged, never guessed. Team slug → `team_id` is a fixed 20-entry map (FF uses 
 
 - `players.futbolfantasy_id` — nullable unsigned int, unique.
 - `player_start_probabilities`: `id`, `player_id` (fk), `fixture_id` (fk, see "Which fixture"),
-  `probability` (unsigned tinyint 0–100), `fetched_at`,
+  `probability` (nullable unsigned tinyint 0–100 — the last predicted %, kept after
+  confirmation for the "Sorpresa / Se cae · era N %" marks), `confirmed_starter` (nullable bool —
+  set from an "Alineación confirmada" page: true = Titular, false = Suplente), `fetched_at`,
   timestamps; unique (`player_id`, `fixture_id`); upserted each cycle. No enum-less string columns
   are needed; if one is added it defaults to `''` (project rule).
 
 ## Which fixture
 
-The FF team page titles its prediction "Posible alineación J{n}". The probabilities are stored on
+The FF team page titles its prediction "Posible alineación J{n}", and "Alineación confirmada J{n}"
+once the official lineup is out (then each player's value is `Titular` / `Suplente` instead of a
+%). Both headings give the jornada. The probabilities are stored on
 **that team's fixture with `week_number = n`** (team + jornada), so a postponed match keeps its
 jornada (e.g. the J6 match played on 21 Oct is still "the J6 one"). `data-rival` is only a sanity
 check: if the rival doesn't match that fixture's opponent, nothing is stored for the team and a
@@ -64,6 +68,10 @@ manager page use each team's / player's next fixture (the one already shown as "
   20 s) widens its pre-match window from 1 h to **1 h 30 min** before kickoff and keeps re-reading
   the official lineup on every run until kickoff, so late changes or corrections replace the stored
   one. Once a fixture has confirmed lineups, the pages show Titular/Suplente instead of the %.
+- **Confirmed-lineup sources, in order:** worldcup26 (`fixture_lineups`, primary); FF's
+  "Alineación confirmada" (`confirmed_starter`) as the fallback when worldcup26 has nothing yet.
+  If both exist and disagree, worldcup26 wins. FF pages keep being fetched every 10 min until
+  kickoff, so an FF confirmation is picked up within 10 min.
 - A page that fails or parses 0 players leaves that team's rows untouched and logs a warning.
 - Data older than 48 h is shown as stale ("Datos de hace N días", muted bars).
 
@@ -94,7 +102,8 @@ last-3-matches starts + minutes. Not backtestable (no history) — note it in th
 
 ## Testing
 
-- Parser unit tests on saved HTML fixtures (dedupe, `%`, missing %, `Titular`/`Suplente`, rival).
+- Parser unit tests on saved HTML fixtures (dedupe, `%`, missing %, `Titular`/`Suplente`, rival,
+  "Posible alineación J{n}" vs "Alineación confirmada J{n}" headings, missing heading).
 - Linker tests for each rule, including ties and the manual map.
 - Command feature tests with `Http::fake` / Saloon mocks: due-logic per team, failure keeps rows,
   upsert, no fetch inside the 1 h window.
