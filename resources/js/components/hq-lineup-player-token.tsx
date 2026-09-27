@@ -1,12 +1,12 @@
-import { Link } from '@inertiajs/react';
 import { User } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqManagerChip } from '@/components/hq-manager-chip';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { HqTooltip } from '@/components/hq-tooltip';
 import { EventGlyph } from '@/components/match-event-icons';
-import { matchPointsBadgeClass, matchPointsBadgeClassOnPhoto } from '@/lib/points';
-import { managerColor } from '@/lib/season-manager-colors';
+import { matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
-import { show as seasonManagersShow } from '@/routes/season-managers';
 import type { FixtureLineupEntry } from '@/types/models';
 
 interface HqLineupPlayerTokenProps {
@@ -16,36 +16,28 @@ interface HqLineupPlayerTokenProps {
     onSelect?: (entry: FixtureLineupEntry) => void;
 }
 
-const AVATAR_SIZE: Record<'pitch' | 'bench', string> = {
-    pitch: 'h-13 w-13', // 52px
-    bench: 'h-8.5 w-8.5', // 34px
-};
-
-// Bench only: the avatar wrapper is taller than the photo itself, leaving
-// room below it for the position tag so the tag sits under the photo
-// instead of overlapping it.
-const AVATAR_WRAP_SIZE: Record<'pitch' | 'bench', string> = {
-    pitch: 'h-13 w-13',
-    bench: 'h-11 w-8.5',
-};
-
 function statCount(stats: FixtureLineupEntry['stats'], key: string): number {
     return stats?.[key]?.[0] ?? 0;
 }
 
-export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayerTokenProps) {
-    const isPitch = variant === 'pitch';
-    const clickable = entry.player !== null && onSelect !== undefined;
-    const handleClick = clickable ? () => onSelect(entry) : undefined;
-    const hasPlayed = entry.starter || entry.subbed_in;
-    const subMinute = entry.subbed_in || entry.subbed_out ? entry.sub_minute : null;
+const TEXT_GLYPH_CLASS =
+    'border border-current px-[3px] py-0.5 font-mono text-[9.5px] leading-none font-bold';
 
-    // Everything here reads off fantasy_stats (entry.stats), not worldcup26's
-    // own event log — worldcup26 doesn't distinguish an own goal from a
-    // regular one, a second yellow from a first, or give penalty
-    // won/conceded/saved or clean sheets. Mirrors MatchEventIcons (used on
-    // the player ficha's own match timeline) exactly, split into good/bad
-    // groups for the two-corner badge layout that component doesn't need.
+const CARD_CLASS = 'inline-block h-[13px] w-[9px] rounded-[1px]';
+
+/**
+ * Everything here reads off fantasy_stats (entry.stats), not worldcup26's
+ * own event log — worldcup26 doesn't distinguish an own goal from a regular
+ * one, a second yellow from a first, or give penalty won/conceded/saved or
+ * clean sheets. Mirrors MatchEventIcons (the player ficha's match log)
+ * exactly, split into good/bad groups for the two-corner pitch layout.
+ */
+function eventIcons(entry: FixtureLineupEntry): {
+    good: ReactNode;
+    bad: ReactNode;
+    hasGood: boolean;
+    hasBad: boolean;
+} {
     const goals = statCount(entry.stats, 'goals');
     const ownGoals = statCount(entry.stats, 'own_goals');
     const assists = statCount(entry.stats, 'goal_assist');
@@ -61,13 +53,21 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
         statCount(entry.stats, 'goals_conceded') === 0 &&
         statCount(entry.stats, 'mins_played') >= 60;
 
-    const hasGoodEvent = goals > 0 || assists > 0 || penaltyWon > 0 || penaltySaved > 0 || cleanSheet;
-    const hasBadEvent = ownGoals > 0 || yellow || secondYellow || red || penaltyConceded > 0 || penaltyMissed > 0;
+    const hasGood =
+        goals > 0 ||
+        assists > 0 ||
+        penaltyWon > 0 ||
+        penaltySaved > 0 ||
+        cleanSheet;
+    const hasBad =
+        ownGoals > 0 ||
+        yellow ||
+        secondYellow ||
+        red ||
+        penaltyConceded > 0 ||
+        penaltyMissed > 0;
 
-    // Icon content only — positioning/background differ between the pitch
-    // (pegged to the avatar corner) and the bench (its own strip below the
-    // name, since the bench row has room to spare and the pitch token doesn't).
-    const goodIcons = (
+    const good = (
         <>
             {goals > 0 && (
                 <EventGlyph count={goals} title="Gol">
@@ -76,219 +76,338 @@ export function HqLineupPlayerToken({ entry, variant, onSelect }: HqLineupPlayer
             )}
             {assists > 0 && (
                 <EventGlyph count={assists} title="Asistencia">
-                    <span className="text-[13px] leading-none text-hq-med">➜</span>
+                    <span className="font-mono text-[13px] leading-none font-extrabold text-hq-med">
+                        ➜
+                    </span>
                 </EventGlyph>
             )}
             {penaltyWon > 0 && (
                 <EventGlyph count={penaltyWon} title="Provoca penalti">
-                    <span className="border border-hq-gold px-1 py-px font-mono text-[9px] font-bold text-hq-gold">P+</span>
+                    <span className={cn(TEXT_GLYPH_CLASS, 'text-hq-gold')}>
+                        P+
+                    </span>
                 </EventGlyph>
             )}
             {penaltySaved > 0 && (
                 <EventGlyph count={penaltySaved} title="Penalti parado">
-                    <span className="border border-hq-lime px-1 py-px font-mono text-[9px] font-bold text-hq-lime">P✓</span>
+                    <span className={cn(TEXT_GLYPH_CLASS, 'text-hq-lime')}>
+                        P✓
+                    </span>
                 </EventGlyph>
             )}
             {cleanSheet && (
-                <span title="Portería a cero" className="border border-hq-lime px-1 py-px font-mono text-[9px] font-bold text-hq-lime">0</span>
+                <span
+                    title="Portería a cero"
+                    className={cn(TEXT_GLYPH_CLASS, 'text-hq-lime')}
+                >
+                    0
+                </span>
             )}
         </>
     );
-    const badIcons = (
+    const bad = (
         <>
             {ownGoals > 0 && (
                 <EventGlyph count={ownGoals} title="Autogol">
-                    <span className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">PP</span>
+                    <span className={cn(TEXT_GLYPH_CLASS, 'text-hq-live')}>
+                        PP
+                    </span>
                 </EventGlyph>
             )}
-            {yellow && <span title="Amarilla" className="hq-crest-cut h-3.5 w-2.5 bg-hq-gold" />}
+            {yellow && (
+                <span
+                    title="Amarilla"
+                    className={cn(CARD_CLASS, 'bg-hq-gold')}
+                />
+            )}
             {secondYellow && (
-                <span title="Doble amarilla" className="relative inline-block h-3.5 w-4">
-                    <span className="hq-crest-cut absolute top-0.5 left-0 h-3 w-2 bg-hq-gold/60" />
-                    <span className="hq-crest-cut absolute top-0 left-1.5 h-3 w-2 bg-hq-gold" />
+                <span
+                    title="Doble amarilla"
+                    className="relative inline-block h-[13px] w-[15px]"
+                >
+                    <span
+                        className={cn(
+                            CARD_CLASS,
+                            'absolute top-0.5 left-0 bg-hq-gold/60',
+                        )}
+                    />
+                    <span
+                        className={cn(
+                            CARD_CLASS,
+                            'absolute top-0 left-1.5 bg-hq-gold',
+                        )}
+                    />
                 </span>
             )}
-            {red && <span title="Roja" className="hq-crest-cut h-3.5 w-2.5 bg-hq-live" />}
+            {red && (
+                <span title="Roja" className={cn(CARD_CLASS, 'bg-hq-live')} />
+            )}
             {penaltyConceded > 0 && (
                 <EventGlyph count={penaltyConceded} title="Comete penalti">
-                    <span className="border border-hq-ember px-1 py-px font-mono text-[9px] font-bold text-hq-ember">P−</span>
+                    <span className={cn(TEXT_GLYPH_CLASS, 'text-hq-ember')}>
+                        P−
+                    </span>
                 </EventGlyph>
             )}
             {penaltyMissed > 0 && (
                 <EventGlyph count={penaltyMissed} title="Penalti fallado">
-                    <span className="border border-hq-live px-1 py-px font-mono text-[9px] font-bold text-hq-live">P✗</span>
+                    <span className={cn(TEXT_GLYPH_CLASS, 'text-hq-live')}>
+                        P✗
+                    </span>
                 </EventGlyph>
             )}
         </>
     );
 
-    const avatarImage = entry.player ? (
-        <EntityImage
-            src={entry.player.image}
-            alt={entry.player.nickname}
-            fallback={User}
-            className={cn(AVATAR_SIZE[variant], !isPitch && 'absolute top-0', 'border-[1.5px] border-hq-border-strong bg-hq-border')}
-        />
-    ) : (
-        <div
+    return { good, bad, hasGood, hasBad };
+}
+
+function SubMinuteBadge({
+    entry,
+    minute,
+    className,
+}: {
+    entry: FixtureLineupEntry;
+    minute: number;
+    className?: string;
+}) {
+    return (
+        <span
             className={cn(
-                AVATAR_SIZE[variant],
-                !isPitch && 'absolute top-0',
-                'flex items-center justify-center rounded-full border-[1.5px] border-dashed border-hq-border-strong font-mono text-hq-moss-dim',
+                'border border-current bg-hq-ink px-1 py-0.5 font-mono text-[10px] leading-none font-bold whitespace-nowrap',
+                entry.subbed_out ? 'text-hq-live' : 'text-hq-lime',
+                className,
             )}
         >
-            ?
-        </div>
+            ↳{minute}'
+        </span>
     );
+}
 
-    const avatar = (
-        <div className={cn('relative shrink-0', AVATAR_WRAP_SIZE[variant])}>
-            {isPitch && hasBadEvent && (
-                <span className="absolute -top-1.5 left-3 z-10 flex -translate-x-full items-center gap-1 whitespace-nowrap px-1 py-px font-mono text-[9px] font-bold text-hq-live">
-                    {badIcons}
-                </span>
-            )}
-            {isPitch && hasGoodEvent && (
-                <span className="absolute -top-1.5 right-3 z-10 flex translate-x-full items-center gap-1 whitespace-nowrap px-1 py-px font-mono text-[9px] font-bold text-hq-lime">
-                    {goodIcons}
-                </span>
-            )}
+function playerName(entry: FixtureLineupEntry): string {
+    return entry.player?.nickname ?? entry.unresolved_name ?? 'No vinculado';
+}
 
-            {avatarImage}
+function accessibleLabel(entry: FixtureLineupEntry): string {
+    const points =
+        entry.points === null ? 'sin puntos' : `${entry.points} puntos`;
 
-            {isPitch && subMinute !== null && (
-                <span
-                    className={cn(
-                        'absolute -bottom-1 left-3 z-10 -translate-x-full whitespace-nowrap border bg-hq-ink px-1 py-px font-mono text-[10px] font-bold',
-                        entry.subbed_out ? 'border-hq-live text-hq-live' : 'border-hq-lime text-hq-lime',
-                    )}
-                >
-                    ↳{subMinute}
-                </span>
-            )}
+    return `${entry.jersey} ${playerName(entry)} · ${points}`;
+}
 
-            {isPitch && entry.player && entry.points !== null && (
-                <span
-                    className={cn(
-                        'absolute right-3 -bottom-1 z-10 translate-x-full rounded-[2px] px-1 py-px font-mono text-[11px] font-bold',
-                        matchPointsBadgeClassOnPhoto(entry.points),
-                    )}
-                >
-                    {entry.points}
-                </span>
-            )}
+/**
+ * A player of a real match lineup. `pitch` is the horizontal match pitch
+ * token (mock `.mtok`): 52px framed photo, good events top-right and bad
+ * ones top-left, the sub minute bottom-left (red out / lime in), the points
+ * tier chip bottom-right, then jersey + name and the manager who fielded
+ * him. `bench` is the ruled list row (mock `.lrow`) used for starters in the
+ * list view and for Suplentes: photo with the position tag, jersey + name,
+ * sub minute and who he swapped with, events, the manager, and the points
+ * chip with DAZN underneath. Clicking (or Enter/Space on the name button)
+ * opens the player's jornada modal.
+ */
+export function HqLineupPlayerToken({
+    entry,
+    variant,
+    onSelect,
+}: HqLineupPlayerTokenProps) {
+    const clickable = entry.player !== null && onSelect !== undefined;
+    const handleClick = clickable ? () => onSelect(entry) : undefined;
+    const hasPlayed = entry.starter || entry.subbed_in;
+    const subMinute =
+        entry.subbed_in || entry.subbed_out ? entry.sub_minute : null;
+    const events = eventIcons(entry);
+    const unresolvedTitle = entry.player
+        ? undefined
+        : `wc26: sin vincular (${entry.wc26_id})`;
 
-            {!isPitch && entry.player && (
-                <HqPositionTag
-                    position={entry.player.position}
-                    className="absolute bottom-0 left-1/2 z-10 -translate-x-1/2 bg-hq-ink px-1 py-0.5 text-[7px] whitespace-nowrap"
-                />
-            )}
-        </div>
-    );
-
-    const nameLine = (
-        <div
-            className={cn(
-                'truncate font-mono text-hq-paper',
-                isPitch ? 'mt-1 text-center text-[11px]' : 'text-[12.5px] font-bold',
-            )}
-            title={entry.player ? undefined : `wc26_id: ${entry.wc26_id}`}
-        >
-            <b className="mr-1 text-hq-lime">{entry.jersey}</b>
-            {entry.player?.nickname ?? entry.unresolved_name ?? 'No vinculado'}
-        </div>
-    );
-
-    // Bench only: every event/substitution legend in one row right under the
-    // name, instead of splitting cards/goals from the sub badge or pushing
-    // them into their own column — the bench row has the width to spare.
-    const benchLegendLine = !isPitch && (hasGoodEvent || hasBadEvent || subMinute !== null) && (
-        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-            {subMinute !== null && (
-                <span
-                    className={cn(
-                        'whitespace-nowrap border bg-hq-ink px-1 py-px font-mono text-[10px] font-bold',
-                        entry.subbed_out ? 'border-hq-live text-hq-live' : 'border-hq-lime text-hq-lime',
-                    )}
-                >
-                    ↳{subMinute}
-                </span>
-            )}
-            {hasGoodEvent && (
-                <span className="flex items-center gap-1 font-mono text-[9px] font-bold text-hq-lime">
-                    {goodIcons}
-                </span>
-            )}
-            {hasBadEvent && (
-                <span className="flex items-center gap-1 font-mono text-[9px] font-bold text-hq-live">
-                    {badIcons}
-                </span>
-            )}
-        </div>
-    );
-
-    const managerLine = entry.lineup_manager && (
-        <Link
-            href={seasonManagersShow(entry.lineup_manager.id).url}
-            onClick={(event) => event.stopPropagation()}
-            className={cn(
-                'inline-flex max-w-full items-center gap-1 truncate text-hq-moss hover:text-hq-paper',
-                isPitch
-                    ? 'absolute top-full left-1/2 mt-0.5 -translate-x-1/2 font-sans text-[9px]'
-                    : 'mt-0.5 font-mono text-[11px] font-bold',
-            )}
-        >
-            <span
-                className="h-2 w-2 shrink-0 rounded-[1px]"
-                style={{ backgroundColor: managerColor(entry.lineup_manager.primary_color) }}
-            />
-            <span className="truncate">{entry.lineup_manager.name}</span>
-        </Link>
-    );
-
-    const benchStatBadges = entry.player && entry.points !== null && (
-        <div className="flex shrink-0 flex-col items-end gap-2">
-            <span className={cn('hq-tag-cut w-9 py-0.5 text-center font-display text-[18px]', matchPointsBadgeClass(entry.points))}>
-                {entry.points}
-            </span>
-            {hasPlayed && entry.dazn_points !== null && (
-                <span className="flex items-center gap-1 font-mono text-[10px] text-hq-moss-dim">
-                    <img src="/images/dazn-logo.png" alt="DAZN" className="h-3.5 w-3.5" />
-                    {entry.dazn_points}
-                </span>
-            )}
-        </div>
-    );
-
-    if (isPitch) {
+    if (variant === 'pitch') {
         return (
             <div
-                className={cn('relative flex w-31 flex-col items-center gap-0.5', clickable && 'cursor-pointer')}
                 onClick={handleClick}
+                className={cn(
+                    'group relative flex w-32 flex-col items-center',
+                    clickable && 'cursor-pointer',
+                )}
             >
-                {avatar}
-                {nameLine}
-                {managerLine}
+                <button
+                    type="button"
+                    disabled={!clickable}
+                    aria-label={accessibleLabel(entry)}
+                    className="flex max-w-full flex-col items-center outline-none disabled:cursor-default"
+                >
+                    <span className="relative block h-13 w-13">
+                        <span className="absolute inset-0 overflow-hidden border-[1.5px] border-hq-paper/80 bg-hq-well transition-colors group-hover:border-hq-lime group-has-focus-visible:border-hq-lime">
+                            {entry.player ? (
+                                <EntityImage
+                                    src={entry.player.image}
+                                    alt=""
+                                    fallback={User}
+                                    shape="square"
+                                    className="h-full w-full rounded-none bg-transparent object-cover"
+                                    style={{ objectPosition: 'center 25%' }}
+                                />
+                            ) : (
+                                <span className="flex h-full w-full items-center justify-center font-mono text-hq-moss-dim">
+                                    ?
+                                </span>
+                            )}
+                        </span>
+                        {events.hasBad && (
+                            <span className="absolute -top-[9px] right-[calc(100%-8px)] z-10 flex items-center gap-1 bg-[rgba(6,7,5,0.85)] px-[3px] py-px whitespace-nowrap">
+                                {events.bad}
+                            </span>
+                        )}
+                        {events.hasGood && (
+                            <span className="absolute -top-[9px] left-[calc(100%-8px)] z-10 flex items-center gap-1 bg-[rgba(6,7,5,0.85)] px-[3px] py-px whitespace-nowrap">
+                                {events.good}
+                            </span>
+                        )}
+                        {subMinute !== null && (
+                            <SubMinuteBadge
+                                entry={entry}
+                                minute={subMinute}
+                                className="absolute -bottom-[5px] -left-3 z-10"
+                            />
+                        )}
+                        {entry.player && entry.points !== null && (
+                            // Ink backing under the translucent tier fill, so
+                            // the chip stays legible over the photo.
+                            <span className="absolute -right-3 -bottom-[5px] z-10 flex bg-hq-ink">
+                                <span
+                                    className={cn(
+                                        'inline-flex h-[18px] min-w-[22px] items-center justify-center px-[3px] font-mono text-[11px] leading-none font-bold tabular-nums',
+                                        matchPointsBadgeClass(entry.points),
+                                    )}
+                                >
+                                    {entry.points}
+                                </span>
+                            </span>
+                        )}
+                    </span>
+                    <span
+                        title={unresolvedTitle}
+                        className="mt-1.5 block max-w-32 truncate bg-[rgba(6,7,5,0.8)] px-1 py-0.5 font-mono text-[11px] leading-[1.1] font-medium text-hq-paper"
+                    >
+                        <b className="mr-1 text-hq-lime">{entry.jersey}</b>
+                        {playerName(entry)}
+                    </span>
+                </button>
+                {entry.lineup_manager && (
+                    <HqManagerChip
+                        manager={entry.lineup_manager}
+                        className="mt-0.5 max-w-32 bg-[rgba(6,7,5,0.7)] px-1 py-px text-[9.5px]"
+                    />
+                )}
             </div>
         );
     }
 
     return (
         <div
-            className={cn(
-                'flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-hq-panel-alt',
-                clickable && 'cursor-pointer',
-            )}
             onClick={handleClick}
+            className={cn(
+                'group flex items-center gap-2.5 border-b border-hq-border px-3.5 py-2 transition-colors hover:bg-hq-panel',
+                clickable && 'cursor-pointer',
+                !hasPlayed && 'opacity-55',
+            )}
         >
-            {avatar}
-            <div className="min-w-0 flex-1">
-                {nameLine}
-                {benchLegendLine}
-                {managerLine}
+            <span className="relative shrink-0 pb-2.5">
+                {entry.player ? (
+                    <EntityImage
+                        src={entry.player.image}
+                        alt=""
+                        fallback={User}
+                        shape="square"
+                        className="h-10 w-10 rounded-none border border-hq-border-strong bg-hq-well object-cover"
+                        style={{ objectPosition: 'center 25%' }}
+                    />
+                ) : (
+                    <span className="flex h-10 w-10 items-center justify-center border border-dashed border-hq-border-bright font-mono text-hq-moss-dim">
+                        ?
+                    </span>
+                )}
+                {entry.player && (
+                    <HqPositionTag
+                        position={entry.player.position}
+                        className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-hq-ink px-[3px] py-0.5 text-[8.5px]"
+                    />
+                )}
+            </span>
+            <div className="min-w-0 flex-1 pl-1">
+                <button
+                    type="button"
+                    disabled={!clickable}
+                    aria-label={accessibleLabel(entry)}
+                    className="flex max-w-full items-baseline gap-1.5 text-left outline-none focus-visible:underline disabled:cursor-default"
+                >
+                    <span className="min-w-[18px] text-right font-mono text-xs leading-none font-extrabold text-hq-lime">
+                        {entry.jersey}
+                    </span>
+                    <span
+                        title={unresolvedTitle}
+                        className="truncate text-[13.5px] leading-[1.2] font-bold text-hq-paper group-hover:text-hq-lime"
+                    >
+                        {playerName(entry)}
+                    </span>
+                </button>
+                {(subMinute !== null || events.hasGood || events.hasBad) && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        {subMinute !== null && (
+                            <SubMinuteBadge entry={entry} minute={subMinute} />
+                        )}
+                        {subMinute !== null && entry.counterpart_player && (
+                            <HqTooltip
+                                label="Cambio (dato de la alineación)"
+                                className="font-mono text-[11px] text-hq-moss-dim"
+                            >
+                                {entry.subbed_out ? 'sale por' : 'entra por'}{' '}
+                                {entry.counterpart_player.nickname}
+                            </HqTooltip>
+                        )}
+                        {events.hasGood && (
+                            <span className="inline-flex items-center gap-1.5">
+                                {events.good}
+                            </span>
+                        )}
+                        {events.hasBad && (
+                            <span className="inline-flex items-center gap-1.5">
+                                {events.bad}
+                            </span>
+                        )}
+                    </div>
+                )}
+                {entry.lineup_manager && (
+                    <div className="mt-1">
+                        <HqManagerChip manager={entry.lineup_manager} />
+                    </div>
+                )}
             </div>
-            {benchStatBadges}
+            {entry.player && entry.points !== null && (
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span
+                        className={cn(
+                            'inline-flex h-8 min-w-10 items-center justify-center px-[5px] font-mono text-base leading-none font-bold tabular-nums',
+                            matchPointsBadgeClass(entry.points),
+                        )}
+                    >
+                        {entry.points}
+                    </span>
+                    {hasPlayed && entry.dazn_points !== null && (
+                        <HqTooltip
+                            label="Puntos DAZN (0–4)"
+                            className="inline-flex items-center gap-1 font-mono text-[11px] leading-none font-semibold text-hq-moss"
+                        >
+                            <img
+                                src="/images/dazn-logo.png"
+                                alt="DAZN"
+                                className="h-3.5 w-3.5"
+                            />
+                            {entry.dazn_points}
+                        </HqTooltip>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
