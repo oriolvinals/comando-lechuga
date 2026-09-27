@@ -2,6 +2,9 @@ import { Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqLed } from '@/components/hq-led';
+import { HqTooltip } from '@/components/hq-tooltip';
+import { formatCurrency } from '@/lib/format';
 import { formatSignedPoints, teamFormBadgeClass } from '@/lib/points';
 import { crestTintStyle } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
@@ -9,61 +12,64 @@ import { show as seasonManagersShow } from '@/routes/season-managers';
 import type { SeasonManager } from '@/types/models';
 
 interface HeroPanelProps {
-    week: number;
+    /** The jornada in play (or next up) — the live chip's points belong to it, not to the jornada browsed below. */
+    currentWeek: number;
     standings: SeasonManager[];
 }
 
-const PODIUM_SIZES = {
+type PodiumRank = 1 | 2 | 3;
+
+const MEDAL_VARS: Record<PodiumRank, string> = {
+    1: 'var(--color-hq-gold)',
+    2: 'var(--color-hq-silver)',
+    3: 'var(--color-hq-bronze)',
+};
+
+const PODIUM_SIZES: Record<
+    PodiumRank,
+    { crest: string; name: string; points: string }
+> = {
     1: {
-        border: 'border-l-hq-gold',
-        tint: 'rgba(224, 184, 63, 0.16)',
-        row: 'gap-3 px-4 py-4 sm:gap-5 sm:px-6 sm:py-5',
-        crest: 'h-20 w-20',
-        name: 'text-2xl',
-        live: 'px-2 py-1 text-[11px]',
-        points: 'text-5xl',
+        crest: 'h-12 w-12 md:h-16 md:w-16',
+        name: 'text-base md:text-[22px]',
+        points: 'text-[34px] md:text-[52px]',
     },
     2: {
-        border: 'border-l-hq-silver',
-        tint: 'rgba(199, 205, 214, 0.12)',
-        row: 'gap-2.5 px-3.5 py-3 sm:gap-4 sm:px-5 sm:py-3.5',
-        crest: 'h-14 w-14',
-        name: 'text-lg',
-        live: 'px-1.5 py-0.5 text-[10px]',
-        points: 'text-3xl',
+        crest: 'h-10 w-10 md:h-[52px] md:w-[52px]',
+        name: 'text-[15px] md:text-lg',
+        points: 'text-[28px] md:text-[40px]',
     },
     3: {
-        border: 'border-l-hq-bronze',
-        tint: 'rgba(201, 121, 63, 0.14)',
-        row: 'gap-2 px-3 py-2.5 sm:gap-3.5 sm:px-4 sm:py-3',
-        crest: 'h-11 w-11',
-        name: 'text-base',
-        live: 'px-1.5 py-0.5 text-[9px]',
-        points: 'text-2xl',
+        crest: 'h-10 w-10 md:h-11 md:w-11',
+        name: 'text-sm md:text-base',
+        points: 'text-2xl md:text-[34px]',
     },
-} as const;
+};
 
 function PodiumRow({
     rank,
     team,
-    week,
+    currentWeek,
 }: {
-    rank: 1 | 2 | 3;
+    rank: PodiumRank;
     team: SeasonManager;
-    week: number;
+    currentWeek: number;
 }) {
     const size = PODIUM_SIZES[rank];
 
     return (
         <Link
             href={seasonManagersShow(team.id).url}
-            style={{ '--hq-panel-tint': size.tint } as CSSProperties}
-            className={cn(
-                'hq-panel-cut flex items-center border-l-4 text-left transition-[filter] hover:brightness-125',
-                size.border,
-                size.row,
-            )}
+            style={{ '--medal': MEDAL_VARS[rank] } as CSSProperties}
+            className="relative grid grid-cols-[30px_auto_minmax(0,1fr)_auto] items-center gap-x-2.5 border-b border-dashed border-hq-border-strong bg-linear-to-r from-[color-mix(in_srgb,var(--medal)_13%,transparent)] to-transparent to-60% py-2.5 pr-3 transition-colors last:border-b-0 hover:from-[color-mix(in_srgb,var(--medal)_22%,transparent)] md:grid-cols-[44px_auto_minmax(0,1fr)_auto_auto] md:gap-x-3.5 md:pr-4"
         >
+            <span
+                aria-hidden="true"
+                className="absolute inset-y-0 left-0 w-1 bg-(--medal)"
+            />
+            <HqLed className="row-span-2 text-center text-[22px] text-(--medal) md:row-span-1 md:text-[30px]">
+                {rank}
+            </HqLed>
             <EntityImage
                 src={team.logo}
                 alt={team.name}
@@ -71,63 +77,104 @@ function PodiumRow({
                 shape="square"
                 style={crestTintStyle(team.primary_color)}
                 className={cn(
-                    'hq-crest-cut shrink-0 bg-hq-border p-1.5 text-hq-khaki',
+                    'row-span-2 shrink-0 rounded-none border border-hq-border-strong bg-hq-panel-alt p-[3px] text-hq-khaki md:row-span-1',
                     size.crest,
                 )}
             />
-            <div className="min-w-0 flex-1">
-                <p className={cn('truncate font-extrabold text-hq-paper', size.name)}>
+            <span className="min-w-0">
+                <span
+                    className={cn(
+                        'block truncate leading-[1.05] font-extrabold text-hq-paper uppercase',
+                        size.name,
+                    )}
+                >
                     {team.name}
-                </p>
-            </div>
-            <div className="shrink-0 text-right">
-                {team.live_points !== null && (
+                </span>
+                <span className="mt-1 block font-mono text-[10.5px] text-hq-moss md:text-[11.5px]">
+                    {formatCurrency(team.value)}
+                    {rank === 1 && (
+                        <span className="text-hq-lime"> · líder</span>
+                    )}
+                </span>
+            </span>
+            {team.live_points !== null && (
+                <HqTooltip
+                    label={`Jornada ${currentWeek} en curso`}
+                    className="col-start-3 row-start-2 justify-self-start md:col-start-auto md:row-start-auto"
+                >
                     <span
                         className={cn(
-                            'mb-1 inline-block rounded font-mono',
+                            'relative inline-flex h-6 items-center px-1.5 font-mono text-[11px] font-bold tabular-nums outline -outline-offset-1 outline-hq-live',
                             teamFormBadgeClass(team.live_points),
-                            size.live,
                         )}
                     >
-                        J{week} {formatSignedPoints(team.live_points)}
+                        J{currentWeek} {formatSignedPoints(team.live_points)}
+                        <span className="absolute -top-[3px] -right-[3px] h-1.5 w-1.5 animate-hq-pulse rounded-full bg-hq-live" />
                     </span>
+                </HqTooltip>
+            )}
+            <HqLed
+                className={cn(
+                    'col-start-4 row-span-2 row-start-1 text-right md:col-start-auto md:row-span-1 md:row-start-auto md:min-w-[92px]',
+                    size.points,
                 )}
-                <div className={cn('font-display text-hq-paper', size.points)}>
-                    {team.total_points}
-                </div>
-            </div>
+            >
+                {team.total_points}
+            </HqLed>
         </Link>
     );
 }
 
-export function HeroPanel({ week, standings }: HeroPanelProps) {
-    const [leader, second, third] = standings;
+export function HeroPanel({ currentWeek, standings }: HeroPanelProps) {
+    const podium = standings.slice(0, 3);
 
     return (
-        <div className="flex flex-col items-center gap-5 pt-9 pb-7 text-center sm:flex-row sm:items-center sm:gap-7 sm:text-left">
-            <img
-                src="/images/logo.png"
-                alt="Comando Lechuga"
-                className="h-56 w-56 shrink-0 object-contain sm:h-80 sm:w-80 lg:h-96 lg:w-96"
-            />
-            <div className="w-full flex-1">
-                <p className="mb-3 font-mono text-[11px] font-bold tracking-[.25em] text-hq-lime">
+        <section className="grid grid-cols-1 border-b border-hq-border md:grid-cols-[240px_minmax(0,1fr)] min-[73.75rem]:grid-cols-[330px_minmax(0,1fr)]">
+            <div className="hq-hud relative mx-3.5 mt-3.5 flex h-[170px] items-center justify-center overflow-hidden border border-hq-border-strong bg-hq-well bg-[radial-gradient(ellipse_at_50%_45%,rgba(196,255,61,0.08),transparent_65%)] md:m-[18px] md:aspect-square md:h-auto">
+                <span className="absolute top-2.5 left-3 z-10 hq-label">
+                    CAM 01 · CUARTEL
+                </span>
+                <span
+                    aria-hidden="true"
+                    className="absolute top-2.5 right-3 z-10 animate-pulse font-mono text-[10.5px] font-bold tracking-[0.1em] text-hq-live"
+                >
+                    ● REC
+                </span>
+                <img
+                    src="/images/logo.png"
+                    alt="Comando Lechuga"
+                    className="h-[88%] w-auto object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,0.6)] md:h-[86%] md:w-[86%]"
+                />
+                <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(255,255,255,0.025)_0_1px,transparent_1px_3px)]"
+                />
+            </div>
+            <div className="flex min-w-0 flex-col justify-center px-3.5 py-4 md:py-[26px] md:pr-6 md:pl-1.5">
+                <p className="mb-2.5 font-mono text-[10px] leading-none font-bold tracking-[0.14em] text-hq-lime md:text-[11.5px] md:tracking-[0.24em]">
                     ▸ CUARTEL DE OPERACIONES — JORNADA{' '}
-                    {String(week).padStart(2, '0')}
+                    {String(currentWeek).padStart(2, '0')}
                 </p>
-                <h1 className="mb-6 font-display text-2xl leading-[1.05] tracking-wide text-hq-paper uppercase [text-shadow:3px_3px_0_rgba(196,255,61,0.25)] sm:max-w-xl sm:text-3xl lg:text-4xl">
+                <h1 className="mb-3.5 text-[30px] leading-[0.95] font-black tracking-[-0.015em] text-hq-paper uppercase md:mb-5 md:text-4xl min-[73.75rem]:text-[44px]">
                     1 campeón.{' '}
                     <span className="text-hq-lime">
                         {Math.max(standings.length - 1, 0)} excusas.
                     </span>
                 </h1>
 
-                <div className="mx-auto flex max-w-2xl flex-col gap-2.5 sm:mx-0">
-                    {leader && <PodiumRow rank={1} team={leader} week={week} />}
-                    {second && <PodiumRow rank={2} team={second} week={week} />}
-                    {third && <PodiumRow rank={3} team={third} week={week} />}
-                </div>
+                {podium.length > 0 && (
+                    <div className="flex flex-col border border-hq-border-strong bg-hq-well">
+                        {podium.map((team, index) => (
+                            <PodiumRow
+                                key={team.id}
+                                rank={(index + 1) as PodiumRank}
+                                team={team}
+                                currentWeek={currentWeek}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
-        </div>
+        </section>
     );
 }

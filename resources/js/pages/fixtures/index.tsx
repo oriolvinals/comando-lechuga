@@ -84,6 +84,7 @@ export default function FixturesIndex({
                                         <HqFixtureCard
                                             key={fixture.id}
                                             fixture={fixture}
+                                            className="border border-hq-border"
                                         />
                                     ))}
                                 </div>

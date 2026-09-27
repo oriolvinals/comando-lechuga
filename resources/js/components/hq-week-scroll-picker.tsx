@@ -65,48 +65,57 @@ export function HqWeekScrollPicker({
     }, [week]);
 
     return (
-        <HqScrollRow contentClassName="px-1 py-1" showProgress={false}>
+        <HqScrollRow contentClassName="gap-1 px-1 py-1" showProgress={false}>
             {Array.from({ length: maxWeek }, (_, index) => index + 1).map(
                 (weekNumber) => {
                     const isLive =
                         liveMatchday && weekNumber === playedThroughWeek;
+                    const isSelected = weekNumber === week;
                     const progress = weekProgress[String(weekNumber)] ?? 'none';
                     const points = weekPoints?.[weekNumber];
 
                     return (
                         <button
                             key={weekNumber}
-                            ref={weekNumber === week ? selectedRef : undefined}
+                            ref={isSelected ? selectedRef : undefined}
                             type="button"
+                            aria-pressed={isSelected}
+                            aria-label={`Jornada ${weekNumber}`}
                             onClick={() => onChange(weekNumber)}
                             className={cn(
-                                'relative flex h-14 w-14 shrink-0 cursor-pointer flex-col items-center justify-center border font-mono',
+                                'relative flex h-[52px] w-[52px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[3px] border',
                                 isLive
                                     ? 'border-hq-live'
-                                    : weekNumber === week
-                                      ? 'border-hq-paper'
-                                      : 'border-hq-border hover:border-hq-border-strong',
+                                    : isSelected
+                                      ? 'border-hq-paper shadow-[inset_0_0_0_1px_var(--color-hq-paper)]'
+                                      : 'border-hq-border hover:border-hq-border-bright',
+                                isLive &&
+                                    isSelected &&
+                                    'shadow-[inset_0_0_0_1px_var(--color-hq-paper)]',
                                 weekPoints
                                     ? points !== undefined
                                         ? teamFormBadgeClass(points)
-                                        : 'text-hq-paper/30'
+                                        : 'text-hq-paper/35'
                                     : progress === 'all'
-                                      ? 'bg-hq-lime/15 text-hq-lime'
+                                      ? 'bg-hq-lime/8 text-hq-lime'
                                       : progress === 'partial'
-                                        ? 'bg-hq-gold/15 text-hq-gold'
-                                        : 'text-hq-paper/30',
+                                        ? 'bg-hq-gold/10 text-hq-gold'
+                                        : 'text-hq-paper/35',
                             )}
                         >
-                            <span className="text-[10px] font-bold opacity-80">
+                            <span className="font-mono text-[9.5px] leading-none font-semibold tracking-[0.06em] opacity-85">
                                 {weekPoints ? `J${weekNumber}` : 'J'}
                             </span>
-                            <span className="font-display text-lg leading-none">
-                                {weekPoints
-                                    ? (points ?? '—')
-                                    : weekNumber}
+                            <span
+                                className={cn(
+                                    'font-dot leading-none font-black',
+                                    weekPoints ? 'text-base' : 'text-[19px]',
+                                )}
+                            >
+                                {weekPoints ? (points ?? '—') : weekNumber}
                             </span>
                             {isLive && (
-                                <span className="absolute -top-1 -right-1 h-2 w-2 animate-pulse rounded-full bg-hq-live" />
+                                <span className="absolute -top-[3px] -right-[3px] h-[7px] w-[7px] animate-hq-pulse rounded-full bg-hq-live" />
                             )}
                         </button>
                     );

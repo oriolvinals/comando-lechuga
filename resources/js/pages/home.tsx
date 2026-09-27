@@ -38,20 +38,23 @@ export default function Home({
     return (
         <>
             <Head title="Inicio" />
-            <div className="hq-texture hq-bleed border-y border-hq-border">
-                <div className="mx-auto max-w-7xl px-6">
-                    <HeroPanel week={filters.week} standings={standings} />
-                    <FixturesPanel
-                        fixtures={fixtures}
-                        season={season}
-                        week={filters.week}
-                        weekProgress={weekProgress}
-                    />
-                    <StandingsTable standings={standings} />
+            <HeroPanel
+                currentWeek={season.current_week}
+                standings={standings}
+            />
+            <div className="grid grid-cols-1 border-b border-hq-border min-[73.75rem]:grid-cols-[minmax(0,1fr)_440px] [&>*]:min-w-0">
+                <StandingsTable season={season} standings={standings} />
+                <div className="border-t border-hq-border min-[73.75rem]:border-t-0 min-[73.75rem]:border-l">
                     <MarketPanel market={market} />
-                    <ActivityPanel activity={activity} />
                 </div>
             </div>
+            <FixturesPanel
+                fixtures={fixtures}
+                season={season}
+                week={filters.week}
+                weekProgress={weekProgress}
+            />
+            <ActivityPanel activity={activity} />
         </>
     );
 }
