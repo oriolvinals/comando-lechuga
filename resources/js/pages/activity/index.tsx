@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import type { ReactElement } from 'react';
-import { TYPE_LABELS } from '@/components/activity-helpers';
+import { TYPE_BAR_CLASSES, TYPE_LABELS } from '@/components/activity-helpers';
 import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
 import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqMultiSelect } from '@/components/hq-multi-select';
@@ -9,7 +9,12 @@ import AppLayout from '@/layouts/app-layout';
 import { formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { index as activityIndex } from '@/routes/activity';
-import type { Paginated, Activity, SeasonActivityType } from '@/types/models';
+import type {
+    Paginated,
+    Activity,
+    ActivityTypeCounts,
+    SeasonActivityType,
+} from '@/types/models';
 
 interface ManagerOption {
     id: number;
@@ -19,6 +24,8 @@ interface ManagerOption {
 interface ActivityIndexProps {
     activities: Paginated<Activity>;
     managers: ManagerOption[];
+    /** Count per type across the manager-filtered set (type filter ignored). */
+    typeCounts: ActivityTypeCounts;
     filters: { manager: number[]; type: SeasonActivityType[] };
     [key: string]: unknown;
 }
@@ -41,6 +48,7 @@ function groupByDay(activities: Activity[]): [string, Activity[]][] {
 export default function ActivityIndex({
     activities,
     managers,
+    typeCounts,
     filters,
 }: ActivityIndexProps) {
     const applyFilters = (manager: number[], type: SeasonActivityType[]) => {
@@ -100,6 +108,40 @@ export default function ActivityIndex({
                         )
                     }
                 />
+
+                <ul
+                    aria-label="Movimientos por tipo"
+                    className="flex w-full flex-wrap items-center gap-1.5 md:ml-auto md:w-auto"
+                >
+                    {(
+                        Object.entries(TYPE_LABELS) as [
+                            SeasonActivityType,
+                            string,
+                        ][]
+                    ).map(([type, label]) => (
+                        <li
+                            key={type}
+                            className={cn(
+                                'inline-flex h-7 items-center gap-1.5 border border-hq-border-strong px-2 font-mono text-[10.5px] leading-none font-bold tracking-[0.06em] text-hq-moss uppercase',
+                                filters.type.length > 0 &&
+                                    !filters.type.includes(type) &&
+                                    'opacity-40',
+                            )}
+                        >
+                            <i
+                                aria-hidden
+                                className={cn(
+                                    'h-3.5 w-[3px]',
+                                    TYPE_BAR_CLASSES[type],
+                                )}
+                            />
+                            {label}
+                            <b className="text-hq-paper tabular-nums">
+                                {formatNumber(typeCounts[type])}
+                            </b>
+                        </li>
+                    ))}
+                </ul>
             </div>
 
             {activities.data.length === 0 ? (

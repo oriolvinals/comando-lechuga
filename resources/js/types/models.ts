@@ -191,6 +191,9 @@ export interface MarketPlayer {
 export type SeasonActivityType =
     'buyout' | 'shield' | 'weekly_prize' | 'joined_league' | 'signing' | 'sale';
 
+/** Activity count per type over a whole filtered set, not just one page. */
+export type ActivityTypeCounts = Record<SeasonActivityType, number>;
+
 export interface Activity {
     id: number;
     type: SeasonActivityType;
