@@ -66,7 +66,7 @@ export function HqValueChartRangeToggle({
                     onClick={() => onChange(option)}
                     aria-pressed={range === option}
                     className={cn(
-                        'min-h-9 cursor-pointer border-l border-hq-border-strong px-2.5 font-mono text-[11px] leading-none font-bold tracking-[0.05em] uppercase first:border-l-0 sm:min-h-[28px]',
+                        'min-h-11 cursor-pointer border-l border-hq-border-strong px-3 font-mono text-[11px] leading-none font-bold tracking-[0.05em] uppercase first:border-l-0 sm:min-h-[28px] sm:px-2.5',
                         range === option
                             ? 'bg-hq-lime text-hq-ink'
                             : 'text-hq-moss hover:text-hq-paper',

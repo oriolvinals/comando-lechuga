@@ -76,7 +76,7 @@ export function HqScrollRow({
                     type="button"
                     onClick={() => scrollByCard(-1)}
                     aria-label="Anterior"
-                    className="absolute top-1/2 -left-3.5 z-10 hidden h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-hq-border-strong bg-hq-ink text-hq-paper shadow-lg transition-colors hover:border-hq-lime hover:text-hq-lime sm:flex"
+                    className="absolute top-1/2 -left-3.5 z-10 hidden h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center border border-hq-border-strong bg-hq-ink text-hq-paper transition-colors hover:border-hq-lime hover:text-hq-lime sm:flex"
                 >
                     <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -84,6 +84,7 @@ export function HqScrollRow({
 
             <div
                 ref={scrollerRef}
+                data-scroll-row=""
                 className={cn(
                     'flex [scrollbar-width:none] gap-2 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
                     contentClassName,
@@ -97,7 +98,7 @@ export function HqScrollRow({
                     type="button"
                     onClick={() => scrollByCard(1)}
                     aria-label="Siguiente"
-                    className="absolute top-1/2 -right-3.5 z-10 hidden h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-hq-border-strong bg-hq-ink text-hq-paper shadow-lg transition-colors hover:border-hq-lime hover:text-hq-lime sm:flex"
+                    className="absolute top-1/2 -right-3.5 z-10 hidden h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center border border-hq-border-strong bg-hq-ink text-hq-paper transition-colors hover:border-hq-lime hover:text-hq-lime sm:flex"
                 >
                     <ChevronRight className="h-4 w-4" />
                 </button>

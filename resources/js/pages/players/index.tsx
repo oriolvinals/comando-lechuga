@@ -8,6 +8,7 @@ import { HqPageHeader } from '@/components/hq-page-header';
 import { PlayerRow, PlayerRowHeader } from '@/components/hq-player-row';
 import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
+import { formatNumber } from '@/lib/format';
 import { POSITION_LABELS, STATUS_LABELS } from '@/lib/player-labels';
 import { PLAYER_SEARCH_INPUT_ID } from '@/lib/player-search';
 import { cn } from '@/lib/utils';
@@ -190,7 +191,7 @@ export default function PlayersIndex({
                 meta={[
                     {
                         label: 'Resultados',
-                        value: players.total.toLocaleString('es-ES'),
+                        value: formatNumber(players.total),
                     },
                 ]}
             />
@@ -324,8 +325,8 @@ export default function PlayersIndex({
             ) : (
                 <>
                     <p className="border-b border-hq-border px-3.5 py-2.5 hq-label sm:px-4">
-                        {players.total.toLocaleString('es-ES')} jugadores ·
-                        página {players.current_page} de {players.last_page}
+                        {formatNumber(players.total)} jugadores · página{' '}
+                        {players.current_page} de {players.last_page}
                     </p>
                     <PlayerRowHeader />
                     <div>

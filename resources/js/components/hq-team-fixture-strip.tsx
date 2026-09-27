@@ -1,6 +1,7 @@
 import { Shield } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqScrollRow } from '@/components/hq-scroll-row';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { isLiveFixtureState } from '@/lib/fixture-state';
 import { formatMatchDateTime } from '@/lib/format';
@@ -40,12 +41,12 @@ export function HqTeamFixtureStrip({
     className,
 }: HqTeamFixtureStripProps) {
     const selectedRef = useRef<HTMLButtonElement>(null);
-    const scrollerRef = useRef<HTMLDivElement>(null);
     const isFirstRender = useRef(true);
 
     useLayoutEffect(() => {
         const button = selectedRef.current;
-        const scroller = scrollerRef.current;
+        const scroller =
+            button?.closest<HTMLElement>('[data-scroll-row]') ?? null;
 
         if (!button || !scroller) {
             return;
@@ -66,10 +67,16 @@ export function HqTeamFixtureStrip({
     }, [selectedWeek]);
 
     return (
-        <div className={cn('relative border-b border-hq-border', className)}>
-            <div
-                ref={scrollerRef}
-                className="hq-no-scrollbar flex gap-1 overflow-x-auto px-3.5 pt-3 pb-[18px] sm:px-4"
+        <div
+            className={cn(
+                'relative border-b border-hq-border px-3 sm:px-4',
+                className,
+            )}
+        >
+            {/* HqScrollRow keeps the desktop prev/next arrows (mouse users without a trackpad). */}
+            <HqScrollRow
+                contentClassName="gap-1 px-1 pt-3 pb-[18px]"
+                showProgress={false}
             >
                 {fixtures.map((fixture) => {
                     const opponent = opponentOf(fixture, teamId);
@@ -153,7 +160,7 @@ export function HqTeamFixtureStrip({
                         </HqTooltip>
                     );
                 })}
-            </div>
+            </HqScrollRow>
             <span
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-y-0 left-0 w-7 bg-linear-to-r from-hq-ink to-transparent"

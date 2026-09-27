@@ -6,13 +6,10 @@ import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqMultiSelect } from '@/components/hq-multi-select';
 import { HqPageHeader } from '@/components/hq-page-header';
 import AppLayout from '@/layouts/app-layout';
+import { formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { index as activityIndex } from '@/routes/activity';
-import type {
-    Paginated,
-    Activity,
-    SeasonActivityType,
-} from '@/types/models';
+import type { Paginated, Activity, SeasonActivityType } from '@/types/models';
 
 interface ManagerOption {
     id: number;
@@ -77,7 +74,7 @@ export default function ActivityIndex({
                 meta={[
                     {
                         label: 'Movimientos',
-                        value: activities.total.toLocaleString('es-ES'),
+                        value: formatNumber(activities.total),
                     },
                 ]}
             />
@@ -112,9 +109,8 @@ export default function ActivityIndex({
             ) : (
                 <>
                     <p className="border-b border-hq-border px-3.5 py-2.5 hq-label sm:px-4">
-                        {activities.total.toLocaleString('es-ES')}{' '}
-                        movimientos · página {activities.current_page} de{' '}
-                        {activities.last_page}
+                        {formatNumber(activities.total)} movimientos · página{' '}
+                        {activities.current_page} de {activities.last_page}
                     </p>
 
                     {groups.map(([day, entries]) => (

@@ -1,16 +1,31 @@
+/*
+ * es-ES leaves 4-digit numbers ungrouped by default ("1570 €");
+ * `useGrouping: 'always'` keeps them consistent with larger ones ("1.570 €").
+ */
+const CURRENCY_FORMAT = new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+    useGrouping: 'always',
+});
+
+const NUMBER_FORMAT = new Intl.NumberFormat('es-ES', {
+    maximumFractionDigits: 1,
+    useGrouping: 'always',
+});
+
 export function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('es-ES', {
-        style: 'currency',
-        currency: 'EUR',
-        maximumFractionDigits: 0,
-    }).format(amount);
+    return CURRENCY_FORMAT.format(amount);
 }
 
-/** One decimal, dropped entirely when it rounds to a whole number (e.g. `11.5` stays, `4` not `4.0`). */
-export function formatAverage(value: number): string {
-    const rounded = Math.round(value * 10) / 10;
+/** A count with Spanish thousands dots, 4-digit ones included (`1.234`). */
+export function formatNumber(value: number): string {
+    return NUMBER_FORMAT.format(value);
+}
 
-    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+/** One decimal with a Spanish comma, dropped when it rounds to a whole number (`11,5`, `4` not `4,0`). */
+export function formatAverage(value: number): string {
+    return NUMBER_FORMAT.format(Math.round(value * 10) / 10);
 }
 
 export function isFutureDate(isoDate: string): boolean {
