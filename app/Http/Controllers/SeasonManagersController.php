@@ -18,6 +18,7 @@ use App\Models\ManagerLineup;
 use App\Models\ManagerPlayer;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Services\StartProbabilities;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -62,7 +63,7 @@ class SeasonManagersController extends Controller
         ]);
     }
 
-    public function show(SeasonManager $seasonManager): Response
+    public function show(SeasonManager $seasonManager, StartProbabilities $startProbabilities): Response
     {
         $season = Season::current();
 
@@ -78,6 +79,12 @@ class SeasonManagersController extends Controller
         $this->attachCurrentSeason($roster->pluck('player'), $season->id);
         $this->attachRecentScores($roster->pluck('player'), $season, $seasonManager->id);
         $this->attachNextFixtures($roster->pluck('player'), $season);
+
+        $nextStarts = $startProbabilities->forPlayersNextFixture($roster->pluck('player'), $season);
+
+        $roster->each(function (ManagerPlayer $entry) use ($nextStarts): void {
+            $entry->player->next_start = $nextStarts[$entry->player->id] ?? null;
+        });
 
         $lineupHistory = ManagerLineup::query()
             ->where('season_manager_id', $seasonManager->id)

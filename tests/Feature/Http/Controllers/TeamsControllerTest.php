@@ -7,6 +7,7 @@ use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
+use App\Models\FixtureLineupProbability;
 use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\Season;
@@ -888,5 +889,32 @@ test('the squad summary is zeroed for a team with no players in the league', fun
     $response->assertInertia(fn (Assert $page): Assert => $page
         ->where('squadSummary.owned_count', 0)
         ->where('squadSummary.fantasy_points', 0)
+    );
+});
+
+test('sends the probable XI of the team\'s next match', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $team = Team::factory()->create(['fantasy_id' => 20]);
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 8,
+        'team_local_id' => $rival->id,
+        'team_guest_id' => $team->id,
+        'date' => now()->addDay(),
+        'state' => FixtureState::Scheduled,
+    ]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    FixtureLineupProbability::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'probability' => 80]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('startProbabilities.week_number', 8)
+        ->where('startProbabilities.is_home', false)
+        ->where('startProbabilities.opponent.id', $rival->id)
+        ->where('startProbabilities.players.0.probability', 80)
     );
 });

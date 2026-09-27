@@ -19,6 +19,7 @@ use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
 use App\Services\LeagueStandings;
+use App\Services\StartProbabilities;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -71,7 +72,7 @@ class TeamsController extends Controller
         ]);
     }
 
-    public function show(Team $team): Response
+    public function show(Team $team, StartProbabilities $startProbabilities): Response
     {
         $season = Season::current();
 
@@ -141,6 +142,7 @@ class TeamsController extends Controller
             'fixtures' => $fixtures,
             'currentWeek' => max($season->current_week, $latestLineupWeek),
             'weeklyLineups' => $weeklyLineups,
+            'startProbabilities' => $startProbabilities->forTeamNextFixture($team, $season),
         ]);
     }
 

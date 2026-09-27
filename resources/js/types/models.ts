@@ -67,6 +67,8 @@ export interface Player {
     recent_scores_opponents: (Team | null)[];
     /** The team's next 3 upcoming (not yet started) fixtures, soonest first — null-padded at the end when fewer than 3 remain on the calendar. */
     next_fixtures: (NextFixtureSlot | null)[];
+    /** Start probability (or confirmed lineup) for the team's next match. Only present on the manager ficha; null without data. */
+    next_start?: PlayerNextStart | null;
 }
 
 export type FixtureState =
@@ -568,4 +570,59 @@ export interface JornadaMatches {
     week: number;
     status: JornadaMatchesStatus;
     matches: JornadaMatch[];
+}
+
+/** Who confirmed a lineup: worldcup26 (primary) or FútbolFantasy's "Alineación confirmada" (fallback). */
+export type StartConfirmationSource = 'worldcup26' | 'futbolfantasy';
+
+/** One player's start for one fixture. */
+export interface StartProbabilityEntry {
+    player: Player;
+    /** FútbolFantasy's last predicted % (0–100) — kept after confirmation for "era N %"; null when FF gave none. */
+    probability: number | null;
+    /** In FútbolFantasy's probable XI. */
+    predicted_starter: boolean;
+    /** Confirmed lineup (worldcup26 first, FF second): true titular, false suplente, null not confirmed yet. */
+    confirmed_starter: boolean | null;
+}
+
+/** One team's side of a fixture's start probabilities. */
+export interface StartProbabilityTeamBlock {
+    fixture_id: number;
+    week_number: number;
+    team: Team;
+    /** The team's FútbolFantasy page, for the attribution link. */
+    source_url: string;
+    /** When FútbolFantasy was last read successfully (ISO 8601). */
+    fetched_at: string | null;
+    /** Older than 48 h: shown as "Datos de hace N días" with muted bars. */
+    is_stale: boolean;
+    confirmed_source: StartConfirmationSource | null;
+    players: StartProbabilityEntry[];
+}
+
+/** The match ficha's start probabilities — a side without data is null. */
+export interface FixtureStartProbabilities {
+    local: StartProbabilityTeamBlock | null;
+    guest: StartProbabilityTeamBlock | null;
+}
+
+/** The team ficha's probable XI for its next match. */
+export interface TeamNextStartProbabilities extends StartProbabilityTeamBlock {
+    opponent: Team;
+    is_home: boolean;
+}
+
+/** A roster player's start for his team's next match (manager ficha). */
+export interface PlayerNextStart {
+    fixture_id: number;
+    week_number: number;
+    probability: number | null;
+    predicted_starter: boolean;
+    confirmed_starter: boolean | null;
+    confirmed_source: StartConfirmationSource | null;
+    is_stale: boolean;
+    fetched_at: string | null;
+    source_url: string;
+    team_short_name: string;
 }

@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
+use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
+use App\Models\FixtureLineupProbability;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Models\Team;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -1015,3 +1018,29 @@ test('a fixture that is not finished has no fantasy scoreboard', function (Fixtu
     'scheduled' => FixtureState::Scheduled,
     'postponed' => FixtureState::Postponed,
 ]);
+
+test('sends the start probabilities of an upcoming fixture', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $madrid = Team::factory()->create(['fantasy_id' => 15]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'team_local_id' => $madrid->id, 'date' => now()->addDay()]);
+    $courtois = Player::factory()->create(['team_id' => $madrid->id, 'status' => PlayerStatus::Ok]);
+    FixtureLineupProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 95]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('startProbabilities.local.players.0.player.id', $courtois->id)
+        ->where('startProbabilities.local.players.0.probability', 95)
+        ->where('startProbabilities.local.source_url', 'https://www.futbolfantasy.com/laliga/equipos/real-madrid')
+        ->where('startProbabilities.guest', null)
+    );
+});
+
+test('sends no start probabilities for a fixture without any', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    $this->get(route('fixtures.show', $fixture))
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('startProbabilities', null));
+});
