@@ -99,10 +99,10 @@ class Player extends Model
         return $this->hasOne(MarketPlayer::class);
     }
 
-    /** @return HasMany<PlayerStartProbability, $this> */
-    public function startProbabilities(): HasMany
+    /** @return HasMany<FixtureLineupProbability, $this> */
+    public function lineupProbabilities(): HasMany
     {
-        return $this->hasMany(PlayerStartProbability::class);
+        return $this->hasMany(FixtureLineupProbability::class);
     }
 
     /**

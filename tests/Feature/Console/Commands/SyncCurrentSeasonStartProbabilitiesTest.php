@@ -5,8 +5,8 @@ use App\Enums\FixtureState;
 use App\Enums\PlayerStatus;
 use App\Http\Integrations\FutbolFantasy\FutbolFantasyConnector;
 use App\Models\Fixture;
+use App\Models\FixtureLineupProbability;
 use App\Models\Player;
-use App\Models\PlayerStartProbability;
 use App\Models\Season;
 use App\Models\Team;
 use Carbon\CarbonInterface;
@@ -94,7 +94,7 @@ test('stores each linked player\'s probability on the team\'s fixture for the pa
 
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
 
-    $rows = PlayerStartProbability::query()->where('fixture_id', $fixture->id)->get()->keyBy('player_id');
+    $rows = FixtureLineupProbability::query()->where('fixture_id', $fixture->id)->get()->keyBy('player_id');
 
     expect($rows)->toHaveCount(4)
         ->and($rows[$courtois->id]->probability)->toBe(95)
@@ -108,7 +108,7 @@ test('stores each linked player\'s probability on the team\'s fixture for the pa
 
 test('updates the existing rows instead of adding new ones', function (): void {
     ['fixture' => $fixture, 'courtois' => $courtois] = madridHostsVillarrealInWeek8();
-    PlayerStartProbability::factory()->create([
+    FixtureLineupProbability::factory()->create([
         'player_id' => $courtois->id,
         'fixture_id' => $fixture->id,
         'probability' => 40,
@@ -118,9 +118,9 @@ test('updates the existing rows instead of adding new ones', function (): void {
 
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
 
-    $row = PlayerStartProbability::query()->where('player_id', $courtois->id)->sole();
+    $row = FixtureLineupProbability::query()->where('player_id', $courtois->id)->sole();
 
-    expect(PlayerStartProbability::query()->count())->toBe(4)
+    expect(FixtureLineupProbability::query()->count())->toBe(4)
         ->and($row->probability)->toBe(95)
         ->and($row->predicted_starter)->toBeTrue();
 });
@@ -156,7 +156,7 @@ test('keeps the last predicted % and XI when FútbolFantasy confirms the lineup'
     fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-confirmada'))]);
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
 
-    $rows = PlayerStartProbability::query()->get()->keyBy('player_id');
+    $rows = FixtureLineupProbability::query()->get()->keyBy('player_id');
 
     expect($rows[$courtois->id]->probability)->toBe(95)
         ->and($rows[$courtois->id]->confirmed_starter)->toBeTrue()
@@ -170,7 +170,7 @@ test('keeps the last predicted % and XI when FútbolFantasy confirms the lineup'
 
 test('leaves the team\'s rows untouched when its page fails', function (): void {
     ['fixture' => $fixture, 'courtois' => $courtois] = madridHostsVillarrealInWeek8();
-    $row = PlayerStartProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
+    $row = FixtureLineupProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
     fakeFutbolFantasyPages(['real-madrid' => MockResponse::make('', 500)]);
 
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)
@@ -179,12 +179,12 @@ test('leaves the team\'s rows untouched when its page fails', function (): void 
         ->assertSuccessful();
 
     expect($row->refresh()->probability)->toBe(42)
-        ->and(PlayerStartProbability::query()->count())->toBe(1);
+        ->and(FixtureLineupProbability::query()->count())->toBe(1);
 });
 
 test('leaves the team\'s rows untouched when its page has no players', function (): void {
     ['fixture' => $fixture, 'courtois' => $courtois] = madridHostsVillarrealInWeek8();
-    $row = PlayerStartProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
+    $row = FixtureLineupProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
     fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(
         '<html><body><section class="mod alineacion_wrapper"><span class="posible">Posible alineación</span><span class="jornada">8</span></section></body></html>',
     )]);
@@ -206,7 +206,7 @@ test('skips a page without a jornada in its lineup heading', function (): void {
         ->expectsOutputToContain('jornada')
         ->assertSuccessful();
 
-    expect(PlayerStartProbability::query()->count())->toBe(0);
+    expect(FixtureLineupProbability::query()->count())->toBe(0);
 });
 
 test('stores nothing when the page\'s rival is not the fixture\'s opponent', function (): void {
@@ -219,7 +219,7 @@ test('stores nothing when the page\'s rival is not the fixture\'s opponent', fun
         ->expectsOutputToContain('against VIL, the fixture against ATM')
         ->assertSuccessful();
 
-    expect(PlayerStartProbability::query()->count())->toBe(0);
+    expect(FixtureLineupProbability::query()->count())->toBe(0);
 });
 
 test('keeps the rows of a jornada that has already kicked off', function (): void {
@@ -234,7 +234,7 @@ test('keeps the rows of a jornada that has already kicked off', function (): voi
         'date' => now()->addDays(3),
         'state' => FixtureState::Scheduled,
     ]);
-    $row = PlayerStartProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
+    $row = FixtureLineupProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
     fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-posible'))]);
 
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)
@@ -242,7 +242,7 @@ test('keeps the rows of a jornada that has already kicked off', function (): voi
         ->assertSuccessful();
 
     expect($row->refresh()->probability)->toBe(42)
-        ->and(PlayerStartProbability::query()->count())->toBe(1);
+        ->and(FixtureLineupProbability::query()->count())->toBe(1);
 });
 
 test('fetches a team on every run while its next match is within 48 hours', function (): void {

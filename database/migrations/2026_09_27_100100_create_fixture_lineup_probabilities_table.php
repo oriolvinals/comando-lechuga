@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('player_start_probabilities', function (Blueprint $table): void {
+        Schema::create('fixture_lineup_probabilities', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('player_id')->constrained()->cascadeOnDelete();
             $table->foreignId('fixture_id')->constrained()->cascadeOnDelete();
@@ -26,6 +26,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('player_start_probabilities');
+        Schema::dropIfExists('fixture_lineup_probabilities');
     }
 };

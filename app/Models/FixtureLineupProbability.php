@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
-use Database\Factories\PlayerStartProbabilityFactory;
+use Database\Factories\FixtureLineupProbabilityFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -30,12 +30,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read CarbonImmutable|null $created_at
  * @property-read CarbonImmutable|null $updated_at
  */
-#[UseFactory(PlayerStartProbabilityFactory::class)]
-#[Table(name: 'player_start_probabilities', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
+#[UseFactory(FixtureLineupProbabilityFactory::class)]
+#[Table(name: 'fixture_lineup_probabilities', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
 #[Fillable(['player_id', 'fixture_id', 'probability', 'predicted_starter', 'confirmed_starter', 'fetched_at'])]
-class PlayerStartProbability extends Model
+class FixtureLineupProbability extends Model
 {
-    /** @use HasFactory<PlayerStartProbabilityFactory> */
+    /** @use HasFactory<FixtureLineupProbabilityFactory> */
     use HasFactory;
 
     /** @return BelongsTo<Player, $this> */

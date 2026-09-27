@@ -8,7 +8,7 @@ use App\Enums\FixtureState;
 use App\Enums\FutbolFantasyLinkRule;
 use App\Http\Integrations\FutbolFantasy\FutbolFantasyConnector;
 use App\Models\Fixture;
-use App\Models\PlayerStartProbability;
+use App\Models\FixtureLineupProbability;
 use App\Models\Season;
 use App\Models\Team;
 use App\Services\FutbolFantasyPageException;
@@ -203,7 +203,7 @@ class SyncCurrentSeasonStartProbabilities extends Command
                 $rule = $link['rule']->value;
                 $this->linkedByRule[$rule] = ($this->linkedByRule[$rule] ?? 0) + 1;
 
-                PlayerStartProbability::query()->updateOrCreate(
+                FixtureLineupProbability::query()->updateOrCreate(
                     ['player_id' => $link['player']->id, 'fixture_id' => $fixture->id],
                     $ffPlayer->confirmedStarter === null
                         ? [

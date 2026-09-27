@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Models\Fixture;
+use App\Models\FixtureLineupProbability;
 use App\Models\Player;
-use App\Models\PlayerStartProbability;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<PlayerStartProbability>
+ * @extends Factory<FixtureLineupProbability>
  */
-class PlayerStartProbabilityFactory extends Factory
+class FixtureLineupProbabilityFactory extends Factory
 {
     /**
      * @return array<string, mixed>

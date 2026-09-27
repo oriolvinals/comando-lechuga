@@ -35,7 +35,7 @@ logged, never guessed. Team slug → `team_id` is a fixed 20-entry map (FF uses 
 ## Storage
 
 - `players.futbolfantasy_id` — nullable unsigned int, unique.
-- `player_start_probabilities`: `id`, `player_id` (fk), `fixture_id` (fk, see "Which fixture"),
+- `fixture_lineup_probabilities`: `id`, `player_id` (fk), `fixture_id` (fk, see "Which fixture"),
   `probability` (nullable unsigned tinyint 0–100 — the last predicted %, kept after
   confirmation for the "Sorpresa / Se cae · era N %" marks), `confirmed_starter` (nullable bool —
   set from an "Alineación confirmada" page: true = Titular, false = Suplente), `fetched_at`,

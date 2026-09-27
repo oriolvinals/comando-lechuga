@@ -4,7 +4,7 @@
 
 **Goal:** For every LaLiga player, show how likely he is to START his team's next match. The data is scraped from FútbolFantasy's team pages and shown on the match, team and manager pages, and it gives way to the confirmed lineup once one exists.
 
-**Architecture:** A data pipeline comes first. It has a pure HTML parser (`FutbolFantasyTeamPageParser`, PHP's built-in `Dom\HTMLDocument`), a four-rule player linker (`FutbolFantasyPlayerLinker`), a Saloon connector and the `season:sync-start-probabilities` command. The command runs every 10 min with per-team due logic and upserts `player_start_probabilities`, one row per player and fixture. The worldcup26 live sync opens its pre-match window 1 h 30 min before kickoff. A read-side service (`StartProbabilities`) turns rows and confirmed lineups (worldcup26 first, FútbolFantasy second) into Inertia props for three pages. The UI tasks then add a probable/confirmed XI section to the match page, a probable-XI half pitch to the team page's jornada aside, and a bar and % under each manager roster player's next match.
+**Architecture:** A data pipeline comes first. It has a pure HTML parser (`FutbolFantasyTeamPageParser`, PHP's built-in `Dom\HTMLDocument`), a four-rule player linker (`FutbolFantasyPlayerLinker`), a Saloon connector and the `season:sync-start-probabilities` command. The command runs every 10 min with per-team due logic and upserts `fixture_lineup_probabilities`, one row per player and fixture. The worldcup26 live sync opens its pre-match window 1 h 30 min before kickoff. A read-side service (`StartProbabilities`) turns rows and confirmed lineups (worldcup26 first, FútbolFantasy second) into Inertia props for three pages. The UI tasks then add a probable/confirmed XI section to the match page, a probable-XI half pitch to the team page's jornada aside, and a bar and % under each manager roster player's next match.
 
 **Tech Stack:** Laravel 13 (PHP 8.5, `Dom\HTMLDocument`), Saloon v4, Pest 5, Larastan level 7, Inertia v3 + React 19 + TypeScript, Tailwind v4 (Comando HQ tokens), Wayfinder, lucide-react.
 
@@ -23,7 +23,7 @@
 - Schedule the sync every 10 min. For each team: next fixture within **48 h** → fetch on every run; further away → **at most every 6 h**; after kickoff → **never**. `--force` ignores the due logic.
 - Linking order, first hit wins: stored `players.futbolfantasy_id` → same team + **exact** `data-valor-laliga-fantasy` against `player_markets` of the **last 3 days** (tie-break total points, then position) → same team + normalised name → manual map. **Unlinked FF players are logged, never guessed.**
 - Probabilities are stored on **that team's fixture with `week_number = n`** from the page's "J{n}". A `data-rival` mismatch, or a missing heading or jornada, means nothing is stored and a warning is logged. So does a page that fails or parses 0 players: that team's rows stay untouched.
-- **Rows in `player_start_probabilities` are kept after kickoff and are never deleted.** They back the "Sorpresa / Se cae · era N %" marks and serve as history. The pages simply stop showing the % once a lineup is confirmed or the match has kicked off.
+- **Rows in `fixture_lineup_probabilities` are kept after kickoff and are never deleted.** They back the "Sorpresa / Se cae · era N %" marks and serve as history. The pages simply stop showing the % once a lineup is confirmed or the match has kicked off.
 - Confirmed-lineup sources, in order: **worldcup26** (`fixture_lineups`, primary), then FF "Alineación confirmada" (`confirmed_starter`, fallback). When they disagree, worldcup26 wins. The worldcup26 live sync starts **1 h 30 min** before kickoff.
 - Injury and suspension come from our `players.status` (LaLiga Fantasy), never from FF flags.
 - Display: doubts **< 60 %** are dimmed with a dashed frame. Bench/doubts list the players at **≥ 30 %**, then a "**+N < 30 %**" line. **≥ 90 % pitch badges are lilac (`--color-hq-violet`)**; other values use the tone scale ≥ 70 lime, 40–69 gold, < 40 moss, injured/suspended red. Data older than **48 h** is stale: show "Datos de hace N días" and mute the bars.
@@ -49,9 +49,9 @@
 | File | Responsibility |
 |---|---|
 | `database/migrations/2026_09_27_100000_add_futbolfantasy_id_to_players_table.php` (create) | `players.futbolfantasy_id` (nullable unsigned int, unique). |
-| `database/migrations/2026_09_27_100100_create_player_start_probabilities_table.php` (create) | The rows: player × fixture, `probability`, `predicted_starter`, `confirmed_starter`, `fetched_at`. |
-| `app/Models/PlayerStartProbability.php` + `database/factories/PlayerStartProbabilityFactory.php` (create) | Model + factory. |
-| `app/Models/Player.php` (modify) | `futbolfantasy_id`, `startProbabilities()`, `next_start` docblock. |
+| `database/migrations/2026_09_27_100100_create_fixture_lineup_probabilities_table.php` (create) | The rows: player × fixture, `probability`, `predicted_starter`, `confirmed_starter`, `fetched_at`. |
+| `app/Models/FixtureLineupProbability.php` + `database/factories/FixtureLineupProbabilityFactory.php` (create) | Model + factory. |
+| `app/Models/Player.php` (modify) | `futbolfantasy_id`, `lineupProbabilities()`, `next_start` docblock. |
 | `app/Services/FutbolFantasyTeams.php` (create) | 20-entry map `teams.fantasy_id → FF slug`, `FF slug → FF team code`, page URLs. |
 | `app/Services/FutbolFantasyPlayer.php`, `FutbolFantasyTeamPage.php`, `FutbolFantasyPageException.php` (create) | Parser DTOs + failure. |
 | `app/Services/FutbolFantasyTeamPageParser.php` (create) | Pure HTML → `FutbolFantasyTeamPage`. |
@@ -82,23 +82,23 @@
 
 **Files:**
 - Create: `database/migrations/2026_09_27_100000_add_futbolfantasy_id_to_players_table.php`
-- Create: `database/migrations/2026_09_27_100100_create_player_start_probabilities_table.php`
-- Create: `app/Models/PlayerStartProbability.php`
-- Create: `database/factories/PlayerStartProbabilityFactory.php`
+- Create: `database/migrations/2026_09_27_100100_create_fixture_lineup_probabilities_table.php`
+- Create: `app/Models/FixtureLineupProbability.php`
+- Create: `database/factories/FixtureLineupProbabilityFactory.php`
 - Create: `app/Services/FutbolFantasyTeams.php`
 - Modify: `app/Models/Player.php` (docblock, `#[Fillable]`, casts, new relation)
-- Test: `tests/Feature/Models/PlayerStartProbabilityTest.php`, `tests/Unit/Services/FutbolFantasyTeamsTest.php`
+- Test: `tests/Feature/Models/FixtureLineupProbabilityTest.php`, `tests/Unit/Services/FutbolFantasyTeamsTest.php`
 
 **Interfaces:**
 - Produces:
-  - Table `player_start_probabilities(id, player_id, fixture_id, probability tinyint unsigned null, predicted_starter bool default false, confirmed_starter bool null, fetched_at timestamp, timestamps)`, unique (`player_id`, `fixture_id`).
-  - `App\Models\PlayerStartProbability` with `player(): BelongsTo<Player>`, `fixture(): BelongsTo<Fixture>`, properties `int|null $probability`, `bool $predicted_starter`, `bool|null $confirmed_starter`, `CarbonImmutable $fetched_at`.
-  - `Player::$futbolfantasy_id` (`int|null`, fillable), `Player::startProbabilities(): HasMany<PlayerStartProbability>`, and the docblock-only dynamic attribute `Player::$next_start` (filled in Task 6).
+  - Table `fixture_lineup_probabilities(id, player_id, fixture_id, probability tinyint unsigned null, predicted_starter bool default false, confirmed_starter bool null, fetched_at timestamp, timestamps)`, unique (`player_id`, `fixture_id`).
+  - `App\Models\FixtureLineupProbability` with `player(): BelongsTo<Player>`, `fixture(): BelongsTo<Fixture>`, properties `int|null $probability`, `bool $predicted_starter`, `bool|null $confirmed_starter`, `CarbonImmutable $fetched_at`.
+  - `Player::$futbolfantasy_id` (`int|null`, fillable), `Player::lineupProbabilities(): HasMany<FixtureLineupProbability>`, and the docblock-only dynamic attribute `Player::$next_start` (filled in Task 6).
   - `App\Services\FutbolFantasyTeams`: `SLUGS: array<int, string>` (teams.fantasy_id → slug), `CODES: array<string, string>` (slug → FF team code), `TEAM_PAGE_URL`, `slugFor(int $fantasyId): ?string`, `codeFor(int $fantasyId): ?string`, `pageUrlFor(int $fantasyId): ?string`.
 
 - [ ] **Step 1: Write the failing tests**
 
-`tests/Feature/Models/PlayerStartProbabilityTest.php`:
+`tests/Feature/Models/FixtureLineupProbabilityTest.php`:
 
 ```php
 <?php
@@ -107,7 +107,7 @@ declare(strict_types=1);
 
 use App\Models\Fixture;
 use App\Models\Player;
-use App\Models\PlayerStartProbability;
+use App\Models\FixtureLineupProbability;
 use App\Models\Season;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
@@ -117,7 +117,7 @@ beforeEach(function (): void {
 });
 
 test('belongs to a player and a fixture and casts its columns', function (): void {
-    $row = PlayerStartProbability::factory()->create([
+    $row = FixtureLineupProbability::factory()->create([
         'probability' => 70,
         'predicted_starter' => true,
         'confirmed_starter' => null,
@@ -132,7 +132,7 @@ test('belongs to a player and a fixture and casts its columns', function (): voi
 });
 
 test('a probability can be missing and a lineup confirmed without one', function (): void {
-    $row = PlayerStartProbability::factory()->create([
+    $row = FixtureLineupProbability::factory()->create([
         'probability' => null,
         'confirmed_starter' => false,
     ])->refresh();
@@ -143,9 +143,9 @@ test('a probability can be missing and a lineup confirmed without one', function
 });
 
 test('keeps a single row per player and fixture', function (): void {
-    $row = PlayerStartProbability::factory()->create();
+    $row = FixtureLineupProbability::factory()->create();
 
-    PlayerStartProbability::factory()->create([
+    FixtureLineupProbability::factory()->create([
         'player_id' => $row->player_id,
         'fixture_id' => $row->fixture_id,
     ]);
@@ -153,10 +153,10 @@ test('keeps a single row per player and fixture', function (): void {
 
 test('a player stores its FútbolFantasy id and lists its start probabilities', function (): void {
     $player = Player::factory()->create(['futbolfantasy_id' => 7257]);
-    PlayerStartProbability::factory()->for($player)->create();
+    FixtureLineupProbability::factory()->for($player)->create();
 
     expect($player->refresh()->futbolfantasy_id)->toBe(7257)
-        ->and($player->startProbabilities)->toHaveCount(1);
+        ->and($player->lineupProbabilities)->toHaveCount(1);
 });
 
 test('two players cannot share a FútbolFantasy id', function (): void {
@@ -197,8 +197,8 @@ test('knows nothing about a team outside the map', function (): void {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `herd php artisan test --compact tests/Feature/Models/PlayerStartProbabilityTest.php tests/Unit/Services/FutbolFantasyTeamsTest.php`
-Expected: FAIL with `Class "App\Models\PlayerStartProbability" not found` and `Class "App\Services\FutbolFantasyTeams" not found`.
+Run: `herd php artisan test --compact tests/Feature/Models/FixtureLineupProbabilityTest.php tests/Unit/Services/FutbolFantasyTeamsTest.php`
+Expected: FAIL with `Class "App\Models\FixtureLineupProbability" not found` and `Class "App\Services\FutbolFantasyTeams" not found`.
 
 - [ ] **Step 3: Write the migrations**
 
@@ -232,7 +232,7 @@ return new class extends Migration
 };
 ```
 
-`database/migrations/2026_09_27_100100_create_player_start_probabilities_table.php`:
+`database/migrations/2026_09_27_100100_create_fixture_lineup_probabilities_table.php`:
 
 ```php
 <?php
@@ -247,7 +247,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('player_start_probabilities', function (Blueprint $table): void {
+        Schema::create('fixture_lineup_probabilities', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('player_id')->constrained()->cascadeOnDelete();
             $table->foreignId('fixture_id')->constrained()->cascadeOnDelete();
@@ -263,14 +263,14 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('player_start_probabilities');
+        Schema::dropIfExists('fixture_lineup_probabilities');
     }
 };
 ```
 
 - [ ] **Step 4: Write the model and its factory**
 
-`app/Models/PlayerStartProbability.php`:
+`app/Models/FixtureLineupProbability.php`:
 
 ```php
 <?php
@@ -280,7 +280,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
-use Database\Factories\PlayerStartProbabilityFactory;
+use Database\Factories\FixtureLineupProbabilityFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -305,12 +305,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read CarbonImmutable|null $created_at
  * @property-read CarbonImmutable|null $updated_at
  */
-#[UseFactory(PlayerStartProbabilityFactory::class)]
-#[Table(name: 'player_start_probabilities', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
+#[UseFactory(FixtureLineupProbabilityFactory::class)]
+#[Table(name: 'fixture_lineup_probabilities', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
 #[Fillable(['player_id', 'fixture_id', 'probability', 'predicted_starter', 'confirmed_starter', 'fetched_at'])]
-class PlayerStartProbability extends Model
+class FixtureLineupProbability extends Model
 {
-    /** @use HasFactory<PlayerStartProbabilityFactory> */
+    /** @use HasFactory<FixtureLineupProbabilityFactory> */
     use HasFactory;
 
     /** @return BelongsTo<Player, $this> */
@@ -350,7 +350,7 @@ class PlayerStartProbability extends Model
 }
 ```
 
-`database/factories/PlayerStartProbabilityFactory.php`:
+`database/factories/FixtureLineupProbabilityFactory.php`:
 
 ```php
 <?php
@@ -361,13 +361,13 @@ namespace Database\Factories;
 
 use App\Models\Fixture;
 use App\Models\Player;
-use App\Models\PlayerStartProbability;
+use App\Models\FixtureLineupProbability;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<PlayerStartProbability>
+ * @extends Factory<FixtureLineupProbability>
  */
-class PlayerStartProbabilityFactory extends Factory
+class FixtureLineupProbabilityFactory extends Factory
 {
     /**
      * @return array<string, mixed>
@@ -411,10 +411,10 @@ and after the `$api_ownership_activity` line (the last `@property`), add:
 3. Add the relation after `marketPlayer()`:
 
 ```php
-    /** @return HasMany<PlayerStartProbability, $this> */
-    public function startProbabilities(): HasMany
+    /** @return HasMany<FixtureLineupProbability, $this> */
+    public function lineupProbabilities(): HasMany
     {
-        return $this->hasMany(PlayerStartProbability::class);
+        return $this->hasMany(FixtureLineupProbability::class);
     }
 ```
 
@@ -521,7 +521,7 @@ final class FutbolFantasyTeams
 
 - [ ] **Step 7: Run the tests to verify they pass**
 
-Run: `herd php artisan test --compact tests/Feature/Models/PlayerStartProbabilityTest.php tests/Unit/Services/FutbolFantasyTeamsTest.php tests/Feature/Models/PlayerTest.php`
+Run: `herd php artisan test --compact tests/Feature/Models/FixtureLineupProbabilityTest.php tests/Unit/Services/FutbolFantasyTeamsTest.php tests/Feature/Models/PlayerTest.php`
 Expected: PASS.
 
 - [ ] **Step 8: Migrate the local database, format, analyse**
@@ -535,7 +535,7 @@ Expected: no errors.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add database/migrations/2026_09_27_100000_add_futbolfantasy_id_to_players_table.php database/migrations/2026_09_27_100100_create_player_start_probabilities_table.php app/Models/PlayerStartProbability.php database/factories/PlayerStartProbabilityFactory.php app/Models/Player.php app/Services/FutbolFantasyTeams.php tests/Feature/Models/PlayerStartProbabilityTest.php tests/Unit/Services/FutbolFantasyTeamsTest.php
+git add database/migrations/2026_09_27_100000_add_futbolfantasy_id_to_players_table.php database/migrations/2026_09_27_100100_create_fixture_lineup_probabilities_table.php app/Models/FixtureLineupProbability.php database/factories/FixtureLineupProbabilityFactory.php app/Models/Player.php app/Services/FutbolFantasyTeams.php tests/Feature/Models/FixtureLineupProbabilityTest.php tests/Unit/Services/FutbolFantasyTeamsTest.php
 git commit -m "feat: store start probabilities per player and fixture" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
@@ -1696,7 +1696,7 @@ git commit -m "feat: link FútbolFantasy players by stored id, market value, nam
 - Test: `tests/Unit/Http/Integrations/FutbolFantasy/GetTeamPageRequestTest.php`, `tests/Unit/Http/Integrations/FutbolFantasy/FutbolFantasyConnectorTest.php`, `tests/Feature/Console/Commands/SyncCurrentSeasonStartProbabilitiesTest.php`
 
 **Interfaces:**
-- Consumes: `FutbolFantasyTeams::slugFor/codeFor` (Task 1), `PlayerStartProbability` (Task 1), `FutbolFantasyTeamPageParser::parse` + `FutbolFantasyPageException` (Task 2), `FutbolFantasyPlayerLinker::link` + `FutbolFantasyLinkRule` (Task 3).
+- Consumes: `FutbolFantasyTeams::slugFor/codeFor` (Task 1), `FixtureLineupProbability` (Task 1), `FutbolFantasyTeamPageParser::parse` + `FutbolFantasyPageException` (Task 2), `FutbolFantasyPlayerLinker::link` + `FutbolFantasyLinkRule` (Task 3).
 - Produces:
   - `FutbolFantasyConnector::getTeamPage(string $slug): Saloon\Http\Response`, `FutbolFantasyConnector::USER_AGENT`.
   - Command `season:sync-start-probabilities {--force}`. It prints, in this exact format:
@@ -1771,7 +1771,7 @@ use App\Enums\PlayerStatus;
 use App\Http\Integrations\FutbolFantasy\FutbolFantasyConnector;
 use App\Models\Fixture;
 use App\Models\Player;
-use App\Models\PlayerStartProbability;
+use App\Models\FixtureLineupProbability;
 use App\Models\Season;
 use App\Models\Team;
 use Carbon\CarbonInterface;
@@ -1859,7 +1859,7 @@ test('stores each linked player\'s probability on the team\'s fixture for the pa
 
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
 
-    $rows = PlayerStartProbability::query()->where('fixture_id', $fixture->id)->get()->keyBy('player_id');
+    $rows = FixtureLineupProbability::query()->where('fixture_id', $fixture->id)->get()->keyBy('player_id');
 
     expect($rows)->toHaveCount(4)
         ->and($rows[$courtois->id]->probability)->toBe(95)
@@ -1873,7 +1873,7 @@ test('stores each linked player\'s probability on the team\'s fixture for the pa
 
 test('updates the existing rows instead of adding new ones', function (): void {
     ['fixture' => $fixture, 'courtois' => $courtois] = madridHostsVillarrealInWeek8();
-    PlayerStartProbability::factory()->create([
+    FixtureLineupProbability::factory()->create([
         'player_id' => $courtois->id,
         'fixture_id' => $fixture->id,
         'probability' => 40,
@@ -1883,9 +1883,9 @@ test('updates the existing rows instead of adding new ones', function (): void {
 
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
 
-    $row = PlayerStartProbability::query()->where('player_id', $courtois->id)->sole();
+    $row = FixtureLineupProbability::query()->where('player_id', $courtois->id)->sole();
 
-    expect(PlayerStartProbability::query()->count())->toBe(4)
+    expect(FixtureLineupProbability::query()->count())->toBe(4)
         ->and($row->probability)->toBe(95)
         ->and($row->predicted_starter)->toBeTrue();
 });
@@ -1921,7 +1921,7 @@ test('keeps the last predicted % and XI when FútbolFantasy confirms the lineup'
     fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-confirmada'))]);
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
 
-    $rows = PlayerStartProbability::query()->get()->keyBy('player_id');
+    $rows = FixtureLineupProbability::query()->get()->keyBy('player_id');
 
     expect($rows[$courtois->id]->probability)->toBe(95)
         ->and($rows[$courtois->id]->confirmed_starter)->toBeTrue()
@@ -1935,7 +1935,7 @@ test('keeps the last predicted % and XI when FútbolFantasy confirms the lineup'
 
 test('leaves the team\'s rows untouched when its page fails', function (): void {
     ['fixture' => $fixture, 'courtois' => $courtois] = madridHostsVillarrealInWeek8();
-    $row = PlayerStartProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
+    $row = FixtureLineupProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
     fakeFutbolFantasyPages(['real-madrid' => MockResponse::make('', 500)]);
 
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)
@@ -1944,12 +1944,12 @@ test('leaves the team\'s rows untouched when its page fails', function (): void 
         ->assertSuccessful();
 
     expect($row->refresh()->probability)->toBe(42)
-        ->and(PlayerStartProbability::query()->count())->toBe(1);
+        ->and(FixtureLineupProbability::query()->count())->toBe(1);
 });
 
 test('leaves the team\'s rows untouched when its page has no players', function (): void {
     ['fixture' => $fixture, 'courtois' => $courtois] = madridHostsVillarrealInWeek8();
-    $row = PlayerStartProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
+    $row = FixtureLineupProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
     fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(
         '<html><body><section class="mod alineacion_wrapper"><span class="posible">Posible alineación</span><span class="jornada">8</span></section></body></html>',
     )]);
@@ -1971,7 +1971,7 @@ test('skips a page without a jornada in its lineup heading', function (): void {
         ->expectsOutputToContain('jornada')
         ->assertSuccessful();
 
-    expect(PlayerStartProbability::query()->count())->toBe(0);
+    expect(FixtureLineupProbability::query()->count())->toBe(0);
 });
 
 test('stores nothing when the page\'s rival is not the fixture\'s opponent', function (): void {
@@ -1984,7 +1984,7 @@ test('stores nothing when the page\'s rival is not the fixture\'s opponent', fun
         ->expectsOutputToContain('against VIL, the fixture against ATM')
         ->assertSuccessful();
 
-    expect(PlayerStartProbability::query()->count())->toBe(0);
+    expect(FixtureLineupProbability::query()->count())->toBe(0);
 });
 
 test('keeps the rows of a jornada that has already kicked off', function (): void {
@@ -1999,7 +1999,7 @@ test('keeps the rows of a jornada that has already kicked off', function (): voi
         'date' => now()->addDays(3),
         'state' => FixtureState::Scheduled,
     ]);
-    $row = PlayerStartProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
+    $row = FixtureLineupProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 42]);
     fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-posible'))]);
 
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)
@@ -2007,7 +2007,7 @@ test('keeps the rows of a jornada that has already kicked off', function (): voi
         ->assertSuccessful();
 
     expect($row->refresh()->probability)->toBe(42)
-        ->and(PlayerStartProbability::query()->count())->toBe(1);
+        ->and(FixtureLineupProbability::query()->count())->toBe(1);
 });
 
 test('fetches a team on every run while its next match is within 48 hours', function (): void {
@@ -2197,7 +2197,7 @@ use App\Enums\FixtureState;
 use App\Enums\FutbolFantasyLinkRule;
 use App\Http\Integrations\FutbolFantasy\FutbolFantasyConnector;
 use App\Models\Fixture;
-use App\Models\PlayerStartProbability;
+use App\Models\FixtureLineupProbability;
 use App\Models\Season;
 use App\Models\Team;
 use App\Services\FutbolFantasyPageException;
@@ -2390,7 +2390,7 @@ class SyncCurrentSeasonStartProbabilities extends Command
                 $rule = $link['rule']->value;
                 $this->linkedByRule[$rule] = ($this->linkedByRule[$rule] ?? 0) + 1;
 
-                PlayerStartProbability::query()->updateOrCreate(
+                FixtureLineupProbability::query()->updateOrCreate(
                     ['player_id' => $link['player']->id, 'fixture_id' => $fixture->id],
                     $ffPlayer->confirmedStarter === null
                         ? [
@@ -2479,7 +2479,7 @@ git commit -m "feat: sync start probabilities from FútbolFantasy every 10 minut
 
 Run: `herd php artisan season:sync-start-probabilities --force`. With 20 pages and 10–30 s pauses this takes ~4–10 minutes, so use a long timeout or run it in the background.
 
-Report to the user, verbatim: the `Teams:`, `Players:`, `Linked:`, `Unlinked (…)` and `Missing from the FútbolFantasy team map:` lines. Add the row count, `select count(*) from player_start_probabilities`, and a couple of sample rows (player nickname, fixture, probability).
+Report to the user, verbatim: the `Teams:`, `Players:`, `Linked:`, `Unlinked (…)` and `Missing from the FútbolFantasy team map:` lines. Add the row count, `select count(*) from fixture_lineup_probabilities`, and a couple of sample rows (player nickname, fixture, probability).
 
 **Stop here.** Wait for the user's go-ahead before Task 5. If the user supplies `ffId => fantasy_id` entries for the unlinked players, add them to `FutbolFantasyPlayerLinker::PLAYER_MAP` (one commented line each, like `LinkMatchDataPlayers::PLAYER_MAP`), run `--force` again, and commit that as `fix: map the FútbolFantasy players no rule links`.
 
@@ -2620,7 +2620,7 @@ git commit -m "feat: read worldcup26 lineups from 1 h 30 min before kickoff" -m 
 - Test: `tests/Feature/Services/StartProbabilitiesTest.php`; add tests to `tests/Feature/Http/Controllers/FixturesControllerTest.php`, `TeamsControllerTest.php`, `SeasonManagersControllerTest.php`
 
 **Interfaces:**
-- Consumes: `PlayerStartProbability` (Task 1), `FutbolFantasyTeams::pageUrlFor` (Task 1), `FixtureLineup` (worldcup26), `AttachesCurrentPlayerSeason`.
+- Consumes: `FixtureLineupProbability` (Task 1), `FutbolFantasyTeams::pageUrlFor` (Task 1), `FixtureLineup` (worldcup26), `AttachesCurrentPlayerSeason`.
 - Produces (PHP shapes, mirrored in TS below):
   - `StartProbabilities::forFixture(Fixture $fixture): ?array{local: StartTeamBlock|null, guest: StartTeamBlock|null}`. It returns null unless the fixture is `Scheduled` and at least one side has data.
   - `StartProbabilities::forTeamNextFixture(Team $team, Season $season): ?array` returns `StartTeamBlock` plus `{opponent: Team, is_home: bool}` for the team's next `Scheduled` fixture by date (the "próximo partido"), or null.
@@ -2648,7 +2648,7 @@ use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
 use App\Models\Player;
-use App\Models\PlayerStartProbability;
+use App\Models\FixtureLineupProbability;
 use App\Models\Season;
 use App\Models\Team;
 use App\Services\StartProbabilities;
@@ -2677,9 +2677,9 @@ function startPlayer(Team $team, string $nickname, PlayerPosition $position = Pl
     ]);
 }
 
-function startRow(Player $player, Fixture $fixture, array $attributes = []): PlayerStartProbability
+function startRow(Player $player, Fixture $fixture, array $attributes = []): FixtureLineupProbability
 {
-    return PlayerStartProbability::factory()->create([
+    return FixtureLineupProbability::factory()->create([
         'player_id' => $player->id,
         'fixture_id' => $fixture->id,
         'probability' => 70,
@@ -2733,7 +2733,7 @@ test('gives nothing for a fixture without data or already kicked off', function 
     $this->fixture->update(['state' => FixtureState::FirstHalf]);
 
     expect(app(StartProbabilities::class)->forFixture($this->fixture->refresh()))->toBeNull()
-        ->and(PlayerStartProbability::query()->count())->toBe(1);
+        ->and(FixtureLineupProbability::query()->count())->toBe(1);
 });
 
 test('uses FútbolFantasy\'s confirmed lineup while worldcup26 has none', function (): void {
@@ -2841,7 +2841,7 @@ use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
 use App\Models\Player;
-use App\Models\PlayerStartProbability;
+use App\Models\FixtureLineupProbability;
 use App\Models\Season;
 use App\Models\Team;
 use Carbon\CarbonImmutable;
@@ -2939,11 +2939,11 @@ class StartProbabilities
 
         $fixtureIds = array_values(array_map(fn (Fixture $fixture): int => $fixture->id, $nextByTeam));
 
-        $rows = PlayerStartProbability::query()
+        $rows = FixtureLineupProbability::query()
             ->whereIn('fixture_id', $fixtureIds)
             ->whereIn('player_id', $eligible->map(fn (Player $player): int => $player->id)->all())
             ->get()
-            ->keyBy(fn (PlayerStartProbability $row): string => "{$row->fixture_id}:{$row->player_id}");
+            ->keyBy(fn (FixtureLineupProbability $row): string => "{$row->fixture_id}:{$row->player_id}");
 
         $lineups = FixtureLineup::query()
             ->whereIn('fixture_id', $fixtureIds)
@@ -3001,7 +3001,7 @@ class StartProbabilities
      */
     private function teamBlock(Fixture $fixture, Team $team): ?array
     {
-        $rows = PlayerStartProbability::query()
+        $rows = FixtureLineupProbability::query()
             ->where('fixture_id', $fixture->id)
             ->whereHas('player', fn ($query) => $query->where('team_id', $team->id))
             ->with('player.team')
@@ -3020,7 +3020,7 @@ class StartProbabilities
 
         $confirmedSource = match (true) {
             $lineups->isNotEmpty() => 'worldcup26',
-            $rows->contains(fn (PlayerStartProbability $row): bool => $row->confirmed_starter !== null) => 'futbolfantasy',
+            $rows->contains(fn (FixtureLineupProbability $row): bool => $row->confirmed_starter !== null) => 'futbolfantasy',
             default => null,
         };
 
@@ -3059,7 +3059,7 @@ class StartProbabilities
 
         $this->attachCurrentSeason(collect(array_map(fn (array $entry): Player => $entry['player'], $players)), $fixture->season_id);
 
-        $fetchedAt = $rows->sortByDesc(fn (PlayerStartProbability $row): int => $row->fetched_at->getTimestamp())->first()?->fetched_at;
+        $fetchedAt = $rows->sortByDesc(fn (FixtureLineupProbability $row): int => $row->fetched_at->getTimestamp())->first()?->fetched_at;
 
         return [
             'fixture_id' => $fixture->id,
@@ -3122,7 +3122,7 @@ Expected: PASS (9 tests).
 
 - [ ] **Step 5: Write the failing controller tests**
 
-Append to `tests/Feature/Http/Controllers/FixturesControllerTest.php`. Add `use App\Enums\PlayerStatus;`, `use App\Models\PlayerStartProbability;` and `use App\Models\Team;` to its imports if they aren't there yet.
+Append to `tests/Feature/Http/Controllers/FixturesControllerTest.php`. Add `use App\Enums\PlayerStatus;`, `use App\Models\FixtureLineupProbability;` and `use App\Models\Team;` to its imports if they aren't there yet.
 
 ```php
 test('sends the start probabilities of an upcoming fixture', function (): void {
@@ -3130,7 +3130,7 @@ test('sends the start probabilities of an upcoming fixture', function (): void {
     $madrid = Team::factory()->create(['fantasy_id' => 15]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'team_local_id' => $madrid->id, 'date' => now()->addDay()]);
     $courtois = Player::factory()->create(['team_id' => $madrid->id, 'status' => PlayerStatus::Ok]);
-    PlayerStartProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 95]);
+    FixtureLineupProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 95]);
 
     $response = $this->get(route('fixtures.show', $fixture));
 
@@ -3152,7 +3152,7 @@ test('sends no start probabilities for a fixture without any', function (): void
 });
 ```
 
-Append to `tests/Feature/Http/Controllers/TeamsControllerTest.php`, adding `use App\Models\PlayerStartProbability;` to its imports:
+Append to `tests/Feature/Http/Controllers/TeamsControllerTest.php`, adding `use App\Models\FixtureLineupProbability;` to its imports:
 
 ```php
 test('sends the probable XI of the team\'s next match', function (): void {
@@ -3169,7 +3169,7 @@ test('sends the probable XI of the team\'s next match', function (): void {
         'state' => FixtureState::Scheduled,
     ]);
     $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
-    PlayerStartProbability::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'probability' => 80]);
+    FixtureLineupProbability::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'probability' => 80]);
 
     $response = $this->get(route('teams.show', $team));
 
@@ -3183,7 +3183,7 @@ test('sends the probable XI of the team\'s next match', function (): void {
 });
 ```
 
-Append to `tests/Feature/Http/Controllers/SeasonManagersControllerTest.php`, adding `use App\Models\PlayerStartProbability;` to its imports:
+Append to `tests/Feature/Http/Controllers/SeasonManagersControllerTest.php`, adding `use App\Models\FixtureLineupProbability;` to its imports:
 
 ```php
 test('sends each roster player\'s start for his team\'s next match', function (): void {
@@ -3199,7 +3199,7 @@ test('sends each roster player\'s start for his team\'s next match', function ()
     ]);
     $listed = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
     $unlisted = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
-    PlayerStartProbability::factory()->create(['player_id' => $listed->id, 'fixture_id' => $fixture->id, 'probability' => 70, 'predicted_starter' => true]);
+    FixtureLineupProbability::factory()->create(['player_id' => $listed->id, 'fixture_id' => $fixture->id, 'probability' => 70, 'predicted_starter' => true]);
     ManagerPlayer::factory()->create(['season_manager_id' => $seasonManager->id, 'player_id' => $listed->id]);
     ManagerPlayer::factory()->create(['season_manager_id' => $seasonManager->id, 'player_id' => $unlisted->id]);
 
@@ -5223,7 +5223,7 @@ git commit -m "feat: show each roster player's start probability on the manager 
 - A one-sided fixture: Task 6, `keeps a side without data empty…`, rendered as "sin datos" in Task 7.
 
 **Spec rulings made here.** Tell the user about these.
-1. **`predicted_starter` column (bool, default false)** is added to `player_start_probabilities`. The spec's column list doesn't name it, but the pitch must show *FF's* probable XI. Deriving it from the % is ambiguous because ties at 50 % cross the XI line on real pages. The value is FF's own `data-onceFF`.
+1. **`predicted_starter` column (bool, default false)** is added to `fixture_lineup_probabilities`. The spec's column list doesn't name it, but the pitch must show *FF's* probable XI. Deriving it from the % is ambiguous because ties at 50 % cross the XI line on real pages. The value is FF's own `data-onceFF`.
 2. **FF code map for the rival check** (`FutbolFantasyTeams::CODES`, keyed by FF slug) sits beside the slug map, which is keyed by `teams.fantasy_id` as the coordinator asked. `data-rival` uses FF codes, and three of them differ from ours: RMD, DEP, MLG.
 3. **Confirmed detection** reads each player's `data-probabilidad` value, `Titular`/`Suplente`. The jornada comes from `span.jornada`. Real pages always contain a hidden "Alineación confirmada" span, so the heading text alone can't be trusted.
 4. **Due-logic memory** is a per-team "last attempt" timestamp in the cache, not the rows. A page whose jornada differs from our next fixture, or that fails, must not be retried every 10 min when the match is far away.
