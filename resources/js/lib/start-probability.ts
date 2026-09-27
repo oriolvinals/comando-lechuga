@@ -296,15 +296,22 @@ export function landscapeSlots(
     });
 }
 
-/** Height (% from the top) of each line on the vertical half pitch, attacking up. */
+/**
+ * Height (% from the top) of each line on the vertical half pitch, attacking
+ * down with the goalkeeper at the top — matches the team ficha's real match
+ * pitch (`HqLineupPitch`'s `ROWS`), not the mock's attacking-up layout.
+ */
 const HALF_PITCH_TOP: Record<PitchLine, number> = {
-    goalkeeper: 88,
-    defender: 67,
-    midfield: 42,
-    striker: 16,
+    goalkeeper: 12,
+    defender: 33,
+    midfield: 58,
+    striker: 84,
 };
 
-/** A probable XI on the team ficha's vertical half pitch, attacking up. */
+/**
+ * A probable XI on the team ficha's vertical half pitch, attacking down with
+ * the goalkeeper at the top.
+ */
 export function halfPitchSlots(
     starters: StartProbabilityEntry[],
 ): StartPitchSlot[] {
@@ -322,7 +329,7 @@ export function halfPitchSlots(
             return {
                 entry,
                 left: ((index + 1) / (line.length + 1)) * 100,
-                top: HALF_PITCH_TOP[position] - (wide ? 4 : 0),
+                top: HALF_PITCH_TOP[position] + (wide ? 4 : 0),
             };
         });
     });

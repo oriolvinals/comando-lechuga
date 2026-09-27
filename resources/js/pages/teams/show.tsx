@@ -13,6 +13,7 @@ import {
     lineupPlayerStatsEntry,
 } from '@/components/hq-player-stats-modal';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { HqProbableHalfPitch } from '@/components/hq-probable-half-pitch';
 import { HqSection } from '@/components/hq-section';
 import { HqTeamFixtureStrip } from '@/components/hq-team-fixture-strip';
 import { HqTeamFormStrip } from '@/components/hq-team-form-strip';
@@ -29,6 +30,7 @@ import type {
     PlayerPosition,
     StandingsRow,
     Team,
+    TeamNextStartProbabilities,
     TeamPerMatchRates,
     TeamSquadSummary,
 } from '@/types/models';
@@ -58,6 +60,7 @@ interface TeamShowProps {
     fixtures: Fixture[];
     currentWeek: number;
     weeklyLineups: TeamWeekLineup[];
+    startProbabilities: TeamNextStartProbabilities | null;
     [key: string]: unknown;
 }
 
@@ -107,6 +110,7 @@ export default function TeamShow({
     fixtures,
     currentWeek,
     weeklyLineups,
+    startProbabilities,
 }: TeamShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(currentWeek);
     const [selectedPlayer, setSelectedPlayer] =
@@ -309,6 +313,11 @@ export default function TeamShow({
                                     )}
                                 </div>
                             </div>
+                        ) : startProbabilities &&
+                          startProbabilities.week_number === selectedWeek ? (
+                            <HqProbableHalfPitch
+                                probabilities={startProbabilities}
+                            />
                         ) : (
                             <HqEmptyState
                                 glyph="▦"
