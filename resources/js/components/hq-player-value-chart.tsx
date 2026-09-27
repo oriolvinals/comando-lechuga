@@ -24,16 +24,16 @@ import type {
 const DEFAULT_WIDTH = 900;
 const VALUE_TOP = 26;
 const VALUE_BOTTOM = 150;
-const POINTS_CAPTION_Y = 176;
-const POINTS_TOP = 184;
-const POINTS_BOTTOM = 238;
+const POINTS_CAPTION_Y = 188;
+const POINTS_TOP = 196;
+const POINTS_BOTTOM = 250;
 const BAR_LABEL_SPACE = 16;
-const JORNADA_LABEL_Y = 254;
-const BAND_Y = 262;
+const JORNADA_LABEL_Y = 266;
+const BAND_Y = 274;
 const BAND_HEIGHT = 14;
-const DATE_Y = 294;
-const VIEW_HEIGHT = 302;
-const HIT_HEIGHT = 246;
+const DATE_Y = 306;
+const VIEW_HEIGHT = 314;
+const HIT_HEIGHT = 258;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SNAP_RADIUS = 12;
 /** Side inset of the first/last day, so edge jornada bars aren't clipped in half. */
