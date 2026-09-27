@@ -373,10 +373,6 @@ class TeamsController extends Controller
      */
     private function pitchSideOrder(string $position): int
     {
-        return match (MatchPositionSide::fromWorldcup26Text($position)) {
-            MatchPositionSide::Right => 0,
-            MatchPositionSide::Center => 1,
-            MatchPositionSide::Left => 2,
-        };
+        return 4 - MatchPositionSide::fromWorldcup26Text($position)->leftToRight();
     }
 }

@@ -250,13 +250,9 @@ class FixturesController extends Controller
      */
     private function sideOrder(string $position, bool $isLocal): int
     {
-        $side = match (MatchPositionSide::fromWorldcup26Text($position)) {
-            MatchPositionSide::Left => 0,
-            MatchPositionSide::Center => 1,
-            MatchPositionSide::Right => 2,
-        };
+        $side = MatchPositionSide::fromWorldcup26Text($position)->leftToRight();
 
-        return $isLocal ? $side : 2 - $side;
+        return $isLocal ? $side : 4 - $side;
     }
 
     private function lineOrder(string $position): int

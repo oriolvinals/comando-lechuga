@@ -439,12 +439,10 @@ test('spreads multiple starters in the same pitch line by side then jersey', fun
 
     $response = $this->get(route('fixtures.show', $fixture));
 
-    // Pitch y is driven by side (left/center/right) then jersey, independent
-    // of array order: Left Back (Left, alone) -> Center Defender (Center,
-    // jersey 4) and Center Left Defender (Center, jersey 5 — a directional
-    // qualifier on a center-back does not make it wide, so it ties on
-    // Center with Center Defender and is broken by jersey) -> Right Back
-    // (Right, alone). y = 12 + index * (76 / 3), rounded to 1 decimal: 12.0,
+    // Pitch y is driven by side then jersey, independent of array order:
+    // Left Back (Left) -> Center Left Defender (Center Left: inside the
+    // left flank, but still left of a plain centre-back) -> Center Defender
+    // (Center) -> Right Back (Right). y = 12 + index * (76 / 3), rounded to 1 decimal: 12.0,
     // 37.3, 62.7, 88.0 (whole-number floats serialize as bare ints over the
     // Inertia/JSON boundary, hence 12 and 88 below).
     //
@@ -460,9 +458,9 @@ test('spreads multiple starters in the same pitch line by side then jersey', fun
         ->where('lineups.1.position', 'Left Back')
         ->where('lineups.1.y', 12)
         ->where('lineups.2.position', 'Center Defender')
-        ->where('lineups.2.y', 37.3)
+        ->where('lineups.2.y', 62.7)
         ->where('lineups.3.position', 'Center Left Defender')
-        ->where('lineups.3.y', 62.7)
+        ->where('lineups.3.y', 37.3)
     );
 });
 
