@@ -401,3 +401,48 @@ export interface MaxBidEstimate {
     /** The market day the values come from (Y-m-d): the latest published day, null without market data. */
     reference_date: string | null;
 }
+
+/** A team as the shell's teletipo shows it: crest and short name. */
+export interface TickerTeam {
+    id: number;
+    short_name: string;
+    main_name: string;
+    logo: string;
+}
+
+export interface TickerFixture {
+    id: number;
+    state: FixtureState;
+    display_clock: string | null;
+    local_score: number | null;
+    guest_score: number | null;
+    local_team: TickerTeam;
+    guest_team: TickerTeam;
+}
+
+/** A player whose market value moved the most on the latest daily update. */
+export interface TickerMover {
+    id: number;
+    nickname: string;
+    market_value_difference: number;
+    market_trend: MarketTrend | null;
+}
+
+export interface TickerActivity {
+    id: number;
+    type: SeasonActivityType;
+    manager_name: string;
+    player_nickname: string | null;
+    amount: number | null;
+}
+
+/** The shell's "Teletipo" strip, shared with every page (remembered for a minute). */
+export interface Ticker {
+    live: TickerFixture[];
+    /** The last jornada whose fixtures have all been played — null before the first one ends. */
+    finished_week: number | null;
+    results: TickerFixture[];
+    risers: TickerMover[];
+    fallers: TickerMover[];
+    activities: TickerActivity[];
+}

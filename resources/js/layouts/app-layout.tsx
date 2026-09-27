@@ -2,6 +2,7 @@ import { usePage } from '@inertiajs/react';
 import { Search } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
 import { HqLiveSignal } from '@/components/hq-live-signal';
+import { HqTicker } from '@/components/hq-ticker';
 import { HqWordmark } from '@/components/hq-wordmark';
 import { MainNav, MobileBottomNav } from '@/components/main-nav';
 import { openPlayerSearch } from '@/lib/player-search';
@@ -25,8 +26,9 @@ function GodChip({ compact = false }: { compact?: boolean }) {
 }
 
 /**
- * The "Sala de mando" console shell: a sticky ruled top bar (wordmark, live
- * signal, section nav, player search, god-mode chip), the page inside a
+ * The "Sala de mando" console shell: the teletipo strip, a sticky ruled top
+ * bar (wordmark, live signal, section nav, player search, god-mode chip),
+ * the page inside a
  * 1440px ruled frame, a status line on desktop, and a bottom bar with a
  * "Más" sheet on phones and tablets.
  */
@@ -37,6 +39,8 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
     return (
         <div className="flex min-h-screen flex-col bg-hq-ink text-hq-paper">
+            <HqTicker />
+
             <header className="sticky top-0 z-40 hidden h-(--hq-header-h) border-b border-hq-border-strong bg-hq-ink/94 backdrop-blur-[6px] lg:block">
                 <div className="mx-auto flex h-full w-full max-w-[1440px] items-stretch min-[1441px]:border-x min-[1441px]:border-hq-border">
                     <HqWordmark className="border-r border-hq-border px-5 text-[21px]" />

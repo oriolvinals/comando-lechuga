@@ -18,6 +18,15 @@ export function formatCurrency(amount: number): string {
     return CURRENCY_FORMAT.format(amount);
 }
 
+const MILLIONS_FORMAT = new Intl.NumberFormat('es-ES', {
+    maximumFractionDigits: 2,
+});
+
+/** An amount in millions for tight spots (`12,35 M€`). */
+export function formatMillions(amount: number): string {
+    return `${MILLIONS_FORMAT.format(amount / 1_000_000)} M€`;
+}
+
 /** A count with Spanish thousands dots, 4-digit ones included (`1.234`). */
 export function formatNumber(value: number): string {
     return NUMBER_FORMAT.format(value);

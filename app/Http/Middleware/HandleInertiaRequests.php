@@ -7,8 +7,11 @@ namespace App\Http\Middleware;
 use App\Enums\FixtureState;
 use App\Models\Fixture;
 use App\Models\Season;
+use App\Services\ResultsTicker;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
+use Inertia\OnceProp;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -55,6 +58,23 @@ class HandleInertiaRequests extends Middleware
                 ])
                 ->exists(),
             'godMode' => HandleGodMode::isEnabled($request),
+        ];
+    }
+
+    /**
+     * Define the props that are shared once and remembered across navigations.
+     *
+     * The shell's teletipo is remembered for a minute, so browsing between
+     * pages doesn't recompute it on every visit.
+     *
+     * @return array<string, callable|OnceProp>
+     */
+    public function shareOnce(Request $request): array
+    {
+        return [
+            ...parent::shareOnce($request),
+            'ticker' => Inertia::once(fn (ResultsTicker $ticker): array => $ticker->forSeason(Season::current()))
+                ->until(60),
         ];
     }
 }

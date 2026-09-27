@@ -1,5 +1,5 @@
 import type { Auth } from '@/types/auth';
-import type { Season } from '@/types/models';
+import type { Season, Ticker } from '@/types/models';
 
 declare module 'react' {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -17,6 +17,7 @@ declare module '@inertiajs/core' {
             season: Season;
             liveMatchday: boolean;
             godMode: boolean;
+            ticker: Ticker;
             [key: string]: unknown;
         };
     }
