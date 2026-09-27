@@ -17,7 +17,7 @@ import { HqSection } from '@/components/hq-section';
 import { HqTeamFixtureStrip } from '@/components/hq-team-fixture-strip';
 import { HqTeamFormStrip } from '@/components/hq-team-form-strip';
 import AppLayout from '@/layouts/app-layout';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatDecimal, formatNumber } from '@/lib/format';
 import { POSITION_GROUP_LABELS } from '@/lib/player-labels';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
@@ -29,6 +29,8 @@ import type {
     PlayerPosition,
     StandingsRow,
     Team,
+    TeamPerMatchRates,
+    TeamSquadSummary,
 } from '@/types/models';
 
 const GROUP_ORDER: PlayerPosition[] = [
@@ -50,6 +52,8 @@ interface TeamShowProps {
     team: Team;
     squad: Player[];
     standing: StandingsRow | null;
+    perMatch: TeamPerMatchRates | null;
+    squadSummary: TeamSquadSummary;
     nextFixtures: (NextFixtureSlot | null)[];
     fixtures: Fixture[];
     currentWeek: number;
@@ -97,6 +101,8 @@ export default function TeamShow({
     team,
     squad,
     standing,
+    perMatch,
+    squadSummary,
     nextFixtures,
     fixtures,
     currentWeek,
@@ -199,10 +205,34 @@ export default function TeamShow({
                             {standing.played} / {standing.won} /{' '}
                             {standing.drawn} / {standing.lost}
                         </Kpi>
-                        <Kpi label="GF-GC">
+                        <Kpi
+                            label="GF-GC"
+                            sub={
+                                perMatch && (
+                                    <>
+                                        <b className="font-bold">
+                                            {formatDecimal(perMatch.goals_for)}
+                                        </b>{' '}
+                                        goles/partido
+                                    </>
+                                )
+                            }
+                        >
                             {standing.goals_for}-{standing.goals_against}
                         </Kpi>
-                        <Kpi label="Pts">
+                        <Kpi
+                            label="Pts"
+                            sub={
+                                perMatch && (
+                                    <>
+                                        <b className="font-bold">
+                                            {formatDecimal(perMatch.points)}
+                                        </b>{' '}
+                                        por partido
+                                    </>
+                                )
+                            }
+                        >
                             <HqLed tone="lime" className="text-[34px]">
                                 {standing.points}
                             </HqLed>
@@ -293,7 +323,27 @@ export default function TeamShow({
 
                 <HqSection
                     title="Plantilla"
-                    action={`${squad.length} ${squad.length === 1 ? 'jugador' : 'jugadores'}`}
+                    action={
+                        <span>
+                            {squad.length}{' '}
+                            {squad.length === 1 ? 'jugador' : 'jugadores'}
+                            {squad.length > 0 && (
+                                <>
+                                    {' · '}
+                                    <b className="font-bold text-hq-paper">
+                                        {squadSummary.owned_count}
+                                    </b>{' '}
+                                    fichados ·{' '}
+                                    <b className="font-bold text-hq-lime">
+                                        {formatNumber(
+                                            squadSummary.fantasy_points,
+                                        )}
+                                    </b>{' '}
+                                    pts fantasy
+                                </>
+                            )}
+                        </span>
+                    }
                     className="min-w-0"
                     flush
                 >

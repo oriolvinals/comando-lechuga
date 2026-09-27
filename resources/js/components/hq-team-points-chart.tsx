@@ -2,7 +2,7 @@ import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { teamFormTextClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
-import type { ManagerLineup } from '@/types/models';
+import type { ManagerLineup, ManagerWeekRankMap } from '@/types/models';
 
 interface HqTeamPointsChartProps {
     lineupHistory: ManagerLineup[];
@@ -11,6 +11,8 @@ interface HqTeamPointsChartProps {
     wonWeeks?: number[];
     /** Jornadas this manager finished last (farolillo rojo) — noted in that bar's tooltip. */
     lostWeeks?: number[];
+    /** Weekly place among the league's managers — printed under each J label when given. */
+    weekRanks?: ManagerWeekRankMap;
 }
 
 /** Solid bar fill per team-form tier — same breakpoints as `teamFormTextClass`. */
@@ -45,6 +47,7 @@ export function HqTeamPointsChart({
     startedWeeks,
     wonWeeks = [],
     lostWeeks = [],
+    weekRanks,
 }: HqTeamPointsChartProps) {
     if (lineupHistory.length === 0) {
         return (
@@ -65,11 +68,19 @@ export function HqTeamPointsChart({
                 const started = startedWeeks.includes(week.week_number);
                 const won = wonWeeks.includes(week.week_number);
                 const lost = lostWeeks.includes(week.week_number);
+                const weekRank = weekRanks?.[week.week_number];
                 const label = started ? (
                     <>
                         <b className="font-bold">
                             J{week.week_number} · {week.points} pts
                         </b>
+                        {weekRank && (
+                            <>
+                                <br />
+                                {weekRank.rank}º de {weekRank.managers} esa
+                                jornada
+                            </>
+                        )}
                         {won && (
                             <>
                                 <br />
@@ -119,7 +130,8 @@ export function HqTeamPointsChart({
                         )}
                         <span
                             className={cn(
-                                'mt-[7px] mb-2 font-mono text-[10.5px] leading-none font-semibold',
+                                'mt-[7px] font-mono text-[10.5px] leading-none font-semibold',
+                                weekRanks ? 'mb-1' : 'mb-2',
                                 won
                                     ? 'text-hq-gold'
                                     : lost
@@ -129,6 +141,20 @@ export function HqTeamPointsChart({
                         >
                             J{week.week_number}
                         </span>
+                        {weekRanks && (
+                            <span
+                                className={cn(
+                                    'mb-2 font-mono text-[10px] leading-none font-bold tabular-nums',
+                                    weekRank?.rank === 1
+                                        ? 'text-hq-gold'
+                                        : weekRank?.is_last
+                                          ? 'text-hq-live'
+                                          : 'text-hq-moss-dim',
+                                )}
+                            >
+                                {weekRank ? `${weekRank.rank}º` : '·'}
+                            </span>
+                        )}
                     </HqTooltip>
                 );
             })}

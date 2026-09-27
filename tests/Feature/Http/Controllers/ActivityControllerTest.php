@@ -272,3 +272,79 @@ test('echoes the current manager and type filters back as lists', function (): v
         ->where('filters.type', ['signing', 'sale'])
     );
 });
+
+test('counts activity per type across the whole set, not just the page', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    Activity::factory()->count(32)->create(['season_id' => $season->id, 'type' => SeasonActivityType::Signing]);
+    Activity::factory()->count(2)->create(['season_id' => $season->id, 'type' => SeasonActivityType::Sale]);
+    Activity::factory()->create(['type' => SeasonActivityType::Sale]);
+
+    $response = $this->get(route('activity.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('activities.data', 30)
+        ->where('typeCounts', [
+            'buyout' => 0,
+            'shield' => 0,
+            'weekly_prize' => 0,
+            'joined_league' => 0,
+            'signing' => 32,
+            'sale' => 2,
+        ])
+    );
+});
+
+test('type counts follow the manager filter but ignore the type filter', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    Activity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Signing, 'source_season_manager_id' => $manager->id]);
+    Activity::factory()->create([
+        'season_id' => $season->id,
+        'type' => SeasonActivityType::Buyout,
+        'source_season_manager_id' => $otherManager->id,
+        'target_season_manager_id' => $manager->id,
+    ]);
+    Activity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Sale, 'source_season_manager_id' => $otherManager->id]);
+
+    $response = $this->get(route('activity.index', ['manager' => "{$manager->id}", 'type' => 'signing']));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('activities.total', 1)
+        ->where('typeCounts.signing', 1)
+        ->where('typeCounts.buyout', 1)
+        ->where('typeCounts.sale', 0)
+    );
+});
+
+test('type counts are all zero when the filtered set is empty', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    Activity::factory()->create(['season_id' => $season->id]);
+
+    $response = $this->get(route('activity.index', ['manager' => "{$manager->id}"]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('activities.total', 0)
+        ->where('typeCounts', [
+            'buyout' => 0,
+            'shield' => 0,
+            'weekly_prize' => 0,
+            'joined_league' => 0,
+            'signing' => 0,
+            'sale' => 0,
+        ])
+    );
+});

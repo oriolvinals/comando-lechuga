@@ -191,6 +191,9 @@ export interface MarketPlayer {
 export type SeasonActivityType =
     'buyout' | 'shield' | 'weekly_prize' | 'joined_league' | 'signing' | 'sale';
 
+/** Activity count per type over a whole filtered set, not just one page. */
+export type ActivityTypeCounts = Record<SeasonActivityType, number>;
+
 export interface Activity {
     id: number;
     type: SeasonActivityType;
@@ -347,6 +350,66 @@ export interface StandingsNext {
     opponent: Team;
     is_home: boolean;
     date: string;
+}
+
+/** Current value ÷ the value on the last snapshot 30+ days before the latest one (player ficha). */
+export interface PlayerValueTrend {
+    multiple: number;
+    /** The older snapshot's value. */
+    value: number;
+    date: string;
+}
+
+/** Season points per million of current value; `rank` is null for a player without points. */
+export interface PlayerPointsPerMillion {
+    value: number;
+    rank: number | null;
+    /** League players with points and a value — the rank's field. */
+    ranked: number;
+}
+
+/** Current value minus what the current owner paid in their latest signing/buyout. */
+export interface PlayerCapitalGain {
+    amount: number;
+    paid: number;
+    type: Extract<SeasonActivityType, 'signing' | 'buyout'>;
+    occurred_at: string;
+}
+
+/** A manager's place among the league's managers in one started jornada, by lineup points. */
+export interface ManagerWeekRank {
+    rank: number;
+    managers: number;
+    points: number;
+    /** Shares the jornada's lowest score (farolillo rojo). */
+    is_last: boolean;
+}
+
+/** Keyed by week number; only started jornadas the manager has a lineup for. */
+export type ManagerWeekRankMap = Record<number, ManagerWeekRank>;
+
+export interface ManagerWeeklySummary {
+    played_weeks: number;
+    /** Season points ÷ started jornadas with a lineup; null with none. */
+    average_points: number | null;
+    best_week: {
+        week_number: number;
+        points: number;
+        rank: number;
+        managers: number;
+    } | null;
+}
+
+/** A team's LaLiga averages per match played (team ficha). */
+export interface TeamPerMatchRates {
+    goals_for: number;
+    points: number;
+}
+
+/** The team ficha squad's league footprint: players owned by a manager and their summed fantasy points. */
+export interface TeamSquadSummary {
+    owned_count: number;
+    fantasy_points: number;
 }
 
 export interface StandingsRow {

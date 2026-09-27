@@ -21,11 +21,18 @@ import { HqSection } from '@/components/hq-section';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
-import { formatAverage, formatCurrency } from '@/lib/format';
+import {
+    formatAverage,
+    formatCurrency,
+    formatDecimal,
+    formatMillions,
+    formatNumber,
+} from '@/lib/format';
 import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
 import { didNotPlayMatch, POSITION_LABELS } from '@/lib/player-labels';
 import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
+import { CapitalGain } from '@/pages/players/capital-gain';
 import { NextRivalsList } from '@/pages/players/next-rivals-list';
 import { OwnershipHistory } from '@/pages/players/ownership-history';
 import { show as teamsShow } from '@/routes/teams';
@@ -39,6 +46,9 @@ import type {
     PlayerMarketPoint,
     PlayerMissedFixture,
     PlayerOwnership,
+    PlayerCapitalGain,
+    PlayerPointsPerMillion,
+    PlayerValueTrend,
 } from '@/types/models';
 
 interface PlayerShowProps {
@@ -52,6 +62,9 @@ interface PlayerShowProps {
     teamJoinedAt: Record<string, string>;
     teamFixtures: Fixture[];
     missedFixtures: PlayerMissedFixture[];
+    valueTrend: PlayerValueTrend | null;
+    pointsPerMillion: PlayerPointsPerMillion | null;
+    capitalGain: PlayerCapitalGain | null;
     maxBid: MaxBidEstimate | null;
     [key: string]: unknown;
 }
@@ -70,12 +83,15 @@ function Kpi({
     hot = false,
     children,
     sub,
+    extra,
 }: {
     label: string;
     index: number;
     hot?: boolean;
     children: ReactNode;
     sub?: ReactNode;
+    /** A second, wrapping mono line under `sub` (the 30-day and pts/M€ figures). */
+    extra?: ReactNode;
 }) {
     return (
         <div
@@ -94,6 +110,11 @@ function Kpi({
                     {sub}
                 </div>
             )}
+            {extra && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-[3px] font-mono text-[11.5px] leading-[1.35] whitespace-nowrap text-hq-moss">
+                    {extra}
+                </div>
+            )}
         </div>
     );
 }
@@ -109,6 +130,9 @@ export default function PlayerShow({
     teamJoinedAt,
     teamFixtures,
     missedFixtures,
+    valueTrend,
+    pointsPerMillion,
+    capitalGain,
     maxBid,
 }: PlayerShowProps) {
     const [chartRange, setChartRange] = useState<ValueChartRange>(30);
@@ -140,6 +164,8 @@ export default function PlayerShow({
             ? describeMarketTrend(player.market_trend)
             : null;
     const difference = player.market_value_difference;
+    const valueTrendClass =
+        valueTrend && valueTrend.multiple >= 1 ? 'text-hq-lime' : 'text-hq-neg';
 
     return (
         <div className="flex-1">
@@ -203,6 +229,26 @@ export default function PlayerShow({
                             </span>
                         ) : undefined
                     }
+                    extra={
+                        valueTrend && (
+                            <>
+                                <span
+                                    className={cn(
+                                        'text-[11px] font-bold tracking-[0.04em]',
+                                        valueTrendClass,
+                                    )}
+                                >
+                                    30 D
+                                </span>
+                                <b className={cn('font-bold', valueTrendClass)}>
+                                    ×{formatDecimal(valueTrend.multiple)}
+                                </b>
+                                <span className="text-hq-moss-dim">
+                                    desde {formatMillions(valueTrend.value)}
+                                </span>
+                            </>
+                        )
+                    }
                 >
                     <div className="min-w-0">
                         <p className="font-mono text-lg leading-[1.1] font-semibold tracking-[-0.02em] whitespace-nowrap text-hq-paper tabular-nums sm:text-[22px]">
@@ -233,6 +279,25 @@ export default function PlayerShow({
                     label="Puntos"
                     index={1}
                     sub={`${scoredMatches} ${scoredMatches === 1 ? 'partido puntuado' : 'partidos puntuados'}`}
+                    extra={
+                        <>
+                            <b className="font-bold">
+                                {pointsPerMillion
+                                    ? formatDecimal(pointsPerMillion.value)
+                                    : '—'}
+                            </b>
+                            <span>pts/M€</span>
+                            {pointsPerMillion?.rank != null && (
+                                <HqTooltip
+                                    label={`${pointsPerMillion.rank}º de ${formatNumber(pointsPerMillion.ranked)} jugadores con puntos`}
+                                    focusable
+                                    className="text-hq-moss-dim"
+                                >
+                                    · {pointsPerMillion.rank}º liga
+                                </HqTooltip>
+                            )}
+                        </>
+                    }
                 >
                     <HqLed tone="lime" glow className="text-[34px]">
                         {player.points}
@@ -319,6 +384,7 @@ export default function PlayerShow({
                             marketListing={marketListing}
                             marketValue={player.market_value}
                         />
+                        {owner !== null && <CapitalGain gain={capitalGain} />}
                     </HqSection>
 
                     <HqSection title="Traspasos" flush>

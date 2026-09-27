@@ -24,6 +24,8 @@ import type {
     ManagerLineup,
     ManagerLineupPlayerEntry,
     ManagerPlayer,
+    ManagerWeekRankMap,
+    ManagerWeeklySummary,
     WeekProgressMap,
 } from '@/types/models';
 
@@ -39,6 +41,8 @@ interface SeasonManagerShowProps {
     weekProgress: WeekProgressMap;
     wonWeeks: number[];
     lostWeeks: number[];
+    weekRanks: ManagerWeekRankMap;
+    weeklySummary: ManagerWeeklySummary;
     activity: Activity[];
     [key: string]: unknown;
 }
@@ -52,6 +56,8 @@ export default function SeasonManagerShow({
     weekProgress,
     wonWeeks,
     lostWeeks,
+    weekRanks,
+    weeklySummary,
     activity,
 }: SeasonManagerShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(season.current_week);
@@ -83,14 +89,22 @@ export default function SeasonManagerShow({
                 season={season}
                 wonWeeks={wonWeeks}
                 lostWeeks={lostWeeks}
+                weeklySummary={weeklySummary}
             />
 
-            <HqSection title="Evolución de puntos">
+            <HqSection
+                title="Evolución de puntos"
+                action={
+                    lineupHistory.length > 0 &&
+                    'nº bajo la J = puesto en la jornada'
+                }
+            >
                 <HqTeamPointsChart
                     lineupHistory={lineupHistory}
                     startedWeeks={startedWeeks}
                     wonWeeks={wonWeeks}
                     lostWeeks={lostWeeks}
+                    weekRanks={weekRanks}
                 />
             </HqSection>
 

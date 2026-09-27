@@ -37,6 +37,17 @@ export function formatAverage(value: number): string {
     return NUMBER_FORMAT.format(Math.round(value * 10) / 10);
 }
 
+const DECIMAL_FORMAT = new Intl.NumberFormat('es-ES', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: 'always',
+});
+
+/** Always two decimals with a Spanish comma, for rates and ratios (`2,29`, `1,00`). */
+export function formatDecimal(value: number): string {
+    return DECIMAL_FORMAT.format(value);
+}
+
 export function formatMatchDateTime(isoDate: string): string {
     return new Intl.DateTimeFormat('es-ES', {
         weekday: 'short',
@@ -60,6 +71,14 @@ export function formatMatchDateShort(isoDate: string): string {
 export function formatMatchDay(isoDate: string): string {
     return new Intl.DateTimeFormat('es-ES', {
         weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+    }).format(new Date(isoDate));
+}
+
+/** "10 sept" — a day without weekday or time. */
+export function formatShortDay(isoDate: string): string {
+    return new Intl.DateTimeFormat('es-ES', {
         day: 'numeric',
         month: 'short',
     }).format(new Date(isoDate));
