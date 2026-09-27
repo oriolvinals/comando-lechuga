@@ -366,12 +366,17 @@ class TeamsController extends Controller
         return round($start + ($index * $step), 1);
     }
 
+    /**
+     * Screen order (left to right) of a player's side. The goalkeeper sits at
+     * the top of this pitch, so the team attacks down the screen: seen from
+     * the goalkeeper, the player's right is the screen's left.
+     */
     private function pitchSideOrder(string $position): int
     {
         return match (MatchPositionSide::fromWorldcup26Text($position)) {
-            MatchPositionSide::Left => 0,
+            MatchPositionSide::Right => 0,
             MatchPositionSide::Center => 1,
-            MatchPositionSide::Right => 2,
+            MatchPositionSide::Left => 2,
         };
     }
 }

@@ -540,13 +540,14 @@ test('the pitch positions starters by their real match line, not the fantasy pos
         expect($entryFor('am_center')['pitch_top'])->toBe($amTop);
         expect($entryFor('am_right')['pitch_top'])->toBe($amTop);
 
-        // Left-to-right order within a line is respected.
+        // Sides are seen from the goalkeeper, who sits at the top of the
+        // pitch: a player's left is the screen's right.
         expect($entryFor('defender_left')['pitch_left'])
-            ->toBeLessThan($entryFor('defender_center_a')['pitch_left']);
+            ->toBeGreaterThan($entryFor('defender_center_a')['pitch_left']);
         expect($entryFor('am_left')['pitch_left'])
-            ->toBeLessThan($entryFor('am_center')['pitch_left']);
+            ->toBeGreaterThan($entryFor('am_center')['pitch_left']);
         expect($entryFor('am_center')['pitch_left'])
-            ->toBeLessThan($entryFor('am_right')['pitch_left']);
+            ->toBeGreaterThan($entryFor('am_right')['pitch_left']);
 
         return $page;
     });
