@@ -35,19 +35,35 @@ logged, never guessed. Team slug → `team_id` is a fixed 20-entry map (FF uses 
 ## Storage
 
 - `players.futbolfantasy_id` — nullable unsigned int, unique.
-- `player_start_probabilities`: `id`, `player_id` (fk), `fixture_id` (fk, resolved from `data-rival`
-  + the team's next scheduled fixture), `probability` (unsigned tinyint 0–100), `fetched_at`,
+- `player_start_probabilities`: `id`, `player_id` (fk), `fixture_id` (fk, see "Which fixture"),
+  `probability` (unsigned tinyint 0–100), `fetched_at`,
   timestamps; unique (`player_id`, `fixture_id`); upserted each cycle. No enum-less string columns
   are needed; if one is added it defaults to `''` (project rule).
+
+## Which fixture
+
+The FF team page titles its prediction "Posible alineación J{n}". The probabilities are stored on
+**that team's fixture with `week_number = n`** (team + jornada), so a postponed match keeps its
+jornada (e.g. the J6 match played on 21 Oct is still "the J6 one"). `data-rival` is only a sanity
+check: if the rival doesn't match that fixture's opponent, nothing is stored for the team and a
+warning is logged. No heading or no jornada number → skip the team, log a warning.
+
+Surfaces read by fixture: the match page shows its own fixture's rows; the team page and the
+manager page use each team's / player's next fixture (the one already shown as "próximo partido").
 
 ## Sync
 
 - Command `season:sync-start-probabilities` (Saloon connector, gzip, **anonymous project
   User-Agent — never personal data**, 10–30 s between requests, one attempt per page).
-- Scheduled every 20 min; per team it only fetches when due:
-  - next fixture more than 36 h away → at most every 6 h;
-  - within 36 h → at most every hour;
-  - from 1 h before kickoff → never (worldcup26 confirmed lineups take over).
+- Scheduled every 10 min; per team it only fetches when due:
+  - next fixture within 48 h → every run (every 10 min);
+  - further away → at most every 6 h;
+  - after kickoff → never.
+- Probabilities keep showing until a confirmed lineup exists for that fixture (no fixed cut-off).
+- **Confirmed lineups:** the existing worldcup26 live sync (`season:sync-live-match-data`, every
+  20 s) widens its pre-match window from 1 h to **1 h 30 min** before kickoff and keeps re-reading
+  the official lineup on every run until kickoff, so late changes or corrections replace the stored
+  one. Once a fixture has confirmed lineups, the pages show Titular/Suplente instead of the %.
 - A page that fails or parses 0 players leaves that team's rows untouched and logs a warning.
 - Data older than 48 h is shown as stale ("Datos de hace N días", muted bars).
 
