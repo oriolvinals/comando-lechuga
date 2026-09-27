@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read int $id
  * @property-read int|null $fantasy_id
  * @property-read int|null $wc26_id
+ * @property-read int|null $futbolfantasy_id FútbolFantasy's player id (`jugador_{id}`), stored by season:sync-start-probabilities after the first successful link.
  * @property-read string $nickname
  * @property-read PlayerStatus $status
  * @property-read string $image
@@ -46,10 +47,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property array<int, array{date: string, value: int}> $api_market_history The player's market value over time, oldest first. Computed at query time by Api\PlayersController; not a database column.
  * @property array<int, array<string, mixed>> $api_scores One entry per played fixture with a FixtureLineup for this player, oldest first. Computed at query time by Api\PlayersController; not a database column.
  * @property array<int, array<string, mixed>> $api_ownership_activity Signing/sale/buyout activity for this player, oldest first. Resolved ActivityResource entries. Computed at query time by Api\PlayersController; not a database column.
+ * @property array{fixture_id: int, week_number: int, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, confirmed_source: 'worldcup26'|'futbolfantasy'|null, is_stale: bool, fetched_at: string|null, source_url: string, team_short_name: string}|null $next_start Start probability (or confirmed lineup) for the player's team's next fixture. Only set on the manager ficha (SeasonManagersController); not a database column.
  */
 #[UseFactory(PlayerFactory::class)]
 #[Table(name: 'players', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
-#[Fillable(['fantasy_id', 'wc26_id', 'nickname', 'status', 'image', 'team_id'])]
+#[Fillable(['fantasy_id', 'wc26_id', 'futbolfantasy_id', 'nickname', 'status', 'image', 'team_id'])]
 class Player extends Model
 {
     /** @use HasFactory<PlayerFactory> */
@@ -97,6 +99,12 @@ class Player extends Model
         return $this->hasOne(MarketPlayer::class);
     }
 
+    /** @return HasMany<PlayerStartProbability, $this> */
+    public function startProbabilities(): HasMany
+    {
+        return $this->hasMany(PlayerStartProbability::class);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -124,6 +132,7 @@ class Player extends Model
             'id' => 'int',
             'fantasy_id' => 'int',
             'wc26_id' => 'int',
+            'futbolfantasy_id' => 'int',
             'nickname' => 'string',
             'status' => PlayerStatus::class,
             'image' => 'string',
