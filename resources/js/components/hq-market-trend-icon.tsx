@@ -107,7 +107,7 @@ interface HqMarketTrendIconProps {
  * trend spelled out in Spanish on hover or keyboard focus. Renders nothing
  * without a trend.
  */
-export function HqMarketTrendIcon({
+function HqMarketTrendIcon({
     trend,
     className,
 }: HqMarketTrendIconProps) {

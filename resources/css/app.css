@@ -51,7 +51,6 @@ html {
     --color-hq-olive: #8f9a74;
     --color-hq-led-off: #56603f;
     --color-hq-lime: #c4ff3d;
-    --color-hq-lime-dim: #9fd12a;
     --color-hq-khaki: #d3c392;
     --color-hq-ember: #ff8a4c;
     --color-hq-amber: #ffb547;
@@ -62,10 +61,7 @@ html {
     --color-hq-bronze: #cd8048;
     --color-hq-azure: #7fb0ff;
     --color-hq-violet: #e3a6ff;
-    --color-hq-good-corner: #1f2e0d;
-    --color-hq-bad-corner: #2e0f14;
     --color-hq-pitch: #0d170b;
-    --color-hq-pitch-alt: #101d0d;
     --color-hq-pitch-line: rgba(196, 255, 61, 0.22);
 
     /* Canonical position colors — use HqPositionTag, don't redefine these ad hoc */

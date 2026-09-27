@@ -24,7 +24,7 @@ const SQUARE_CLASSES =
     'relative flex size-8 shrink-0 items-center justify-center font-mono text-xs leading-none font-bold transition-[filter] after:absolute after:-inset-y-1.5 after:inset-x-0 hover:brightness-125 lg:size-[22px] lg:text-[11px] lg:after:hidden';
 
 /** "5-0 (BAR - ELC)", own team first, plus the match date on its own line. */
-export function HqTeamMatchTooltip({
+function HqTeamMatchTooltip({
     prefix,
     prefixTone = 'live',
     own,

@@ -245,7 +245,6 @@ class PlayersController extends Controller
 
         return Inertia::render('players/show', [
             'player' => $player,
-            'season' => $season,
             'currentWeek' => $displayWeek,
             'owner' => $owner,
             'marketListing' => $marketListing,
