@@ -352,6 +352,18 @@ export interface StandingsNext {
     date: string;
 }
 
+/** A team's LaLiga averages per match played (team ficha). */
+export interface TeamPerMatchRates {
+    goals_for: number;
+    points: number;
+}
+
+/** The team ficha squad's league footprint: players owned by a manager and their summed fantasy points. */
+export interface TeamSquadSummary {
+    owned_count: number;
+    fantasy_points: number;
+}
+
 export interface StandingsRow {
     position: number;
     team: Team;

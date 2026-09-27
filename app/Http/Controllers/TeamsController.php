@@ -132,11 +132,34 @@ class TeamsController extends Controller
             'team' => $team,
             'squad' => $squad,
             'standing' => $standing,
+            'perMatch' => $this->perMatchRates($standing),
+            'squadSummary' => [
+                'owned_count' => $squad->filter(fn (Player $player): bool => $player->owner_manager !== null)->count(),
+                'fantasy_points' => (int) $squad->sum('points'),
+            ],
             'nextFixtures' => $nextFixtures,
             'fixtures' => $fixtures,
             'currentWeek' => max($season->current_week, $latestLineupWeek),
             'weeklyLineups' => $weeklyLineups,
         ]);
+    }
+
+    /**
+     * LaLiga goals scored and points won per match played — null until the team has played.
+     *
+     * @param  array{played: int, goals_for: int, points: int}|null  $standing
+     * @return array{goals_for: float, points: float}|null
+     */
+    private function perMatchRates(?array $standing): ?array
+    {
+        if ($standing === null || $standing['played'] === 0) {
+            return null;
+        }
+
+        return [
+            'goals_for' => round($standing['goals_for'] / $standing['played'], 2),
+            'points' => round($standing['points'] / $standing['played'], 2),
+        ];
     }
 
     /**

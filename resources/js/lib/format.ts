@@ -37,6 +37,17 @@ export function formatAverage(value: number): string {
     return NUMBER_FORMAT.format(Math.round(value * 10) / 10);
 }
 
+const DECIMAL_FORMAT = new Intl.NumberFormat('es-ES', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: 'always',
+});
+
+/** Always two decimals with a Spanish comma, for rates and ratios (`2,29`, `1,00`). */
+export function formatDecimal(value: number): string {
+    return DECIMAL_FORMAT.format(value);
+}
+
 export function formatMatchDateTime(isoDate: string): string {
     return new Intl.DateTimeFormat('es-ES', {
         weekday: 'short',

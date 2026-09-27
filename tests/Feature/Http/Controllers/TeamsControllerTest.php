@@ -7,8 +7,10 @@ use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
+use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\Season;
+use App\Models\SeasonManager;
 use App\Models\Team;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -784,5 +786,106 @@ test('a starter with no resolved player is dropped from the pitch instead of cra
     $response->assertInertia(fn (Assert $page): Assert => $page
         ->has('weeklyLineups.0.players', 1)
         ->where('weeklyLineups.0.players.0.player.id', $resolved->id)
+    );
+});
+
+test('the ficha exposes LaLiga goals and points per match played', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'local_score' => 3,
+        'guest_score' => 0,
+        'state' => FixtureState::Finished,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 2,
+        'team_local_id' => $rival->id,
+        'team_guest_id' => $team->id,
+        'local_score' => 1,
+        'guest_score' => 1,
+        'state' => FixtureState::Finished,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 3,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'local_score' => 0,
+        'guest_score' => 2,
+        'state' => FixtureState::Finished,
+    ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('perMatch.goals_for', 1.33)
+        ->where('perMatch.points', 1.33)
+    );
+});
+
+test('per-match rates are null before the team has played', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page->where('perMatch', null));
+});
+
+test('the squad summary counts league-owned players and sums their fantasy points', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $season->teams()->attach([$team->id]);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $otherSeasonManager = SeasonManager::factory()->create();
+    $owned = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'points' => 40]);
+    $ownedInOtherSeason = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'points' => 25]);
+    Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'points' => 10]);
+    Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::OutOfLeague, 'points' => 99]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $manager->id, 'player_id' => $owned->id]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $otherSeasonManager->id, 'player_id' => $ownedInOtherSeason->id]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->has('squad', 3)
+        ->where('squadSummary.owned_count', 1)
+        ->where('squadSummary.fantasy_points', 75)
+    );
+});
+
+test('the squad summary is zeroed for a team with no players in the league', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('squadSummary.owned_count', 0)
+        ->where('squadSummary.fantasy_points', 0)
     );
 });
