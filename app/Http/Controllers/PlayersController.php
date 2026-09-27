@@ -26,6 +26,7 @@ use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
 use App\Services\MaxBidCalculator;
+use App\Services\PlayerMarketMetrics;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -139,7 +140,7 @@ class PlayersController extends Controller
         SeasonActivityType::Buyout,
     ];
 
-    public function show(Request $request, Player $player, MaxBidCalculator $maxBidCalculator): Response
+    public function show(Request $request, Player $player, MaxBidCalculator $maxBidCalculator, PlayerMarketMetrics $marketMetrics): Response
     {
         abort_if($player->fantasy_id === null, 404);
 
@@ -253,6 +254,9 @@ class PlayersController extends Controller
             'ownershipActivity' => $ownershipActivity,
             'teamJoinedAt' => $teamJoinedAt,
             'teamFixtures' => $teamFixtures,
+            'valueTrend' => $marketMetrics->valueTrend($player->market_value, $marketHistory),
+            'pointsPerMillion' => $marketMetrics->pointsPerMillion($player, $season),
+            'capitalGain' => $marketMetrics->capitalGain($player->market_value, $owner, $ownershipActivity),
             'missedFixtures' => $this->missedFixtures(
                 $player,
                 $season,

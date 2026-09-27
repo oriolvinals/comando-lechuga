@@ -1311,3 +1311,198 @@ test('an invalid or out-of-range confianza falls back to 0,75 confidence', funct
         ->assertOk()
         ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('maxBid.confidence', 0.75));
 })->with(['999', '10', 'abc', '90.5']);
+
+test('the 30-day value trend divides the current value by the last snapshot 30 or more days before the latest', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create(['market_value' => 5_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(40), 'value' => 1_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(31), 'value' => 4_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(20), 'value' => 3_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDay(), 'value' => 5_000_000]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('valueTrend.multiple', 1.25)
+        ->where('valueTrend.value', 4_000_000)
+        ->where('valueTrend.date', now()->subDays(31)->toDateString())
+    );
+});
+
+test('the 30-day value trend is null when the market history does not reach 30 days back', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create(['market_value' => 5_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(29), 'value' => 1_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now(), 'value' => 5_000_000]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('valueTrend', null));
+});
+
+test('the 30-day value trend is null without any market history', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create();
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('valueTrend', null));
+});
+
+test('points per million are ranked among the league players with points and a value', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 30, 'market_value' => 20_000_000]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 40, 'market_value' => 10_000_000]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 10, 'market_value' => 10_000_000]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 0, 'market_value' => 1_000_000]);
+    Player::factory()->create(['status' => PlayerStatus::OutOfLeague, 'points' => 90, 'market_value' => 1_000_000]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('pointsPerMillion.value', 1.5)
+        ->where('pointsPerMillion.rank', 2)
+        ->where('pointsPerMillion.ranked', 3)
+    );
+});
+
+test('points per million have no rank for a player without points, and are null without a value', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $pointless = Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 0, 'market_value' => 2_000_000]);
+    $valueless = Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 5, 'market_value' => 0]);
+
+    $this->get(route('players.show', $pointless))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('pointsPerMillion.value', 0)
+            ->where('pointsPerMillion.rank', null)
+        );
+
+    $this->get(route('players.show', $valueless))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('pointsPerMillion', null));
+});
+
+test('the capital gain compares the value with the current owner latest signing or buyout', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $owner = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $previousOwner = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['market_value' => 12_000_000]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $owner->id, 'player_id' => $player->id]);
+    Activity::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'type' => SeasonActivityType::Signing,
+        'source_season_manager_id' => $owner->id,
+        'amount' => 5_000_000,
+        'occurred_at' => now()->subDays(20),
+    ]);
+    Activity::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'type' => SeasonActivityType::Buyout,
+        'source_season_manager_id' => $owner->id,
+        'target_season_manager_id' => $previousOwner->id,
+        'amount' => 9_000_000,
+        'occurred_at' => now()->subDays(5),
+    ]);
+    Activity::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'type' => SeasonActivityType::Signing,
+        'source_season_manager_id' => $previousOwner->id,
+        'amount' => 1_000_000,
+        'occurred_at' => now()->subDays(2),
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('capitalGain.amount', 3_000_000)
+        ->where('capitalGain.paid', 9_000_000)
+        ->where('capitalGain.type', 'buyout')
+        ->where('capitalGain.occurred_at', now()->subDays(5)->toIso8601String())
+    );
+});
+
+test('the capital gain can be negative', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $owner = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['market_value' => 4_000_000]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $owner->id, 'player_id' => $player->id]);
+    Activity::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'type' => SeasonActivityType::Signing,
+        'source_season_manager_id' => $owner->id,
+        'amount' => 6_500_000,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('capitalGain.amount', -2_500_000));
+});
+
+test('the capital gain is null for a free agent', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create(['market_value' => 4_000_000]);
+    Activity::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'type' => SeasonActivityType::Signing,
+        'amount' => 2_000_000,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page->where('capitalGain', null));
+});
+
+test('the capital gain is null when the owner has no recorded purchase', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $owner = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['market_value' => 4_000_000]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $owner->id, 'player_id' => $player->id]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('owner.season_manager_id', $owner->id)
+        ->where('capitalGain', null)
+    );
+});

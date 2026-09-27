@@ -76,6 +76,14 @@ export function formatMatchDay(isoDate: string): string {
     }).format(new Date(isoDate));
 }
 
+/** "10 sept" — a day without weekday or time. */
+export function formatShortDay(isoDate: string): string {
+    return new Intl.DateTimeFormat('es-ES', {
+        day: 'numeric',
+        month: 'short',
+    }).format(new Date(isoDate));
+}
+
 export function formatTime(isoDate: string): string {
     return new Intl.DateTimeFormat('es-ES', {
         hour: '2-digit',
