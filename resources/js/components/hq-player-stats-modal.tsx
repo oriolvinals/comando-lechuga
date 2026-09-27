@@ -235,15 +235,15 @@ export function HqPlayerStatsModal({
 
                 {fixture && (
                     <div className="border-t border-hq-border">
-                        <p className="px-3.5 pt-2.5 hq-label md:px-4">
-                            Jornada {fixture.week_number}
-                        </p>
-                        <HqFixtureCard fixture={fixture} />
+                        <HqFixtureCard
+                            fixture={fixture}
+                            label={`Jornada ${fixture.week_number}`}
+                        />
                     </div>
                 )}
 
                 <div className="border-t border-hq-border">
-                    <HqJornadaStatsGrid stats={stats} />
+                    <HqJornadaStatsGrid stats={stats} showEmptyStats={false} />
                 </div>
 
                 <Link

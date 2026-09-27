@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import type {
     Fixture,
+    JornadaMatches,
     MarketPlayer,
     Season,
     Activity,
@@ -11,14 +12,16 @@ import type {
 } from '@/types/models';
 import { ActivityPanel } from './home/activity-panel';
 import { FixturesPanel } from './home/fixtures-panel';
-import { HeroPanel } from './home/hero-panel';
 import { MarketPanel } from './home/market-panel';
+import { NowPanel } from './home/now-panel';
 import { StandingsTable } from './home/standings-table';
 
 interface HomeProps {
     season: Season;
     filters: { week: number };
     fixtures: Fixture[];
+    nextFixture: Fixture | null;
+    jornadaMatches: JornadaMatches;
     standings: SeasonManager[];
     weekProgress: WeekProgressMap;
     market: MarketPlayer[];
@@ -30,6 +33,8 @@ export default function Home({
     season,
     filters,
     fixtures,
+    nextFixture,
+    jornadaMatches,
     standings,
     weekProgress,
     market,
@@ -38,16 +43,16 @@ export default function Home({
     return (
         <>
             <Head title="Inicio" />
-            <HeroPanel
-                currentWeek={season.current_week}
+            <NowPanel
+                season={season}
                 standings={standings}
+                weekProgress={weekProgress}
+                market={market}
+                nextFixture={nextFixture}
+                jornadaMatches={jornadaMatches}
             />
-            <div className="grid grid-cols-1 border-b border-hq-border min-[73.75rem]:grid-cols-[minmax(0,1fr)_440px] [&>*]:min-w-0">
-                <StandingsTable season={season} standings={standings} />
-                <div className="border-t border-hq-border min-[73.75rem]:border-t-0 min-[73.75rem]:border-l">
-                    <MarketPanel market={market} />
-                </div>
-            </div>
+            <StandingsTable season={season} standings={standings} />
+            <MarketPanel market={market} />
             <FixturesPanel
                 fixtures={fixtures}
                 season={season}

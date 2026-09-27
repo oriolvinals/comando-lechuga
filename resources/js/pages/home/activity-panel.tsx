@@ -11,7 +11,6 @@ interface ActivityPanelProps {
 export function ActivityPanel({ activity }: ActivityPanelProps) {
     return (
         <HqSection
-            code="CH·04"
             title="Actividad"
             action={
                 <Link

@@ -68,13 +68,7 @@ function tickerItems(ticker: Ticker): ReactNode[] {
     });
 
     if (ticker.finished_week !== null && ticker.results.length > 0) {
-        if (ticker.live.length > 0) {
-            items.push(
-                <Label key="results-label">
-                    J{ticker.finished_week} FINAL
-                </Label>,
-            );
-        }
+        items.push(<Label key="results-label">J{ticker.finished_week}</Label>);
 
         ticker.results.forEach((fixture) => {
             items.push(
@@ -196,8 +190,8 @@ function TickerRun({
 
 /**
  * The "Teletipo" above the shell header: a scrolling strip with the matches
- * being played (red "EN DIRECTO" lead) or the last finished jornada (lime
- * "J{n} FINAL" lead), its results, the current daily market listings (value,
+ * being played (red "EN DIRECTO" lead, lime "CUARTEL" otherwise), the last
+ * finished jornada's results (under a "J{n}" label), the current daily market listings (value,
  * daily move and bids) and the latest transfer-market moves. It pauses on hover or
  * keyboard focus and stands still under reduced motion.
  */
@@ -215,11 +209,7 @@ export function HqTicker() {
     }
 
     const isLive = ticker.live.length > 0;
-    const lead = isLive
-        ? '● EN DIRECTO'
-        : ticker.finished_week !== null
-          ? `J${ticker.finished_week} FINAL`
-          : 'TELETIPO';
+    const lead = isLive ? '● EN DIRECTO' : 'CUARTEL';
 
     return (
         <section

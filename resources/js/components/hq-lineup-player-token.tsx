@@ -395,7 +395,7 @@ export function HqLineupPlayerToken({
                     </span>
                     {hasPlayed && entry.dazn_points !== null && (
                         <HqTooltip
-                            label="Puntos DAZN (0–4)"
+                            label="Puntos DAZN"
                             className="inline-flex items-center gap-1 font-mono text-[11px] leading-none font-semibold text-hq-moss"
                         >
                             <img

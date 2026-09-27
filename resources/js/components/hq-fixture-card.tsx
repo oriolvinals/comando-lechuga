@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import {
@@ -60,9 +61,12 @@ function ScoreboardRow({
  */
 export function HqFixtureCard({
     fixture,
+    label,
     className,
 }: {
     fixture: Fixture;
+    /** A small heading inside the card (e.g. "Jornada 7"), so it shares the card's link and hover. */
+    label?: ReactNode;
     className?: string;
 }) {
     const countdown = useCountdown(fixture.date);
@@ -98,6 +102,7 @@ export function HqFixtureCard({
                 className,
             )}
         >
+            {label && <span className="mb-1.5 block hq-label">{label}</span>}
             <ScoreboardRow
                 team={fixture.local_team}
                 score={localScore}

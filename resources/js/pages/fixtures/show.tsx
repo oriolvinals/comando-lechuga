@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqFixtureBench } from '@/components/hq-fixture-bench';
+import { HqFixtureFantasyScoreboard } from '@/components/hq-fixture-fantasy-scoreboard';
 import { HqFixtureLineupList } from '@/components/hq-fixture-lineup-list';
 import { HqFixtureMatchDetails } from '@/components/hq-fixture-match-details';
 import { HqFixtureRefreshButton } from '@/components/hq-fixture-refresh-button';
@@ -14,6 +15,7 @@ import { HqLed } from '@/components/hq-led';
 import { HqMatchPitch } from '@/components/hq-match-pitch';
 import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import type { HqPlayerStatsEntry } from '@/components/hq-player-stats-modal';
+import { HqScrollRow } from '@/components/hq-scroll-row';
 import { HqChannelHeader, HqSection } from '@/components/hq-section';
 import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
@@ -38,6 +40,7 @@ import { show as teamsShow } from '@/routes/teams';
 import type {
     Fixture,
     FixtureEventEntry,
+    FixtureFantasyScoreboard,
     FixtureLineupEntry,
     FixtureTeamStat,
     JornadaStats,
@@ -50,6 +53,7 @@ const LIVE_REFRESH_PROPS = [
     'lineups',
     'events',
     'team_stats',
+    'fantasy_scoreboard',
 ];
 
 interface FixtureShowProps {
@@ -58,6 +62,7 @@ interface FixtureShowProps {
     lineups: FixtureLineupEntry[];
     events: FixtureEventEntry[];
     team_stats: FixtureTeamStat[];
+    fantasy_scoreboard: FixtureFantasyScoreboard | null;
     [key: string]: unknown;
 }
 
@@ -204,11 +209,12 @@ function WeekStrip({
     weekFixtures: Fixture[];
     currentId: number;
 }) {
-    const scrollerRef = useRef<HTMLDivElement>(null);
+    const stripRef = useRef<HTMLElement>(null);
 
     // Slide only the strip (never the page) so the open match is in view.
     useLayoutEffect(() => {
-        const scroller = scrollerRef.current;
+        const scroller =
+            stripRef.current?.querySelector<HTMLElement>('[data-scroll-row]');
         const current = scroller?.querySelector<HTMLElement>('[data-current]');
 
         if (!scroller || !current) {
@@ -223,17 +229,20 @@ function WeekStrip({
 
     return (
         <nav
-            ref={scrollerRef}
+            ref={stripRef}
             aria-label="Partidos de la jornada"
-            className="hq-no-scrollbar flex overflow-x-auto border-b border-hq-border"
+            className="border-b border-hq-border"
         >
-            {weekFixtures.map((weekFixture) => (
-                <WeekFixtureLink
-                    key={weekFixture.id}
-                    weekFixture={weekFixture}
-                    isCurrent={weekFixture.id === currentId}
-                />
-            ))}
+            {/* HqScrollRow adds prev/next arrows for desktop mice; phones keep drag. */}
+            <HqScrollRow contentClassName="gap-0" showProgress={false}>
+                {weekFixtures.map((weekFixture) => (
+                    <WeekFixtureLink
+                        key={weekFixture.id}
+                        weekFixture={weekFixture}
+                        isCurrent={weekFixture.id === currentId}
+                    />
+                ))}
+            </HqScrollRow>
         </nav>
     );
 }
@@ -334,6 +343,7 @@ export default function FixtureShow({
     lineups,
     events,
     team_stats,
+    fantasy_scoreboard,
 }: FixtureShowProps) {
     const [viewMode, setViewModeState] = useState<FixtureViewMode>(() =>
         getStoredFixtureViewMode(),
@@ -540,6 +550,14 @@ export default function FixtureShow({
                     <HqFixtureMatchDetails fixture={fixture} />
                 </div>
 
+                {fantasy_scoreboard && (
+                    <HqFixtureFantasyScoreboard
+                        scoreboard={fantasy_scoreboard}
+                        lineups={lineups}
+                        onSelect={handleSelectLineupEntry}
+                    />
+                )}
+
                 {!hasLineups ? (
                     <HqEmptyState
                         glyph="⚽"
@@ -585,12 +603,7 @@ export default function FixtureShow({
                             />
                         </section>
 
-                        <HqSection
-                            code="CH·01"
-                            title="Suplentes"
-                            action="primero los que jugaron"
-                            flush
-                        >
+                        <HqSection title="Suplentes" flush>
                             <HqFixtureBench
                                 lineups={lineups}
                                 localTeam={fixture.local_team}
@@ -603,7 +616,6 @@ export default function FixtureShow({
 
                         <div className="grid grid-cols-1 md:grid-cols-2">
                             <HqSection
-                                code="CH·02"
                                 title="Cronología"
                                 flush
                                 className="min-w-0"
@@ -615,7 +627,6 @@ export default function FixtureShow({
                                 />
                             </HqSection>
                             <HqSection
-                                code="CH·03"
                                 title="Datos del partido"
                                 flush
                                 className="min-w-0 md:border-l"

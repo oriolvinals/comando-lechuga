@@ -35,7 +35,6 @@ export function HqFixtureBench({
             guestTeam={guestTeam}
             selectedTeamId={selectedTeamId}
             onSelectTeam={onSelectTeam}
-            columnNote={() => 'suplentes'}
             renderColumn={(team) =>
                 bench
                     .filter((entry) => entry.team_id === team.id)

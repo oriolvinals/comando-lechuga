@@ -85,7 +85,7 @@ export default function SeasonManagerShow({
                 lostWeeks={lostWeeks}
             />
 
-            <HqSection code="CH·01" title="Evolución de puntos">
+            <HqSection title="Evolución de puntos">
                 <HqTeamPointsChart
                     lineupHistory={lineupHistory}
                     startedWeeks={startedWeeks}
@@ -100,7 +100,6 @@ export default function SeasonManagerShow({
                     className="min-w-0 border-b border-hq-border min-[80rem]:border-r min-[80rem]:border-b-0"
                 >
                     <HqChannelHeader
-                        code="CH·02"
                         title={
                             <span id="roster-heading">Plantilla actual</span>
                         }
@@ -138,10 +137,7 @@ export default function SeasonManagerShow({
                 </section>
 
                 <aside className="min-w-0">
-                    <HqChannelHeader
-                        code="CH·03"
-                        title="Alineación de la jornada"
-                    />
+                    <HqChannelHeader title="Alineación de la jornada" />
                     <HqWeekPickerBand
                         week={selectedWeek}
                         maxWeek={season.total_weeks}
@@ -172,7 +168,7 @@ export default function SeasonManagerShow({
                         )}
                     </div>
 
-                    <HqChannelHeader code="CH·04" title="Actividad" />
+                    <HqChannelHeader title="Actividad" />
                     {activity.length === 0 ? (
                         <p className="p-4 text-sm text-hq-moss">
                             Todavía no hay actividad de este manager.

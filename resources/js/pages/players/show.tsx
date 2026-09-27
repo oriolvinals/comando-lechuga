@@ -155,7 +155,7 @@ export default function PlayerShow({
                 />
                 <div className="min-w-0">
                     <span className="block font-mono text-[11px] leading-none font-semibold tracking-[0.14em] text-hq-lime">
-                        CH·J{String(player.id).padStart(2, '0')} · FICHA
+                        FICHA DE JUGADOR
                     </span>
                     <h1 className="mt-[5px] mb-2.5 font-display text-[30px] leading-[0.92] break-words text-hq-paper uppercase sm:text-[44px]">
                         {player.nickname}
@@ -250,7 +250,7 @@ export default function PlayerShow({
                     </span>
                 </Kpi>
 
-                <Kpi label="Media DAZN" index={3} sub="escala 0–4">
+                <Kpi label="Media DAZN" index={3}>
                     {daznAverage !== null ? (
                         <span
                             className={cn(
@@ -275,7 +275,6 @@ export default function PlayerShow({
             <div className="grid grid-cols-1 min-[73.75rem]:grid-cols-[minmax(0,1fr)_400px]">
                 <div className="min-w-0">
                     <HqSection
-                        code="CH·01"
                         title="Evolución"
                         action={
                             <HqValueChartRangeToggle
@@ -295,7 +294,6 @@ export default function PlayerShow({
                     </HqSection>
 
                     <HqSection
-                        code="CH·02"
                         title="Partidos"
                         action={
                             <span className="hidden normal-case sm:inline">
@@ -315,7 +313,7 @@ export default function PlayerShow({
                 </div>
 
                 <aside className="min-w-0 border-hq-border min-[73.75rem]:border-l">
-                    <HqSection code="CH·03" title="Propiedad">
+                    <HqSection title="Propiedad">
                         <HqPlayerPropertyCard
                             owner={owner}
                             marketListing={marketListing}
@@ -323,12 +321,11 @@ export default function PlayerShow({
                         />
                     </HqSection>
 
-                    <HqSection code="CH·04" title="Traspasos" flush>
+                    <HqSection title="Traspasos" flush>
                         <OwnershipHistory segments={ownershipSegments} />
                     </HqSection>
 
                     <HqSection
-                        code="CH·05"
                         title="Próximos rivales"
                         action={
                             <HqTooltip

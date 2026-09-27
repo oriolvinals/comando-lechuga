@@ -43,7 +43,7 @@ export function HqFixtureLineupList({
                 const formation =
                     team.id === localTeam.id ? localFormation : guestFormation;
 
-                return formation ? `${formation} · titulares` : 'titulares';
+                return formation;
             }}
             renderColumn={(team) =>
                 starters

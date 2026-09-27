@@ -68,41 +68,47 @@ export function HqScrollRow({
     };
 
     const showControls = visibleFraction < 1;
+    const arrowClassName =
+        'hidden w-8 shrink-0 cursor-pointer items-center justify-center self-center h-8 border border-hq-border-strong bg-hq-ink text-hq-paper transition-colors hover:border-hq-lime hover:text-hq-lime disabled:cursor-default disabled:opacity-30 disabled:hover:border-hq-border-strong disabled:hover:text-hq-paper sm:flex';
 
     return (
         <div className={cn('relative', className)}>
-            {showControls && (
-                <button
-                    type="button"
-                    onClick={() => scrollByCard(-1)}
-                    aria-label="Anterior"
-                    className="absolute top-1/2 -left-3.5 z-10 hidden h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center border border-hq-border-strong bg-hq-ink text-hq-paper transition-colors hover:border-hq-lime hover:text-hq-lime sm:flex"
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                </button>
-            )}
-
-            <div
-                ref={scrollerRef}
-                data-scroll-row=""
-                className={cn(
-                    'flex [scrollbar-width:none] gap-2 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
-                    contentClassName,
+            <div className="flex items-stretch gap-1.5">
+                {showControls && (
+                    <button
+                        type="button"
+                        onClick={() => scrollByCard(-1)}
+                        disabled={scrollStart <= 0.01}
+                        aria-label="Anterior"
+                        className={arrowClassName}
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                    </button>
                 )}
-            >
-                {children}
-            </div>
 
-            {showControls && (
-                <button
-                    type="button"
-                    onClick={() => scrollByCard(1)}
-                    aria-label="Siguiente"
-                    className="absolute top-1/2 -right-3.5 z-10 hidden h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center border border-hq-border-strong bg-hq-ink text-hq-paper transition-colors hover:border-hq-lime hover:text-hq-lime sm:flex"
+                <div
+                    ref={scrollerRef}
+                    data-scroll-row=""
+                    className={cn(
+                        'flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
+                        contentClassName,
+                    )}
                 >
-                    <ChevronRight className="h-4 w-4" />
-                </button>
-            )}
+                    {children}
+                </div>
+
+                {showControls && (
+                    <button
+                        type="button"
+                        onClick={() => scrollByCard(1)}
+                        disabled={scrollStart >= 0.99}
+                        aria-label="Siguiente"
+                        className={arrowClassName}
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </button>
+                )}
+            </div>
 
             {showControls && showProgress && (
                 <div className="relative mt-2.5 h-0.5 overflow-hidden bg-hq-border">

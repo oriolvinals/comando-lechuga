@@ -919,3 +919,101 @@ test('labels a VAR event by the decision it records, defaulting to a generic lab
         ->where('events.2.label', null)
     );
 });
+
+/**
+ * A finished fixture with two scored players per side, and a manager who
+ * fielded one player of each side that jornada.
+ *
+ * @return array{fixture: Fixture, localBest: FixtureLineup, guestBest: FixtureLineup, manager: SeasonManager}
+ */
+function finishedFixtureWithFantasyPoints(FixtureState $state = FixtureState::Finished): array
+{
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'state' => $state]);
+    $localTeamId = $fixture->team_local_id;
+    $guestTeamId = $fixture->team_guest_id;
+
+    $lineupRow = fn (int $teamId, int $points, string $jersey, int $minutes): FixtureLineup => FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => Player::factory()->create(['team_id' => $teamId])->id,
+        'team_id' => $teamId,
+        'jersey' => $jersey,
+        'fantasy_points' => $points,
+        'fantasy_stats' => ['mins_played' => [$minutes, 0]],
+    ]);
+
+    $localBest = $lineupRow($localTeamId, 9, '10', 90);
+    $localOther = $lineupRow($localTeamId, -2, '4', 90);
+    $guestTied = $lineupRow($guestTeamId, 6, '7', 30);
+    $guestBest = $lineupRow($guestTeamId, 6, '9', 90);
+
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id, 'name' => 'Ariobretxa', 'primary_color' => '#12a4a4']);
+    $managerLineup = ManagerLineup::factory()->create(['season_manager_id' => $manager->id, 'week_number' => 3]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $managerLineup->id, 'player_id' => $localOther->player_id, 'fixture_id' => $fixture->id]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $managerLineup->id, 'player_id' => $guestTied->player_id, 'fixture_id' => $fixture->id]);
+
+    // Another week's lineup of the same manager must not count here.
+    $otherWeek = ManagerLineup::factory()->create(['season_manager_id' => $manager->id, 'week_number' => 4]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $otherWeek->id, 'player_id' => $localBest->player_id]);
+
+    return compact('fixture', 'localBest', 'guestBest', 'manager');
+}
+
+test('a finished fixture includes its fantasy scoreboard with side totals, best players and lineup managers', function (): void {
+    ['fixture' => $fixture, 'localBest' => $localBest, 'guestBest' => $guestBest, 'manager' => $manager] = finishedFixtureWithFantasyPoints();
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('fantasy_scoreboard.local.points', 7)
+        ->where('fantasy_scoreboard.local.best_lineup_id', $localBest->id)
+        ->where('fantasy_scoreboard.guest.points', 12)
+        ->where('fantasy_scoreboard.guest.best_lineup_id', $guestBest->id)
+        ->has('fantasy_scoreboard.managers', 1)
+        ->where('fantasy_scoreboard.managers.0', [
+            'id' => $manager->id,
+            'name' => 'Ariobretxa',
+            'primary_color' => '#12a4a4',
+            'points' => 4,
+        ])
+    );
+});
+
+test('a finished fixture with no manager lineups in it has an empty managers list', function (): void {
+    ['fixture' => $fixture] = finishedFixtureWithFantasyPoints();
+    ManagerLineupPlayer::query()->delete();
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('fantasy_scoreboard.local.points', 7)
+        ->has('fantasy_scoreboard.managers', 0)
+    );
+});
+
+test('a finished fixture without fantasy points yet has no fantasy scoreboard', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::Finished]);
+    FixtureLineup::factory()->create(['fixture_id' => $fixture->id, 'team_id' => $fixture->team_local_id, 'fantasy_points' => null]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('fantasy_scoreboard', null)
+    );
+});
+
+test('a fixture that is not finished has no fantasy scoreboard', function (FixtureState $state): void {
+    ['fixture' => $fixture] = finishedFixtureWithFantasyPoints($state);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('fantasy_scoreboard', null)
+    );
+})->with([
+    'live' => FixtureState::FirstHalf,
+    'scheduled' => FixtureState::Scheduled,
+    'postponed' => FixtureState::Postponed,
+]);

@@ -47,8 +47,8 @@ test('shares the teletipo with every inertia page and no live matches when none 
 
 test('lists the matches being played with their score and clock', function (): void {
     $season = tickerSeason();
-    $local = Team::factory()->create(['short_name' => 'BAR']);
-    $guest = Team::factory()->create(['short_name' => 'RMA']);
+    $local = Team::factory()->create(['short_name' => 'BAR', 'logo' => 'teams/bar.png']);
+    $guest = Team::factory()->create(['short_name' => 'RMA', 'logo' => '']);
     $live = Fixture::factory()->create([
         'season_id' => $season->id,
         'week_number' => 5,
@@ -83,6 +83,8 @@ test('lists the matches being played with their score and clock', function (): v
         ->where('ticker.live.0.guest_score', 1)
         ->where('ticker.live.0.local_team.short_name', 'BAR')
         ->where('ticker.live.0.guest_team.short_name', 'RMA')
+        ->where('ticker.live.0.local_team.logo', asset('storage/teams/bar.png'))
+        ->where('ticker.live.0.guest_team.logo', '')
         ->where('ticker.live.1.state', 'half_time')
         ->where('ticker.finished_week', 4));
 });

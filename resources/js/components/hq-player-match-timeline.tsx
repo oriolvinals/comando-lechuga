@@ -330,7 +330,7 @@ function ScoreRow({
                 <span className={CELL_DAZN}>
                     <span className="mr-1.5 hq-label md:hidden">DAZN</span>
                     {dazn !== null && !didNotPlay ? (
-                        <HqTooltip label="Puntos DAZN (0–4)">
+                        <HqTooltip label="Puntos DAZN">
                             <span
                                 className={cn(
                                     'inline-flex h-[22px] min-w-[30px] items-center justify-center px-[5px] font-mono text-xs leading-none font-bold tabular-nums',

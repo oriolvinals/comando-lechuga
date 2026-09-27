@@ -122,6 +122,24 @@ export interface FixtureLineupEntry {
     lineup_manager: SeasonManager | null;
 }
 
+export interface FixtureFantasySide {
+    points: number;
+    /** The FixtureLineupEntry id of the side's best fantasy player. */
+    best_lineup_id: number | null;
+}
+
+/** The match page's "Marcador fantasy" — only sent for finished fixtures. */
+export interface FixtureFantasyScoreboard {
+    local: FixtureFantasySide;
+    guest: FixtureFantasySide;
+    managers: {
+        id: number;
+        name: string;
+        primary_color: string | null;
+        points: number;
+    }[];
+}
+
 export type FixtureEventType =
     'goal' | 'yellow_card' | 'red_card' | 'penalty_missed' | 'var';
 
@@ -167,6 +185,8 @@ export interface SeasonManager {
     last_position: number;
     value: number;
     recent_form: (number | null)[];
+    /** What the current squad gained or lost in the latest daily market update (sum of its players' daily value differences). */
+    daily_value_difference: number;
 }
 
 export interface MarketPlayer {
@@ -447,4 +467,52 @@ export interface Ticker {
     results: TickerFixture[];
     market: TickerListing[];
     activities: TickerActivity[];
+}
+
+export interface JornadaMatchTeam {
+    id: number;
+    short_name: string;
+    logo: string;
+}
+
+export interface JornadaMatchPlayer {
+    id: number;
+    nickname: string;
+    image: string;
+    position: PlayerPosition;
+    /** Live or final points in this match — null while it hasn't kicked off. */
+    points: number | null;
+}
+
+/** A manager whose jornada lineup has players in one match. */
+export interface JornadaMatchManager {
+    id: number;
+    name: string;
+    primary_color: string | null;
+    /** Sum of the players' points in this match — null while it hasn't kicked off. */
+    points: number | null;
+    players: JornadaMatchPlayer[];
+}
+
+export interface JornadaMatch {
+    id: number;
+    state: FixtureState;
+    date: string;
+    display_clock: string | null;
+    local_score: number | null;
+    guest_score: number | null;
+    local_team: JornadaMatchTeam;
+    guest_team: JornadaMatchTeam;
+    /** Null before the jornada starts (no lineups yet). */
+    managers: JornadaMatchManager[] | null;
+}
+
+export type JornadaMatchesStatus =
+    'not_started' | 'started' | 'live' | 'finished';
+
+/** The "Ahora" block's matches strip: a few of the current jornada's matches. */
+export interface JornadaMatches {
+    week: number;
+    status: JornadaMatchesStatus;
+    matches: JornadaMatch[];
 }

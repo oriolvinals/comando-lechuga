@@ -719,10 +719,6 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                 <span className="bg-hq-amber px-1.5 py-1 tracking-[0.14em] text-[#1a1405]">
                     God mode
                 </span>
-                <h2>Puja máxima rentable</h2>
-                <span className="ml-auto hidden font-medium tracking-[0.05em] text-hq-amber/70 normal-case md:inline">
-                    oculto para el resto de la liga
-                </span>
             </div>
 
             <div

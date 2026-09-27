@@ -23,6 +23,31 @@ interface StandingsTableProps {
     standings: SeasonManager[];
 }
 
+/** What the manager's squad gained or lost in the latest daily market update. */
+function DailyValueDifference({
+    difference,
+    className,
+}: {
+    difference: number;
+    className?: string;
+}) {
+    return (
+        <span
+            title="Variación de valor de la plantilla hoy"
+            className={cn(
+                'font-mono text-[11px] leading-none font-semibold tabular-nums',
+                difference > 0 && 'text-hq-lime',
+                difference < 0 && 'text-hq-neg',
+                difference === 0 && 'text-hq-moss-dim',
+                className,
+            )}
+        >
+            {difference > 0 ? '+' : difference < 0 ? '−' : '±'}
+            {formatCurrency(Math.abs(difference))}
+        </span>
+    );
+}
+
 const MEDAL_VARS = [
     'var(--color-hq-gold)',
     'var(--color-hq-silver)',
@@ -35,12 +60,22 @@ function medalStyle(index: number): CSSProperties | undefined {
         : undefined;
 }
 
-function Position({ team, index }: { team: SeasonManager; index: number }) {
+function Position({
+    team,
+    index,
+    className = 'text-[22px]',
+}: {
+    team: SeasonManager;
+    index: number;
+    /** The LED's text size. */
+    className?: string;
+}) {
     return (
         <HqLed
             className={cn(
-                'inline-block min-w-[22px] text-center text-[22px]',
+                'inline-block min-w-[22px] text-center',
                 index < 3 ? 'text-(--medal)' : 'text-hq-moss-dim',
+                className,
             )}
         >
             {team.position}
@@ -123,6 +158,14 @@ function Crest({
     );
 }
 
+function LeaderBadge() {
+    return (
+        <span className="inline-flex h-[18px] shrink-0 items-center border border-hq-gold bg-hq-gold/10 px-[5px] font-mono text-[9.5px] font-bold tracking-[0.08em] text-hq-gold">
+            LÍDER
+        </span>
+    );
+}
+
 function Prize({ position }: { position: number }) {
     const prize = standingsPrize(position);
 
@@ -140,13 +183,13 @@ function Prize({ position }: { position: number }) {
 
 export function StandingsTable({ season, standings }: StandingsTableProps) {
     const { liveMatchday } = usePage().props;
+    const leaderPoints = standings[0]?.total_points ?? 0;
     const status = liveMatchday
         ? `J${season.current_week} en juego`
         : `tras la J${Math.max(season.current_week - 1, 0)}`;
 
     return (
         <HqSection
-            code="CH·01"
             title="Clasificación"
             action={
                 <span>
@@ -154,30 +197,19 @@ export function StandingsTable({ season, standings }: StandingsTableProps) {
                 </span>
             }
             flush
-            className="border-b-0"
         >
-            {/* Desktop / tablet: a ruled table */}
+            {/* Desktop / tablet: a ruled, full-width table */}
             <table className="hidden w-full border-collapse font-mono text-[13px] tabular-nums md:table">
                 <thead>
-                    <tr className="text-left text-[10.5px] font-semibold tracking-[0.07em] whitespace-nowrap text-hq-moss-dim uppercase">
-                        <th className="border-b border-hq-border-strong py-[9px] pr-2.5 pl-4 font-semibold">
-                            #
-                        </th>
-                        <th className="border-b border-hq-border-strong px-2.5 py-[9px] text-center font-semibold">
-                            Mov
-                        </th>
-                        <th className="border-b border-hq-border-strong px-2.5 py-[9px] font-semibold">
-                            Manager
-                        </th>
-                        <th className="border-b border-hq-border-strong px-2.5 py-[9px] text-center font-semibold">
-                            Forma · últimas 3
-                        </th>
-                        <th className="border-b border-hq-border-strong px-2.5 py-[9px] text-right font-semibold">
-                            Premio
-                        </th>
-                        <th className="border-b border-hq-border-strong py-[9px] pr-4 pl-2.5 text-right font-semibold">
-                            Pts
-                        </th>
+                    <tr className="text-left text-[10.5px] font-semibold tracking-[0.07em] whitespace-nowrap text-hq-moss-dim uppercase [&>th]:border-b [&>th]:border-hq-border-strong [&>th]:px-3.5 [&>th]:py-[9px] [&>th]:font-semibold">
+                        <th className="pl-[18px]!">#</th>
+                        <th className="text-center">Mov</th>
+                        <th>Manager</th>
+                        <th className="text-right">Valor de equipo</th>
+                        <th className="text-center">Forma · últimas 3</th>
+                        <th className="text-right">Dif. líder</th>
+                        <th className="text-right">Premio</th>
+                        <th className="pr-[18px]! text-right">Pts</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -190,53 +222,64 @@ export function StandingsTable({ season, standings }: StandingsTableProps) {
                                 style={medalStyle(index)}
                                 onClick={() => router.visit(href)}
                                 className={cn(
-                                    'cursor-pointer [&>td]:border-b [&>td]:border-hq-border [&>td]:px-2.5 [&>td]:py-[9px] hover:[&>td]:bg-hq-panel',
+                                    'cursor-pointer whitespace-nowrap [&>td]:border-b [&>td]:border-hq-border [&>td]:px-3.5 [&>td]:py-[11px] last:[&>td]:border-b-0 hover:[&>td]:bg-hq-panel',
                                     index < 3 &&
-                                        '[&>td]:bg-linear-to-r [&>td]:from-[color-mix(in_srgb,var(--medal)_7%,transparent)] [&>td]:to-transparent [&>td]:to-40% [&>td:first-child]:shadow-[inset_3px_0_0_var(--medal)]',
+                                        'bg-linear-to-r from-[color-mix(in_srgb,var(--medal)_12%,transparent)] to-transparent to-70% [&>td:first-child]:shadow-[inset_3px_0_0_var(--medal)]',
                                 )}
                             >
-                                <td className="pl-4!">
-                                    <Position team={team} index={index} />
+                                <td className="pl-[18px]!">
+                                    <Position
+                                        team={team}
+                                        index={index}
+                                        className="text-[26px]"
+                                    />
                                 </td>
                                 <td className="text-center">
                                     <MovementIcon team={team} />
                                 </td>
-                                <td className="w-full max-w-0">
+                                <td className="w-[28%] max-w-0">
                                     <Link
                                         href={href}
                                         onClick={(event) =>
                                             event.stopPropagation()
                                         }
-                                        className="group flex min-w-0 items-center gap-2.5"
+                                        className="group flex min-w-0 items-center gap-3"
                                     >
                                         <Crest
                                             team={team}
-                                            className="h-[38px] w-[38px]"
+                                            className="h-[42px] w-[42px]"
                                         />
-                                        <span className="min-w-0">
-                                            <span className="block truncate font-sans text-sm leading-tight font-bold text-hq-paper group-hover:text-hq-lime">
-                                                {team.name}
-                                            </span>
-                                            <span className="mt-[3px] block text-[11px] leading-none text-hq-moss-dim">
-                                                {formatCurrency(team.value)}
-                                            </span>
+                                        <span className="min-w-0 truncate font-sans text-[15px] leading-tight font-extrabold text-hq-paper group-hover:text-hq-lime">
+                                            {team.name}
                                         </span>
+                                        {index === 0 && <LeaderBadge />}
                                     </Link>
+                                </td>
+                                <td className="text-right text-hq-paper">
+                                    {formatCurrency(team.value)}
+                                    <DailyValueDifference
+                                        difference={team.daily_value_difference}
+                                        className="mt-1 block"
+                                    />
                                 </td>
                                 <td>
                                     <HqRecentScores
                                         scores={team.recent_form}
                                         badgeClass={teamFormBadgeClass}
                                         live={team.live_points}
-                                        size="sm"
                                         className="justify-center"
                                     />
                                 </td>
-                                <td className="text-right whitespace-nowrap">
+                                <td className="text-right font-semibold text-hq-moss-dim">
+                                    {index === 0
+                                        ? '—'
+                                        : `−${leaderPoints - team.total_points}`}
+                                </td>
+                                <td className="text-right">
                                     <Prize position={team.position} />
                                 </td>
-                                <td className="pr-4! text-right">
-                                    <HqLed tone="lime" className="text-[26px]">
+                                <td className="pr-[18px]! text-right">
+                                    <HqLed tone="lime" className="text-[30px]">
                                         {team.total_points}
                                     </HqLed>
                                 </td>
@@ -254,8 +297,9 @@ export function StandingsTable({ season, standings }: StandingsTableProps) {
                         href={seasonManagersShow(team.id).url}
                         style={medalStyle(index)}
                         className={cn(
-                            'block border-b border-hq-border px-3.5 py-2.5 active:bg-hq-panel',
-                            index < 3 && 'shadow-[inset_3px_0_0_var(--medal)]',
+                            'block border-b border-hq-border px-3.5 py-2.5 last:border-b-0 active:bg-hq-panel',
+                            index < 3 &&
+                                'bg-linear-to-r from-[color-mix(in_srgb,var(--medal)_12%,transparent)] to-transparent to-70% shadow-[inset_3px_0_0_var(--medal)]',
                         )}
                     >
                         <div className="flex items-center gap-2.5">
@@ -266,8 +310,11 @@ export function StandingsTable({ season, standings }: StandingsTableProps) {
                                 <p className="truncate text-sm leading-tight font-extrabold text-hq-paper">
                                     {team.name}
                                 </p>
-                                <p className="mt-[3px] font-mono text-[11px] leading-none text-hq-moss-dim">
+                                <p className="mt-[3px] flex flex-wrap gap-x-2 font-mono text-[11px] leading-none text-hq-moss-dim">
                                     {formatCurrency(team.value)}
+                                    <DailyValueDifference
+                                        difference={team.daily_value_difference}
+                                    />
                                 </p>
                             </div>
                             <HqLed tone="lime" className="text-2xl">

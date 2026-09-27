@@ -219,7 +219,7 @@ export default function FixturesIndex({
             <Head title="Partidos" />
 
             <HqPageHeader
-                code="CH·P · CALENDARIO"
+                code="CALENDARIO"
                 title="Partidos"
                 meta={[
                     { label: 'Temporada', value: season.name },

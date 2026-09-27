@@ -97,7 +97,7 @@ function Crest({ team }: { team: Team }) {
     );
 }
 
-/** The state column: dot + label on top, the clock / countdown / kick-off / final clock below. */
+/** The state column: dot + label on top, the live clock / countdown / kick-off below (nothing below for a finished match). */
 function StateCell({ fixture, state }: { fixture: Fixture; state: RowState }) {
     const countdown = useCountdown(fixture.date);
     let label: string;
@@ -135,11 +135,6 @@ function StateCell({ fixture, state }: { fixture: Fixture; state: RowState }) {
             break;
         case 'finished':
             label = FIXTURE_STATE_LABELS.finished;
-            detail = fixture.display_clock ? (
-                <span className="text-hq-moss-dim">
-                    {fixture.display_clock}
-                </span>
-            ) : null;
             break;
     }
 
@@ -172,7 +167,7 @@ function StateCell({ fixture, state }: { fixture: Fixture; state: RowState }) {
 /**
  * One fixture as a generous console row (mock `.fxr`): kick-off time, both
  * teams with 36px crests, the dot-matrix score with the loser dimmed (VS
- * before kick-off), and the state column — FINALIZADO + final clock, the
+ * before kick-off), and the state column — FINALIZADO, the
  * pulsing live half + amber clock, the gold "Empieza en" countdown under
  * 2h, Programado + time, or APLAZADO. Live and starting-soon rows get a
  * coloured left edge. Below `md` each row folds into two team lines with

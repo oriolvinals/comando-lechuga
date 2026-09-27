@@ -11,6 +11,8 @@ interface HqJornadaStatsGridProps {
     stats: JornadaStats | null;
     /** 3 needs real width to breathe (the ficha panel) — narrower contexts like the pitch-token modal should stick with 2, or labels start truncating. */
     columns?: 2 | 3;
+    /** List the stats that stayed at zero ("Sin registro esta jornada") — the compact pitch-token modal leaves them out. */
+    showEmptyStats?: boolean;
 }
 
 function SectionHeading({
@@ -38,6 +40,7 @@ function SectionHeading({
 export function HqJornadaStatsGrid({
     stats,
     columns = 2,
+    showEmptyStats = true,
 }: HqJornadaStatsGridProps) {
     const statsWithData = BODY_STAT_ORDER.filter((key) => {
         const [value, delta] = stats?.[key] ?? [0, 0];
@@ -97,7 +100,7 @@ export function HqJornadaStatsGrid({
                     </div>
                 </>
             )}
-            {statsWithoutData.length > 0 && (
+            {showEmptyStats && statsWithoutData.length > 0 && (
                 <>
                     <SectionHeading
                         title="Sin registro esta jornada"

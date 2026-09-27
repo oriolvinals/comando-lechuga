@@ -10,10 +10,10 @@ use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\MarketPlayer;
+use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\Team;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * The shell's "Teletipo" strip: what's new in the season at a glance — live
@@ -105,20 +105,25 @@ class ResultsTicker
      */
     private function marketListings(Season $season): array
     {
-        return MarketPlayer::query()
+        $listings = MarketPlayer::query()
             ->whereHas('player.seasons', fn (Builder $query): Builder => $query
                 ->where('season_id', $season->id)
                 ->where('position', '!=', PlayerPosition::Coach))
             ->where('expires_at', '>', now())
-            ->with([
-                'player:id,nickname',
-                'player.seasons' => fn (HasMany $query): HasMany => $query->where('season_id', $season->id),
-            ])
+            ->with('player:id,nickname')
             ->orderBy('expires_at')
             ->orderBy('id')
+            ->get();
+
+        $playerSeasons = PlayerSeason::query()
+            ->where('season_id', $season->id)
+            ->whereIn('player_id', $listings->pluck('player_id'))
             ->get()
-            ->map(function (MarketPlayer $listing): array {
-                $playerSeason = $listing->player->seasons->first();
+            ->keyBy('player_id');
+
+        return $listings
+            ->map(function (MarketPlayer $listing) use ($playerSeasons): array {
+                $playerSeason = $playerSeasons->get($listing->player_id);
 
                 return [
                     'id' => $listing->id,
@@ -126,8 +131,8 @@ class ResultsTicker
                     'nickname' => $listing->player->nickname,
                     'value' => $listing->value,
                     'bids' => $listing->bids,
-                    'market_value_difference' => $playerSeason?->market_value_difference ?? 0,
-                    'market_trend' => $playerSeason?->market_trend?->value,
+                    'market_value_difference' => $playerSeason->market_value_difference,
+                    'market_trend' => $playerSeason->market_trend?->value,
                 ];
             })
             ->all();
@@ -180,7 +185,7 @@ class ResultsTicker
             'id' => $team->id,
             'short_name' => $team->short_name,
             'main_name' => $team->main_name,
-            'logo' => $team->logo,
+            'logo' => $team->logo ? asset('storage/'.$team->logo) : '',
         ];
     }
 }

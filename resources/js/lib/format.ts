@@ -60,6 +60,15 @@ export function formatMatchDateShort(isoDate: string): string {
     }).format(new Date(isoDate));
 }
 
+/** "sáb, 4 oct" — a kickoff's day without the time. */
+export function formatMatchDay(isoDate: string): string {
+    return new Intl.DateTimeFormat('es-ES', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+    }).format(new Date(isoDate));
+}
+
 export function formatTime(isoDate: string): string {
     return new Intl.DateTimeFormat('es-ES', {
         hour: '2-digit',

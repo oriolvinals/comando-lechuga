@@ -16,17 +16,17 @@ use Illuminate\Support\Collection;
 trait AttachesNextFixtures
 {
     /**
-     * Attaches each player's next 3 upcoming fixtures for their team, soonest
-     * first — only fixtures that haven't started yet (state=Scheduled), never
-     * a live or finished one. Null-padded at the end, mirroring
-     * attachRecentScores(), when fewer than 3 remain on the calendar.
+     * Attaches each player's next $count (3 by default) upcoming fixtures for
+     * their team, soonest first — only fixtures that haven't started yet
+     * (state=Scheduled), never a live or finished one. Null-padded at the end,
+     * mirroring attachRecentScores(), when fewer remain on the calendar.
      *
-     * Out-of-league players always get 3 nulls without querying anything for
-     * them — nobody needs their next match.
+     * Out-of-league players always get $count nulls without querying anything
+     * for them — nobody needs their next match.
      *
      * @param  Collection<int, Player>  $players
      */
-    private function attachNextFixtures(Collection $players, Season $season): void
+    private function attachNextFixtures(Collection $players, Season $season, int $count = 3): void
     {
         $eligiblePlayers = $players->filter(
             fn (Player $player): bool => $player->status !== PlayerStatus::OutOfLeague,
@@ -55,22 +55,22 @@ trait AttachesNextFixtures
 
         $positions = $fixturesByTeam === [] ? [] : $this->standingsPositions($season);
 
-        $players->each(function (Player $player) use ($fixturesByTeam, $positions): void {
+        $players->each(function (Player $player) use ($fixturesByTeam, $positions, $count): void {
             if ($player->status === PlayerStatus::OutOfLeague) {
-                $player->next_fixtures = [null, null, null];
+                $player->next_fixtures = array_fill(0, $count, null);
 
                 return;
             }
 
             $slots = collect($fixturesByTeam[$player->team_id] ?? [])
                 ->sortBy(fn (Fixture $fixture) => $fixture->date)
-                ->take(3)
+                ->take($count)
                 ->map(fn (Fixture $fixture): array => $this->nextFixtureSlot($fixture, $player->team_id, $positions))
                 ->values()
                 ->all();
 
             /** @var array<int, array{week_number: int, opponent: Team, is_home: bool, rival_position: int, difficulty: float}|null> $paddedSlots */
-            $paddedSlots = array_pad($slots, 3, null);
+            $paddedSlots = array_pad($slots, $count, null);
 
             $player->next_fixtures = $paddedSlots;
         });

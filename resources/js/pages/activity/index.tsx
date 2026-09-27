@@ -69,7 +69,7 @@ export default function ActivityIndex({
             <Head title="Actividad" />
 
             <HqPageHeader
-                code="CH·A · REGISTRO DE MERCADO"
+                code="REGISTRO DE MERCADO"
                 title="Actividad"
                 meta={[
                     {

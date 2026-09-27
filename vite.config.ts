@@ -13,6 +13,7 @@ export default defineConfig({
             refresh: true,
             fonts: [
                 google('Chivo', {
+                    optimizedFallbacks: false,
                     weights: [400, 500, 600, 700, 800, 900],
                     preload: [
                         { weight: 400 },
@@ -21,14 +22,17 @@ export default defineConfig({
                     ],
                 }),
                 google('Chivo Mono', {
+                    optimizedFallbacks: false,
                     weights: [400, 500, 600, 700],
                     preload: [{ weight: 500 }, { weight: 700 }],
                 }),
                 google('Doto', {
+                    optimizedFallbacks: false,
                     weights: [700, 900],
                     preload: [{ weight: 900 }],
                 }),
                 google('Anton', {
+                    optimizedFallbacks: false,
                     weights: [400],
                 }),
             ],

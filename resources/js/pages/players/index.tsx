@@ -186,7 +186,7 @@ export default function PlayersIndex({
             <Head title="Jugadores" />
 
             <HqPageHeader
-                code="CH·J · BASE DE DATOS"
+                code="BASE DE DATOS"
                 title="Jugadores"
                 meta={[
                     {

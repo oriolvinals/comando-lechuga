@@ -172,7 +172,6 @@ export function ManagerHero({
 
                 <div className="min-w-0 grow">
                     <span className="font-mono text-[11px] leading-none font-semibold tracking-[0.14em] text-hq-lime">
-                        CH·M{String(seasonManager.id).padStart(2, '0')} ·
                         MANAGER
                     </span>
                     <h1 className="mt-1 font-display text-[28px] leading-[0.95] break-words text-hq-paper uppercase sm:text-[42px]">

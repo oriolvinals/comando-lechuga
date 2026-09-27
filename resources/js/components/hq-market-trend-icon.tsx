@@ -1,98 +1,87 @@
+import type { LucideIcon } from 'lucide-react';
+import {
+    ChevronDown,
+    ChevronsDown,
+    ChevronsUp,
+    ChevronUp,
+    ChevronRight,
+    TriangleAlert,
+} from 'lucide-react';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { MarketTrend } from '@/types/models';
 
-type TrendGlyph =
-    | 'doubleUp'
-    | 'up'
-    | 'steady'
-    | 'down'
-    | 'doubleDown'
-    | 'inflectionUp'
-    | 'inflectionDown';
-
 interface TrendDisplay {
-    glyph: TrendGlyph;
+    icon: LucideIcon;
     label: string;
     rising: boolean;
 }
 
-/** 14×14 strokes: double/single chevrons for sharp/normal, an arrow for steady, a V/Λ kink for inflections. */
-const GLYPH_PATHS: Record<TrendGlyph, string[]> = {
-    doubleUp: ['3,7.5 7,3.5 11,7.5', '3,12 7,8 11,12'],
-    up: ['3,9.5 7,5.5 11,9.5'],
-    steady: ['2,7 11.5,7', '8.2,3.6 11.6,7 8.2,10.4'],
-    down: ['3,4.5 7,8.5 11,4.5'],
-    doubleDown: ['3,2 7,6 11,2', '3,6.5 7,10.5 11,6.5'],
-    inflectionUp: ['1.5,4.5 5.2,10.5 12.3,3.2', '8.4,3 12.4,3 12.4,7'],
-    inflectionDown: ['1.5,9.5 5.2,3.5 12.3,10.8', '8.4,11 12.4,11 12.4,7'],
-};
-
 /**
- * The glyph always reads "up = improving, down = worsening" (arrow = same
+ * The icon always reads "up = improving, down = worsening" (right = same
  * pace): a fall that slows down points up, a fall that speeds up points down.
  * The colour tells whether the value is rising (lime) or falling (red); an
- * inflection gets a kink glyph and a thick left border.
+ * inflection is a warning triangle.
  */
 const TREND_DISPLAY: Record<MarketTrend, TrendDisplay> = {
     positive_inflection: {
-        glyph: 'inflectionUp',
+        icon: TriangleAlert,
         label: 'Inflexión positiva: pasó de bajar a subir',
         rising: true,
     },
     rise_accelerating_sharply: {
-        glyph: 'doubleUp',
+        icon: ChevronsUp,
         label: 'La subida se acelera mucho',
         rising: true,
     },
     rise_accelerating: {
-        glyph: 'up',
+        icon: ChevronUp,
         label: 'La subida se acelera',
         rising: true,
     },
     rise_steady: {
-        glyph: 'steady',
+        icon: ChevronRight,
         label: 'Sube a ritmo constante',
         rising: true,
     },
     rise_decelerating: {
-        glyph: 'down',
+        icon: ChevronDown,
         label: 'La subida se desacelera',
         rising: true,
     },
     rise_decelerating_sharply: {
-        glyph: 'doubleDown',
+        icon: ChevronsDown,
         label: 'La subida se desacelera mucho',
         rising: true,
     },
     negative_inflection: {
-        glyph: 'inflectionDown',
+        icon: TriangleAlert,
         label: 'Inflexión negativa: pasó de subir a bajar',
         rising: false,
     },
     fall_decelerating_sharply: {
-        glyph: 'doubleUp',
+        icon: ChevronsUp,
         label: 'La bajada se desacelera mucho',
         rising: false,
     },
     fall_decelerating: {
-        glyph: 'up',
+        icon: ChevronUp,
         label: 'La bajada se desacelera',
         rising: false,
     },
     fall_steady: {
-        glyph: 'steady',
+        icon: ChevronRight,
         label: 'Baja a ritmo constante',
         rising: false,
     },
     fall_accelerating: {
-        glyph: 'down',
+        icon: ChevronDown,
         label: 'La bajada se acelera',
         rising: false,
     },
     fall_accelerating_sharply: {
-        glyph: 'doubleDown',
+        icon: ChevronsDown,
         label: 'La bajada se acelera mucho',
         rising: false,
     },
@@ -114,7 +103,7 @@ interface HqMarketTrendIconProps {
 }
 
 /**
- * A player's market trend (all 12 states) as a small framed glyph, with the
+ * A player's market trend (all 12 states) as a coloured Lucide icon, with the
  * trend spelled out in Spanish on hover or keyboard focus. Renders nothing
  * without a trend.
  */
@@ -126,8 +115,7 @@ export function HqMarketTrendIcon({
         return null;
     }
 
-    const { glyph, label, rising } = TREND_DISPLAY[trend];
-    const isInflection = glyph === 'inflectionUp' || glyph === 'inflectionDown';
+    const { icon: Icon, label, rising } = TREND_DISPLAY[trend];
 
     return (
         <HqTooltip
@@ -136,28 +124,15 @@ export function HqMarketTrendIcon({
             className="shrink-0 align-middle"
             focusable
         >
-            <span
-                role="img"
+            <Icon
                 aria-label={label}
+                strokeWidth={2.75}
                 className={cn(
-                    'inline-flex size-[17px] shrink-0 items-center justify-center border border-current',
-                    rising
-                        ? 'bg-hq-lime/12 text-hq-lime'
-                        : 'bg-hq-neg/12 text-hq-neg',
-                    isInflection && 'border-l-[3px]',
+                    'size-3.5 shrink-0',
+                    rising ? 'text-hq-lime' : 'text-hq-neg',
                     className,
                 )}
-            >
-                <svg
-                    viewBox="0 0 14 14"
-                    aria-hidden="true"
-                    className="size-[13px] fill-none stroke-current stroke-[2.2] [stroke-linecap:square] [stroke-linejoin:miter]"
-                >
-                    {GLYPH_PATHS[glyph].map((points) => (
-                        <polyline key={points} points={points} />
-                    ))}
-                </svg>
-            </span>
+            />
         </HqTooltip>
     );
 }
@@ -170,7 +145,7 @@ interface HqMarketValueDifferenceProps {
 }
 
 /**
- * The market trend glyph next to yesterday's signed value change. Both share
+ * The market trend icon next to yesterday's signed value change. Both share
  * a colour: the backend turns a last day that moved against the trend into
  * an inflection in that day's direction.
  */

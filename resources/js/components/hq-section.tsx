@@ -2,7 +2,7 @@ import type { PropsWithChildren, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 interface HqChannelHeaderProps {
-    /** Channel code after the ▮ marker, e.g. "CH·01" or "J08". */
+    /** Channel code after the ▮ marker, e.g. "J08". */
     code?: string;
     title: ReactNode;
     /** Right-aligned meta / controls (a "ver todo →" link, a countdown, a refresh button). */
@@ -13,7 +13,7 @@ interface HqChannelHeaderProps {
 }
 
 /**
- * The numbered console channel header ("▮ CH·01 CLASIFICACIÓN ··· meta"):
+ * The console channel header ("▮ CLASIFICACIÓN ··· meta"):
  * a 40px mono uppercase bar on a 1px rule, fading from panel to ink.
  */
 export function HqChannelHeader({

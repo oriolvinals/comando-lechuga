@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
+use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Fixture;
@@ -775,7 +776,8 @@ test('rates each roster player next fixture by the rival current standings posit
     ]);
 
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
-    $player = Player::factory()->create(['team_id' => $ownTeam->id]);
+    // Out-of-league players get no next fixtures, so pin a playable status.
+    $player = Player::factory()->create(['team_id' => $ownTeam->id, 'status' => PlayerStatus::Ok]);
     ManagerPlayer::factory()->create([
         'season_manager_id' => $seasonManager->id,
         'player_id' => $player->id,

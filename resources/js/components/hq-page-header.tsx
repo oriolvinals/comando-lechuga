@@ -7,7 +7,7 @@ export interface HqPageHeaderMetaItem {
 }
 
 interface HqPageHeaderProps {
-    /** Lime mono code above the title, e.g. "CH·J · BASE DE DATOS". */
+    /** Lime mono code above the title, e.g. "BASE DE DATOS". */
     code?: string;
     title: ReactNode;
     /** Right-aligned label/value pairs (wraps under the title on phones). */

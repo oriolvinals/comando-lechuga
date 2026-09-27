@@ -67,12 +67,12 @@ function isSectionActive(path: string, href: string): boolean {
     return path === href || path.startsWith(`${href}/`);
 }
 
-/** Desktop console nav: ruled cells, <kbd> shortcut, active cell filled lime. */
+/** Desktop console nav: ruled cells sharing the bar's free width, <kbd> shortcut, active cell filled lime. */
 export function MainNav() {
     const path = useCurrentPath();
 
     return (
-        <nav aria-label="Principal" className="flex">
+        <nav aria-label="Principal" className="flex min-w-0 flex-1">
             {MAIN_NAV_ITEMS.map((item) => {
                 const isActive = isSectionActive(path, item.href);
 
@@ -82,7 +82,7 @@ export function MainNav() {
                         href={item.href}
                         aria-current={isActive ? 'page' : undefined}
                         className={cn(
-                            'group flex items-center gap-2 border-r border-hq-border px-[11px] text-[12.5px] leading-none font-bold tracking-[0.06em] uppercase xl:px-3.5 2xl:px-4',
+                            'group flex flex-1 items-center justify-center gap-2 border-r border-hq-border px-[11px] text-[12.5px] leading-none font-bold tracking-[0.06em] uppercase xl:px-3.5 2xl:px-4',
                             isActive
                                 ? 'bg-hq-lime text-hq-ink'
                                 : 'text-hq-moss hover:bg-hq-panel hover:text-hq-paper',

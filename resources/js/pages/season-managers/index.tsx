@@ -116,12 +116,9 @@ export default function SeasonManagersIndex({
             <Head title="Managers" />
 
             <HqPageHeader
-                code="CH·M · ALINEACIONES"
+                code="ALINEACIONES"
                 title="Managers"
-                meta={[
-                    { label: 'Jornada', value: filters.week },
-                    { label: 'Alineaciones', value: lineups.length },
-                ]}
+                meta={[{ label: 'Jornada', value: filters.week }]}
             />
 
             <HqWeekPickerBand

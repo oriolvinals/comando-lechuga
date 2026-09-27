@@ -10,8 +10,8 @@ interface HqFixtureTeamColumnsProps {
     /** The team shown below `md`, where only one column fits. */
     selectedTeamId: number;
     onSelectTeam: (teamId: number) => void;
-    /** Right-hand note in each column head ("4-3-3 · titulares", "suplentes"). */
-    columnNote: (team: Team) => ReactNode;
+    /** Optional right-hand note in each column head (e.g. the formation). */
+    columnNote?: (team: Team) => ReactNode;
     renderColumn: (team: Team) => ReactNode;
 }
 
@@ -75,9 +75,11 @@ export function HqFixtureTeamColumns({
                                 className="h-4 w-4 rounded-none bg-transparent"
                             />
                             <span className="truncate">{team.main_name}</span>
-                            <span className="ml-auto shrink-0 font-medium text-hq-moss-dim">
-                                {columnNote(team)}
-                            </span>
+                            {columnNote && (
+                                <span className="ml-auto shrink-0 font-medium text-hq-moss-dim">
+                                    {columnNote(team)}
+                                </span>
+                            )}
                         </div>
                         {renderColumn(team)}
                     </div>

@@ -172,23 +172,24 @@ function isPlayerLiveNow(
 }
 
 /**
- * The token's width (and so its name pill's), tuned per row density: 62px is
- * the floor for a full 5-player row, and it grows as a row has room to spare.
+ * The token's width (and so its name pill's): an even share of the pitch's
+ * width for the players in that row, so names use all the room the row has
+ * instead of a fixed pixel width.
  */
 function tokenWidthForRowCount(count: number): string {
     if (count >= 5) {
-        return 'w-[62px]';
+        return 'w-[19.5%]';
     }
 
     if (count === 4) {
-        return 'w-[70px]';
+        return 'w-[24.5%]';
     }
 
     if (count === 3) {
-        return 'w-[85px]';
+        return 'w-[30%]';
     }
 
-    return 'w-[96px]';
+    return 'w-[36%]';
 }
 
 interface PlayerTokenProps {
@@ -313,7 +314,7 @@ function EmptySlot({ widthClass }: { widthClass: string }) {
     );
 }
 
-/** The pitch markings (mock PITCH_V): touchlines, halfway line, centre circle, both boxes. */
+/** The pitch markings (mock PITCH_V) on plain turf: touchlines, halfway line, centre circle, both boxes. */
 function PitchLines() {
     return (
         <svg
@@ -355,7 +356,7 @@ interface HqLineupPitchProps {
 }
 
 /**
- * A dark tactical pitch (mock `.pitch`): faint lime grid, hairline markings,
+ * A dark tactical pitch (mock `.pitch`): plain turf, hairline markings,
  * the formation tag top-left and, on a team ficha, the match state, result
  * and home/away tags.
  *
@@ -481,10 +482,6 @@ export function HqLineupPitch({
     return (
         <div>
             <div className="hq-hud relative aspect-[280/430] w-full border border-hq-border-strong bg-hq-pitch">
-                <div
-                    aria-hidden="true"
-                    className="absolute inset-0 bg-[linear-gradient(rgba(196,255,61,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(196,255,61,0.035)_1px,transparent_1px)] bg-size-[10%_6.25%]"
-                />
                 <PitchLines />
 
                 {formationLabel && (
@@ -547,7 +544,14 @@ export function HqLineupPitch({
                     ? players.map((entry) => (
                           <div
                               key={entry.id}
-                              className="absolute z-10 -translate-x-1/2"
+                              className={cn(
+                                  'absolute z-10 flex -translate-x-1/2 justify-center',
+                                  tokenWidthForRowCount(
+                                      lineSizes.get(
+                                          entry.pitch_top as number,
+                                      ) ?? 1,
+                                  ),
+                              )}
                               style={{
                                   top: `${entry.pitch_top}%`,
                                   left: `${entry.pitch_left}%`,
@@ -559,11 +563,7 @@ export function HqLineupPitch({
                                   showTeamBadge={showTeamBadge}
                                   showStarterBadge={showStarterBadge}
                                   showLiveIndicator={showLiveIndicator}
-                                  widthClass={tokenWidthForRowCount(
-                                      lineSizes.get(
-                                          entry.pitch_top as number,
-                                      ) ?? 1,
-                                  )}
+                                  widthClass="w-full"
                               />
                           </div>
                       ))

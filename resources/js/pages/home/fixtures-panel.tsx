@@ -29,7 +29,6 @@ export function FixturesPanel({
 
     return (
         <HqSection
-            code="CH·03"
             title="Jornadas"
             action={
                 <>

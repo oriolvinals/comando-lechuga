@@ -38,7 +38,7 @@ export default function TeamsIndex({ standings }: TeamsIndexProps) {
             <Head title="Equipos" />
 
             <HqPageHeader
-                code="CH·E · LALIGA"
+                code="LALIGA"
                 title="Equipos"
                 meta={[{ label: 'Jornadas jugadas', value: playedWeeks }]}
             />

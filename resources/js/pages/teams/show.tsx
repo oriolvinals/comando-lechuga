@@ -157,7 +157,7 @@ export default function TeamShow({
                 </span>
                 <div className="min-w-0">
                     <span className="block font-mono text-[11px] leading-none font-semibold tracking-[0.14em] text-hq-lime">
-                        CH·E{String(team.id).padStart(2, '0')} · EQUIPO
+                        EQUIPO
                     </span>
                     <h1 className="mt-[5px] mb-2.5 font-display text-[30px] leading-[0.92] break-words text-hq-paper uppercase sm:text-[44px]">
                         {team.main_name}
@@ -238,7 +238,6 @@ export default function TeamShow({
             <div className="grid grid-cols-1 min-[80rem]:grid-cols-[430px_minmax(0,1fr)]">
                 <aside className="min-w-0 border-hq-border min-[80rem]:border-r">
                     <HqSection
-                        code="CH·01"
                         title="Alineación de la jornada"
                         action={
                             selectedFixture && (
@@ -293,7 +292,6 @@ export default function TeamShow({
                 </aside>
 
                 <HqSection
-                    code="CH·02"
                     title="Plantilla"
                     action={`${squad.length} ${squad.length === 1 ? 'jugador' : 'jugadores'}`}
                     className="min-w-0"
