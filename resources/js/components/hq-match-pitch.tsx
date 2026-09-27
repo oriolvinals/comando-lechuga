@@ -13,8 +13,8 @@ interface HqMatchPitchProps {
     onSelect?: (entry: FixtureLineupEntry) => void;
 }
 
-/** Horizontal pitch markings (mock PITCH_H) on plain turf: touchlines, halfway line, centre circle, both boxes. */
-function PitchLines() {
+/** Horizontal pitch markings (mock PITCH_H) on plain turf: touchlines, halfway line, centre circle, both boxes. Shared with HqProbableMatchPitch. */
+export function MatchPitchLines() {
     return (
         <svg
             aria-hidden="true"
@@ -85,7 +85,7 @@ export function HqMatchPitch({
 
     return (
         <div className="relative aspect-[16/9.2] w-full overflow-hidden border-b border-hq-border bg-hq-pitch">
-            <PitchLines />
+            <MatchPitchLines />
 
             {localFormation && (
                 <FormationTag

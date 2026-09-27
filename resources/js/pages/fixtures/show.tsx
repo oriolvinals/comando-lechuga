@@ -17,6 +17,7 @@ import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import type { HqPlayerStatsEntry } from '@/components/hq-player-stats-modal';
 import { HqScrollRow } from '@/components/hq-scroll-row';
 import { HqChannelHeader, HqSection } from '@/components/hq-section';
+import { HqStartProbabilitiesSection } from '@/components/hq-start-probabilities-section';
 import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
 import {
@@ -42,6 +43,7 @@ import type {
     FixtureEventEntry,
     FixtureFantasyScoreboard,
     FixtureLineupEntry,
+    FixtureStartProbabilities,
     FixtureTeamStat,
     JornadaStats,
     Team,
@@ -63,6 +65,7 @@ interface FixtureShowProps {
     events: FixtureEventEntry[];
     team_stats: FixtureTeamStat[];
     fantasy_scoreboard: FixtureFantasyScoreboard | null;
+    startProbabilities: FixtureStartProbabilities | null;
     [key: string]: unknown;
 }
 
@@ -344,6 +347,7 @@ export default function FixtureShow({
     events,
     team_stats,
     fantasy_scoreboard,
+    startProbabilities,
 }: FixtureShowProps) {
     const [viewMode, setViewModeState] = useState<FixtureViewMode>(() =>
         getStoredFixtureViewMode(),
@@ -371,6 +375,9 @@ export default function FixtureShow({
     } = useFixtureTiming(fixture);
     useLiveFixtureRefresh(isLive, LIVE_REFRESH_PROPS);
     const hasLineups = fixture.state !== 'scheduled' && lineups.length > 0;
+    // Before kickoff (and until a live lineup takes over) the section shows
+    // FútbolFantasy's probable XIs, or the confirmed ones — its own campo/lista toggle too.
+    const showsStartProbabilities = !hasLineups && startProbabilities !== null;
     const localLoses =
         hasScore &&
         fixture.local_score !== null &&
@@ -407,7 +414,7 @@ export default function FixtureShow({
                             'shadow-[inset_0_0_0_1px_var(--color-hq-live)]',
                     )}
                 >
-                    {(isLive || hasLineups) && (
+                    {(isLive || hasLineups || showsStartProbabilities) && (
                         <div
                             className={cn(
                                 'relative z-[3] justify-end gap-1.5 px-2.5 pt-2.5 lg:absolute lg:top-2.5 lg:right-2.5 lg:p-0',
@@ -419,7 +426,7 @@ export default function FixtureShow({
                                     only={LIVE_REFRESH_PROPS}
                                 />
                             )}
-                            {hasLineups && (
+                            {(hasLineups || showsStartProbabilities) && (
                                 <ViewModeToggle
                                     viewMode={viewMode}
                                     onChange={setViewMode}
@@ -559,13 +566,21 @@ export default function FixtureShow({
                 )}
 
                 {!hasLineups ? (
-                    <HqEmptyState
-                        glyph="⚽"
-                        title="Todavía no hay datos de jugadores"
-                    >
-                        Cuando empiece el partido aparecerán aquí los puntos de
-                        cada jugador
-                    </HqEmptyState>
+                    startProbabilities ? (
+                        <HqStartProbabilitiesSection
+                            probabilities={startProbabilities}
+                            fixture={fixture}
+                            viewMode={viewMode}
+                        />
+                    ) : (
+                        <HqEmptyState
+                            glyph="⚽"
+                            title="Todavía no hay datos de jugadores"
+                        >
+                            Cuando empiece el partido aparecerán aquí los puntos
+                            de cada jugador
+                        </HqEmptyState>
+                    )
                 ) : (
                     <>
                         <div
