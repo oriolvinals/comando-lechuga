@@ -119,7 +119,9 @@ class StartProbabilities
             ->whereNotNull('player_id')
             ->get(['fixture_id', 'team_id', 'player_id', 'starter']);
 
-        $confirmedTeams = $lineups->mapWithKeys(fn (FixtureLineup $lineup): array => ["{$lineup->fixture_id}:{$lineup->team_id}" => true]);
+        $confirmedTeams = $lineups
+            ->filter(fn (FixtureLineup $lineup): bool => $lineup->starter)
+            ->mapWithKeys(fn (FixtureLineup $lineup): array => ["{$lineup->fixture_id}:{$lineup->team_id}" => true]);
         $lineupStarters = $lineups->mapWithKeys(fn (FixtureLineup $lineup): array => ["{$lineup->fixture_id}:{$lineup->player_id}" => $lineup->starter]);
 
         $nextStarts = [];
@@ -188,7 +190,7 @@ class StartProbabilities
         }
 
         $confirmedSource = match (true) {
-            $lineups->isNotEmpty() => 'worldcup26',
+            $lineups->contains(fn (FixtureLineup $lineup): bool => $lineup->starter) => 'worldcup26',
             $rows->contains(fn (FixtureLineupProbability $row): bool => $row->confirmed_starter !== null) => 'futbolfantasy',
             default => null,
         };
@@ -243,8 +245,11 @@ class StartProbabilities
     }
 
     /**
-     * Each team's next match: the soonest `Scheduled` fixture by date — the
-     * same "próximo partido" the team ficha and the roster show.
+     * Each team's next match: the soonest `Scheduled` fixture with a future
+     * date — the same "próximo partido" the team ficha and the roster show,
+     * and the same `date > now()` guard as the sync command's `nextFixture`,
+     * so an overdue Scheduled fixture (a postponement, for example) doesn't
+     * keep showing stale probabilities.
      *
      * @param  list<int>  $teamIds
      * @return array<int, Fixture>
@@ -260,6 +265,7 @@ class StartProbabilities
         Fixture::query()
             ->where('season_id', $season->id)
             ->where('state', FixtureState::Scheduled)
+            ->where('date', '>', now())
             ->where(fn ($query) => $query
                 ->whereIn('team_local_id', $teamIds)
                 ->orWhereIn('team_guest_id', $teamIds))

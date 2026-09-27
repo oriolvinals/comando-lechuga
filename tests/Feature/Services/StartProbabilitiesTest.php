@@ -129,6 +129,52 @@ test('lets the worldcup26 lineup win over FútbolFantasy and adds its players FF
         ->and($byPlayer[$gonzalo->id]['predicted_starter'])->toBeFalse();
 });
 
+test('worldcup26 confirming a team with no FútbolFantasy rows gives plain facts, not a false surprise', function (): void {
+    $vinicius = startPlayer($this->madrid, 'Vini Jr.');
+    FixtureLineup::factory()->create(['fixture_id' => $this->fixture->id, 'team_id' => $this->madrid->id, 'player_id' => $vinicius->id, 'starter' => true]);
+
+    $local = app(StartProbabilities::class)->forFixture($this->fixture)['local'];
+
+    expect($local['confirmed_source'])->toBe('worldcup26')
+        ->and($local['players'][0]['probability'])->toBeNull()
+        ->and($local['players'][0]['predicted_starter'])->toBeFalse()
+        ->and($local['players'][0]['confirmed_starter'])->toBeTrue();
+});
+
+test('a worldcup26 lineup with no starters does not count as a confirmed lineup', function (): void {
+    $vinicius = startPlayer($this->madrid, 'Vini Jr.');
+    startRow($vinicius, $this->fixture, ['probability' => 60]);
+    FixtureLineup::factory()->create(['fixture_id' => $this->fixture->id, 'team_id' => $this->madrid->id, 'player_id' => Player::factory()->create(['team_id' => $this->madrid->id])->id, 'starter' => false]);
+
+    $local = app(StartProbabilities::class)->forFixture($this->fixture)['local'];
+    $byPlayer = collect($local['players'])->keyBy(fn (array $entry): int => $entry['player']->id);
+
+    expect($local['confirmed_source'])->toBeNull()
+        ->and($byPlayer[$vinicius->id]['confirmed_starter'])->toBeNull();
+});
+
+test('a worldcup26 lineup with no starters does not count as confirmed for a player\'s next start', function (): void {
+    $vinicius = startPlayer($this->madrid, 'Vini Jr.');
+    startRow($vinicius, $this->fixture, ['probability' => 60, 'confirmed_starter' => false]);
+    FixtureLineup::factory()->create(['fixture_id' => $this->fixture->id, 'team_id' => $this->madrid->id, 'player_id' => $vinicius->id, 'starter' => false]);
+
+    $nextStarts = app(StartProbabilities::class)->forPlayersNextFixture(Player::query()->whereKey($vinicius->id)->with('team')->get(), $this->season);
+
+    expect($nextStarts[$vinicius->id]['confirmed_source'])->toBe('futbolfantasy')
+        ->and($nextStarts[$vinicius->id]['confirmed_starter'])->toBeFalse();
+});
+
+test('ignores a scheduled fixture whose date has already passed', function (): void {
+    $this->fixture->update(['date' => now()->subHour()]);
+    startRow(startPlayer($this->villarreal, 'Parejo'), $this->fixture, ['probability' => 80]);
+
+    expect(app(StartProbabilities::class)->forTeamNextFixture($this->villarreal, $this->season))->toBeNull()
+        ->and(app(StartProbabilities::class)->forPlayersNextFixture(
+            Player::query()->where('team_id', $this->villarreal->id)->with('team')->get(),
+            $this->season,
+        ))->toBe([]);
+});
+
 test('gives a team the block of its next match with the opponent', function (): void {
     startRow(startPlayer($this->villarreal, 'Parejo'), $this->fixture, ['probability' => 80]);
 

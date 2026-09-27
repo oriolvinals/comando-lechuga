@@ -139,7 +139,7 @@ class SyncCurrentSeasonStartProbabilities extends Command
 
         $attemptedAt = Cache::get(self::ATTEMPTED_AT_CACHE_PREFIX.$team->id);
 
-        return !is_int($attemptedAt) || $attemptedAt <= now()->subHours(self::FAR_AWAY_EVERY_HOURS)->getTimestamp();
+        return !is_numeric($attemptedAt) || (int) $attemptedAt <= now()->subHours(self::FAR_AWAY_EVERY_HOURS)->getTimestamp();
     }
 
     /**

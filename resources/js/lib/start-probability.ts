@@ -94,7 +94,10 @@ export type StartOutcome = 'starter' | 'bench' | 'surprise' | 'dropped';
 
 /**
  * Titular / Suplente once confirmed — "surprise" when he starts outside
- * FútbolFantasy's probable XI, "dropped" when he was in it and doesn't.
+ * FútbolFantasy's probable XI, "dropped" when he was in it and doesn't. Both
+ * require that FútbolFantasy actually predicted him (`probability !== null`);
+ * without a prediction to compare against — a failed or unlinked team page,
+ * or a lineup confirmed before we ever saw a % — he's plain starter/bench.
  * Null while the lineup isn't confirmed.
  */
 export function startOutcome(facts: StartFacts): StartOutcome | null {
@@ -102,11 +105,13 @@ export function startOutcome(facts: StartFacts): StartOutcome | null {
         return null;
     }
 
-    if (facts.confirmed_starter && !facts.predicted_starter) {
+    const hadPrediction = facts.probability !== null;
+
+    if (hadPrediction && facts.confirmed_starter && !facts.predicted_starter) {
         return 'surprise';
     }
 
-    if (!facts.confirmed_starter && facts.predicted_starter) {
+    if (hadPrediction && !facts.confirmed_starter && facts.predicted_starter) {
         return 'dropped';
     }
 

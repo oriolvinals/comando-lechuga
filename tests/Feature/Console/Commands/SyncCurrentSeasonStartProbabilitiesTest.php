@@ -13,6 +13,7 @@ use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Sleep;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
@@ -269,6 +270,18 @@ test('fetches a team at most every 6 hours while its next match is further away'
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
 
     $mockClient->assertSentCount(2);
+});
+
+test('treats a numeric string attempt timestamp as due, matching a Redis-backed cache store', function (): void {
+    ['madrid' => $madrid] = madridHostsVillarrealInWeek8(now()->addDays(4));
+    Cache::forever('start_probabilities.attempted_at.'.$madrid->id, (string) now()->getTimestamp());
+    $mockClient = fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-posible'))]);
+
+    $this->artisan(SyncCurrentSeasonStartProbabilities::class)
+        ->expectsOutputToContain('Teams: 0 fetched, 0 failed, 1 not due')
+        ->assertSuccessful();
+
+    $mockClient->assertNothingSent();
 });
 
 test('never fetches a team whose match has kicked off', function (): void {
