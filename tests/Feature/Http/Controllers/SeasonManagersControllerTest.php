@@ -796,3 +796,85 @@ test('rates each roster player next fixture by the rival current standings posit
         ->where('roster.0.player.next_fixtures.2', null)
     );
 });
+
+test('ranks the manager among the season managers in every started week it has a lineup for', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 4,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id, 'total_points' => 150]);
+    $secondManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $thirdManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $otherSeasonManager = SeasonManager::factory()->create();
+
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1, 'points' => 40]);
+    ManagerLineup::factory()->create(['season_manager_id' => $secondManager->id, 'week_number' => 1, 'points' => 60]);
+    ManagerLineup::factory()->create(['season_manager_id' => $thirdManager->id, 'week_number' => 1, 'points' => 50]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherSeasonManager->id, 'week_number' => 1, 'points' => 90]);
+
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2, 'points' => 70]);
+    ManagerLineup::factory()->create(['season_manager_id' => $secondManager->id, 'week_number' => 2, 'points' => 70]);
+    ManagerLineup::factory()->create(['season_manager_id' => $thirdManager->id, 'week_number' => 2, 'points' => 10]);
+
+    // Week 3 has no lineup for this manager; week 4 has not kicked off yet.
+    ManagerLineup::factory()->create(['season_manager_id' => $secondManager->id, 'week_number' => 3, 'points' => 30]);
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 4, 'points' => 0]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 4, 'state' => FixtureState::Scheduled]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('weekRanks', [
+            1 => ['rank' => 3, 'managers' => 3, 'points' => 40, 'is_last' => true],
+            2 => ['rank' => 1, 'managers' => 3, 'points' => 70, 'is_last' => false],
+        ])
+        ->where('weeklySummary.played_weeks', 2)
+        ->where('weeklySummary.average_points', 75)
+        ->where('weeklySummary.best_week', ['week_number' => 2, 'points' => 70, 'rank' => 1, 'managers' => 3])
+    );
+});
+
+test('the best week keeps the earliest of two equal scores', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 3,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id, 'total_points' => 100]);
+    $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1, 'points' => 50]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1, 'points' => 80]);
+    ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 2, 'points' => 50]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 2, 'points' => 20]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('weeklySummary.best_week.week_number', 1)
+        ->where('weeklySummary.best_week.rank', 2)
+        ->where('weeklySummary.average_points', 50)
+    );
+});
+
+test('a manager with no lineups has no week ranks, average or best week', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 3,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $otherManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    ManagerLineup::factory()->create(['season_manager_id' => $otherManager->id, 'week_number' => 1, 'points' => 60]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('weekRanks', [])
+        ->where('weeklySummary', ['played_weeks' => 0, 'average_points' => null, 'best_week' => null])
+    );
+});

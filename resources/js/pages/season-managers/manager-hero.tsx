@@ -3,11 +3,15 @@ import type { CSSProperties, ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import { HqTooltip } from '@/components/hq-tooltip';
-import { formatCurrency } from '@/lib/format';
+import { formatAverage, formatCurrency } from '@/lib/format';
 import { formatSignedPoints } from '@/lib/points';
 import { crestTintStyle } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
-import type { Season, SeasonManager } from '@/types/models';
+import type {
+    ManagerWeeklySummary,
+    Season,
+    SeasonManager,
+} from '@/types/models';
 
 interface WeekBadge {
     week: number;
@@ -104,19 +108,22 @@ interface ManagerHeroProps {
     season: Season;
     wonWeeks: number[];
     lostWeeks: number[];
+    weeklySummary: ManagerWeeklySummary;
 }
 
 /**
  * The manager ficha's hero (mock `.mhero`): a wash in the manager's two
  * colours, the crest framed in its medal (or neutral) with the Doto rank
  * chip + movement arrow, channel code, name, won / farolillo jornada chips,
- * and a ruled KPI strip — points, live jornada points (while live), value.
+ * and a ruled KPI strip — points, live jornada points (while live), value,
+ * average per jornada and best jornada.
  */
 export function ManagerHero({
     seasonManager,
     season,
     wonWeeks,
     lostWeeks,
+    weeklySummary,
 }: ManagerHeroProps) {
     const badges = weekBadges(wonWeeks, lostWeeks);
     const medal = MEDAL_COLOR_VARS[seasonManager.position];
@@ -127,6 +134,7 @@ export function ManagerHero({
           }
         : crestTintStyle(seasonManager.primary_color);
     const isLive = seasonManager.live_points !== null;
+    const bestWeek = weeklySummary.best_week;
 
     return (
         <div
@@ -217,16 +225,13 @@ export function ManagerHero({
 
             <div
                 className={cn(
-                    'relative grid grid-cols-2 border-t border-hq-border bg-hq-ink/70 [&>*:last-child]:border-r-0 max-md:[&>*:nth-child(2n)]:border-r-0',
-                    isLive ? 'md:grid-cols-3' : 'md:grid-cols-2',
+                    'relative grid grid-cols-2 border-t border-hq-border bg-hq-ink/70 [&>*:last-child]:border-r-0 max-md:[&>*:nth-child(2n)]:border-r-0 max-md:[&>*:nth-child(n+3)]:border-t',
+                    isLive ? 'md:grid-cols-5' : 'md:grid-cols-4',
                 )}
             >
                 <Kpi
                     label="Puntos"
-                    className={cn(
-                        'bg-linear-to-b from-hq-lime/6 to-transparent',
-                        isLive && 'max-md:border-b',
-                    )}
+                    className="bg-linear-to-b from-hq-lime/6 to-transparent"
                     value={
                         <HqLed
                             tone="lime"
@@ -256,13 +261,55 @@ export function ManagerHero({
                             </HqLed>
                         }
                         sub="la jornada sigue abierta"
-                        className="max-md:border-b"
                     />
                 )}
                 <Kpi
                     label="Valor"
                     value={formatCurrency(seasonManager.value)}
-                    className={cn(isLive && 'max-md:col-span-2')}
+                    className={cn(
+                        isLive && 'max-md:col-span-2 max-md:border-r-0',
+                    )}
+                />
+                <Kpi
+                    label="Media / jornada"
+                    value={
+                        weeklySummary.average_points === null
+                            ? '—'
+                            : formatAverage(weeklySummary.average_points)
+                    }
+                    sub={
+                        weeklySummary.played_weeks > 0
+                            ? `${seasonManager.total_points} pts ÷ ${weeklySummary.played_weeks} ${weeklySummary.played_weeks === 1 ? 'jornada' : 'jornadas'}`
+                            : 'sin jornadas jugadas'
+                    }
+                />
+                <Kpi
+                    label="Mejor jornada"
+                    value={
+                        bestWeek ? (
+                            <>
+                                J{bestWeek.week_number}{' '}
+                                <HqLed tone="lime" className="text-[0.95em]">
+                                    {bestWeek.points}
+                                </HqLed>
+                            </>
+                        ) : (
+                            '—'
+                        )
+                    }
+                    sub={
+                        bestWeek ? (
+                            bestWeek.rank === 1 ? (
+                                <span className="text-hq-gold">
+                                    la ganó · 1º de {bestWeek.managers}
+                                </span>
+                            ) : (
+                                `${bestWeek.rank}º de ${bestWeek.managers} esa jornada`
+                            )
+                        ) : (
+                            'sin jornadas jugadas'
+                        )
+                    }
                 />
             </div>
         </div>

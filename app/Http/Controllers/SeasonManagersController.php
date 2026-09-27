@@ -102,13 +102,18 @@ class SeasonManagersController extends Controller
         $this->attachValueDifferences($activity);
 
         $weekExtremes = $this->weekNumberExtremes($seasonManager, $season);
+        $startedWeeks = $this->startedWeekNumbers($season);
+        $weekRanks = $this->weekRanks($seasonManager, $season, $startedWeeks);
 
         return Inertia::render('season-managers/show', [
             'season' => $season,
             'seasonManager' => $seasonManager,
             'roster' => $roster,
             'lineupHistory' => $lineupHistory,
-            'startedWeeks' => $this->startedWeekNumbers($season),
+            'startedWeeks' => $startedWeeks,
+            // Cast to object for the same reason as weekProgress below.
+            'weekRanks' => (object) $weekRanks,
+            'weeklySummary' => $this->weeklySummary($seasonManager, $weekRanks),
             // Cast to object: PHP normalizes numeric string keys back to
             // int, so a plain array here could serialize as a sparse JSON
             // array instead of the {"1": "all", ...} object the frontend expects.
@@ -117,6 +122,79 @@ class SeasonManagersController extends Controller
             'lostWeeks' => $weekExtremes['lost'],
             'activity' => $activity,
         ]);
+    }
+
+    /**
+     * This manager's place among the season's managers in every started week it
+     * has a lineup for, by lineup points. Ties share the better place (two
+     * managers tied on top are both 1º); `is_last` flags a share of the bottom.
+     *
+     * @param  array<int, int>  $startedWeeks
+     * @return array<int, array{rank: int, managers: int, points: int, is_last: bool}>
+     */
+    private function weekRanks(SeasonManager $seasonManager, Season $season, array $startedWeeks): array
+    {
+        if ($startedWeeks === []) {
+            return [];
+        }
+
+        $lineupsByWeek = ManagerLineup::query()
+            ->whereIn('week_number', $startedWeeks)
+            ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
+            ->get(['season_manager_id', 'week_number', 'points'])
+            ->groupBy('week_number');
+
+        $weekRanks = [];
+
+        foreach ($lineupsByWeek as $weekNumber => $weekLineups) {
+            $ownLineup = $weekLineups->firstWhere('season_manager_id', $seasonManager->id);
+
+            if (!$ownLineup instanceof ManagerLineup) {
+                continue;
+            }
+
+            $weekRanks[(int) $weekNumber] = [
+                'rank' => 1 + $weekLineups->filter(fn (ManagerLineup $lineup): bool => $lineup->points > $ownLineup->points)->count(),
+                'managers' => $weekLineups->count(),
+                'points' => $ownLineup->points,
+                'is_last' => $weekLineups->count() > 1 && $ownLineup->points === $weekLineups->min('points'),
+            ];
+        }
+
+        ksort($weekRanks);
+
+        return $weekRanks;
+    }
+
+    /**
+     * Season points per started jornada with a lineup, and the best such jornada
+     * (the earliest one on a tie) — null values while there are none.
+     *
+     * @param  array<int, array{rank: int, managers: int, points: int, is_last: bool}>  $weekRanks
+     * @return array{played_weeks: int, average_points: float|null, best_week: array{week_number: int, points: int, rank: int, managers: int}|null}
+     */
+    private function weeklySummary(SeasonManager $seasonManager, array $weekRanks): array
+    {
+        $bestWeek = null;
+
+        foreach ($weekRanks as $weekNumber => $weekRank) {
+            if ($bestWeek === null || $weekRank['points'] > $bestWeek['points']) {
+                $bestWeek = [
+                    'week_number' => $weekNumber,
+                    'points' => $weekRank['points'],
+                    'rank' => $weekRank['rank'],
+                    'managers' => $weekRank['managers'],
+                ];
+            }
+        }
+
+        $playedWeeks = count($weekRanks);
+
+        return [
+            'played_weeks' => $playedWeeks,
+            'average_points' => $playedWeeks > 0 ? round($seasonManager->total_points / $playedWeeks, 2) : null,
+            'best_week' => $bestWeek,
+        ];
     }
 
     /**

@@ -352,6 +352,30 @@ export interface StandingsNext {
     date: string;
 }
 
+/** A manager's place among the league's managers in one started jornada, by lineup points. */
+export interface ManagerWeekRank {
+    rank: number;
+    managers: number;
+    points: number;
+    /** Shares the jornada's lowest score (farolillo rojo). */
+    is_last: boolean;
+}
+
+/** Keyed by week number; only started jornadas the manager has a lineup for. */
+export type ManagerWeekRankMap = Record<number, ManagerWeekRank>;
+
+export interface ManagerWeeklySummary {
+    played_weeks: number;
+    /** Season points ÷ started jornadas with a lineup; null with none. */
+    average_points: number | null;
+    best_week: {
+        week_number: number;
+        points: number;
+        rank: number;
+        managers: number;
+    } | null;
+}
+
 /** A team's LaLiga averages per match played (team ficha). */
 export interface TeamPerMatchRates {
     goals_for: number;
