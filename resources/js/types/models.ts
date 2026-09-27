@@ -163,16 +163,6 @@ export interface FixtureTeamStat {
     guest: number;
 }
 
-export interface PlayerScore {
-    id: number;
-    team_id: number;
-    team: Team;
-    points: number;
-    stats: JornadaStats;
-    player: Player;
-    lineup_manager: SeasonManager | null;
-}
-
 export interface SeasonManager {
     id: number;
     name: string;

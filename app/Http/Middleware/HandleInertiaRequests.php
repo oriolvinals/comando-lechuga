@@ -45,10 +45,6 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            'name' => config('app.name'),
-            'auth' => [
-                'user' => $request->user(),
-            ],
             'season' => Season::current(),
             'liveMatchday' => Fixture::query()
                 ->whereIn('state', [

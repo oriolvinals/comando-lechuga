@@ -37,10 +37,6 @@ export function formatAverage(value: number): string {
     return NUMBER_FORMAT.format(Math.round(value * 10) / 10);
 }
 
-export function isFutureDate(isoDate: string): boolean {
-    return new Date(isoDate).getTime() > Date.now();
-}
-
 export function formatMatchDateTime(isoDate: string): string {
     return new Intl.DateTimeFormat('es-ES', {
         weekday: 'short',

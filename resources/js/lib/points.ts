@@ -24,33 +24,6 @@ export function matchPointsBadgeClass(points: number): string {
 }
 
 /**
- * Same six-tier palette as {@link matchPointsBadgeClass}, at a less
- * translucent background — for the fixture pitch token, where the badge
- * sits directly on the player's photo and needs more contrast than the
- * standard tier background gives it. Scoped to that one context so it
- * doesn't change every other place matchPointsBadgeClass is used.
- */
-export function matchPointsBadgeClassOnPhoto(points: number): string {
-    if (points < 0) {
-        return 'bg-hq-live/20 text-hq-live';
-    }
-
-    if (points < 5) {
-        return 'bg-hq-gold/20 text-hq-gold';
-    }
-
-    if (points < 9) {
-        return 'bg-hq-lime/20 text-hq-lime';
-    }
-
-    if (points < 14) {
-        return 'bg-hq-azure/20 text-hq-azure';
-    }
-
-    return 'bg-hq-violet/20 text-hq-violet';
-}
-
-/**
  * Same six tiers as {@link matchPointsBadgeClass}, as a CSS color value for
  * SVG `fill`/`stroke` (which can't take Tailwind classes).
  */
@@ -140,31 +113,6 @@ export function teamFormTextClass(points: number): string {
     }
 
     return 'text-hq-violet';
-}
-
-/**
- * Bar-fill color tier for a team's weekly points total — same breakpoints as
- * {@link teamFormBadgeClass}, at a stronger opacity suited to a chart bar
- * rather than a small badge.
- */
-export function teamFormBarClass(points: number): string {
-    if (points < 0) {
-        return 'bg-hq-live/50';
-    }
-
-    if (points < 31) {
-        return 'bg-hq-gold/50';
-    }
-
-    if (points < 56) {
-        return 'bg-hq-lime/40';
-    }
-
-    if (points < 91) {
-        return 'bg-hq-azure/50';
-    }
-
-    return 'bg-hq-violet/50';
 }
 
 /**
