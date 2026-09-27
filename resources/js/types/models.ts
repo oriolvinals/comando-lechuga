@@ -37,6 +37,10 @@ export interface NextFixtureSlot {
     week_number: number;
     opponent: Team;
     is_home: boolean;
+    /** The rival's current real LaLiga standings position (1 = leader). */
+    rival_position: number;
+    /** −1 against the leader, 0 mid table, +1 against the last team — see `@/lib/rival-difficulty`. */
+    difficulty: number;
 }
 
 export interface Player {

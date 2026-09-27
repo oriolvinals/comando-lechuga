@@ -1,19 +1,25 @@
 import { Link } from '@inertiajs/react';
 import { ArrowUpRight, Shield, User, X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { EntityImage } from '@/components/entity-image';
-import { HqFixtureCardContent } from '@/components/hq-fixture-card';
+import { HqFixtureCard } from '@/components/hq-fixture-card';
 import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { MatchEventIcons } from '@/components/match-event-icons';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
-import { show as fixturesShow } from '@/routes/fixtures';
 import { show as playersShow } from '@/routes/players';
 import { show as seasonManagersShow } from '@/routes/season-managers';
 import { show as teamsShow } from '@/routes/teams';
-import type { Fixture, JornadaStats, Player, SeasonManager, Team } from '@/types/models';
+import type {
+    Fixture,
+    JornadaStats,
+    ManagerLineupPlayerEntry,
+    Player,
+    SeasonManager,
+    Team,
+} from '@/types/models';
 
 export interface HqPlayerStatsEntry {
     player: Player;
@@ -27,30 +33,70 @@ export interface HqPlayerStatsEntry {
     fixture?: Fixture | null;
 }
 
+/** A fantasy lineup pick (pitch token) as the modal's entry — DAZN only once the player actually has minutes that jornada. */
+export function lineupPlayerStatsEntry(
+    selected: ManagerLineupPlayerEntry,
+): HqPlayerStatsEntry {
+    return {
+        player: selected.player,
+        team: selected.player.team,
+        points: selected.points ?? 0,
+        daznPoints:
+            selected.stats?.mins_played !== undefined
+                ? selected.stats.marca_points?.[1]
+                : undefined,
+        stats: selected.stats ?? {},
+        fixture: selected.fixture,
+    };
+}
+
 interface HqPlayerStatsModalProps {
     entry: HqPlayerStatsEntry | null;
     onClose: () => void;
 }
 
+/**
+ * A player's jornada sheet (mock `.modal`): a centred ruled box on desktop, a
+ * bottom sheet on phones. Header "Ficha de la jornada · J{n}" + close, then
+ * identity (photo with sub minute, name, position, club, lineup manager),
+ * the points tier chip and DAZN score, match events, that jornada's fixture
+ * as a mini scoreboard, the stats grid and a link to the full ficha. Esc,
+ * the backdrop and the close button all dismiss it.
+ */
 export function HqPlayerStatsModal({
     entry,
     onClose,
 }: HqPlayerStatsModalProps) {
+    const titleId = useId();
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const onCloseRef = useRef(onClose);
+    const isOpen = entry !== null;
+
     useEffect(() => {
-        if (!entry) {
+        onCloseRef.current = onClose;
+    }, [onClose]);
+
+    useEffect(() => {
+        if (!isOpen) {
             return;
         }
 
+        const previouslyFocused = document.activeElement as HTMLElement | null;
+        closeButtonRef.current?.focus();
+
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                onClose();
+                onCloseRef.current();
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
 
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [entry, onClose]);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            previouslyFocused?.focus?.();
+        };
+    }, [isOpen]);
 
     if (!entry) {
         return null;
@@ -69,88 +115,109 @@ export function HqPlayerStatsModal({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center overflow-y-auto bg-black/60 p-4"
+            className="fixed inset-0 z-[200] flex cursor-pointer items-end justify-center bg-black/65 md:items-center md:p-4"
             onClick={onClose}
         >
             <div
-                className="max-h-[85vh] w-full max-w-sm cursor-default overflow-y-auto border border-hq-border-strong bg-hq-ink"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="max-h-[90vh] w-full cursor-default overflow-y-auto border border-hq-border-bright bg-hq-ink shadow-[0_30px_80px_rgba(0,0,0,0.6)] md:max-h-[88vh] md:max-w-[440px]"
                 onClick={(event) => event.stopPropagation()}
             >
-                <div className="sticky top-0 z-10 flex justify-end bg-hq-ink p-2">
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-hq-border bg-hq-ink py-2 pr-2.5 pl-4 font-mono text-[11px] leading-none font-bold tracking-[0.1em] text-hq-moss-dim uppercase">
+                    <span>
+                        Ficha de la jornada
+                        {fixture ? ` · J${fixture.week_number}` : ''}
+                    </span>
                     <button
+                        ref={closeButtonRef}
                         type="button"
                         onClick={onClose}
-                        className="cursor-pointer text-hq-moss-dim hover:text-hq-paper"
+                        aria-label="Cerrar"
+                        className="flex h-11 w-11 cursor-pointer items-center justify-center border border-hq-border-strong text-hq-moss hover:border-hq-border-bright hover:text-hq-paper md:h-[30px] md:w-[30px]"
                     >
                         <X className="h-4 w-4" />
                     </button>
                 </div>
 
-                <div className="flex flex-col items-center gap-1.5 px-5 pt-1 text-center">
-                    <div className="relative">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 p-4">
+                    <div className="relative h-16 w-16">
                         <EntityImage
                             src={player.image}
                             alt={player.nickname}
                             fallback={User}
-                            className="h-16 w-16 border-2 border-hq-border-strong bg-hq-border"
+                            shape="square"
+                            className="h-16 w-16 rounded-none border border-hq-border-strong bg-hq-panel-alt object-cover object-top"
                         />
                         {subMinute && (
                             <span
                                 className={cn(
-                                    'absolute -right-2 -bottom-1 border bg-hq-ink px-1.5 py-0.5 font-mono text-[10px] font-bold whitespace-nowrap',
+                                    'absolute -right-2 -bottom-1.5 border border-current bg-hq-ink px-1 py-0.5 font-mono text-[10px] leading-none font-bold whitespace-nowrap',
                                     subMinute.direction === 'out'
-                                        ? 'border-hq-live text-hq-live'
-                                        : 'border-hq-lime text-hq-lime',
+                                        ? 'text-hq-live'
+                                        : 'text-hq-lime',
                                 )}
                             >
                                 ↳{subMinute.minute}'
                             </span>
                         )}
                     </div>
-                    <h2 className="font-display text-lg text-hq-paper uppercase">
-                        {player.nickname}
-                    </h2>
-                    <Link
-                        href={teamsShow(team.id).url}
-                        className="flex w-fit items-center gap-1.5 font-mono text-[11px] text-hq-moss hover:text-hq-paper"
-                    >
-                        <EntityImage
-                            src={team.logo}
-                            alt={team.main_name}
-                            fallback={Shield}
-                            shape="square"
-                            className="h-4 w-4 bg-transparent"
-                        />
-                        {team.main_name}
-                    </Link>
-                    {lineupManager && (
-                        <Link
-                            href={seasonManagersShow(lineupManager.id).url}
-                            className="flex items-center gap-1.5 font-mono text-[11px] text-hq-moss hover:text-hq-paper"
+                    <div className="min-w-0">
+                        <h2
+                            id={titleId}
+                            className="truncate text-xl leading-none font-black text-hq-paper uppercase"
                         >
-                            <span
-                                className="h-2.5 w-2.5 shrink-0 rounded-[1px]"
-                                style={{
-                                    backgroundColor: managerColor(
-                                        lineupManager.primary_color,
-                                    ),
-                                }}
-                            />
-                            {lineupManager.name}
-                        </Link>
-                    )}
-                    <div className="mt-1 flex items-center gap-2">
-                        <HqPositionTag position={player.position} />
+                            {player.nickname}
+                        </h2>
+                        <div className="mt-[7px] flex flex-wrap items-center gap-1.5">
+                            <HqPositionTag position={player.position} />
+                            <Link
+                                href={teamsShow(team.id).url}
+                                className="inline-flex min-w-0 items-center gap-1.5 font-mono text-xs text-hq-moss hover:text-hq-paper"
+                            >
+                                <EntityImage
+                                    src={team.logo}
+                                    alt=""
+                                    fallback={Shield}
+                                    shape="square"
+                                    className="h-4 w-4 rounded-none bg-transparent"
+                                />
+                                <span className="truncate">
+                                    {team.main_name}
+                                </span>
+                            </Link>
+                        </div>
+                        {lineupManager && (
+                            <Link
+                                href={seasonManagersShow(lineupManager.id).url}
+                                className="mt-[7px] inline-flex max-w-full items-center gap-1.5 font-mono text-xs font-bold text-hq-khaki hover:text-hq-paper"
+                            >
+                                <span
+                                    className="h-2 w-2 shrink-0"
+                                    style={{
+                                        backgroundColor: managerColor(
+                                            lineupManager.primary_color,
+                                        ),
+                                    }}
+                                />
+                                <span className="truncate">
+                                    {lineupManager.name}
+                                </span>
+                            </Link>
+                        )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
                         <span
                             className={cn(
-                                'rounded-sm px-3 py-0.5 font-display text-xl',
+                                'inline-flex h-8 min-w-10 items-center justify-center px-2 font-mono text-base leading-none font-bold tabular-nums',
                                 matchPointsBadgeClass(points),
                             )}
                         >
                             {points}
                         </span>
                         {daznPoints !== undefined && (
-                            <span className="flex items-center gap-1 font-mono text-[11px] text-hq-moss-dim">
+                            <span className="flex items-center gap-1 font-mono text-[11px] text-hq-moss">
                                 <img
                                     src="/images/dazn-logo.png"
                                     alt="DAZN"
@@ -160,33 +227,30 @@ export function HqPlayerStatsModal({
                             </span>
                         )}
                     </div>
-                    <div className="mt-1">
-                        <MatchEventIcons
-                            stats={stats}
-                            position={player.position}
-                        />
-                    </div>
+                </div>
+
+                <div className="px-4 pb-4 empty:hidden">
+                    <MatchEventIcons stats={stats} position={player.position} />
                 </div>
 
                 {fixture && (
-                    <Link
-                        href={fixturesShow(fixture.id).url}
-                        className="block border-t border-b border-hq-border px-4 py-2.5 text-center hover:bg-hq-panel-alt"
-                    >
-                        <p className="mb-0.5 font-mono text-[10px] tracking-widest text-hq-moss uppercase">
+                    <div className="border-t border-hq-border">
+                        <p className="px-3.5 pt-2.5 hq-label md:px-4">
                             Jornada {fixture.week_number}
                         </p>
-                        <HqFixtureCardContent fixture={fixture} />
-                    </Link>
+                        <HqFixtureCard fixture={fixture} />
+                    </div>
                 )}
 
-                <HqJornadaStatsGrid stats={stats} />
+                <div className="border-t border-hq-border">
+                    <HqJornadaStatsGrid stats={stats} />
+                </div>
 
                 <Link
                     href={playersShow(player.id).url}
-                    className="flex items-center justify-center gap-1.5 border-t border-hq-border py-2.5 font-mono text-[11px] font-bold text-hq-lime hover:bg-hq-panel-alt"
+                    className="flex min-h-11 items-center justify-center gap-1.5 font-mono text-xs font-bold tracking-[0.06em] text-hq-lime uppercase hover:bg-hq-panel"
                 >
-                    VER FICHA COMPLETA
+                    Ver ficha completa
                     <ArrowUpRight className="h-3.5 w-3.5" />
                 </Link>
             </div>

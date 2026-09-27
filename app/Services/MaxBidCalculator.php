@@ -560,7 +560,7 @@ class MaxBidCalculator
                 'team' => $rival,
                 'position' => $position,
                 'days_until' => (int) $moment->startOfDay()->diffInDays($fixture->date->startOfDay()),
-                'difficulty' => ((float) $position - ($teamCount + 1) / 2) / (($teamCount - 1) / 2),
+                'difficulty' => LeagueStandings::difficulty($position, $teamCount),
             ];
         }
 

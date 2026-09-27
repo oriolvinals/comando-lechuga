@@ -14,6 +14,7 @@ use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Models\Team;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -733,5 +734,63 @@ test('lineup player points prefer the linked FixtureLineup over the stored fallb
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('lineups.0.players.0.points', 7)
+    );
+});
+
+test('rates each roster player next fixture by the rival current standings position', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $ownTeam = Team::factory()->create(['main_name' => 'Own']);
+    $leader = Team::factory()->create(['main_name' => 'Leader']);
+    $last = Team::factory()->create(['main_name' => 'Last']);
+    $season->teams()->attach([$ownTeam->id, $leader->id, $last->id]);
+
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->subDays(2),
+        'week_number' => 1,
+        'team_local_id' => $leader->id,
+        'team_guest_id' => $last->id,
+        'local_score' => 2,
+        'guest_score' => 0,
+        'state' => FixtureState::Finished,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->addDays(2),
+        'week_number' => 2,
+        'team_local_id' => $ownTeam->id,
+        'team_guest_id' => $leader->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->addDays(9),
+        'week_number' => 3,
+        'team_local_id' => $last->id,
+        'team_guest_id' => $ownTeam->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create(['team_id' => $ownTeam->id]);
+    ManagerPlayer::factory()->create([
+        'season_manager_id' => $seasonManager->id,
+        'player_id' => $player->id,
+    ]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('roster.0.player.next_fixtures.0.opponent.id', $leader->id)
+        ->where('roster.0.player.next_fixtures.0.rival_position', 1)
+        ->where('roster.0.player.next_fixtures.0.difficulty', fn (int|float $difficulty): bool => (float) $difficulty === -1.0)
+        ->where('roster.0.player.next_fixtures.1.opponent.id', $last->id)
+        ->where('roster.0.player.next_fixtures.1.rival_position', 3)
+        ->where('roster.0.player.next_fixtures.1.difficulty', fn (int|float $difficulty): bool => (float) $difficulty === 1.0)
+        ->where('roster.0.player.next_fixtures.2', null)
     );
 });

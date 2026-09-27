@@ -38,3 +38,12 @@ test('positions only count fixtures played up to the given date', function (): v
         ->and($standings->positions($season)[$late->id])->toBe(1)
         ->and($standings->positions($season))->toHaveCount(3);
 });
+
+test('rates a rival difficulty from -1 for the leader to +1 for the last team', function (int $position, int $teamCount, float $expected): void {
+    expect(LeagueStandings::difficulty($position, $teamCount))->toBe($expected);
+})->with([
+    'leader of 20' => [1, 20, -1.0],
+    'last of 20' => [20, 20, 1.0],
+    'mid table of 3' => [2, 3, 0.0],
+    'single-team table' => [1, 1, 0.0],
+]);

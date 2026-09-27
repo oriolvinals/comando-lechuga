@@ -23,14 +23,22 @@ export function ClauseDifference({
     clause,
     marketValue,
     valueColorClass = 'text-hq-khaki',
+    className,
 }: {
     clause: number;
     marketValue: number;
     valueColorClass?: string;
+    /** Overrides the default 10px mono line (e.g. the roster's larger clause column). */
+    className?: string;
 }) {
     if (clause === marketValue) {
         return (
-            <p className="mt-0.5 truncate font-mono text-[10px] text-hq-moss-dim">
+            <p
+                className={cn(
+                    'mt-0.5 truncate font-mono text-[10px] text-hq-moss-dim',
+                    className,
+                )}
+            >
                 {formatCurrency(clause)} (=)
             </p>
         );
@@ -43,6 +51,7 @@ export function ClauseDifference({
             className={cn(
                 'mt-0.5 truncate font-mono text-[10px]',
                 valueColorClass,
+                className,
             )}
         >
             {formatCurrency(clause)}{' '}

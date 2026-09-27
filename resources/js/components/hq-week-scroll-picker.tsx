@@ -124,3 +124,31 @@ export function HqWeekScrollPicker({
         </HqScrollRow>
     );
 }
+
+/**
+ * The picker as a full-width console band: a ruled strip with the tile row
+ * and edge fades hinting that it scrolls (same band as the home Jornadas).
+ */
+export function HqWeekPickerBand({
+    className,
+    ...pickerProps
+}: HqWeekScrollPickerProps & { className?: string }) {
+    return (
+        <div
+            className={cn(
+                'relative border-b border-hq-border px-3 py-2 sm:px-4',
+                className,
+            )}
+        >
+            <HqWeekScrollPicker {...pickerProps} />
+            <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-0 w-7 bg-linear-to-r from-hq-ink to-transparent"
+            />
+            <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-0 w-7 bg-linear-to-l from-hq-ink to-transparent"
+            />
+        </div>
+    );
+}

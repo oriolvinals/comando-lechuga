@@ -93,9 +93,11 @@ class TeamsController extends Controller
         $this->attachRecentScores($squad, $season);
         $this->attachNextFixtures($squad, $season);
 
-        $standing = collect($this->standings->table($season->teams, $this->standings->fixtures($season)))
-            ->first(fn (array $row): bool => $row['team']->id === $team->id);
+        $table = collect($this->standings->table($season->teams, $this->standings->fixtures($season)));
+        $standing = $table->first(fn (array $row): bool => $row['team']->id === $team->id);
 
+        /** @var array<int, int> $positions */
+        $positions = $table->mapWithKeys(fn (array $row): array => [$row['team']->id => $row['position']])->all();
         $nextFixtures = array_pad(
             Fixture::query()
                 ->where('season_id', $season->id)
@@ -107,13 +109,7 @@ class TeamsController extends Controller
                 ->orderBy('date')
                 ->take(3)
                 ->get()
-                ->map(fn (Fixture $fixture): array => [
-                    'week_number' => $fixture->week_number,
-                    'opponent' => $fixture->team_local_id === $team->id
-                        ? $fixture->guestTeam
-                        : $fixture->localTeam,
-                    'is_home' => $fixture->team_local_id === $team->id,
-                ])
+                ->map(fn (Fixture $fixture): array => $this->nextFixtureSlot($fixture, $team->id, $positions))
                 ->values()
                 ->all(),
             3,
