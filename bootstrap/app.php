@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\AddApiResponseMeta;
 use App\Http\Middleware\HandleGodMode;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Console\Scheduling\Schedule;
@@ -107,6 +108,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->api(prepend: [
+            AddApiResponseMeta::class,
+        ]);
+
         $middleware->web(append: [
             HandleGodMode::class,
             HandleInertiaRequests::class,
