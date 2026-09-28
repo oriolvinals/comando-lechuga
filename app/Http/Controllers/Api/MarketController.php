@@ -45,9 +45,10 @@ class MarketController extends Controller
         $data = $listings->map(fn (MarketPlayer $listing): array => [
             'player' => (new PlayerResource($listing->player))->resolve(),
             'sale_price' => $listing->sale_price,
-            'value' => $listing->value,
+            'market_value' => $listing->value,
             'bids' => $listing->bids,
             'expires_at' => $listing->expires_at->toIso8601String(),
+            'seller' => MarketPlayer::SELLER_LEAGUE,
         ]);
 
         return response()->json(['data' => $data]);

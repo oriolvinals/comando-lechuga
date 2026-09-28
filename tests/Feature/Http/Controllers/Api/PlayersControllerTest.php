@@ -82,7 +82,7 @@ test('filters players by fantasy manager owner', function (): void {
     ManagerPlayer::factory()->create(['season_manager_id' => $manager->id, 'player_id' => $owned->id]);
     Player::factory()->create(['status' => PlayerStatus::Ok]);
 
-    $response = $this->getJson("/api/players?season_manager={$manager->id}");
+    $response = $this->getJson("/api/players?manager={$manager->id}");
 
     $response->assertOk();
     $response->assertJsonCount(1, 'data');

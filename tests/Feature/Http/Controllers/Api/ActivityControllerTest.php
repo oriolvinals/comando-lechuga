@@ -60,13 +60,13 @@ test('returns the type and its Spanish label, source/target managers and player'
     $response->assertJsonPath('data.0.id', $activity->id);
     $response->assertJsonPath('data.0.type', 'buyout');
     $response->assertJsonPath('data.0.type_label', 'Cláusula');
-    $response->assertJsonPath('data.0.source_season_manager', ['id' => $source->id, 'name' => 'Comando Lechuga']);
-    $response->assertJsonPath('data.0.target_season_manager', ['id' => $target->id, 'name' => 'Ariobretxa']);
+    $response->assertJsonPath('data.0.source_manager', ['id' => $source->id, 'name' => 'Comando Lechuga']);
+    $response->assertJsonPath('data.0.target_manager', ['id' => $target->id, 'name' => 'Ariobretxa']);
     $response->assertJsonPath('data.0.player', ['id' => $player->id, 'nickname' => 'Pedri']);
     $response->assertJsonPath('data.0.amount', 500_000);
 });
 
-test('has a null target_season_manager and player when the activity has none', function (): void {
+test('has a null target_manager and player when the activity has none', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),
         'end_date' => now()->addDay(),
@@ -83,7 +83,7 @@ test('has a null target_season_manager and player when the activity has none', f
     $response = $this->getJson('/api/activity');
 
     $response->assertOk();
-    $response->assertJsonPath('data.0.target_season_manager', null);
+    $response->assertJsonPath('data.0.target_manager', null);
     $response->assertJsonPath('data.0.player', null);
     $response->assertJsonPath('data.0.amount', null);
 });

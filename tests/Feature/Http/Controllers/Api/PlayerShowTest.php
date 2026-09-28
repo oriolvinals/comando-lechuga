@@ -98,7 +98,7 @@ test('returns the current market listing when the player is up for sale', functi
 
     $response->assertOk();
     $response->assertJsonPath('data.market_listing.sale_price', 5_000_000);
-    $response->assertJsonPath('data.market_listing.value', 4_800_000);
+    $response->assertJsonPath('data.market_listing.market_value', 4_800_000);
     $response->assertJsonPath('data.market_listing.bids', 2);
 });
 

@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\PlayerSort;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
+use App\Enums\SortDirection;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\AttachesApiNextFixtures;
 use App\Http\Controllers\Concerns\AttachesApiRecentScores;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesOwnerManager;
+use App\Http\Controllers\Concerns\ValidatesApiQuery;
 use App\Http\Controllers\Controller;
-use App\Http\Filters\PlayerFilter;
+use App\Http\Filters\ApiPlayerFilter;
 use App\Http\Resources\ActivityResource;
 use App\Http\Resources\PlayerDetailResource;
 use App\Http\Resources\PlayerResource;
@@ -24,9 +27,11 @@ use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class PlayersController extends Controller
 {
@@ -35,6 +40,7 @@ class PlayersController extends Controller
     use AttachesApiRecentScores;
     use AttachesCurrentPlayerSeason;
     use AttachesOwnerManager;
+    use ValidatesApiQuery;
 
     private const array OWNERSHIP_ACTIVITY_TYPES = [
         SeasonActivityType::Signing,
@@ -56,17 +62,31 @@ class PlayersController extends Controller
         'ç' => 'c',
     ];
 
-    public function index(PlayerFilter $filter): AnonymousResourceCollection
+    /** Positions the API can filter by. Coaches are never in the API. */
+    private const array FILTERABLE_POSITIONS = ['goalkeeper', 'defender', 'midfield', 'striker'];
+
+    /** Statuses the list can filter by. Out-of-league players are never listed. */
+    private const array FILTERABLE_STATUSES = ['ok', 'injured', 'doubtful', 'suspended'];
+
+    public function index(Request $request, ApiPlayerFilter $filter): AnonymousResourceCollection
     {
+        $this->validateApiQuery($request, [
+            'position' => ['sometimes', 'nullable', $this->commaSeparatedIn(self::FILTERABLE_POSITIONS)],
+            'team' => ['sometimes', 'nullable', $this->commaSeparatedIds()],
+            'manager' => ['sometimes', 'nullable', $this->commaSeparatedIds()],
+            'status' => ['sometimes', 'nullable', $this->commaSeparatedIn(self::FILTERABLE_STATUSES)],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'sort' => ['sometimes', 'nullable', Rule::enum(PlayerSort::class)],
+            'direction' => ['sometimes', 'nullable', Rule::enum(SortDirection::class)],
+        ]);
+
         $season = Season::current();
 
         $positions = $filter->getPositions();
         $teams = $filter->getTeams();
-        $seasonManagers = $filter->getSeasonManagers();
+        $managers = $filter->getManagers();
         $statuses = $filter->getStatuses();
         $search = $filter->getSearch();
-        $sort = $filter->getSort();
-        $direction = $filter->getDirection();
 
         $players = Player::query()
             ->select('players.*')
@@ -79,17 +99,18 @@ class PlayersController extends Controller
             ->where('status', '!=', PlayerStatus::OutOfLeague)
             ->when($positions !== [], fn ($query) => $query->whereIn('player_seasons.position', $positions))
             ->when($teams !== [], fn ($query) => $query->whereIn('team_id', $teams))
-            ->when($seasonManagers !== [], fn ($query) => $query->whereHas(
+            ->when($managers !== [], fn ($query) => $query->whereHas(
                 'seasonManagerPlayers',
-                fn ($query) => $query->whereIn('season_manager_id', $seasonManagers),
+                fn ($query) => $query->whereIn('season_manager_id', $managers),
             ))
             ->when($statuses !== [], fn ($query) => $query->whereIn('status', $statuses))
             ->when($search !== null, fn ($query) => $query->whereRaw(
                 $this->foldedNicknameSql().' LIKE ?',
                 ['%'.Str::lower(Str::ascii($search)).'%'],
             ))
-            ->orderBy('player_seasons.'.$sort->column(), $direction->value)
-            ->paginate(15);
+            ->orderBy('player_seasons.'.$filter->getSort()->column(), $filter->getDirection()->value)
+            ->paginate(15)
+            ->withQueryString();
 
         $this->attachOwnerManager($players->getCollection(), $season->id);
         $this->attachCurrentSeason($players->getCollection(), $season->id);
@@ -124,9 +145,10 @@ class PlayersController extends Controller
 
         $player->api_market_listing = $listing === null ? null : [
             'sale_price' => $listing->sale_price,
-            'value' => $listing->value,
+            'market_value' => $listing->value,
             'bids' => $listing->bids,
             'expires_at' => $listing->expires_at->toIso8601String(),
+            'seller' => MarketPlayer::SELLER_LEAGUE,
         ];
     }
 

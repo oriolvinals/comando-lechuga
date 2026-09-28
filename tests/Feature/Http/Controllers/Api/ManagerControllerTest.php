@@ -31,10 +31,10 @@ test('returns the manager info fields', function (): void {
     $response->assertJsonPath('data.id', $manager->id);
     $response->assertJsonPath('data.url', route('api.managers.show', $manager->id));
     $response->assertJsonPath('data.name', 'Comando Lechuga');
-    $response->assertJsonPath('data.position', 1);
-    $response->assertJsonPath('data.last_position', 2);
+    $response->assertJsonPath('data.rank', 1);
+    $response->assertJsonPath('data.last_rank', 2);
     $response->assertJsonPath('data.total_points', 812);
-    $response->assertJsonPath('data.value', 123_456_789);
+    $response->assertJsonPath('data.squad_value', 123_456_789);
 });
 
 test('returns 404 for a manager that does not exist', function (): void {

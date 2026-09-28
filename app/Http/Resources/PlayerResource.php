@@ -28,7 +28,7 @@ class PlayerResource extends JsonResource
             'market_value_difference' => $this->market_value_difference,
             'market_trend' => $this->market_trend?->value,
             'points' => $this->points,
-            'average_points' => $this->average_points,
+            'average_points' => (float) $this->average_points,
             'owner_manager' => $this->owner_manager,
             'recent_scores' => $this->api_recent_scores,
             'next_fixtures' => $this->api_next_fixtures,

@@ -21,11 +21,11 @@ class ActivityResource extends JsonResource
             'type' => $this->type->value,
             'type_label' => $this->type->label(),
             'occurred_at' => $this->occurred_at->toIso8601String(),
-            'source_season_manager' => [
+            'source_manager' => [
                 'id' => $this->sourceSeasonManager->id,
                 'name' => $this->sourceSeasonManager->name,
             ],
-            'target_season_manager' => $this->targetSeasonManager === null ? null : [
+            'target_manager' => $this->targetSeasonManager === null ? null : [
                 'id' => $this->targetSeasonManager->id,
                 'name' => $this->targetSeasonManager->name,
             ],

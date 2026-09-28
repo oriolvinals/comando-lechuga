@@ -23,10 +23,10 @@ class StandingsResource extends JsonResource
             'logo' => $this->logo ? asset($this->logo) : '',
             'primary_color' => $this->primary_color,
             'secondary_color' => $this->secondary_color,
-            'position' => $this->position,
-            'last_position' => $this->last_position,
+            'rank' => $this->position,
+            'last_rank' => $this->last_position,
             'total_points' => $this->total_points,
-            'value' => $this->value,
+            'squad_value' => $this->value,
             'recent_form' => $this->api_recent_form,
         ];
     }

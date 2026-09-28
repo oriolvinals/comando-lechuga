@@ -116,7 +116,7 @@ class ManagerController extends Controller
             ],
             'market_value' => $player->market_value,
             'points' => $player->points,
-            'average_points' => $player->average_points,
+            'average_points' => (float) $player->average_points,
         ];
     }
 }
