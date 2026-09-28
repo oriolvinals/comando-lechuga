@@ -54,7 +54,11 @@ Sections, in order:
    - Scoring: LaLiga Fantasy points per action by position (goals 6/6/5/4, clean sheet 4/3/2/1…),
      DAZN rating (`marca_points`), how `stats` entries read (`[value, fantasy points]`).
    - Squad: max 24 players. The fantasy lineup must be set before the jornada's first match
-     kicks off (it locks then). Valid fantasy formations: 5-4-1, 5-3-2, 4-5-1, 4-4-2, 4-3-3,
+     kicks off (it locks then). **A manager whose lineup isn't complete when the jornada starts
+     doesn't score that jornada.** Once the jornada has started, players can be sold again.
+   - Rules the user hasn't confirmed (negative balance, captain, automatic subs, per-club limits,
+     selling price, minimum squad, coach scoring, bid visibility/ties, starting money) are NOT
+     asserted: the docs tell the AI to say "consúltalo en la app" instead of guessing. Valid fantasy formations: 5-4-1, 5-3-2, 4-5-1, 4-4-2, 4-3-3,
      3-5-2, 3-4-3. Distinguish from a real team's formation derived from its probable/confirmed XI.
    - Market: renews daily at 20:00; each listing lasts 24 h; the highest bid wins. The league
      makes a daily offer for owned players (uniform ±10 % around value, valid 24 h).
