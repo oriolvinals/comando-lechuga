@@ -4,26 +4,23 @@ import type {
     StartProbabilityEntry,
 } from '@/types/models';
 
-/** A probable starter below this is dimmed with a dashed frame on the pitch. */
-export const DOUBT_THRESHOLD = 60;
-
 /** A non-starter at or above this is listed under bench/doubts; the rest fold into "+N < 30 %". */
 export const BENCH_THRESHOLD = 30;
 
-/** A pitch badge at or above this turns lilac. */
+/** A start % at or above this turns lilac (sure starter). */
 export const SURE_STARTER_THRESHOLD = 90;
 
 /**
- * sure ≥ 90 % (pitch badges only) · high ≥ 70 % · mid 40–69 % · low < 40 %
- * · out = injured/suspended per LaLiga Fantasy · none = FútbolFantasy gave no %.
+ * sure ≥ 90 % (lilac) · high 70–89 % (lime) · low < 70 % (gold) · out =
+ * injured/suspended per LaLiga Fantasy (red — a status, never a %) · none =
+ * FútbolFantasy gave no %.
  */
-export type StartTone = 'sure' | 'high' | 'mid' | 'low' | 'out' | 'none';
+export type StartTone = 'sure' | 'high' | 'low' | 'out' | 'none';
 
 export const START_TONE_TEXT_CLASSES: Record<StartTone, string> = {
     sure: 'text-hq-violet',
     high: 'text-hq-lime',
-    mid: 'text-hq-gold',
-    low: 'text-hq-moss-dim',
+    low: 'text-hq-gold',
     out: 'text-hq-live',
     none: 'text-hq-led-off',
 };
@@ -31,8 +28,7 @@ export const START_TONE_TEXT_CLASSES: Record<StartTone, string> = {
 export const START_TONE_BG_CLASSES: Record<StartTone, string> = {
     sure: 'bg-hq-violet',
     high: 'bg-hq-lime',
-    mid: 'bg-hq-gold',
-    low: 'bg-hq-moss-dim',
+    low: 'bg-hq-gold',
     out: 'bg-hq-live',
     none: 'bg-hq-led-off',
 };
@@ -40,11 +36,36 @@ export const START_TONE_BG_CLASSES: Record<StartTone, string> = {
 export const START_TONE_BORDER_CLASSES: Record<StartTone, string> = {
     sure: 'border-hq-violet',
     high: 'border-hq-lime',
-    mid: 'border-hq-gold',
-    low: 'border-hq-moss-dim',
+    low: 'border-hq-gold',
     out: 'border-hq-live',
     none: 'border-hq-led-off',
 };
+
+/** Each tone's raw colour, for {@link HqStartMeter}'s half-lit cell gradient. */
+export const START_TONE_COLOR_VARS: Record<StartTone, string> = {
+    sure: 'var(--color-hq-violet)',
+    high: 'var(--color-hq-lime)',
+    low: 'var(--color-hq-gold)',
+    out: 'var(--color-hq-live)',
+    none: 'var(--color-hq-led-off)',
+};
+
+/**
+ * Full and half-lit cells for {@link HqStartMeter}'s 10-cell bar, at
+ * half-cell (5 %) precision — e.g. 75 % is 7 full cells plus one half.
+ */
+export function meterFill(probability: number | null): {
+    full: number;
+    half: boolean;
+} {
+    if (probability === null) {
+        return { full: 0, half: false };
+    }
+
+    const rounded = Math.round(probability / 5) * 5;
+
+    return { full: Math.floor(rounded / 10), half: rounded % 10 === 5 };
+}
 
 /** Injured or suspended per LaLiga Fantasy — our status is the truth, never FútbolFantasy's flags. */
 export function isUnavailable(status: PlayerStatus): boolean {
@@ -63,25 +84,11 @@ export function startTone(
         return 'none';
     }
 
-    if (probability >= 70) {
-        return 'high';
+    if (probability >= SURE_STARTER_THRESHOLD) {
+        return 'sure';
     }
 
-    return probability >= 40 ? 'mid' : 'low';
-}
-
-/** {@link startTone}, except that a pitch badge at ≥ 90 % turns lilac. */
-export function pitchBadgeTone(
-    probability: number | null,
-    status: PlayerStatus,
-): StartTone {
-    const tone = startTone(probability, status);
-
-    return tone === 'high' &&
-        probability !== null &&
-        probability >= SURE_STARTER_THRESHOLD
-        ? 'sure'
-        : tone;
+    return probability >= 70 ? 'high' : 'low';
 }
 
 /** What a start chip needs — shared by fixture entries and a roster player's next start. */

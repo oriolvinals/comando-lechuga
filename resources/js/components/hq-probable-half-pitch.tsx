@@ -178,7 +178,7 @@ export function HqProbableHalfPitch({
             />
             <StartPills label="Bajas" entries={out} confirmed={confirmed} />
             {!confirmed && (
-                <HqStartLegend pitchNoteClassName="inline-flex">
+                <HqStartLegend>
                     {probabilities.fetched_at && (
                         <span>
                             {formatDataAge(probabilities.fetched_at, now)}

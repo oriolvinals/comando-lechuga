@@ -5,12 +5,12 @@ import { EntityImage } from '@/components/entity-image';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { formatMatchDateShort } from '@/lib/format';
 import {
-    DOUBT_THRESHOLD,
     START_TONE_BG_CLASSES,
     START_TONE_BORDER_CLASSES,
+    START_TONE_COLOR_VARS,
     START_TONE_TEXT_CLASSES,
     dataAgeDays,
-    pitchBadgeTone,
+    meterFill,
     startOutcome,
     startTone,
 } from '@/lib/start-probability';
@@ -26,7 +26,8 @@ import type { PlayerStatus, StartProbabilityEntry } from '@/types/models';
 /**
  * FútbolFantasy's % as a 10-cell bar plus the figure (mock `.t-meter` +
  * `.t-pct`) — the one bar used by the match list, the team aside and the
- * manager roster. Muted (desaturated) while the data is stale.
+ * manager roster. Cells are lit at half-cell (5 %) precision — e.g. 75 % is
+ * 7 full cells plus one half. Muted (desaturated) while the data is stale.
  */
 export function HqStartMeter({
     probability,
@@ -42,7 +43,7 @@ export function HqStartMeter({
     className?: string;
 }) {
     const tone = startTone(probability, status);
-    const lit = probability === null ? 0 : Math.round(probability / 10);
+    const { full, half } = meterFill(probability);
     const label =
         probability === null
             ? 'Sin probabilidad de FútbolFantasy'
@@ -59,20 +60,32 @@ export function HqStartMeter({
             )}
         >
             <span aria-hidden="true" className="inline-flex gap-0.5">
-                {Array.from({ length: 10 }, (_, cell) => (
-                    <i
-                        key={cell}
-                        className={cn(
-                            'block',
-                            size === 'sm'
-                                ? 'h-[9px] w-[3px]'
-                                : 'h-[11px] w-[5px]',
-                            cell < lit
-                                ? START_TONE_BG_CLASSES[tone]
-                                : 'bg-hq-border-strong',
-                        )}
-                    />
-                ))}
+                {Array.from({ length: 10 }, (_, cell) => {
+                    const isHalf = cell === full && half;
+
+                    return (
+                        <i
+                            key={cell}
+                            className={cn(
+                                'block',
+                                size === 'sm'
+                                    ? 'h-[9px] w-[3px]'
+                                    : 'h-[11px] w-[5px]',
+                                cell < full && START_TONE_BG_CLASSES[tone],
+                                cell >= full &&
+                                    !isHalf &&
+                                    'bg-hq-border-strong',
+                            )}
+                            style={
+                                isHalf
+                                    ? {
+                                          background: `linear-gradient(to right, ${START_TONE_COLOR_VARS[tone]} 50%, var(--color-hq-border-strong) 50%)`,
+                                      }
+                                    : undefined
+                            }
+                        />
+                    );
+                })}
             </span>
             <b
                 className={cn(
@@ -278,24 +291,14 @@ export function HqStartAttribution({
 }
 
 const LEGEND: { tone: StartTone; label: string }[] = [
-    { tone: 'high', label: '≥ 70 % titular fijo' },
-    { tone: 'mid', label: '40–69 % duda' },
-    { tone: 'low', label: '< 40 % suplente' },
+    { tone: 'sure', label: '≥ 90 % muy probable' },
+    { tone: 'high', label: '70–89 % probable' },
+    { tone: 'low', label: '< 70 % duda' },
     { tone: 'out', label: 'baja (LaLiga Fantasy)' },
 ];
 
-/**
- * The tone key. `pitchNoteClassName` shows the pitch-only notes (lilac from
- * 90 %, dimmed = doubt) with that class — e.g. `hidden lg:inline-flex` where
- * the pitch is desktop only; omit it where there is no pitch.
- */
-export function HqStartLegend({
-    pitchNoteClassName,
-    children,
-}: {
-    pitchNoteClassName?: string;
-    children?: ReactNode;
-}) {
+/** The tone key, plus any children (e.g. data freshness). */
+export function HqStartLegend({ children }: { children?: ReactNode }) {
     return (
         <div className="flex flex-wrap gap-x-3 gap-y-1 px-3.5 py-2 font-mono text-[10.5px] leading-[1.2] text-hq-moss-dim sm:px-4">
             {LEGEND.map(({ tone, label }) => (
@@ -310,25 +313,6 @@ export function HqStartLegend({
                     {label}
                 </span>
             ))}
-            {pitchNoteClassName !== undefined && (
-                <>
-                    <span
-                        className={cn(
-                            'items-center gap-[5px]',
-                            pitchNoteClassName,
-                        )}
-                    >
-                        <i
-                            aria-hidden="true"
-                            className="block h-2 w-2 bg-hq-violet"
-                        />
-                        campo: ≥ 90 % en lila
-                    </span>
-                    <span className={pitchNoteClassName}>
-                        campo: atenuado = duda (&lt; 60 %)
-                    </span>
-                </>
-            )}
             {children}
         </div>
     );
@@ -336,10 +320,9 @@ export function HqStartLegend({
 
 /**
  * A probable (or confirmed) starter on a pitch (mock `.t-tok`): framed
- * photo with the % badge where the points chip usually sits — lilac from
- * 90 %, the tone scale below — dimmed with a dashed frame under 60 %. Once
- * confirmed the badge is ✓, or a gold "!" for a surprise starter. Links to
- * the player ficha.
+ * photo with the % badge where the points chip usually sits — the tone
+ * scale below, lilac from 90 %. Once confirmed the badge is ✓, or a gold
+ * "!" for a surprise starter. Links to the player ficha.
  */
 export function HqStartPitchToken({
     entry,
@@ -355,10 +338,9 @@ export function HqStartPitchToken({
     const surprise = confirmed && startOutcome(entry) === 'surprise';
     const tone: StartTone = confirmed
         ? surprise
-            ? 'mid'
+            ? 'low'
             : 'high'
-        : pitchBadgeTone(entry.probability, entry.player.status);
-    const doubt = !confirmed && (entry.probability ?? 0) < DOUBT_THRESHOLD;
+        : startTone(entry.probability, entry.player.status);
     const badge = confirmed
         ? surprise
             ? '!'
@@ -390,7 +372,6 @@ export function HqStartPitchToken({
                     className={cn(
                         'absolute inset-0 overflow-hidden border-[1.5px] bg-hq-well transition-colors group-hover:border-hq-lime group-focus-visible:border-hq-lime',
                         surprise ? 'border-hq-gold' : 'border-hq-paper/80',
-                        doubt && 'border-dashed opacity-60',
                     )}
                 >
                     <EntityImage
@@ -421,9 +402,8 @@ export function HqStartPitchToken({
             </span>
             <span
                 className={cn(
-                    'mt-1.5 block max-w-full truncate bg-[rgba(6,7,5,0.82)] px-1 py-0.5 font-mono leading-[1.1] font-medium',
+                    'mt-1.5 block max-w-full truncate bg-[rgba(6,7,5,0.82)] px-1 py-0.5 font-mono leading-[1.1] font-medium text-hq-paper',
                     size === 'lg' ? 'text-[11px]' : 'text-[10.5px]',
-                    doubt ? 'text-hq-moss' : 'text-hq-paper',
                 )}
             >
                 {entry.player.nickname}

@@ -65,8 +65,10 @@ function SubHead({ label, count }: { label: string; count: number }) {
 
 /**
  * One player (mock `.t-lrow`): photo with the position tag, the name and
- * our status — plus "FF aún le da N %" for a baja FútbolFantasy still
- * rates — then the bar and %, or the outcome chip once confirmed.
+ * our status badge inline on one line (the name truncates before the badge
+ * wraps, so every row stays the same height) — plus "FF aún le da N %" on
+ * its own small line for a baja FútbolFantasy still rates — then the bar
+ * and %, or the outcome chip once confirmed.
  */
 function StartRow({
     entry,
@@ -103,19 +105,24 @@ function StartRow({
                 />
             </span>
             <div className="min-w-0">
-                <Link
-                    href={playersShow(entry.player.id).url}
-                    className="block truncate text-[13.5px] leading-[1.2] font-bold text-hq-paper hover:text-hq-lime"
-                >
-                    {entry.player.nickname}
-                </Link>
-                {entry.player.status !== 'ok' && (
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[11px] leading-[1.2] text-hq-moss-dim">
-                        <HqStatusBadge status={entry.player.status} />
-                        {unavailable && (entry.probability ?? 0) > 0 && (
-                            <span>FF aún le da {entry.probability} %</span>
-                        )}
-                    </div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                    <Link
+                        href={playersShow(entry.player.id).url}
+                        className="min-w-0 flex-1 truncate text-[13.5px] leading-[1.2] font-bold text-hq-paper hover:text-hq-lime"
+                    >
+                        {entry.player.nickname}
+                    </Link>
+                    {entry.player.status !== 'ok' && (
+                        <HqStatusBadge
+                            status={entry.player.status}
+                            className="shrink-0"
+                        />
+                    )}
+                </div>
+                {unavailable && (entry.probability ?? 0) > 0 && (
+                    <span className="mt-1 block font-mono text-[11px] leading-[1.2] text-hq-moss-dim">
+                        FF aún le da {entry.probability} %
+                    </span>
                 )}
             </div>
             <div className="flex items-center justify-end">
@@ -161,6 +168,7 @@ function TeamColumn({
         block.players,
         confirmed,
     );
+    const nonStarters = [...bench, ...rest];
     const average = averageProbability(starters);
 
     return (
@@ -200,25 +208,16 @@ function TeamColumn({
             </div>
             <SubHead
                 label={confirmed ? 'Suplentes destacados' : 'Banquillo y dudas'}
-                count={bench.length}
+                count={nonStarters.length}
             />
-            {bench.map((entry) => (
+            {nonStarters.map((entry) => (
                 <StartRow
                     key={entry.player.id}
                     entry={entry}
                     confirmed={confirmed}
-                    dim={!confirmed}
                     muted={muted}
                 />
             ))}
-            {rest.length > 0 && (
-                <p className="border-b border-hq-border px-3.5 py-2 font-mono text-[11px] leading-[1.45] text-hq-moss-dim sm:px-4">
-                    <b className="font-semibold text-hq-moss">
-                        +{rest.length} &lt; 30 %
-                    </b>
-                    : {rest.map((entry) => entry.player.nickname).join(', ')}
-                </p>
-            )}
             {out.length > 0 && (
                 <>
                     <SubHead label="Bajas" count={out.length} />
@@ -247,8 +246,8 @@ interface HqStartProbabilitiesSectionProps {
  * The match ficha before kickoff (variant A). FútbolFantasy's probable XIs —
  * or the confirmed ones — on the landscape pitch (desktop "campo" view) and
  * as two columns of rows with the 10-cell bar ("lista" view; phones always).
- * Under each XI: bench and doubts (≥ 30 %), "+N < 30 %" and the bajas from
- * our status. Then the key and the attribution.
+ * Under each XI: every other available player as bench/doubt rows, then the
+ * bajas from our status. Then the key and the attribution.
  */
 export function HqStartProbabilitiesSection({
     probabilities,
@@ -355,13 +354,7 @@ export function HqStartProbabilitiesSection({
                     </div>
                 ))}
             </div>
-            {!allConfirmed && (
-                <HqStartLegend
-                    pitchNoteClassName={
-                        showPitch ? 'hidden lg:inline-flex' : undefined
-                    }
-                />
-            )}
+            {!allConfirmed && <HqStartLegend />}
             <HqStartAttribution
                 sources={blocks.map((block) => ({
                     label: block.team.short_name,

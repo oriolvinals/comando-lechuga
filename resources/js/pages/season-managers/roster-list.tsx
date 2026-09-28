@@ -154,23 +154,30 @@ function MobileCaption({ children }: { children: ReactNode }) {
 }
 
 /**
- * Under the next-match cell: FútbolFantasy's % for that match as the
+ * Under the player's club: FútbolFantasy's % for his next match as the
  * shared 10-cell bar (the match list's), or the confirmed Titular /
  * Suplente. Nothing without data.
  */
 function RosterNextStart({
     start,
     status,
+    className,
 }: {
     start: PlayerNextStart | null;
     status: PlayerStatus;
+    className?: string;
 }) {
     if (start === null) {
         return null;
     }
 
     if (start.confirmed_starter !== null) {
-        return <HqStartOutcomeChip facts={start} className="self-start" />;
+        return (
+            <HqStartOutcomeChip
+                facts={start}
+                className={cn('self-start', className)}
+            />
+        );
     }
 
     return (
@@ -179,6 +186,7 @@ function RosterNextStart({
             status={status}
             size="sm"
             muted={start.is_stale}
+            className={className}
         />
     );
 }
@@ -186,8 +194,9 @@ function RosterNextStart({
 /**
  * One roster player (mock `.rrow`). The whole row opens the player ficha
  * (the name is the real link, for keyboard and middle-click); the club is
- * its own link. On phones: photo · identity · points, then the clause on a
- * dashed rule, next fixtures | last 3, and value + today on a last rule.
+ * its own link, with the next-match start bar/% right under it. On phones:
+ * photo · identity · points, then the clause on a dashed rule, next
+ * fixtures | last 3, and value + today on a last rule.
  */
 function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
     const playerUrl = playersShow(entry.player.id).url;
@@ -233,6 +242,11 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                     </Link>
                     <HqStatusBadge status={entry.player.status} />
                 </div>
+                <RosterNextStart
+                    start={entry.player.next_start ?? null}
+                    status={entry.player.status}
+                    className="mt-1.5"
+                />
             </div>
 
             <div className="col-span-full border-t border-dashed border-hq-border pt-2 lg:col-span-1 lg:border-0 lg:pt-0">
@@ -244,10 +258,6 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                 <HqNextFixtures
                     fixtures={entry.player.next_fixtures}
                     size="sm"
-                />
-                <RosterNextStart
-                    start={entry.player.next_start ?? null}
-                    status={entry.player.status}
                 />
             </div>
 
