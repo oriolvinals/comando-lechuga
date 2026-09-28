@@ -643,4 +643,6 @@ export interface LineupPlayerStart {
     predicted_starter: boolean;
     confirmed_starter: boolean | null;
     is_stale: boolean;
+    /** When FútbolFantasy was last read successfully (ISO 8601) — null without a probability row. */
+    fetched_at: string | null;
 }

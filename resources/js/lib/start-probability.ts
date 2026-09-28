@@ -261,6 +261,15 @@ export function formatDataAge(fetchedAt: string, now: number): string {
     return `hace ${days} ${days === 1 ? 'día' : 'días'}`;
 }
 
+/**
+ * "Datos de hace 19 h" — the tooltip text for any start-probability visual
+ * (the 10-cell bar, a pitch token's % badge, a % figure…), from
+ * {@link formatDataAge}.
+ */
+export function dataAgeTooltipLabel(fetchedAt: string, now: number): string {
+    return `Datos de ${formatDataAge(fetchedAt, now)}`;
+}
+
 type PitchLine = Exclude<PlayerPosition, 'coach'>;
 
 const PITCH_LINES: PitchLine[] = [

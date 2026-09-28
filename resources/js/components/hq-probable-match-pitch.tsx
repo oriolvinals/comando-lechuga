@@ -108,6 +108,7 @@ export function HqProbableMatchPitch({
                                     entry={entry}
                                     confirmed={confirmed}
                                     muted={muted}
+                                    fetchedAt={block?.fetched_at ?? null}
                                 />
                             </div>
                         ))}

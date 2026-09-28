@@ -175,6 +175,7 @@ export function HqProbableHalfPitch({
                                 confirmed={confirmed}
                                 size="sm"
                                 muted={probabilities.is_stale}
+                                fetchedAt={probabilities.fetched_at}
                             />
                         </div>
                     ))}

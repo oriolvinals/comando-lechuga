@@ -3,9 +3,10 @@ import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
-import { startTone } from '@/lib/start-probability';
+import { dataAgeTooltipLabel, startTone } from '@/lib/start-probability';
 import type { StartTone } from '@/lib/start-probability';
 import { RESULT_STRIP_CLASSES, resultFor } from '@/lib/team-fixture-result';
+import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import type {
     PlayerPosition,
@@ -105,12 +106,17 @@ interface StartBadge {
  * The bottom-left mirror of the points chip: while the pick's own fixture
  * hasn't kicked off, either the confirmed lineup (✓ titular / bench glyph
  * suplente) or FútbolFantasy's % on the same colour scale used everywhere
- * else (lilac ≥ 90 %, lime 70–89 %, gold < 70 %, red injured/suspended).
- * Null once the match has started or finished, or without any data — the
- * backend (`StartProbabilities::forLineupEntries`) already omits `start` in
- * both cases, so this only needs to read it.
+ * else (lilac ≥ 90 %, lime 70–89 %, gold < 70 %, red injured/suspended) —
+ * its tooltip also says how old that % is, once confirmed the lineup itself
+ * is the source of truth so no age is shown. Null once the match has started
+ * or finished, or without any data — the backend
+ * (`StartProbabilities::forLineupEntries`) already omits `start` in both
+ * cases, so this only needs to read it.
  */
-function lineupStartBadge(entry: ManagerLineupPlayerEntry): StartBadge | null {
+function lineupStartBadge(
+    entry: ManagerLineupPlayerEntry,
+    now: number,
+): StartBadge | null {
     const start = entry.start;
 
     if (!start) {
@@ -138,7 +144,9 @@ function lineupStartBadge(entry: ManagerLineupPlayerEntry): StartBadge | null {
     }
 
     return {
-        label: `${start.probability} % de ser titular`,
+        label: start.fetched_at
+            ? `${start.probability} % de ser titular · ${dataAgeTooltipLabel(start.fetched_at, now)}`
+            : `${start.probability} % de ser titular`,
         className: startBadgeTierClass(
             startTone(start.probability, entry.player.status),
         ),
@@ -274,6 +282,8 @@ function tokenWidthForRowCount(count: number): string {
 interface PlayerTokenProps {
     entry: ManagerLineupPlayerEntry;
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
+    /** For the start badge's data-age tooltip — see {@link lineupStartBadge}. */
+    now: number;
     showTeamBadge: boolean;
     /** Off on a team's own ficha — every starter there played the full match by definition (there's no fantasy pick to second-guess), so the checkmark is redundant. Subs/bench/not-called-up badges still show. */
     showStarterBadge: boolean;
@@ -294,6 +304,7 @@ interface PlayerTokenProps {
 function PlayerToken({
     entry,
     onSelectPlayer,
+    now,
     showTeamBadge,
     showStarterBadge,
     showLiveIndicator,
@@ -305,7 +316,7 @@ function PlayerToken({
     const stateLabel = statusBadgeLabel(badgeState, entry.sub_minute);
     const pointsLabel =
         entry.points === null ? 'sin puntos' : `${entry.points} puntos`;
-    const startBadge = lineupStartBadge(entry);
+    const startBadge = lineupStartBadge(entry, now);
 
     return (
         <button
@@ -475,6 +486,7 @@ export function HqLineupPitch({
     fixture,
     teamId,
 }: HqLineupPitchProps) {
+    const now = useNow(60_000);
     const scoreboard = (() => {
         if (!fixture || teamId === undefined) {
             return null;
@@ -653,6 +665,7 @@ export function HqLineupPitch({
                               <PlayerToken
                                   entry={entry}
                                   onSelectPlayer={onSelectPlayer}
+                                  now={now}
                                   showTeamBadge={showTeamBadge}
                                   showStarterBadge={showStarterBadge}
                                   showLiveIndicator={showLiveIndicator}
@@ -676,6 +689,7 @@ export function HqLineupPitch({
                                           key={entry.id}
                                           entry={entry}
                                           onSelectPlayer={onSelectPlayer}
+                                          now={now}
                                           showTeamBadge={showTeamBadge}
                                           showStarterBadge={showStarterBadge}
                                           showLiveIndicator={showLiveIndicator}
@@ -704,6 +718,7 @@ export function HqLineupPitch({
                                 key={entry.id}
                                 entry={entry}
                                 onSelectPlayer={onSelectPlayer}
+                                now={now}
                                 showTeamBadge={showTeamBadge}
                                 showStarterBadge={showStarterBadge}
                                 showLiveIndicator={showLiveIndicator}

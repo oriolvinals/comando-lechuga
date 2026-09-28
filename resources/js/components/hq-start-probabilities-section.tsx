@@ -75,11 +75,13 @@ function StartRow({
     confirmed,
     dim = false,
     muted = false,
+    fetchedAt = null,
 }: {
     entry: StartProbabilityEntry;
     confirmed: boolean;
     dim?: boolean;
     muted?: boolean;
+    fetchedAt?: string | null;
 }) {
     const unavailable = isUnavailable(entry.player.status);
 
@@ -133,6 +135,7 @@ function StartRow({
                         probability={entry.probability}
                         status={entry.player.status}
                         muted={muted}
+                        fetchedAt={fetchedAt}
                     />
                 )}
             </div>
@@ -203,6 +206,7 @@ function TeamColumn({
                         entry={entry}
                         confirmed={confirmed}
                         muted={muted}
+                        fetchedAt={block.fetched_at}
                     />
                 ))}
             </div>
@@ -216,6 +220,7 @@ function TeamColumn({
                     entry={entry}
                     confirmed={confirmed}
                     muted={muted}
+                    fetchedAt={block.fetched_at}
                 />
             ))}
             {out.length > 0 && (
@@ -228,6 +233,7 @@ function TeamColumn({
                             confirmed={confirmed}
                             dim
                             muted={muted}
+                            fetchedAt={block.fetched_at}
                         />
                     ))}
                 </>

@@ -34,6 +34,7 @@ import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
 import { didNotPlayMatch, POSITION_LABELS } from '@/lib/player-labels';
 import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
 import {
+    dataAgeTooltipLabel,
     formatDataAge,
     START_TONE_TEXT_CLASSES,
     startTone,
@@ -147,9 +148,11 @@ function Kpi({
 function PlayerStartHeadline({
     start,
     status,
+    now,
 }: {
     start: PlayerNextStart;
     status: PlayerStatus;
+    now: number;
 }) {
     if (start.confirmed_starter !== null) {
         return (
@@ -161,10 +164,8 @@ function PlayerStartHeadline({
     }
 
     const tone = startTone(start.probability, status);
-
-    return (
+    const headline = (
         <span
-            title="Probabilidades: FútbolFantasy"
             className={cn(
                 'flex items-baseline gap-[3px]',
                 start.is_stale && 'opacity-60 saturate-[.15]',
@@ -184,6 +185,16 @@ function PlayerStartHeadline({
                 </span>
             )}
         </span>
+    );
+
+    if (start.fetched_at === null) {
+        return <span title="Probabilidades: FútbolFantasy">{headline}</span>;
+    }
+
+    return (
+        <HqTooltip label={dataAgeTooltipLabel(start.fetched_at, now)} focusable>
+            {headline}
+        </HqTooltip>
     );
 }
 
@@ -439,6 +450,7 @@ export default function PlayerShow({
                         <PlayerStartHeadline
                             start={nextStart}
                             status={player.status}
+                            now={now}
                         />
                     </Kpi>
                 )}

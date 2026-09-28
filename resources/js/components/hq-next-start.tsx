@@ -62,6 +62,7 @@ export function HqNextStart({
                 status={status}
                 size="sm"
                 muted={start.is_stale}
+                fetchedAt={start.fetched_at}
             />
             {start.predicted_starter && <HqNextStartXiBadge />}
         </span>

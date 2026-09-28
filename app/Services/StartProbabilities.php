@@ -38,7 +38,7 @@ use Illuminate\Support\Collection;
  * @phpstan-type StartEntry array{player: Player, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, pitch_position: string|null}
  * @phpstan-type StartTeamBlock array{fixture_id: int, week_number: int, team: Team, source_url: string, fetched_at: string|null, is_stale: bool, confirmed_source: 'worldcup26'|'futbolfantasy'|null, formation: string|null, players: list<StartEntry>}
  * @phpstan-type PlayerNextStart array{fixture_id: int, week_number: int, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, confirmed_source: 'worldcup26'|'futbolfantasy'|null, is_stale: bool, fetched_at: string|null, source_url: string, team_short_name: string, opponent: Team, is_home: bool, date: string}
- * @phpstan-type LineupEntryStart array{probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, is_stale: bool}
+ * @phpstan-type LineupEntryStart array{probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, is_stale: bool, fetched_at: string|null}
  */
 class StartProbabilities
 {
@@ -246,6 +246,7 @@ class StartProbabilities
                     default => null,
                 },
                 'is_stale' => $confirmedSource !== 'worldcup26' && $row !== null && $this->isStale($row->fetched_at),
+                'fetched_at' => $row?->fetched_at->toIso8601String(),
             ];
         }
 

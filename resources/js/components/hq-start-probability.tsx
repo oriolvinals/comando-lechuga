@@ -3,6 +3,7 @@ import { User } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqStatusBadge } from '@/components/hq-status-badge';
+import { HqTooltip } from '@/components/hq-tooltip';
 import { formatMatchDateShort } from '@/lib/format';
 import {
     START_TONE_BG_CLASSES,
@@ -10,6 +11,7 @@ import {
     START_TONE_COLOR_VARS,
     START_TONE_TEXT_CLASSES,
     dataAgeDays,
+    dataAgeTooltipLabel,
     meterFill,
     startOutcome,
     startTone,
@@ -19,6 +21,7 @@ import type {
     StartOutcome,
     StartTone,
 } from '@/lib/start-probability';
+import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
 import type { PlayerStatus, StartProbabilityEntry } from '@/types/models';
@@ -28,20 +31,25 @@ import type { PlayerStatus, StartProbabilityEntry } from '@/types/models';
  * `.t-pct`) — the one bar used by the match list, the team aside and the
  * manager roster. Cells are lit at half-cell (5 %) precision — e.g. 75 % is
  * 7 full cells plus one half. Muted (desaturated) while the data is stale.
+ * With `fetchedAt`, hovering or focusing the bar shows a tooltip with how
+ * old FútbolFantasy's data is.
  */
 export function HqStartMeter({
     probability,
     status,
     size = 'md',
     muted = false,
+    fetchedAt = null,
     className,
 }: {
     probability: number | null;
     status: PlayerStatus;
     size?: 'md' | 'sm';
     muted?: boolean;
+    fetchedAt?: string | null;
     className?: string;
 }) {
+    const now = useNow(60_000);
     const tone = startTone(probability, status);
     const { full, half } = meterFill(probability);
     const label =
@@ -49,14 +57,14 @@ export function HqStartMeter({
             ? 'Sin probabilidad de FútbolFantasy'
             : `${probability} % de ser titular`;
 
-    return (
+    const bar = (
         <span
-            title={label}
+            title={fetchedAt === null ? label : undefined}
             className={cn(
                 'inline-flex shrink-0 items-center',
                 size === 'sm' ? 'gap-1.5' : 'gap-2',
                 muted && 'opacity-60 saturate-[.15]',
-                className,
+                fetchedAt === null && className,
             )}
         >
             <span aria-hidden="true" className="inline-flex gap-0.5">
@@ -100,6 +108,20 @@ export function HqStartMeter({
                 </span>
             </b>
         </span>
+    );
+
+    if (fetchedAt === null) {
+        return bar;
+    }
+
+    return (
+        <HqTooltip
+            label={dataAgeTooltipLabel(fetchedAt, now)}
+            focusable
+            className={className}
+        >
+            {bar}
+        </HqTooltip>
     );
 }
 
@@ -322,19 +344,24 @@ export function HqStartLegend({ children }: { children?: ReactNode }) {
  * A probable (or confirmed) starter on a pitch (mock `.t-tok`): framed
  * photo with the % badge where the points chip usually sits — the tone
  * scale below, lilac from 90 %. Once confirmed the badge is ✓, or a gold
- * "!" for a surprise starter. Links to the player ficha.
+ * "!" for a surprise starter. Links to the player ficha. While unconfirmed,
+ * `fetchedAt` shows a tooltip with how old FútbolFantasy's % is on hover or
+ * keyboard focus of the token.
  */
 export function HqStartPitchToken({
     entry,
     confirmed,
     size = 'lg',
     muted = false,
+    fetchedAt = null,
 }: {
     entry: StartProbabilityEntry;
     confirmed: boolean;
     size?: 'lg' | 'sm';
     muted?: boolean;
+    fetchedAt?: string | null;
 }) {
+    const now = useNow(60_000);
     const surprise = confirmed && startOutcome(entry) === 'surprise';
     const tone: StartTone = confirmed
         ? surprise
@@ -351,12 +378,13 @@ export function HqStartPitchToken({
     const label = confirmed
         ? `${entry.player.nickname} · ${surprise ? 'titular sorpresa' : 'titular'}`
         : `${entry.player.nickname} · ${entry.probability === null ? 'sin dato' : `${entry.probability} % titular`}`;
+    const showAgeTooltip = !confirmed && fetchedAt !== null;
 
-    return (
+    const token = (
         <Link
             href={playersShow(entry.player.id).url}
             aria-label={label}
-            title={label}
+            title={showAgeTooltip ? undefined : label}
             className={cn(
                 'group flex flex-col items-center outline-none',
                 size === 'lg' ? 'w-32' : 'w-[72px]',
@@ -409,5 +437,15 @@ export function HqStartPitchToken({
                 {entry.player.nickname}
             </span>
         </Link>
+    );
+
+    if (!showAgeTooltip || fetchedAt === null) {
+        return token;
+    }
+
+    return (
+        <HqTooltip label={dataAgeTooltipLabel(fetchedAt, now)}>
+            {token}
+        </HqTooltip>
     );
 }

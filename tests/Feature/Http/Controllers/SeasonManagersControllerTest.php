@@ -910,6 +910,7 @@ test('shows a lineup player\'s start probability for their own upcoming fixture'
         ->where('lineups.0.players.0.start.probability', 82)
         ->where('lineups.0.players.0.start.predicted_starter', true)
         ->where('lineups.0.players.0.start.confirmed_starter', null)
+        ->has('lineups.0.players.0.start.fetched_at')
     );
 });
 
