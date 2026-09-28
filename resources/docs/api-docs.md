@@ -210,7 +210,7 @@ Visto desde el comprador: un jugador que tiene otro manager (esté o no puesto a
 
 ### 2.10.1 Blindajes
 
-- Cada manager tiene **2 blindajes por jornada**. El cupo de la jornada cuenta desde que empieza su semana, sin esperar a que se juegue el primer partido.
+- Cada manager tiene **2 blindajes por jornada**. El cupo de la jornada cuenta desde que empieza su semana, sin esperar a que se juegue el primer partido. Los que no se usan se pierden al acabar la jornada: no se acumulan.
 - Un blindaje dura **24 horas**. Mientras dura, nadie puede llevarse a ese jugador pagando su cláusula; solo sale de la plantilla si su dueño lo vende. En la API: `roster[].buyout_clause.shielded: true` hasta `shielded_until`, y en la actividad sale como `shield` ("Blindaje").
 - Si un rival tiene `shielded: true`, no se le puede clausular hasta `shielded_until`. Tenlo en cuenta al recomendar un clausulazo.
 - La API no dice cuántos blindajes le quedan a un manager. Puedes contar sus `shield` recientes en `/api/activity?manager={id}&type=shield`, pero confírmalo con el usuario.
