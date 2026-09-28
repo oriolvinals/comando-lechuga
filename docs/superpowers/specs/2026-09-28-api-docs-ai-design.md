@@ -72,16 +72,25 @@ Sections, in order:
    - Squad: max 24 players. The fantasy lineup must be set before the jornada's first match
      kicks off (it locks then). **A manager whose lineup isn't complete when the jornada starts
      doesn't score that jornada.** Once the jornada has started, players can be sold again.
-   - Money: you can't start a jornada with a negative balance. Buying in the market may leave
+   - Balance: you can't start a jornada with a negative balance (the manager scores 0 that jornada). Buying in the market may leave
      the balance negative, down to −20 % of your team value. A buyout (clausulazo) must be paid
      with your own money and can never leave the balance negative. (The API has no balance, so
      the AI must ask the manager for it before advising on bids/buyouts.)
-   - Rules the user hasn't confirmed (captain, automatic subs, per-club limits,
-     selling price, minimum squad, coach scoring, bid visibility/ties, starting money) are NOT
-     asserted: the docs tell the AI to say "consúltalo en la app" instead of guessing. Valid fantasy formations: 5-4-1, 5-3-2, 4-5-1, 4-4-2, 4-3-3,
+   - Rules not confirmed for this league (per-club limit, minimum squad) are NOT asserted: the
+     docs tell the AI to say "consúltalo en la app" instead of guessing.
      3-5-2, 3-4-3. Distinguish from a real team's formation derived from its probable/confirmed XI.
-   - Market: renews daily at 20:00; each listing lasts 24 h; the highest bid wins. The league
-     makes a daily offer for owned players (uniform ±10 % around value, valid 24 h).
+   - Market (this league): renews daily at 20:00 — the league's creation time, so it's specific
+     to this league. Players the league puts on the market last 24 h; the highest bid wins; bids
+     are blind (only the number of bids is visible, never amounts or who bid) and on a tie the
+     first bid wins. Our API never knows who bid or how much, so the AI can't see anyone's bids.
+   - Selling: (a) list the player on the market — he stays there 3 days; every day at 20:00 the
+     league makes an offer in the range ±10 % of his market value, which you accept or reject
+     (managers can also bid); (b) immediate sale to the league for 50 % of his market value.
+   - Money: start with 100 M€ and 14 random players; you earn 100.000 € per fantasy point your
+     XI scores (paid at the end of the jornada), plus sales.
+   - This league has no premium features: no captain, no bench/automatic substitutions, no coach
+     slot, no loans (cesiones). Buyout clauses exist. The docs must not mention the premium
+     features as available.
    - Clauses: 14-day lock after buying; clause = max(value, price paid); no buyouts from 24 h
      before the jornada starts until it starts (allowed again afterwards); raising your own
      player's clause raises it by double what you invest (500 k → +1 M).
