@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property Fixture|null $fixture Computed at query time by SeasonManagersController's AttachesLineupFixtures, resolved by
  *                                 player team + lineup week (like `match_finished`) rather than via `fixture_id`, which isn't
  *                                 always set — see `AttachesLineupPlayerScores`. Shadows the lazy `fixture()` relation below.
+ * @property array{probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, is_stale: bool, fetched_at: string|null}|null $start This pick's start probability (or confirmed lineup) for its own `fixture` — set by SeasonManagersController via `StartProbabilities::forLineupEntries()`; null once that fixture has kicked off or without any data. Not a database column.
  */
 #[UseFactory(ManagerLineupPlayerFactory::class)]
 #[Table(name: 'manager_lineup_players', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]

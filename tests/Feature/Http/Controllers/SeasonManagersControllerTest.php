@@ -9,6 +9,7 @@ use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
+use App\Models\FixtureLineupProbability;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
@@ -877,4 +878,193 @@ test('a manager with no lineups has no week ranks, average or best week', functi
         ->where('weekRanks', [])
         ->where('weeklySummary', ['played_weeks' => 0, 'average_points' => null, 'best_week' => null])
     );
+});
+
+test('shows a lineup player\'s start probability for their own upcoming fixture', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $player->team_id,
+        'date' => now()->addDay(),
+        'state' => FixtureState::Scheduled,
+    ]);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'probability' => 82,
+        'predicted_starter' => true,
+    ]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.start.probability', 82)
+        ->where('lineups.0.players.0.start.predicted_starter', true)
+        ->where('lineups.0.players.0.start.confirmed_starter', null)
+        ->has('lineups.0.players.0.start.fetched_at')
+    );
+});
+
+test('shows the confirmed lineup instead of a probability once worldcup26 confirms it', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $player->team_id,
+        'date' => now()->addDay(),
+        'state' => FixtureState::Scheduled,
+    ]);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'probability' => 60,
+        'predicted_starter' => true,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $player->team_id,
+        'starter' => true,
+    ]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.start.confirmed_starter', true)
+        ->where('lineups.0.players.0.start.probability', 60)
+    );
+});
+
+test('omits a lineup player\'s start facts once their fixture has kicked off', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $player->team_id,
+        'state' => FixtureState::SecondHalf,
+    ]);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'probability' => 90,
+        'predicted_starter' => true,
+    ]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.start', null)
+    );
+});
+
+test('a lineup player\'s start is null without any start data', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    $player = Player::factory()->create();
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $player->team_id,
+        'state' => FixtureState::Scheduled,
+    ]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.start', null)
+    );
+});
+
+test('includes each lineup history player\'s start facts on the manager show page', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $player->team_id,
+        'date' => now()->addDay(),
+        'state' => FixtureState::Scheduled,
+    ]);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'probability' => 45,
+        'predicted_starter' => false,
+    ]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+    ]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineupHistory.0.players.0.start.probability', 45)
+    );
+});
+
+test('sends each roster player\'s start for his team\'s next match', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $team = Team::factory()->create(['fantasy_id' => 15, 'short_name' => 'RMA']);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 8,
+        'team_local_id' => $team->id,
+        'date' => now()->addDay(),
+        'state' => FixtureState::Scheduled,
+    ]);
+    $listed = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $unlisted = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    FixtureLineupProbability::factory()->create(['player_id' => $listed->id, 'fixture_id' => $fixture->id, 'probability' => 70, 'predicted_starter' => true]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $seasonManager->id, 'player_id' => $listed->id]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $seasonManager->id, 'player_id' => $unlisted->id]);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(function (Assert $page) use ($listed): AssertableInertia {
+        $roster = collect($page->toArray()['props']['roster'])->keyBy('player.id');
+
+        expect($roster[$listed->id]['player']['next_start']['probability'])->toBe(70)
+            ->and($roster[$listed->id]['player']['next_start']['week_number'])->toBe(8)
+            ->and($roster[$listed->id]['player']['next_start']['team_short_name'])->toBe('RMA')
+            ->and($roster->firstWhere('player.id', '!=', $listed->id)['player']['next_start'])->toBeNull();
+
+        return $page;
+    });
 });

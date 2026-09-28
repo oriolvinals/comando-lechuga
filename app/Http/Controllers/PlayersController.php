@@ -27,6 +27,7 @@ use App\Models\SeasonManager;
 use App\Models\Team;
 use App\Services\MaxBidCalculator;
 use App\Services\PlayerMarketMetrics;
+use App\Services\StartProbabilities;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -140,7 +141,7 @@ class PlayersController extends Controller
         SeasonActivityType::Buyout,
     ];
 
-    public function show(Request $request, Player $player, MaxBidCalculator $maxBidCalculator, PlayerMarketMetrics $marketMetrics): Response
+    public function show(Request $request, Player $player, MaxBidCalculator $maxBidCalculator, PlayerMarketMetrics $marketMetrics, StartProbabilities $startProbabilities): Response
     {
         abort_if($player->fantasy_id === null, 404);
 
@@ -149,6 +150,8 @@ class PlayersController extends Controller
 
         $this->attachCurrentSeason(new Collection([$player]), $season->id);
         $this->attachNextFixtures(new Collection([$player]), $season, count: 5);
+
+        $player->next_start = $startProbabilities->forPlayersNextFixture(new Collection([$player]), $season)[$player->id] ?? null;
 
         $owner = ManagerPlayer::query()
             ->where('player_id', $player->id)

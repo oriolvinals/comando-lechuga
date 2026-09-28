@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
+use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
+use App\Models\FixtureLineupProbability;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Models\Team;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -439,12 +442,10 @@ test('spreads multiple starters in the same pitch line by side then jersey', fun
 
     $response = $this->get(route('fixtures.show', $fixture));
 
-    // Pitch y is driven by side (left/center/right) then jersey, independent
-    // of array order: Left Back (Left, alone) -> Center Defender (Center,
-    // jersey 4) and Center Left Defender (Center, jersey 5 — a directional
-    // qualifier on a center-back does not make it wide, so it ties on
-    // Center with Center Defender and is broken by jersey) -> Right Back
-    // (Right, alone). y = 12 + index * (76 / 3), rounded to 1 decimal: 12.0,
+    // Pitch y is driven by side then jersey, independent of array order:
+    // Left Back (Left) -> Center Left Defender (Center Left: inside the
+    // left flank, but still left of a plain centre-back) -> Center Defender
+    // (Center) -> Right Back (Right). y = 12 + index * (76 / 3), rounded to 1 decimal: 12.0,
     // 37.3, 62.7, 88.0 (whole-number floats serialize as bare ints over the
     // Inertia/JSON boundary, hence 12 and 88 below).
     //
@@ -460,9 +461,9 @@ test('spreads multiple starters in the same pitch line by side then jersey', fun
         ->where('lineups.1.position', 'Left Back')
         ->where('lineups.1.y', 12)
         ->where('lineups.2.position', 'Center Defender')
-        ->where('lineups.2.y', 37.3)
+        ->where('lineups.2.y', 62.7)
         ->where('lineups.3.position', 'Center Left Defender')
-        ->where('lineups.3.y', 62.7)
+        ->where('lineups.3.y', 37.3)
     );
 });
 
@@ -1017,3 +1018,29 @@ test('a fixture that is not finished has no fantasy scoreboard', function (Fixtu
     'scheduled' => FixtureState::Scheduled,
     'postponed' => FixtureState::Postponed,
 ]);
+
+test('sends the start probabilities of an upcoming fixture', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $madrid = Team::factory()->create(['fantasy_id' => 15]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'team_local_id' => $madrid->id, 'date' => now()->addDay()]);
+    $courtois = Player::factory()->create(['team_id' => $madrid->id, 'status' => PlayerStatus::Ok]);
+    FixtureLineupProbability::factory()->create(['player_id' => $courtois->id, 'fixture_id' => $fixture->id, 'probability' => 95]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('startProbabilities.local.players.0.player.id', $courtois->id)
+        ->where('startProbabilities.local.players.0.probability', 95)
+        ->where('startProbabilities.local.source_url', 'https://www.futbolfantasy.com/laliga/equipos/real-madrid')
+        ->where('startProbabilities.guest', null)
+    );
+});
+
+test('sends no start probabilities for a fixture without any', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id]);
+
+    $this->get(route('fixtures.show', $fixture))
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('startProbabilities', null));
+});

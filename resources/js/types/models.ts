@@ -67,6 +67,8 @@ export interface Player {
     recent_scores_opponents: (Team | null)[];
     /** The team's next 3 upcoming (not yet started) fixtures, soonest first — null-padded at the end when fewer than 3 remain on the calendar. */
     next_fixtures: (NextFixtureSlot | null)[];
+    /** Start probability (or confirmed lineup) for the team's next match. Only present on the manager and team fichas; null without data. */
+    next_start?: PlayerNextStart | null;
 }
 
 export type FixtureState =
@@ -247,6 +249,8 @@ export interface ManagerLineupPlayerEntry {
     starter: boolean | null;
     subbed_out: boolean | null;
     sub_minute: number | null;
+    /** This pick's start probability (or confirmed lineup) for its own fixture that week — null once it kicked off, before backend data exists, or without any data. */
+    start: LineupPlayerStart | null;
 }
 
 export interface ManagerLineup {
@@ -568,4 +572,77 @@ export interface JornadaMatches {
     week: number;
     status: JornadaMatchesStatus;
     matches: JornadaMatch[];
+}
+
+/** Who confirmed a lineup: worldcup26 (primary) or FútbolFantasy's "Alineación confirmada" (fallback). */
+export type StartConfirmationSource = 'worldcup26' | 'futbolfantasy';
+
+/** One player's start for one fixture. */
+export interface StartProbabilityEntry {
+    player: Player;
+    /** FútbolFantasy's last predicted % (0–100) — kept after confirmation for "era N %"; null when FF gave none. */
+    probability: number | null;
+    /** In FútbolFantasy's probable XI. */
+    predicted_starter: boolean;
+    /** Confirmed lineup (worldcup26 first, FF second): true titular, false suplente, null not confirmed yet. */
+    confirmed_starter: boolean | null;
+    /** Where he plays in the XI shown, in worldcup26's vocabulary ("Right Back", "Center Left Midfielder"…): worldcup26's own once it confirms, else read off where FútbolFantasy draws its probable XI. Null off the XI or without a drawn pitch. */
+    pitch_position: string | null;
+}
+
+/** One team's side of a fixture's start probabilities. */
+export interface StartProbabilityTeamBlock {
+    fixture_id: number;
+    week_number: number;
+    team: Team;
+    /** The team's FútbolFantasy page, for the attribution link. */
+    source_url: string;
+    /** When FútbolFantasy was last read successfully (ISO 8601). */
+    fetched_at: string | null;
+    /** Older than 48 h: shown as "Datos de hace N días" with muted bars. */
+    is_stale: boolean;
+    confirmed_source: StartConfirmationSource | null;
+    /** "4-3-3": worldcup26's once it confirms the lineup, else approximated from FútbolFantasy's probable XI. Null when unknown. */
+    formation: string | null;
+    players: StartProbabilityEntry[];
+}
+
+/** The match ficha's start probabilities — a side without data is null. */
+export interface FixtureStartProbabilities {
+    local: StartProbabilityTeamBlock | null;
+    guest: StartProbabilityTeamBlock | null;
+}
+
+/** The team ficha's probable XI for its next match. */
+export interface TeamNextStartProbabilities extends StartProbabilityTeamBlock {
+    opponent: Team;
+    is_home: boolean;
+}
+
+/** A roster or player-ficha player's start for his team's next match (manager and player fichas). */
+export interface PlayerNextStart {
+    fixture_id: number;
+    week_number: number;
+    probability: number | null;
+    predicted_starter: boolean;
+    confirmed_starter: boolean | null;
+    confirmed_source: StartConfirmationSource | null;
+    is_stale: boolean;
+    fetched_at: string | null;
+    source_url: string;
+    team_short_name: string;
+    opponent: Team;
+    is_home: boolean;
+    /** The fixture's kickoff (ISO 8601). */
+    date: string;
+}
+
+/** A lineup pick's start facts for their OWN fixture that week (manager index/ficha pitch) — present only while it hasn't kicked off and either FútbolFantasy or worldcup26 have data. */
+export interface LineupPlayerStart {
+    probability: number | null;
+    predicted_starter: boolean;
+    confirmed_starter: boolean | null;
+    is_stale: boolean;
+    /** When FútbolFantasy was last read successfully (ISO 8601) — null without a probability row. */
+    fetched_at: string | null;
 }

@@ -18,6 +18,7 @@ import {
 import type { ValueChartRange } from '@/components/hq-player-value-chart';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqSection } from '@/components/hq-section';
+import { HqStartOutcomeChip } from '@/components/hq-start-probability';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
@@ -25,12 +26,20 @@ import {
     formatAverage,
     formatCurrency,
     formatDecimal,
+    formatMatchDateTime,
     formatMillions,
     formatNumber,
 } from '@/lib/format';
 import { buildOwnershipTimeline } from '@/lib/ownership-timeline';
 import { didNotPlayMatch, POSITION_LABELS } from '@/lib/player-labels';
 import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
+import {
+    dataAgeTooltipLabel,
+    formatDataAge,
+    START_TONE_TEXT_CLASSES,
+    startTone,
+} from '@/lib/start-probability';
+import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { CapitalGain } from '@/pages/players/capital-gain';
 import { NextRivalsList } from '@/pages/players/next-rivals-list';
@@ -45,9 +54,11 @@ import type {
     PlayerFichaScore,
     PlayerMarketPoint,
     PlayerMissedFixture,
+    PlayerNextStart,
     PlayerOwnership,
     PlayerCapitalGain,
     PlayerPointsPerMillion,
+    PlayerStatus,
     PlayerValueTrend,
 } from '@/types/models';
 
@@ -69,7 +80,7 @@ interface PlayerShowProps {
     [key: string]: unknown;
 }
 
-/** Per-cell rules of the 2×2 (phones) / 1×4 (md+) KPI strip. */
+/** Per-cell rules of the 2×2 (phones) / 1×4 (md+) KPI strip — 4 cells, no Titularidad data for this player. */
 const KPI_CELL_BORDERS = [
     'border-r border-b md:border-b-0',
     'border-b md:border-r md:border-b-0',
@@ -77,16 +88,25 @@ const KPI_CELL_BORDERS = [
     '',
 ];
 
+/** Per-cell rules with a 5th "Titularidad" cell — 2×2+1 (phones, full-width last row) / 1×5 (md+). */
+const KPI_CELL_BORDERS_WITH_START = [
+    'border-r border-b md:border-r md:border-b-0',
+    'border-b md:border-r md:border-b-0',
+    'border-r border-b md:border-r md:border-b-0',
+    'border-b md:border-r md:border-b-0',
+    'col-span-2 md:col-span-1',
+];
+
 function Kpi({
     label,
-    index,
+    border,
     hot = false,
     children,
     sub,
     extra,
 }: {
     label: string;
-    index: number;
+    border: string;
     hot?: boolean;
     children: ReactNode;
     sub?: ReactNode;
@@ -97,7 +117,7 @@ function Kpi({
         <div
             className={cn(
                 'min-w-0 border-hq-border px-3.5 py-3.5 sm:px-4',
-                KPI_CELL_BORDERS[index],
+                border,
                 hot && 'bg-linear-to-b from-hq-lime/6 to-transparent',
             )}
         >
@@ -116,6 +136,69 @@ function Kpi({
                 </div>
             )}
         </div>
+    );
+}
+
+/**
+ * The Titularidad KPI cell's headline: the big dot-matrix % (mock `HqLed`),
+ * coloured by {@link startTone} — muted while the data is stale — or, once
+ * the lineup is confirmed, the shared Titular/Suplente outcome chip in
+ * place of the %.
+ */
+function PlayerStartHeadline({
+    start,
+    status,
+    now,
+}: {
+    start: PlayerNextStart;
+    status: PlayerStatus;
+    now: number;
+}) {
+    if (start.confirmed_starter !== null) {
+        return (
+            <HqStartOutcomeChip
+                facts={start}
+                className="h-[22px] px-[7px] text-[11px]"
+            />
+        );
+    }
+
+    const tone = startTone(start.probability, status);
+    const headline = (
+        <span
+            className={cn(
+                'flex items-baseline gap-[3px]',
+                start.is_stale && 'opacity-60 saturate-[.15]',
+            )}
+        >
+            <HqLed className={cn('text-[26px]', START_TONE_TEXT_CLASSES[tone])}>
+                {start.probability === null ? '—' : start.probability}
+            </HqLed>
+            {start.probability !== null && (
+                <span
+                    className={cn(
+                        'font-mono text-xs font-bold',
+                        START_TONE_TEXT_CLASSES[tone],
+                    )}
+                >
+                    %
+                </span>
+            )}
+        </span>
+    );
+
+    if (start.fetched_at === null) {
+        return <span title="Probabilidades: FútbolFantasy">{headline}</span>;
+    }
+
+    return (
+        <HqTooltip
+            label={dataAgeTooltipLabel(start.fetched_at, now)}
+            focusable
+            className="-m-2 p-2"
+        >
+            {headline}
+        </HqTooltip>
     );
 }
 
@@ -166,6 +249,10 @@ export default function PlayerShow({
     const difference = player.market_value_difference;
     const valueTrendClass =
         valueTrend && valueTrend.multiple >= 1 ? 'text-hq-lime' : 'text-hq-neg';
+    const nextStart = player.next_start ?? null;
+    const kpiBorders =
+        nextStart !== null ? KPI_CELL_BORDERS_WITH_START : KPI_CELL_BORDERS;
+    const now = useNow(60_000);
 
     return (
         <div className="flex-1">
@@ -211,10 +298,15 @@ export default function PlayerShow({
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 border-b border-hq-border md:grid-cols-4">
+            <div
+                className={cn(
+                    'grid grid-cols-2 border-b border-hq-border',
+                    nextStart !== null ? 'md:grid-cols-5' : 'md:grid-cols-4',
+                )}
+            >
                 <Kpi
                     label="Valor"
-                    index={0}
+                    border={kpiBorders[0]}
                     hot
                     sub={
                         trend !== null ? (
@@ -277,7 +369,7 @@ export default function PlayerShow({
 
                 <Kpi
                     label="Puntos"
-                    index={1}
+                    border={kpiBorders[1]}
                     sub={`${scoredMatches} ${scoredMatches === 1 ? 'partido puntuado' : 'partidos puntuados'}`}
                     extra={
                         <>
@@ -304,7 +396,7 @@ export default function PlayerShow({
                     </HqLed>
                 </Kpi>
 
-                <Kpi label="Media" index={2} sub="por partido">
+                <Kpi label="Media" border={kpiBorders[2]} sub="por partido">
                     <span
                         className={cn(
                             'inline-flex h-7 items-center px-2 font-mono text-lg font-bold tabular-nums',
@@ -315,7 +407,7 @@ export default function PlayerShow({
                     </span>
                 </Kpi>
 
-                <Kpi label="Media DAZN" index={3}>
+                <Kpi label="Media DAZN" border={kpiBorders[3]}>
                     {daznAverage !== null ? (
                         <span
                             className={cn(
@@ -331,6 +423,41 @@ export default function PlayerShow({
                         </span>
                     )}
                 </Kpi>
+
+                {nextStart !== null && (
+                    <Kpi
+                        label="Titularidad"
+                        border={kpiBorders[4]}
+                        sub={
+                            <>
+                                {nextStart.is_home ? 'vs ' : '@ '}
+                                {nextStart.opponent.short_name}
+                                {' · '}
+                                {formatMatchDateTime(nextStart.date)}
+                            </>
+                        }
+                        extra={
+                            nextStart.confirmed_starter === null &&
+                            nextStart.fetched_at ? (
+                                <span
+                                    className={cn(
+                                        nextStart.is_stale &&
+                                            'font-bold text-hq-gold',
+                                    )}
+                                >
+                                    {nextStart.is_stale && '▲ datos de '}
+                                    {formatDataAge(nextStart.fetched_at, now)}
+                                </span>
+                            ) : undefined
+                        }
+                    >
+                        <PlayerStartHeadline
+                            start={nextStart}
+                            status={player.status}
+                            now={now}
+                        />
+                    </Kpi>
+                )}
             </div>
 
             {maxBid !== null && (

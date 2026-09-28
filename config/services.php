@@ -53,6 +53,10 @@ return [
         'base_url' => env('WORLDCUP26_BASE_URL', 'https://worldcup26.ir/'),
     ],
 
+    'futbolfantasy' => [
+        'base_url' => env('FUTBOLFANTASY_BASE_URL', 'https://www.futbolfantasy.com/'),
+    ],
+
     'god_mode' => [
         'key' => env('GOD_MODE_KEY'),
     ],

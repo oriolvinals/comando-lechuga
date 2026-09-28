@@ -19,6 +19,7 @@ use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
 use App\Services\LeagueStandings;
+use App\Services\StartProbabilities;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -71,7 +72,7 @@ class TeamsController extends Controller
         ]);
     }
 
-    public function show(Team $team): Response
+    public function show(Team $team, StartProbabilities $startProbabilities): Response
     {
         $season = Season::current();
 
@@ -141,6 +142,7 @@ class TeamsController extends Controller
             'fixtures' => $fixtures,
             'currentWeek' => max($season->current_week, $latestLineupWeek),
             'weeklyLineups' => $weeklyLineups,
+            'startProbabilities' => $startProbabilities->forTeamNextFixture($team, $season),
         ]);
     }
 
@@ -366,12 +368,13 @@ class TeamsController extends Controller
         return round($start + ($index * $step), 1);
     }
 
+    /**
+     * Screen order (left to right) of a player's side. The goalkeeper sits at
+     * the top of this pitch, so the team attacks down the screen: seen from
+     * the goalkeeper, the player's right is the screen's left.
+     */
     private function pitchSideOrder(string $position): int
     {
-        return match (MatchPositionSide::fromWorldcup26Text($position)) {
-            MatchPositionSide::Left => 0,
-            MatchPositionSide::Center => 1,
-            MatchPositionSide::Right => 2,
-        };
+        return 4 - MatchPositionSide::fromWorldcup26Text($position)->leftToRight();
     }
 }

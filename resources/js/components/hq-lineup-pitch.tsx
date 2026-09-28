@@ -1,8 +1,12 @@
 import { Armchair, Clock, Home, Plane, Shield, User } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { FIXTURE_STATE_LABELS, isLiveFixtureState } from '@/lib/fixture-state';
+import { dataAgeTooltipLabel, startTone } from '@/lib/start-probability';
+import type { StartTone } from '@/lib/start-probability';
 import { RESULT_STRIP_CLASSES, resultFor } from '@/lib/team-fixture-result';
+import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import type {
     PlayerPosition,
@@ -65,6 +69,90 @@ function pointsBadgeTierClass(points: number | null): string {
     }
 
     return 'bg-hq-violet text-hq-ink';
+}
+
+/**
+ * Same tone scale as `startTone` (`@/lib/start-probability`), but solid —
+ * this badge sits on the dark pitch over a photo, same reason as
+ * `pointsBadgeTierClass` above. Exported so the team ficha's probable-XI
+ * pitch (`HqStartPitchToken`'s `size="sm"`) uses the identical badge style.
+ */
+export function startBadgeTierClass(tone: StartTone): string {
+    if (tone === 'sure') {
+        return 'bg-hq-violet text-hq-ink';
+    }
+
+    if (tone === 'high') {
+        return 'bg-hq-lime text-hq-ink';
+    }
+
+    if (tone === 'low') {
+        return 'bg-hq-gold text-hq-ink';
+    }
+
+    if (tone === 'out') {
+        return 'bg-hq-live text-white';
+    }
+
+    return 'bg-hq-border-strong text-hq-moss';
+}
+
+interface StartBadge {
+    label: string;
+    className: string;
+    content: ReactNode;
+}
+
+/**
+ * The bottom-left mirror of the points chip: while the pick's own fixture
+ * hasn't kicked off, either the confirmed lineup (✓ titular / bench glyph
+ * suplente) or FútbolFantasy's % on the same colour scale used everywhere
+ * else (lilac ≥ 90 %, lime 70–89 %, gold < 70 %, red injured/suspended) —
+ * its tooltip also says how old that % is, once confirmed the lineup itself
+ * is the source of truth so no age is shown. Null once the match has started
+ * or finished, or without any data — the backend
+ * (`StartProbabilities::forLineupEntries`) already omits `start` in both
+ * cases, so this only needs to read it.
+ */
+function lineupStartBadge(
+    entry: ManagerLineupPlayerEntry,
+    now: number,
+): StartBadge | null {
+    const start = entry.start;
+
+    if (!start) {
+        return null;
+    }
+
+    if (start.confirmed_starter !== null) {
+        return start.confirmed_starter
+            ? {
+                  label: 'Titular confirmado',
+                  className: 'bg-hq-lime text-hq-ink',
+                  content: '✓',
+              }
+            : {
+                  label: 'Suplente confirmado',
+                  className: 'bg-hq-border-strong text-hq-moss',
+                  content: (
+                      <Armchair aria-hidden="true" className="h-2.5 w-2.5" />
+                  ),
+              };
+    }
+
+    if (start.probability === null) {
+        return null;
+    }
+
+    return {
+        label: start.fetched_at
+            ? `${start.probability} % de ser titular · ${dataAgeTooltipLabel(start.fetched_at, now)}`
+            : `${start.probability} % de ser titular`,
+        className: startBadgeTierClass(
+            startTone(start.probability, entry.player.status),
+        ),
+        content: `${start.probability}%`,
+    };
 }
 
 /**
@@ -174,9 +262,10 @@ function isPlayerLiveNow(
 /**
  * The token's width (and so its name pill's): an even share of the pitch's
  * width for the players in that row, so names use all the room the row has
- * instead of a fixed pixel width.
+ * instead of a fixed pixel width. Exported so the team ficha's probable-XI
+ * pitch sizes its tokens the same way, row by row.
  */
-function tokenWidthForRowCount(count: number): string {
+export function tokenWidthForRowCount(count: number): string {
     if (count >= 5) {
         return 'w-[19.5%]';
     }
@@ -195,6 +284,8 @@ function tokenWidthForRowCount(count: number): string {
 interface PlayerTokenProps {
     entry: ManagerLineupPlayerEntry;
     onSelectPlayer: (entry: ManagerLineupPlayerEntry) => void;
+    /** For the start badge's data-age tooltip — see {@link lineupStartBadge}. */
+    now: number;
     showTeamBadge: boolean;
     /** Off on a team's own ficha — every starter there played the full match by definition (there's no fantasy pick to second-guess), so the checkmark is redundant. Subs/bench/not-called-up badges still show. */
     showStarterBadge: boolean;
@@ -207,12 +298,15 @@ interface PlayerTokenProps {
  * A pitch token (mock `.tok`): 48px photo in a paper frame with the club
  * crest showing through behind the cut-out, the real-match status badge on
  * top (✓ / ↳min' / ✕ / clock / armchair), the solid points tier chip at the
- * bottom-right corner, a pulsing red frame while the match is live, and the
- * name pill below. Opens the player's jornada modal.
+ * bottom-right corner, its start-probability/confirmed-lineup mirror at the
+ * bottom-left (see `lineupStartBadge`) while the pick's own match hasn't
+ * kicked off, a pulsing red frame while the match is live, and the name pill
+ * below. Opens the player's jornada modal.
  */
 function PlayerToken({
     entry,
     onSelectPlayer,
+    now,
     showTeamBadge,
     showStarterBadge,
     showLiveIndicator,
@@ -224,12 +318,13 @@ function PlayerToken({
     const stateLabel = statusBadgeLabel(badgeState, entry.sub_minute);
     const pointsLabel =
         entry.points === null ? 'sin puntos' : `${entry.points} puntos`;
+    const startBadge = lineupStartBadge(entry, now);
 
     return (
         <button
             type="button"
             onClick={() => onSelectPlayer(entry)}
-            aria-label={`${entry.player.nickname} · ${stateLabel} · ${pointsLabel}${liveNow ? ' · en directo' : ''}`}
+            aria-label={`${entry.player.nickname} · ${stateLabel} · ${pointsLabel}${startBadge ? ` · ${startBadge.label}` : ''}${liveNow ? ' · en directo' : ''}`}
             className={cn(
                 'group relative flex shrink-0 cursor-pointer flex-col items-center outline-none',
                 widthClass,
@@ -293,6 +388,17 @@ function PlayerToken({
                 >
                     {entry.points ?? '–'}
                 </span>
+                {startBadge && (
+                    <HqTooltip
+                        label={startBadge.label}
+                        className={cn(
+                            'absolute -bottom-[5px] -left-[7px] z-10 h-4 min-w-5 items-center justify-center px-[3px] font-mono text-[10.5px] leading-none font-extrabold tabular-nums',
+                            startBadge.className,
+                        )}
+                    >
+                        {startBadge.content}
+                    </HqTooltip>
+                )}
             </span>
             <span className="mt-[5px] block max-w-full truncate bg-[rgba(6,7,5,0.86)] px-1 py-0.5 font-mono text-[10px] leading-[1.1] font-bold text-hq-paper">
                 {entry.player.nickname}
@@ -314,8 +420,12 @@ function EmptySlot({ widthClass }: { widthClass: string }) {
     );
 }
 
-/** The pitch markings (mock PITCH_V) on plain turf: touchlines, halfway line, centre circle, both boxes. */
-function PitchLines() {
+/**
+ * The pitch markings (mock PITCH_V) on plain turf: touchlines, halfway line,
+ * centre circle, both boxes. Exported so the team ficha's probable-XI pitch
+ * draws the exact same markings at the exact same size.
+ */
+export function PitchLines() {
     return (
         <svg
             aria-hidden="true"
@@ -334,7 +444,8 @@ function PitchLines() {
     );
 }
 
-const PITCH_TAG_CLASS =
+/** Exported so the probable-XI pitch's formation tag matches this one exactly. */
+export const PITCH_TAG_CLASS =
     'absolute z-20 border bg-hq-ink px-1.5 py-1 font-mono text-[10.5px] leading-none font-bold tracking-[0.06em] uppercase';
 
 interface HqLineupPitchProps {
@@ -382,6 +493,7 @@ export function HqLineupPitch({
     fixture,
     teamId,
 }: HqLineupPitchProps) {
+    const now = useNow(60_000);
     const scoreboard = (() => {
         if (!fixture || teamId === undefined) {
             return null;
@@ -560,6 +672,7 @@ export function HqLineupPitch({
                               <PlayerToken
                                   entry={entry}
                                   onSelectPlayer={onSelectPlayer}
+                                  now={now}
                                   showTeamBadge={showTeamBadge}
                                   showStarterBadge={showStarterBadge}
                                   showLiveIndicator={showLiveIndicator}
@@ -583,6 +696,7 @@ export function HqLineupPitch({
                                           key={entry.id}
                                           entry={entry}
                                           onSelectPlayer={onSelectPlayer}
+                                          now={now}
                                           showTeamBadge={showTeamBadge}
                                           showStarterBadge={showStarterBadge}
                                           showLiveIndicator={showLiveIndicator}
@@ -611,6 +725,7 @@ export function HqLineupPitch({
                                 key={entry.id}
                                 entry={entry}
                                 onSelectPlayer={onSelectPlayer}
+                                now={now}
                                 showTeamBadge={showTeamBadge}
                                 showStarterBadge={showStarterBadge}
                                 showLiveIndicator={showLiveIndicator}

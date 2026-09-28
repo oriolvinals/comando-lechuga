@@ -13,6 +13,7 @@ import {
     lineupPlayerStatsEntry,
 } from '@/components/hq-player-stats-modal';
 import { HqPositionTag } from '@/components/hq-position-tag';
+import { HqProbableHalfPitch } from '@/components/hq-probable-half-pitch';
 import { HqSection } from '@/components/hq-section';
 import { HqTeamFixtureStrip } from '@/components/hq-team-fixture-strip';
 import { HqTeamFormStrip } from '@/components/hq-team-form-strip';
@@ -26,9 +27,11 @@ import type {
     ManagerLineupPlayerEntry,
     NextFixtureSlot,
     Player,
+    PlayerNextStart,
     PlayerPosition,
     StandingsRow,
     Team,
+    TeamNextStartProbabilities,
     TeamPerMatchRates,
     TeamSquadSummary,
 } from '@/types/models';
@@ -58,6 +61,7 @@ interface TeamShowProps {
     fixtures: Fixture[];
     currentWeek: number;
     weeklyLineups: TeamWeekLineup[];
+    startProbabilities: TeamNextStartProbabilities | null;
     [key: string]: unknown;
 }
 
@@ -107,6 +111,7 @@ export default function TeamShow({
     fixtures,
     currentWeek,
     weeklyLineups,
+    startProbabilities,
 }: TeamShowProps) {
     const [selectedWeek, setSelectedWeek] = useState(currentWeek);
     const [selectedPlayer, setSelectedPlayer] =
@@ -132,6 +137,32 @@ export default function TeamShow({
 
         return formation ? formation.split('-').map(Number) : null;
     })();
+
+    const nextStartByPlayerId = new Map<number, PlayerNextStart>();
+
+    if (startProbabilities) {
+        for (const entry of startProbabilities.players) {
+            nextStartByPlayerId.set(entry.player.id, {
+                fixture_id: startProbabilities.fixture_id,
+                week_number: startProbabilities.week_number,
+                probability: entry.probability,
+                predicted_starter: entry.predicted_starter,
+                confirmed_starter: entry.confirmed_starter,
+                confirmed_source: startProbabilities.confirmed_source,
+                is_stale: startProbabilities.is_stale,
+                fetched_at: startProbabilities.fetched_at,
+                source_url: startProbabilities.source_url,
+                team_short_name: startProbabilities.team.short_name,
+                opponent: startProbabilities.opponent,
+                is_home: startProbabilities.is_home,
+                date:
+                    fixtures.find(
+                        (fixture) =>
+                            fixture.id === startProbabilities.fixture_id,
+                    )?.date ?? '',
+            });
+        }
+    }
 
     const groups = GROUP_ORDER.map((position) => ({
         position,
@@ -309,6 +340,11 @@ export default function TeamShow({
                                     )}
                                 </div>
                             </div>
+                        ) : startProbabilities &&
+                          startProbabilities.week_number === selectedWeek ? (
+                            <HqProbableHalfPitch
+                                probabilities={startProbabilities}
+                            />
                         ) : (
                             <HqEmptyState
                                 glyph="▦"
@@ -377,7 +413,13 @@ export default function TeamShow({
                                 {group.players.map((player) => (
                                     <PlayerRow
                                         key={player.id}
-                                        player={player}
+                                        player={{
+                                            ...player,
+                                            next_start:
+                                                nextStartByPlayerId.get(
+                                                    player.id,
+                                                ) ?? null,
+                                        }}
                                         showTeam={false}
                                         showPosition={false}
                                     />

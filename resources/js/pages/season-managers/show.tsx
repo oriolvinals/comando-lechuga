@@ -9,11 +9,16 @@ import {
     lineupPlayerStatsEntry,
 } from '@/components/hq-player-stats-modal';
 import { HqChannelHeader, HqSection } from '@/components/hq-section';
+import {
+    HqStartAttribution,
+    HqStartStaleBanner,
+} from '@/components/hq-start-probability';
 import { HqTeamPointsChart } from '@/components/hq-team-points-chart';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { HqWeekPickerBand } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
 import { formatCurrency } from '@/lib/format';
+import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { ManagerHero } from '@/pages/season-managers/manager-hero';
 import { RosterList } from '@/pages/season-managers/roster-list';
@@ -79,6 +84,28 @@ export default function SeasonManagerShow({
         (sum, entry) => sum + entry.player.market_value_difference,
         0,
     );
+    const now = useNow(60_000);
+    const nextStarts = roster.flatMap((entry) =>
+        entry.player.next_start ? [entry.player.next_start] : [],
+    );
+    const outfieldRoster = roster.filter(
+        (entry) => entry.player.position !== 'coach',
+    );
+    const startWeek =
+        nextStarts.length > 0
+            ? Math.min(...nextStarts.map((start) => start.week_number))
+            : null;
+    const probableStarters = outfieldRoster.filter(({ player }) =>
+        player.next_start
+            ? (player.next_start.confirmed_starter ??
+              player.next_start.predicted_starter)
+            : false,
+    ).length;
+    const oldestStaleStart = nextStarts
+        .filter((start) => start.is_stale && start.fetched_at !== null)
+        .sort((a, b) =>
+            (a.fetched_at ?? '').localeCompare(b.fetched_at ?? ''),
+        )[0];
 
     return (
         <>
@@ -119,6 +146,16 @@ export default function SeasonManagerShow({
                         }
                         action={
                             <>
+                                {startWeek !== null && (
+                                    <span className="font-mono whitespace-nowrap">
+                                        J{startWeek} ·{' '}
+                                        <b className="font-bold text-hq-lime">
+                                            {probableStarters}/
+                                            {outfieldRoster.length}
+                                        </b>{' '}
+                                        XI prob.
+                                    </span>
+                                )}
                                 <span className="border border-hq-border-strong bg-hq-panel px-1.5 py-[3px] font-mono text-xs leading-none font-bold text-hq-moss">
                                     {roster.length}/{MAX_ROSTER_SIZE}
                                 </span>
@@ -147,7 +184,25 @@ export default function SeasonManagerShow({
                             </>
                         }
                     />
+                    {oldestStaleStart?.fetched_at && (
+                        <HqStartStaleBanner
+                            fetchedAt={oldestStaleStart.fetched_at}
+                            now={now}
+                        />
+                    )}
                     <RosterList roster={roster} />
+                    {nextStarts.length > 0 && (
+                        <HqStartAttribution
+                            sources={nextStarts.map((start) => ({
+                                label: start.team_short_name,
+                                url: start.source_url,
+                            }))}
+                            confirmedByWorldcup26={nextStarts.some(
+                                (start) =>
+                                    start.confirmed_source === 'worldcup26',
+                            )}
+                        />
+                    )}
                 </section>
 
                 <aside className="min-w-0">

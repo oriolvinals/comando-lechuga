@@ -5,6 +5,7 @@ import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
+import { HqNextStart } from '@/components/hq-next-start';
 import { ClauseDifference } from '@/components/hq-player-property-card';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
@@ -147,8 +148,9 @@ function MobileCaption({ children }: { children: ReactNode }) {
 /**
  * One roster player (mock `.rrow`). The whole row opens the player ficha
  * (the name is the real link, for keyboard and middle-click); the club is
- * its own link. On phones: photo · identity · points, then the clause on a
- * dashed rule, next fixtures | last 3, and value + today on a last rule.
+ * its own link, with the next-match start bar/% right under it. On phones:
+ * photo · identity · points, then the clause on a dashed rule, next
+ * fixtures | last 3, and value + today on a last rule.
  */
 function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
     const playerUrl = playersShow(entry.player.id).url;
@@ -194,6 +196,11 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                     </Link>
                     <HqStatusBadge status={entry.player.status} />
                 </div>
+                <HqNextStart
+                    start={entry.player.next_start ?? null}
+                    status={entry.player.status}
+                    className="mt-1.5"
+                />
             </div>
 
             <div className="col-span-full border-t border-dashed border-hq-border pt-2 lg:col-span-1 lg:border-0 lg:pt-0">

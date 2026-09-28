@@ -16,6 +16,7 @@ use App\Models\FixtureLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Season;
 use App\Services\FixtureFantasyScoreboard;
+use App\Services\StartProbabilities;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -73,7 +74,7 @@ class FixturesController extends Controller
         ]);
     }
 
-    public function show(Fixture $fixture, FixtureFantasyScoreboard $fantasyScoreboard): Response
+    public function show(Fixture $fixture, FixtureFantasyScoreboard $fantasyScoreboard, StartProbabilities $startProbabilities): Response
     {
         $fixture->load(['localTeam', 'guestTeam']);
 
@@ -132,6 +133,7 @@ class FixturesController extends Controller
             'events' => $events,
             'team_stats' => $this->teamStats($fixtureLineups, $fixture),
             'fantasy_scoreboard' => $fantasyScoreboard->forFixture($fixture, $fixtureLineups, $weekFixtures),
+            'startProbabilities' => $startProbabilities->forFixture($fixture),
         ]);
     }
 
@@ -250,13 +252,9 @@ class FixturesController extends Controller
      */
     private function sideOrder(string $position, bool $isLocal): int
     {
-        $side = match (MatchPositionSide::fromWorldcup26Text($position)) {
-            MatchPositionSide::Left => 0,
-            MatchPositionSide::Center => 1,
-            MatchPositionSide::Right => 2,
-        };
+        $side = MatchPositionSide::fromWorldcup26Text($position)->leftToRight();
 
-        return $isLocal ? $side : 2 - $side;
+        return $isLocal ? $side : 4 - $side;
     }
 
     private function lineOrder(string $position): int
