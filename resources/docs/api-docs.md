@@ -189,7 +189,7 @@ Un jugador propio puede salir de la plantilla de cuatro maneras:
 
 1. **Ponerlo en el mercado.** Está allí 3 días. Cada día a las 20:00 (hora de Madrid) la liga hace una oferta de entre −10 % y +10 % de su valor de mercado, que el manager acepta o rechaza. Los otros managers **no** pueden pujar por él.
 2. **Venta inmediata a la liga:** al instante, por el **50 %** de su valor de mercado.
-3. **Que otro manager pague su cláusula** cuando esté abierta (sección 2.10). El dueño no puede impedirlo; por eso conviene vigilar las cláusulas abiertas de la propia plantilla.
+3. **Que otro manager pague su cláusula** cuando esté abierta (sección 2.10). El dueño solo puede evitarlo blindándolo (sección 2.10.1); por eso conviene vigilar las cláusulas abiertas de la propia plantilla.
 4. **Aceptar una oferta directa** de otro manager.
 
 Visto desde el comprador: un jugador que tiene otro manager (esté o no puesto a la venta) solo se consigue con una oferta directa a su dueño o pagando su cláusula abierta. La API no ve las ofertas entre managers.
@@ -207,7 +207,17 @@ Visto desde el comprador: un jugador que tiene otro manager (esté o no puesto a
 - La cláusula vale **el mayor de su valor de mercado y lo que se pagó por él**. `amount` ya es la cifra vigente.
 - **Ventana cerrada:** no se pueden pagar cláusulas desde **24 horas antes del primer partido de la jornada hasta que empieza**; después se vuelve a poder. Antes de recomendar un clausulazo, mira `/api/season` → `buyouts_open` y `upcoming_week.buyouts_close_at`.
 - **Subir la cláusula de un jugador propio** la sube el **doble de lo invertido**: invertir 500.000 € la sube 1 M€.
-- `shielded: true` (hasta `shielded_until`) es la marca de blindaje de la app. Si la ves, no recomiendes clausularlo sin que el usuario lo confirme en la app.
+
+### 2.10.1 Blindajes
+
+- Cada manager tiene **2 blindajes por jornada**. El cupo de la jornada cuenta desde que empieza su semana, sin esperar a que se juegue el primer partido.
+- Un blindaje dura **24 horas**. Mientras dura, nadie puede llevarse a ese jugador pagando su cláusula; solo sale de la plantilla si su dueño lo vende. En la API: `roster[].buyout_clause.shielded: true` hasta `shielded_until`, y en la actividad sale como `shield` ("Blindaje").
+- Si un rival tiene `shielded: true`, no se le puede clausular hasta `shielded_until`. Tenlo en cuenta al recomendar un clausulazo.
+- La API no dice cuántos blindajes le quedan a un manager. Puedes contar sus `shield` recientes en `/api/activity?manager={id}&type=shield`, pero confírmalo con el usuario.
+- **Para qué se usan:**
+  - **Asegurar al jugador para la jornada** (el uso normal). Se blinda justo antes de que se cierre la ventana de cláusulas, para que el blindaje dure hasta ese cierre (`upcoming_week.buyouts_close_at`). A partir de ahí nadie puede clausular hasta que empiece la jornada. Ejemplo: si la jornada empieza el viernes a las 21:00, las cláusulas se cierran el jueves a las 21:00; se blinda el miércoles a las 21:00 y el blindaje dura hasta el jueves a las 21:00, así que el jugador se queda para la jornada.
+  - **Proteger a un jugador con la cláusula abierta mientras juega.** Si hace un buen partido, el dueño puede subirle la cláusula después sin tener que estar pendiente del partido en directo.
+  - **Ganar un día más** a un jugador que se está revalorizando: mientras siga subiendo, su cláusula sube con él.
 
 ### 2.11 Lo que esta liga no tiene
 
