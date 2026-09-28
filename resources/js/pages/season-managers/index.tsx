@@ -11,6 +11,7 @@ import {
     HqPlayerStatsModal,
     lineupPlayerStatsEntry,
 } from '@/components/hq-player-stats-modal';
+import { HqShieldCount } from '@/components/hq-shield-count';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { HqWeekPickerBand } from '@/components/hq-week-scroll-picker';
 import AppLayout from '@/layouts/app-layout';
@@ -181,10 +182,29 @@ export default function SeasonManagersIndex({
                                                 <span className="block truncate text-base leading-tight font-extrabold text-hq-paper uppercase group-hover:underline">
                                                     {lineup.season_manager.name}
                                                 </span>
-                                                <span className="mt-[5px] block font-mono text-xs text-hq-moss-dim">
+                                                <span className="mt-[5px] flex items-center gap-2 font-mono text-xs text-hq-moss-dim">
                                                     {anyPlayed
                                                         ? `${index + 1}º de la jornada`
                                                         : `${lineup.season_manager.position}º en la general`}
+                                                    {lineup.season_manager
+                                                        .shields && (
+                                                        <>
+                                                            <span aria-hidden="true">
+                                                                ·
+                                                            </span>
+                                                            <HqShieldCount
+                                                                used={
+                                                                    lineup
+                                                                        .season_manager
+                                                                        .shields
+                                                                        .used
+                                                                }
+                                                                focusable={
+                                                                    false
+                                                                }
+                                                            />
+                                                        </>
+                                                    )}
                                                 </span>
                                             </span>
                                         </Link>

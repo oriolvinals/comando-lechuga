@@ -271,6 +271,89 @@ class StartProbabilities
             ->with('player.team')
             ->get();
 
+        $block = $this->buildBlock($fixture, $team, $rows, $lineups);
+
+        if ($block !== null) {
+            $this->attachCurrentSeason(collect(array_map(fn (array $entry): Player => $entry['player'], $block['players'])), $fixture->season_id);
+        }
+
+        return $block;
+    }
+
+    /**
+     * Every team's block for its own next match, in a fixed number of
+     * queries whatever the number of teams — the same rules as
+     * {@see teamBlock()}, batched for pages that need every team's block at
+     * once (the `/api/teams` table).
+     *
+     * @param  array<int, Fixture>  $nextFixtureByTeam  keyed by team id, one entry per team with a next match — the same "next match" rule as {@see nextFixtures()}, with `localTeam`/`guestTeam` loaded
+     * @return array<int, array{fixture_id: int, week_number: int, team: Team, source_url: string, fetched_at: string|null, is_stale: bool, confirmed_source: 'worldcup26'|'futbolfantasy'|null, formation: string|null, players: list<StartEntry>, opponent: Team, is_home: bool}|null>
+     */
+    public function forTeamsNextFixtures(Season $season, array $nextFixtureByTeam): array
+    {
+        if ($nextFixtureByTeam === []) {
+            return [];
+        }
+
+        $fixtureIds = array_values(array_unique(array_map(fn (Fixture $fixture): int => $fixture->id, $nextFixtureByTeam)));
+
+        $rowsByFixtureAndTeam = FixtureLineupProbability::query()
+            ->whereIn('fixture_id', $fixtureIds)
+            ->with('player.team')
+            ->get()
+            ->groupBy(fn (FixtureLineupProbability $row): string => "{$row->fixture_id}:{$row->player->team_id}");
+
+        $lineupsByFixtureAndTeam = FixtureLineup::query()
+            ->whereIn('fixture_id', $fixtureIds)
+            ->whereNotNull('player_id')
+            ->with('player.team')
+            ->get()
+            ->groupBy(fn (FixtureLineup $lineup): string => "{$lineup->fixture_id}:{$lineup->team_id}");
+
+        $blocks = [];
+        $allPlayers = collect();
+
+        foreach ($nextFixtureByTeam as $teamId => $fixture) {
+            $isHome = $fixture->team_local_id === $teamId;
+            $team = $isHome ? $fixture->localTeam : $fixture->guestTeam;
+            $rows = $rowsByFixtureAndTeam->get("{$fixture->id}:{$teamId}", collect());
+            $lineups = $lineupsByFixtureAndTeam->get("{$fixture->id}:{$teamId}", collect());
+            $block = $this->buildBlock($fixture, $team, $rows, $lineups);
+
+            if ($block === null) {
+                $blocks[$teamId] = null;
+
+                continue;
+            }
+
+            $blocks[$teamId] = [
+                ...$block,
+                'opponent' => $isHome ? $fixture->guestTeam : $fixture->localTeam,
+                'is_home' => $isHome,
+            ];
+
+            $allPlayers->push(...array_map(fn (array $entry): Player => $entry['player'], $block['players']));
+        }
+
+        if ($allPlayers->isNotEmpty()) {
+            $this->attachCurrentSeason($allPlayers, $season->id);
+        }
+
+        return $blocks;
+    }
+
+    /**
+     * The side's block built from already-loaded rows/lineups — the rules
+     * shared by the single-team lookup ({@see teamBlock()}) and the batched
+     * one ({@see forTeamsNextFixtures()}). Does not attach current-season
+     * figures to the players it returns; callers batch that themselves.
+     *
+     * @param  Collection<int, FixtureLineupProbability>  $rows
+     * @param  Collection<int, FixtureLineup>  $lineups
+     * @return StartTeamBlock|null
+     */
+    private function buildBlock(Fixture $fixture, Team $team, Collection $rows, Collection $lineups): ?array
+    {
         if ($rows->isEmpty() && $lineups->isEmpty()) {
             return null;
         }
@@ -316,8 +399,6 @@ class StartProbabilities
                 'pitch_position' => $pitchPositions[(int) $lineup->player_id] ?? null,
             ];
         }
-
-        $this->attachCurrentSeason(collect(array_map(fn (array $entry): Player => $entry['player'], $players)), $fixture->season_id);
 
         $fetchedAt = $rows->sortByDesc(fn (FixtureLineupProbability $row): int => $row->fetched_at->getTimestamp())->first()?->fetched_at;
 

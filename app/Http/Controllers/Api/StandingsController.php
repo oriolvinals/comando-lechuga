@@ -10,6 +10,7 @@ use App\Http\Resources\StandingsResource;
 use App\Models\ManagerLineup;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Services\ManagerShields;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -17,7 +18,7 @@ class StandingsController extends Controller
 {
     use FiltersSeasonWeeks;
 
-    public function index(): AnonymousResourceCollection
+    public function index(ManagerShields $managerShields): AnonymousResourceCollection
     {
         $season = Season::current();
 
@@ -27,6 +28,11 @@ class StandingsController extends Controller
             ->get();
 
         $this->attachApiRecentForm($standings, $season);
+
+        $shields = $managerShields->forSeason($season);
+        $standings->each(function (SeasonManager $manager) use ($shields): void {
+            $manager->api_shields = ManagerShields::current($shields, $manager->id);
+        });
 
         return StandingsResource::collection($standings);
     }

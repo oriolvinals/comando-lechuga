@@ -37,7 +37,7 @@ test('returns the current market listings ordered by soonest to expire', functio
     $response->assertJsonPath('data.0.player.nickname', 'Pedri');
     $response->assertJsonPath('data.0.player.team.name', 'FC Barcelona');
     $response->assertJsonPath('data.0.sale_price', 5_000_000);
-    $response->assertJsonPath('data.0.value', 4_800_000);
+    $response->assertJsonPath('data.0.market_value', 4_800_000);
     $response->assertJsonPath('data.0.bids', 3);
     $response->assertJsonPath('data.0.expires_at', $soonest->expires_at->toIso8601String());
     $response->assertJsonPath('data.1.expires_at', $later->expires_at->toIso8601String());

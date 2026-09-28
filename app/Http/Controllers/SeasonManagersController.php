@@ -19,6 +19,8 @@ use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Services\ManagerShields;
+use App\Services\ManagerWeekRanks;
 use App\Services\StartProbabilities;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -37,7 +39,7 @@ class SeasonManagersController extends Controller
     use FiltersSeasonWeeks;
     use ResolvesRequestedWeek;
 
-    public function index(Request $request, StartProbabilities $startProbabilities): Response
+    public function index(Request $request, StartProbabilities $startProbabilities, ManagerShields $managerShields): Response
     {
         $season = Season::current();
         $week = $this->resolveWeek($request, $season);
@@ -55,6 +57,11 @@ class SeasonManagersController extends Controller
         $this->attachLineupFixtures($lineups, $season);
         $this->attachLineupStarts($lineups, $startProbabilities);
 
+        $shields = $managerShields->forSeason($season);
+        $lineups->each(function (ManagerLineup $lineup) use ($shields, $week): void {
+            $lineup->seasonManager->shields = ManagerShields::inWeek($shields, $lineup->season_manager_id, $week);
+        });
+
         return Inertia::render('season-managers/index', [
             'season' => $season,
             'filters' => ['week' => $week],
@@ -66,7 +73,7 @@ class SeasonManagersController extends Controller
         ]);
     }
 
-    public function show(SeasonManager $seasonManager, StartProbabilities $startProbabilities): Response
+    public function show(SeasonManager $seasonManager, StartProbabilities $startProbabilities, ManagerWeekRanks $managerWeekRanks, ManagerShields $managerShields): Response
     {
         $season = Season::current();
 
@@ -114,7 +121,7 @@ class SeasonManagersController extends Controller
 
         $weekExtremes = $this->weekNumberExtremes($seasonManager, $season);
         $startedWeeks = $this->startedWeekNumbers($season);
-        $weekRanks = $this->weekRanks($seasonManager, $season, $startedWeeks);
+        $weekRanks = $managerWeekRanks->forManager($seasonManager, $season, $startedWeeks);
 
         return Inertia::render('season-managers/show', [
             'season' => $season,
@@ -124,6 +131,12 @@ class SeasonManagersController extends Controller
             'startedWeeks' => $startedWeeks,
             // Cast to object for the same reason as weekProgress below.
             'weekRanks' => (object) $weekRanks,
+            // Shields used per jornada, up to the current shield jornada.
+            // Cast to object for the same reason as weekProgress below.
+            'weekShields' => (object) ManagerShields::usedByWeek(
+                $managerShields->forSeason($season),
+                $seasonManager->id,
+            ),
             'weeklySummary' => $this->weeklySummary($seasonManager, $weekRanks),
             // Cast to object: PHP normalizes numeric string keys back to
             // int, so a plain array here could serialize as a sparse JSON
@@ -133,48 +146,6 @@ class SeasonManagersController extends Controller
             'lostWeeks' => $weekExtremes['lost'],
             'activity' => $activity,
         ]);
-    }
-
-    /**
-     * This manager's place among the season's managers in every started week it
-     * has a lineup for, by lineup points. Ties share the better place (two
-     * managers tied on top are both 1º); `is_last` flags a share of the bottom.
-     *
-     * @param  array<int, int>  $startedWeeks
-     * @return array<int, array{rank: int, managers: int, points: int, is_last: bool}>
-     */
-    private function weekRanks(SeasonManager $seasonManager, Season $season, array $startedWeeks): array
-    {
-        if ($startedWeeks === []) {
-            return [];
-        }
-
-        $lineupsByWeek = ManagerLineup::query()
-            ->whereIn('week_number', $startedWeeks)
-            ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
-            ->get(['season_manager_id', 'week_number', 'points'])
-            ->groupBy('week_number');
-
-        $weekRanks = [];
-
-        foreach ($lineupsByWeek as $weekNumber => $weekLineups) {
-            $ownLineup = $weekLineups->firstWhere('season_manager_id', $seasonManager->id);
-
-            if (!$ownLineup instanceof ManagerLineup) {
-                continue;
-            }
-
-            $weekRanks[(int) $weekNumber] = [
-                'rank' => 1 + $weekLineups->filter(fn (ManagerLineup $lineup): bool => $lineup->points > $ownLineup->points)->count(),
-                'managers' => $weekLineups->count(),
-                'points' => $ownLineup->points,
-                'is_last' => $weekLineups->count() > 1 && $ownLineup->points === $weekLineups->min('points'),
-            ];
-        }
-
-        ksort($weekRanks);
-
-        return $weekRanks;
     }
 
     /**

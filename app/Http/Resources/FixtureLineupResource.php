@@ -26,7 +26,7 @@ class FixtureLineupResource extends JsonResource
             'unresolved_name' => $this->unresolved_name,
             'team_id' => $this->team_id,
             'starter' => $this->starter,
-            'position' => $this->position,
+            'pitch_position' => $this->position,
             'jersey' => $this->jersey,
             'subbed_in' => $this->subbed_in,
             'subbed_out' => $this->subbed_out,

@@ -30,6 +30,12 @@ class MarketPlayer extends Model
     /** @use HasFactory<MarketPlayerFactory> */
     use HasFactory;
 
+    /**
+     * Who sells every listing we sync: the league itself (the provider's
+     * `marketPlayerLeague`). Players that managers list are not synced.
+     */
+    public const string SELLER_LEAGUE = 'league';
+
     /** @return BelongsTo<Player, $this> */
     public function player(): BelongsTo
     {

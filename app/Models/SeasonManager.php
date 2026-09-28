@@ -14,11 +14,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property array<int, int|null> $recent_form Points for the manager's last 3 played jornadas, oldest first, ordered by week number; null-padded at the end when fewer than 3 exist. Computed at query time by HomeController; not a database column.
- * @property int $daily_value_difference How much the manager's current squad gained or lost in the latest daily market update (sum of its players' daily value differences). Computed at query time by HomeController; not a database column.
+ * @property int $daily_value_difference How much the manager's current squad gained or lost in the latest daily market update (sum of its players' daily value differences). Computed at query time by AttachesDailyValueDifference (HomeController, Api\ManagerController); not a database column.
  * @property array<int, array{week_number: int, points: int|null, live: bool}> $api_recent_form The manager's most recent finished jornadas (oldest first), fewer than 3 entries when fewer have finished; when the current jornada is live, only its last 2 finished entries are kept and a 3rd entry for the live jornada (live: true, points from live_points) is appended. Computed at query time by Api\StandingsController; not a database column.
  * @property array<int, array<string, mixed>> $api_roster The manager's current squad. Computed at query time by Api\ManagerController; not a database column.
- * @property array<int, array<string, mixed>> $api_lineup_history The manager's lineup for every played jornada. Computed at query time by Api\ManagerController; not a database column.
+ * @property array<int, array<string, mixed>> $api_lineup_history The manager's lineup for every finished jornada, oldest first. Computed at query time by Api\ManagerController; not a database column.
  * @property array<int, array<string, mixed>> $api_recent_activity The manager's last 10 activities as source or target. Computed at query time by Api\ManagerController; not a database column.
+ * @property array<string, mixed>|null $api_current_lineup The lineup of the jornada being played or next to play (SeasonClock::lineupWeek), with live/final points and next starts; null without one. Computed at query time by Api\ManagerController; not a database column.
+ * @property array<int, array{week_number: int, rank: int, managers: int, points: int, is_last: bool}> $api_week_ranks The manager's rank in each finished jornada he had a lineup for. Computed at query time by Api\ManagerController; not a database column.
+ * @property int $api_played_weeks Finished jornadas the manager had a lineup for. Computed at query time by Api\ManagerController; not a database column.
+ * @property float|null $api_average_points Average lineup points over those jornadas; null before any. Computed at query time by Api\ManagerController; not a database column.
+ * @property array{week_number: int, used: int, remaining: int, total: int} $api_shields The manager's shields in the current shield jornada (ManagerShields). Computed at query time by Api\ManagerController and Api\StandingsController; not a database column.
+ * @property array{week_number: int, used: int, remaining: int, total: int}|null $shields The manager's shields in one jornada (ManagerShields): the current one on the home standings, the browsed one on the managers page (null after the current shield jornada). Computed at query time by HomeController and SeasonManagersController; not a database column.
  */
 #[Table(name: 'season_managers', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['fantasy_id', 'fantasy_user_id', 'name', 'logo', 'primary_color', 'secondary_color', 'total_points', 'live_points', 'position', 'last_position', 'value', 'season_id'])]

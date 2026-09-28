@@ -7,9 +7,12 @@ use App\Http\Controllers\Api\FixturesController;
 use App\Http\Controllers\Api\ManagerController;
 use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\PlayersController;
+use App\Http\Controllers\Api\SeasonController;
 use App\Http\Controllers\Api\StandingsController;
+use App\Http\Controllers\Api\TeamsController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('season', [SeasonController::class, 'show'])->name('api.season');
 Route::get('standings', [StandingsController::class, 'index'])->name('api.standings');
 Route::get('activity', [ActivityController::class, 'index'])->name('api.activity');
 Route::get('managers/{seasonManager}', [ManagerController::class, 'show'])->name('api.managers.show');
@@ -18,3 +21,4 @@ Route::get('fixtures/{fixture}', [FixturesController::class, 'show'])->name('api
 Route::get('players', [PlayersController::class, 'index'])->name('api.players');
 Route::get('players/{player}', [PlayersController::class, 'show'])->name('api.players.show');
 Route::get('market', [MarketController::class, 'index'])->name('api.market');
+Route::get('teams', [TeamsController::class, 'index'])->name('api.teams');

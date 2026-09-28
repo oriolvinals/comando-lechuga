@@ -6,6 +6,7 @@ use App\Enums\FixtureState;
 use App\Enums\MarketTrend;
 use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
+use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
@@ -755,5 +756,37 @@ test('shows the last three results of a jornada that has finished', function ():
         ->where('jornadaMatches.matches.0.id', $fixtures[1]->id)
         ->where('jornadaMatches.matches.2.id', $fixtures[3]->id)
         ->where('jornadaMatches.matches.2.managers', [])
+    );
+});
+
+test('shows each manager\'s shields left in the current shield jornada', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $shielded = SeasonManager::factory()->create(['season_id' => $season->id, 'position' => 1]);
+    SeasonManager::factory()->create(['season_id' => $season->id, 'position' => 2]);
+
+    Activity::factory()->create([
+        'season_id' => $season->id,
+        'type' => SeasonActivityType::WeeklyPrize,
+        'source_season_manager_id' => $shielded->id,
+        'player_id' => null,
+        'week_number' => 1,
+        'occurred_at' => now()->subDays(2),
+    ]);
+    Activity::factory()->create([
+        'season_id' => $season->id,
+        'type' => SeasonActivityType::Shield,
+        'source_season_manager_id' => $shielded->id,
+        'occurred_at' => now()->subDay(),
+    ]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('standings.0.shields', ['week_number' => 2, 'used' => 1, 'remaining' => 1, 'total' => 2])
+        ->where('standings.1.shields', ['week_number' => 2, 'used' => 0, 'remaining' => 2, 'total' => 2])
     );
 });

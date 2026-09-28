@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Enums\FixtureState;
+use App\Enums\SeasonActivityType;
+use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\ManagerLineup;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use Illuminate\Support\Facades\DB;
 
 test('returns the standings ordered by position', function (): void {
     $season = Season::factory()->create([
@@ -176,4 +179,70 @@ test('recent_form has fewer than 3 entries when fewer jornadas have finished', f
     $response->assertJsonPath('data.0.recent_form', [
         ['week_number' => 1, 'points' => 42, 'live' => false],
     ]);
+});
+
+test('shows each manager\'s shields left in the current shield jornada', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $shielded = SeasonManager::factory()->create(['season_id' => $season->id, 'position' => 1]);
+    SeasonManager::factory()->create(['season_id' => $season->id, 'position' => 2]);
+
+    Activity::factory()->create([
+        'season_id' => $season->id,
+        'type' => SeasonActivityType::WeeklyPrize,
+        'source_season_manager_id' => $shielded->id,
+        'player_id' => null,
+        'week_number' => 1,
+        'occurred_at' => now()->subDays(2),
+    ]);
+    Activity::factory()->count(2)->create([
+        'season_id' => $season->id,
+        'type' => SeasonActivityType::Shield,
+        'source_season_manager_id' => $shielded->id,
+        'occurred_at' => now()->subDay(),
+    ]);
+
+    $response = $this->getJson('/api/standings');
+
+    $response->assertOk();
+    $response->assertJsonPath('data.0.shields', ['week_number' => 2, 'used' => 2, 'remaining' => 0, 'total' => 2]);
+    $response->assertJsonPath('data.1.shields', ['week_number' => 2, 'used' => 0, 'remaining' => 2, 'total' => 2]);
+});
+
+test('counts shields in a constant number of queries, whatever the number of managers', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    $addShieldedManager = function () use ($season): void {
+        $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
+        Activity::factory()->create([
+            'season_id' => $season->id,
+            'type' => SeasonActivityType::Shield,
+            'source_season_manager_id' => $manager->id,
+            'occurred_at' => now()->subHour(),
+        ]);
+    };
+
+    $countQueries = function (): int {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->getJson('/api/standings')->assertOk();
+        DB::disableQueryLog();
+
+        return count(DB::getQueryLog());
+    };
+
+    $addShieldedManager();
+    $withOneManager = $countQueries();
+
+    for ($i = 0; $i < 5; $i++) {
+        $addShieldedManager();
+    }
+    $withSixManagers = $countQueries();
+
+    expect($withSixManagers)->toBe($withOneManager);
 });

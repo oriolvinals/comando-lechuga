@@ -72,6 +72,29 @@ enum MarketTrend: string
     }
 
     /**
+     * Ranks how strongly the value is moving, for sorting: +6 rising and
+     * accelerating sharply … −6 falling and accelerating sharply. The
+     * inflections sit next to zero (a player without a trend counts as 0).
+     */
+    public function strength(): int
+    {
+        return match ($this) {
+            self::RiseAcceleratingSharply => 6,
+            self::RiseAccelerating => 5,
+            self::RiseSteady => 4,
+            self::RiseDecelerating => 3,
+            self::RiseDeceleratingSharply => 2,
+            self::PositiveInflection => 1,
+            self::NegativeInflection => -1,
+            self::FallDeceleratingSharply => -2,
+            self::FallDecelerating => -3,
+            self::FallSteady => -4,
+            self::FallAccelerating => -5,
+            self::FallAcceleratingSharply => -6,
+        };
+    }
+
+    /**
      * @param  list<int>  $values  Exactly seven daily values, oldest first.
      */
     private static function fromPaces(array $values): ?self

@@ -74,7 +74,7 @@ test('returns the lineups with the player, points and stats', function (): void 
     $response->assertJsonPath('data.lineups.0.player.nickname', 'Pedri');
     $response->assertJsonPath('data.lineups.0.player.image', asset('storage/players/9.png'));
     $response->assertJsonPath('data.lineups.0.starter', true);
-    $response->assertJsonPath('data.lineups.0.position', 'CentralMidfielder');
+    $response->assertJsonPath('data.lineups.0.pitch_position', 'CentralMidfielder');
     $response->assertJsonPath('data.lineups.0.jersey', '8');
     $response->assertJsonPath('data.lineups.0.points', 9);
     $response->assertJsonPath('data.lineups.0.stats', ['goals' => [1, 0]]);
