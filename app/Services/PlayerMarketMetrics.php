@@ -64,34 +64,12 @@ class PlayerMarketMetrics
      */
     public function pointsPerMillion(Player $player, Season $season): ?array
     {
-        if ($player->market_value <= 0) {
-            return null;
-        }
-
-        $pointsPerMillion = $player->points / ($player->market_value / 1_000_000);
-
-        $rankedPlayers = $this->rankedPlayersQuery($season);
-
-        $rank = null;
-
-        if ($player->points > 0) {
-            // Cross-multiplied (both values are positive) so the comparison
-            // stays in exact integers: theirs/their_value > mine/my_value.
-            $rank = 1 + (clone $rankedPlayers)
-                ->whereRaw('player_seasons.points * ? > ? * player_seasons.market_value', [$player->market_value, $player->points])
-                ->count();
-        }
-
-        return [
-            'value' => round($pointsPerMillion, 2),
-            'rank' => $rank,
-            'ranked' => $rankedPlayers->count(),
-        ];
+        return $this->pointsPerMillionForPlayers(collect([$player]), $season)[$player->id];
     }
 
     /**
      * pointsPerMillion() for many players at once, keyed by player id, with a
-     * single query for the whole league ranking instead of two per player.
+     * single query for the whole league ranking.
      *
      * @param  Collection<int, Player>  $players
      * @return array<int, array{value: float, rank: int|null, ranked: int}|null>
@@ -120,7 +98,8 @@ class PlayerMarketMetrics
             $rank = null;
 
             if ($player->points > 0) {
-                // Same cross-multiplied integer comparison as pointsPerMillion().
+                // Cross-multiplied (both values are positive) so the comparison
+                // stays in exact integers: theirs/their_value > mine/my_value.
                 $rank = 1 + count(array_filter(
                     $rankedFigures,
                     fn (array $theirs): bool => $player->points * $theirs['market_value'] < $theirs['points'] * $player->market_value,

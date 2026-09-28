@@ -96,6 +96,34 @@ test('renders the fixture show page', function (): void {
     );
 });
 
+test('answers the match ficha\'s live partial reload with only the refreshed props', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'state' => FixtureState::Scheduled,
+        'date' => now()->addMinutes(30),
+    ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->reloadOnly(
+            ['fixture', 'weekFixtures', 'lineups', 'events', 'team_stats', 'fantasy_scoreboard', 'startProbabilities'],
+            fn (Assert $reload): AssertableInertia => $reload
+                ->where('fixture.id', $fixture->id)
+                ->has('weekFixtures')
+                ->has('lineups')
+                ->has('events')
+                ->has('team_stats')
+                ->has('fantasy_scoreboard')
+                ->where('startProbabilities', null)
+        )
+    );
+});
+
 test('shows the other fixtures from the same week and season', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),

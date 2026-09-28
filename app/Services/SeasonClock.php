@@ -21,6 +21,10 @@ use Carbon\CarbonImmutable;
  * Postponed fixtures never count. A postponed match keeps its jornada, but
  * neither the jornada's state nor its first kickoff looks at it.
  *
+ * A jornada's state and first kickoff are memoized for the life of the
+ * instance, keyed by season and jornada. The container binds the clock as
+ * scoped, so one request (or queued job) asks the database once per jornada.
+ *
  * @phpstan-type UpcomingWeek array{week_number: int, lineup_locks_at: CarbonImmutable, buyouts_close_at: CarbonImmutable}
  */
 class SeasonClock
@@ -37,6 +41,12 @@ class SeasonClock
 
     public const string FINISHED = 'finished';
 
+    /** @var array<string, 'not_started'|'live'|'finished'> */
+    private array $weekStates = [];
+
+    /** @var array<string, CarbonImmutable|null> */
+    private array $firstKickoffs = [];
+
     /**
      * 'not_started' until one of the jornada's non-postponed matches kicks
      * off, 'finished' once all of them have finished, 'live' in between.
@@ -44,6 +54,14 @@ class SeasonClock
      * @return 'not_started'|'live'|'finished'
      */
     public function weekState(Season $season, int $weekNumber): string
+    {
+        return $this->weekStates[$this->weekKey($season, $weekNumber)] ??= $this->queryWeekState($season, $weekNumber);
+    }
+
+    /**
+     * @return 'not_started'|'live'|'finished'
+     */
+    private function queryWeekState(Season $season, int $weekNumber): string
     {
         $states = Fixture::query()
             ->where('season_id', $season->id)
@@ -67,13 +85,24 @@ class SeasonClock
      */
     public function firstKickoff(Season $season, int $weekNumber): ?CarbonImmutable
     {
-        return Fixture::query()
-            ->where('season_id', $season->id)
-            ->where('week_number', $weekNumber)
-            ->where('state', '!=', FixtureState::Postponed)
-            ->orderBy('date')
-            ->first(['date'])
-            ?->date;
+        $key = $this->weekKey($season, $weekNumber);
+
+        if (!array_key_exists($key, $this->firstKickoffs)) {
+            $this->firstKickoffs[$key] = Fixture::query()
+                ->where('season_id', $season->id)
+                ->where('week_number', $weekNumber)
+                ->where('state', '!=', FixtureState::Postponed)
+                ->orderBy('date')
+                ->first(['date'])
+                ?->date;
+        }
+
+        return $this->firstKickoffs[$key];
+    }
+
+    private function weekKey(Season $season, int $weekNumber): string
+    {
+        return "{$season->id}:{$weekNumber}";
     }
 
     /**
