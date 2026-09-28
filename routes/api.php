@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PlayersController;
 use App\Http\Controllers\Api\SeasonController;
 use App\Http\Controllers\Api\StandingsController;
 use App\Http\Controllers\Api\TeamsController;
+use App\Http\Controllers\Api\TimelineController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('season', [SeasonController::class, 'show'])->name('api.season');
@@ -22,3 +23,8 @@ Route::get('players', [PlayersController::class, 'index'])->name('api.players');
 Route::get('players/{player}', [PlayersController::class, 'show'])->name('api.players.show');
 Route::get('market', [MarketController::class, 'index'])->name('api.market');
 Route::get('teams', [TeamsController::class, 'index'])->name('api.teams');
+
+// Hidden, undocumented endpoint for the end-of-season recap video — see
+// TimelineController's docblock and ApiDocsDriftTest for why it's excluded
+// from resources/docs/api-docs.md.
+Route::get('timeline', [TimelineController::class, 'index'])->name('api.timeline');

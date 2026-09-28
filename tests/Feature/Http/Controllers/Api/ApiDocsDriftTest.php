@@ -132,6 +132,10 @@ test('documents every public api endpoint, and only those', function (): void {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->filter(fn (RoutingRoute $route): bool => str_starts_with($route->uri(), 'api/'))
         ->map(fn (RoutingRoute $route): string => normalizedApiUri($route->uri()))
+        // api/timeline is a deliberately undocumented, hidden endpoint (see
+        // TimelineController's docblock) for feeding an end-of-season recap
+        // video — it must never appear in resources/docs/api-docs.md.
+        ->reject(fn (string $uri): bool => $uri === 'api/timeline')
         ->sort()
         ->values()
         ->all();
