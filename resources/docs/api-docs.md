@@ -204,13 +204,13 @@ Visto desde el comprador: un jugador que tiene otro manager (esté o no puesto a
 
 - Todo jugador de una plantilla tiene una **cláusula** (`/api/managers/{id}` → `roster[].buyout_clause.amount`). Otro manager puede pagarla y llevárselo sin permiso del dueño; en la actividad sale como `buyout` ("Cláusula").
 - **Bloqueo de 14 días** tras comprarlo: no se le puede clausular hasta `buyout_clause.locked_until` (`is_locked: true` mientras dure).
-- La cláusula vale **el mayor de su valor de mercado y lo que se pagó por él**. `amount` ya es la cifra vigente.
+- La cláusula **de partida** vale **el mayor de su valor de mercado y lo que se pagó por él**. `amount` ya es la cifra vigente.
 - **Ventana cerrada:** no se pueden pagar cláusulas desde **24 horas antes del primer partido de la jornada hasta que empieza**; después se vuelve a poder. Antes de recomendar un clausulazo, mira `/api/season` → `buyouts_open` y `upcoming_week.buyouts_close_at`.
 - **Subir la cláusula de un jugador propio** la sube el **doble de lo invertido**: invertir 500.000 € la sube 1 M€.
 
 ### 2.10.1 Blindajes
 
-- Cada manager tiene **2 blindajes por jornada**. El cupo se renueva cuando la liga paga los premios de la jornada anterior (el `weekly_prize` de la actividad, de madrugada tras acabar la jornada), sin esperar a que se juegue el primer partido de la nueva. Los que no se usan se pierden al acabar la jornada: no se acumulan.
+- Cada manager tiene **2 blindajes por jornada**. El cupo se renueva cuando la liga paga los premios de la jornada anterior (el `weekly_prize` de la actividad, de madrugada tras acabar la jornada), sin esperar a que se juegue el primer partido de la nueva. Los que no se usan se pierden cuando se renueva el cupo: no se acumulan.
 - Un blindaje dura **24 horas**. Mientras dura, nadie puede llevarse a ese jugador pagando su cláusula; solo sale de la plantilla si su dueño lo vende. En la API: `roster[].buyout_clause.shielded: true` hasta `shielded_until`, y en la actividad sale como `shield` ("Blindaje").
 - Si un rival tiene `shielded: true`, no se le puede clausular hasta `shielded_until`. Tenlo en cuenta al recomendar un clausulazo.
 - Cuántos blindajes le quedan a un manager en la jornada actual: `shields.remaining` en `/api/managers/{id}` y en cada fila de `/api/standings` (`shields.week_number` es esa jornada). La cuenta se reconstruye con la actividad de la liga, así que si no cuadra con lo que ve el usuario, confírmalo con él.
@@ -336,7 +336,7 @@ Atajos útiles:
 - **Errores:**
   - **404** si el id no existe: `{"message": "…", "meta": {…}}`.
   - **422** si un filtro de `/api/players` o `/api/activity` es desconocido o no válido: `{"message": "…", "errors": {"<parámetro>": ["…"]}, "meta": {…}}`. El mensaje dice qué parámetros o valores se aceptan. Si hay parámetros desconocidos, solo se informa de ellos: corrígelos y vuelve a pedir.
-- **Jugadores excluidos:** los listados nunca incluyen jugadores fuera de la liga (`out_of_league`) ni entrenadores. `/api/players/{id}` sí puede devolver un jugador `out_of_league`, que ya no puntúa.
+- **Jugadores excluidos:** `/api/players` nunca incluye jugadores fuera de la liga (`out_of_league`) ni entrenadores. Fuera de ese listado, un jugador `out_of_league` sí puede aparecer: en `/api/market`, en plantillas (`roster[]`) y en alineaciones (`current_lineup`, `lineup_history`), y `/api/players/{id}` también puede devolver uno; ya no puntúa.
 
 ### GET /api/season
 
@@ -438,7 +438,7 @@ Clasificación de la liga, por posición. Sin parámetros ni paginación. Da los
 | `[].recent_form[].points` | entero o null | Puntos en esa jornada. |
 | `[].recent_form[].live` | booleano | Si es la jornada en juego. |
 | `[].shields` | objeto | Sus blindajes en la jornada actual de blindajes (ver 2.10.1). Se reconstruyen con la actividad de la liga. |
-| `[].shields.week_number` | entero | Jornada a la que cuentan: la siguiente a la última con premios pagados. |
+| `[].shields.week_number` | entero | Jornada a la que cuentan: la siguiente a la última con premios pagados; 1 si aún no se ha pagado ninguno; nunca pasa de la última jornada. |
 | `[].shields.used` | entero | Blindajes usados en esa jornada. |
 | `[].shields.remaining` | entero | Blindajes que le quedan en esa jornada (nunca menos de 0). |
 | `[].shields.total` | entero | Blindajes por jornada: siempre 2. |
@@ -512,7 +512,7 @@ La ficha de un manager: su forma, su alineación de la jornada, sus jornadas ter
 | `week_ranks[].points` | entero | Sus puntos esa jornada. |
 | `week_ranks[].is_last` | booleano | Si fue último (o empató en el último puesto). |
 | `shields` | objeto | Sus blindajes en la jornada actual de blindajes (ver 2.10.1). Se reconstruyen con la actividad de la liga. |
-| `shields.week_number` | entero | Jornada a la que cuentan: la siguiente a la última con premios pagados. |
+| `shields.week_number` | entero | Jornada a la que cuentan: la siguiente a la última con premios pagados; 1 si aún no se ha pagado ninguno; nunca pasa de la última jornada. |
 | `shields.used` | entero | Blindajes usados en esa jornada. |
 | `shields.remaining` | entero | Blindajes que le quedan en esa jornada (nunca menos de 0). |
 | `shields.total` | entero | Blindajes por jornada: siempre 2. |
@@ -985,7 +985,7 @@ La clasificación real de LaLiga (partidos terminados y en juego) y, para cada e
 | `[].goals_for` | entero | Goles a favor. |
 | `[].goals_against` | entero | Goles en contra. |
 | `[].goal_difference` | entero | Diferencia de goles. |
-| `[].points` | entero | Puntos de liga (3 por victoria, 1 por empate). |
+| `[].points` | entero | Puntos de LaLiga (no fantasy): 3 por victoria, 1 por empate. |
 | `[].recent_form` | lista | Hasta 4 últimos resultados terminados, del más reciente al más antiguo. |
 | `[].recent_form[].fixture_id` | entero | Partido. |
 | `[].recent_form[].opponent` | objeto | Rival. |
@@ -1026,6 +1026,7 @@ La clasificación real de LaLiga (partidos terminados y en juego) y, para cada e
 | jornada | matchweek | `week_number`, `/api/season` |
 | clasificación de la liga | league standings | `/api/standings` |
 | posición en la liga | league rank | `rank`, `last_rank` |
+| clasificación real de LaLiga | LaLiga table | `/api/teams` → `rank`, `points` (puntos de liga, no fantasy) |
 | posición en el campo | playing position (GK/DEF/MID/FWD) | `position` (`goalkeeper`, `defender`, `midfield`, `striker`) |
 | puesto real en el campo | on-pitch role | `pitch_position` |
 | valor de mercado | market value | `market_value` |

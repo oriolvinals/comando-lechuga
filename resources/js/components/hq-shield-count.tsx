@@ -5,18 +5,17 @@ import { cn } from '@/lib/utils';
 /** Shields (blindajes) every manager gets per jornada — mirrors ManagerShields::PER_WEEK. */
 export const SHIELDS_PER_WEEK = 2;
 
-type HqShieldCountSize = 'sm' | 'md';
+type HqShieldCountSize = 'sm';
 
 const SIZE_CLASSES: Record<HqShieldCountSize, { text: string; icon: string }> =
     {
         sm: { text: 'text-[10px]', icon: 'h-2.5 w-2.5' },
-        md: { text: 'text-xs', icon: 'h-3 w-3' },
     };
 
 interface HqShieldCountProps {
     /** Shields the manager used in the jornada. */
     used: number;
-    /** `sm` (10px) for the points chart and the cards, `md` for the standings. */
+    /** `sm` (10px) — the only size, used by the points chart, the cards and the standings. */
     size?: HqShieldCountSize;
     /** Off when a surrounding tooltip already describes the count (the points chart's columns). */
     withTooltip?: boolean;

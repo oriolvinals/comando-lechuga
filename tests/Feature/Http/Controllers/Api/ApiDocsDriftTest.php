@@ -11,6 +11,11 @@ use Tests\Feature\Http\Controllers\Api\ApiWorld;
  * "### GET /api/…" heading and, under it, the first-column paths of every
  * table whose header starts with "| Campo |".
  *
+ * A field row is only picked up when its first cell is exactly `` | `path` ``
+ * (a backtick-quoted path right after the leading pipe); any row whose first
+ * cell doesn't match that shape is silently skipped, so a malformed row
+ * escapes this drift check.
+ *
  * @return array<string, list<string>> normalised uri (e.g. "api/players/{}") => field paths
  */
 function documentedApiReference(): array
