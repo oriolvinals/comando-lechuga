@@ -65,7 +65,11 @@ Ofrece estas **9 opciones, todas**, con estos títulos (traducidos si el usuario
 9. **Dudas de puntuación**: por qué un jugador sacó N puntos, o tal nota DAZN, en una jornada.
 
 **Pregunta 3. "¿Cuánto dinero tienes ahora mismo en caja?"** (opcional)
-Hazla solo si ha dicho qué manager es. Pide la cifra como texto libre y ofrece la opción **"Prefiero no decirlo"**. Explícale en una línea para qué sirve: sin su saldo no puedes decirle cuánto puede gastar. Aclárale también que **el saldo no se envía a Comando Lechuga**: la API es de solo lectura y no recibe datos, así que solo lo conoces tú, en esta conversación. Por eso, **nunca pongas el saldo ni ningún otro dato del usuario en una petición a la API** (ni en la URL ni en parámetros). Con el saldo, calcula y enséñale:
+Hazla solo si ha dicho qué manager es. Pide la cifra como texto libre y ofrece la opción **"Prefiero no decirlo"**. Explícale en una línea para qué sirve: sin su saldo no puedes decirle cuánto puede gastar. Junto a la pregunta, muéstrale siempre este aviso para que se quede tranquilo (traducido si habla otro idioma):
+
+> 🔒 Tu saldo no se envía a Comando Lechuga: su API es de solo lectura y no recibe datos. Solo lo sé yo, en esta conversación.
+
+Por eso, **nunca pongas el saldo ni ningún otro dato del usuario en una petición a la API** (ni en la URL ni en parámetros). Con el saldo, calcula y enséñale:
 
 - **Patrimonio total** = saldo + valor de su plantilla (`squad_value`).
 - **Máximo para fichar en el mercado** = saldo + 20 % de `squad_value`, porque el mercado permite quedarse en negativo hasta −20 % del valor del equipo (apartado 2.9). Avísale de que, si empieza la jornada en negativo, esa jornada puntúa 0.
