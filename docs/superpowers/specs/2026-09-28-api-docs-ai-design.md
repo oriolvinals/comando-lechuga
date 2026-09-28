@@ -149,7 +149,7 @@ Sections, in order:
 
 - **Freshness metadata:** every API response carries `meta.generated_at` (ISO 8601 with offset)
   and `meta.timezone` ("Europe/Madrid"); the docs tell the AI to quote how fresh the data is.
-- **Times:** every datetime is ISO 8601 with offset; rules phrased in Madrid local time
+- **Times:** every datetime in every API response is in Europe/Madrid (ISO 8601 with +01:00/+02:00 offset, never UTC); rules phrased in Madrid local time
   (20:00 market) and the docs remind the AI about DST (CET/CEST).
 - **Money:** always integer euros; the docs say so and show how to render ("12,3 M€").
 - **Efficient calls:** the docs recommend the minimal call set per intention (e.g. "Resumen del

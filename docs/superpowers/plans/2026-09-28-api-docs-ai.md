@@ -27,6 +27,7 @@
 - FútbolFantasy start probabilities are republished through the API **and always credited** (`source`, `source_url`, and the docs tell the AI to cite them).
 - Inconsistent names are fixed **even if that breaks existing clients**, and the docs list every breaking change.
 - Every datetime is ISO 8601 with offset. Money is always integer euros. The league timezone is `Europe/Madrid`, and the market renews daily at **20:00 Madrid time**.
+- **Every datetime in every API response is expressed in `Europe/Madrid`** (offset +01:00 in winter / +02:00 in summer), never UTC `Z` — the app stores UTC (`config/app.php` timezone is UTC), so API serialisation must convert. Task 1 adds this conversion for all `api/*` responses and a test asserting a stored UTC datetime comes back as its Madrid local time with the right offset (one winter and one summer date). The docs (Task 8) state that all dates/times are Madrid time, incl. the 20:00 market renewal.
 - The docs are in **Spanish**, written for an AI reader, with a Spanish ↔ English glossary. Each concept has one name: "valor de mercado" / "puntos" / "posición en la liga" / "posición en el campo" are never used for each other.
 - Valid fantasy formations (this league, no premium features): **3-4-3, 3-5-2, 4-3-3, 4-4-2, 4-5-1, 5-3-2, 5-4-1**, always with 1 goalkeeper.
 - This league has **no captain, no bench or automatic substitutions, no coach slot and no loans (cesiones)**. The docs never present any of them as available. Coaches never appear in the API.
