@@ -56,7 +56,11 @@ Sections, in order:
    - Squad: max 24 players. The fantasy lineup must be set before the jornada's first match
      kicks off (it locks then). **A manager whose lineup isn't complete when the jornada starts
      doesn't score that jornada.** Once the jornada has started, players can be sold again.
-   - Rules the user hasn't confirmed (negative balance, captain, automatic subs, per-club limits,
+   - Money: you can't start a jornada with a negative balance. Buying in the market may leave
+     the balance negative, down to −20 % of your team value. A buyout (clausulazo) must be paid
+     with your own money and can never leave the balance negative. (The API has no balance, so
+     the AI must ask the manager for it before advising on bids/buyouts.)
+   - Rules the user hasn't confirmed (captain, automatic subs, per-club limits,
      selling price, minimum squad, coach scoring, bid visibility/ties, starting money) are NOT
      asserted: the docs tell the AI to say "consúltalo en la app" instead of guessing. Valid fantasy formations: 5-4-1, 5-3-2, 4-5-1, 4-4-2, 4-3-3,
      3-5-2, 3-4-3. Distinguish from a real team's formation derived from its probable/confirmed XI.
