@@ -153,6 +153,13 @@ export default function TeamShow({
                 fetched_at: startProbabilities.fetched_at,
                 source_url: startProbabilities.source_url,
                 team_short_name: startProbabilities.team.short_name,
+                opponent: startProbabilities.opponent,
+                is_home: startProbabilities.is_home,
+                date:
+                    fixtures.find(
+                        (fixture) =>
+                            fixture.id === startProbabilities.fixture_id,
+                    )?.date ?? '',
             });
         }
     }

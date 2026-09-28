@@ -10,6 +10,7 @@ use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
 use App\Models\FixtureLineupProbability;
+use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
@@ -28,9 +29,16 @@ use Illuminate\Support\Collection;
  * behind the "Sorpresa / Se cae · era N %" marks. The match ficha just
  * stops asking once its fixture has kicked off.
  *
- * @phpstan-type StartEntry array{player: Player, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null}
- * @phpstan-type StartTeamBlock array{fixture_id: int, week_number: int, team: Team, source_url: string, fetched_at: string|null, is_stale: bool, confirmed_source: 'worldcup26'|'futbolfantasy'|null, players: list<StartEntry>}
- * @phpstan-type PlayerNextStart array{fixture_id: int, week_number: int, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, confirmed_source: 'worldcup26'|'futbolfantasy'|null, is_stale: bool, fetched_at: string|null, source_url: string, team_short_name: string}
+ * Each starter also gets a `pitch_position` in worldcup26's vocabulary
+ * ("Right Back", "Center Left Midfielder"…) and each side a `formation`, so
+ * the XI draws like a confirmed lineup: worldcup26's own once it has
+ * confirmed the lineup, otherwise read off where FF draws its probable XI
+ * (PredictedFormation — a heuristic, hence null when FF drew nothing).
+ *
+ * @phpstan-type StartEntry array{player: Player, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, pitch_position: string|null}
+ * @phpstan-type StartTeamBlock array{fixture_id: int, week_number: int, team: Team, source_url: string, fetched_at: string|null, is_stale: bool, confirmed_source: 'worldcup26'|'futbolfantasy'|null, formation: string|null, players: list<StartEntry>}
+ * @phpstan-type PlayerNextStart array{fixture_id: int, week_number: int, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, confirmed_source: 'worldcup26'|'futbolfantasy'|null, is_stale: bool, fetched_at: string|null, source_url: string, team_short_name: string, opponent: Team, is_home: bool, date: string}
+ * @phpstan-type LineupEntryStart array{probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, is_stale: bool}
  */
 class StartProbabilities
 {
@@ -38,6 +46,8 @@ class StartProbabilities
 
     /** Data older than this is shown as stale ("Datos de hace N días"). */
     public const int STALE_AFTER_HOURS = 48;
+
+    public function __construct(private readonly PredictedFormation $predictedFormation) {}
 
     /**
      * Both sides of a fixture that hasn't kicked off — null once it has, or
@@ -63,7 +73,7 @@ class StartProbabilities
      * The team's block for its next match — the "próximo partido" the fichas
      * show — or null when that match has no data yet.
      *
-     * @return array{fixture_id: int, week_number: int, team: Team, source_url: string, fetched_at: string|null, is_stale: bool, confirmed_source: 'worldcup26'|'futbolfantasy'|null, players: list<StartEntry>, opponent: Team, is_home: bool}|null
+     * @return array{fixture_id: int, week_number: int, team: Team, source_url: string, fetched_at: string|null, is_stale: bool, confirmed_source: 'worldcup26'|'futbolfantasy'|null, formation: string|null, players: list<StartEntry>, opponent: Team, is_home: bool}|null
      */
     public function forTeamNextFixture(Team $team, Season $season): ?array
     {
@@ -146,6 +156,8 @@ class StartProbabilities
                 default => null,
             };
 
+            $isHome = $fixture->team_local_id === $player->team_id;
+
             $nextStarts[$player->id] = [
                 'fixture_id' => $fixture->id,
                 'week_number' => $fixture->week_number,
@@ -161,10 +173,83 @@ class StartProbabilities
                 'fetched_at' => $row?->fetched_at->toIso8601String(),
                 'source_url' => FutbolFantasyTeams::pageUrlFor($player->team->fantasy_id) ?? '',
                 'team_short_name' => $player->team->short_name,
+                'opponent' => $isHome ? $fixture->guestTeam : $fixture->localTeam,
+                'is_home' => $isHome,
+                'date' => $fixture->date->toIso8601String(),
             ];
         }
 
         return $nextStarts;
+    }
+
+    /**
+     * Each lineup entry's start facts for its OWN fixture — the jornada being
+     * viewed, not necessarily the team's next match — keyed by
+     * `ManagerLineupPlayer::$id`. Absent once that fixture has kicked off (or
+     * has none resolved), or when neither FútbolFantasy nor worldcup26 have
+     * anything for that player. Expects every entry's `fixture` (and
+     * `player.team`) to already be resolved — see AttachesLineupFixtures.
+     *
+     * @param  Collection<int, ManagerLineupPlayer>  $entries
+     * @return array<int, LineupEntryStart>
+     */
+    public function forLineupEntries(Collection $entries): array
+    {
+        $eligible = $entries->filter(fn (ManagerLineupPlayer $entry): bool => $entry->fixture instanceof Fixture && $entry->fixture->state === FixtureState::Scheduled);
+
+        if ($eligible->isEmpty()) {
+            return [];
+        }
+
+        $fixtureIds = $eligible->map(fn (ManagerLineupPlayer $entry): int => $entry->fixture->id)->unique()->values()->all();
+        $playerIds = $eligible->pluck('player_id')->unique()->values()->all();
+
+        $rows = FixtureLineupProbability::query()
+            ->whereIn('fixture_id', $fixtureIds)
+            ->whereIn('player_id', $playerIds)
+            ->get()
+            ->keyBy(fn (FixtureLineupProbability $row): string => "{$row->fixture_id}:{$row->player_id}");
+
+        $lineups = FixtureLineup::query()
+            ->whereIn('fixture_id', $fixtureIds)
+            ->whereNotNull('player_id')
+            ->get(['fixture_id', 'team_id', 'player_id', 'starter']);
+
+        $confirmedTeams = $lineups
+            ->filter(fn (FixtureLineup $lineup): bool => $lineup->starter)
+            ->mapWithKeys(fn (FixtureLineup $lineup): array => ["{$lineup->fixture_id}:{$lineup->team_id}" => true]);
+        $lineupStarters = $lineups->mapWithKeys(fn (FixtureLineup $lineup): array => ["{$lineup->fixture_id}:{$lineup->player_id}" => $lineup->starter]);
+
+        $starts = [];
+
+        foreach ($eligible as $entry) {
+            $fixture = $entry->fixture;
+            $row = $rows->get("{$fixture->id}:{$entry->player_id}");
+            $byWorldcup26 = $confirmedTeams->has("{$fixture->id}:{$entry->player->team_id}");
+
+            if ($row === null && !$byWorldcup26) {
+                continue;
+            }
+
+            $confirmedSource = match (true) {
+                $byWorldcup26 => 'worldcup26',
+                $row->confirmed_starter !== null => 'futbolfantasy',
+                default => null,
+            };
+
+            $starts[$entry->id] = [
+                'probability' => $row?->probability,
+                'predicted_starter' => $row !== null && $row->predicted_starter,
+                'confirmed_starter' => match ($confirmedSource) {
+                    'worldcup26' => (bool) $lineupStarters->get("{$fixture->id}:{$entry->player_id}", false),
+                    'futbolfantasy' => $row->confirmed_starter,
+                    default => null,
+                },
+                'is_stale' => $confirmedSource !== 'worldcup26' && $row !== null && $this->isStale($row->fetched_at),
+            ];
+        }
+
+        return $starts;
     }
 
     /**
@@ -196,6 +281,7 @@ class StartProbabilities
         };
 
         $startersByPlayer = $lineups->mapWithKeys(fn (FixtureLineup $lineup): array => [(int) $lineup->player_id => $lineup->starter]);
+        ['formation' => $formation, 'positions' => $pitchPositions] = $this->shape($fixture, $team, $rows, $lineups, $confirmedSource);
 
         /** @var list<StartEntry> $players */
         $players = [];
@@ -210,6 +296,7 @@ class StartProbabilities
                     'futbolfantasy' => $row->confirmed_starter ?? false,
                     default => null,
                 },
+                'pitch_position' => $pitchPositions[$row->player_id] ?? null,
             ];
         }
 
@@ -225,6 +312,7 @@ class StartProbabilities
                 'probability' => null,
                 'predicted_starter' => false,
                 'confirmed_starter' => $lineup->starter,
+                'pitch_position' => $pitchPositions[(int) $lineup->player_id] ?? null,
             ];
         }
 
@@ -240,8 +328,40 @@ class StartProbabilities
             'fetched_at' => $fetchedAt?->toIso8601String(),
             'is_stale' => $confirmedSource !== 'worldcup26' && $fetchedAt !== null && $this->isStale($fetchedAt),
             'confirmed_source' => $confirmedSource,
+            'formation' => $formation,
             'players' => $players,
         ];
+    }
+
+    /**
+     * The side's formation and each starter's worldcup26-style position:
+     * worldcup26's own once it has confirmed the lineup, else read off FF's
+     * probable XI. FF's "Alineación confirmada" keeps the probable XI's
+     * shape — its surprise starters have no spot and get no position.
+     *
+     * @param  Collection<int, FixtureLineupProbability>  $rows
+     * @param  Collection<int, FixtureLineup>  $lineups
+     * @param  'worldcup26'|'futbolfantasy'|null  $confirmedSource
+     * @return array{formation: string|null, positions: array<int, string>}
+     */
+    private function shape(Fixture $fixture, Team $team, Collection $rows, Collection $lineups, ?string $confirmedSource): array
+    {
+        if ($confirmedSource === 'worldcup26') {
+            return [
+                'formation' => $fixture->team_local_id === $team->id ? $fixture->local_formation : $fixture->guest_formation,
+                'positions' => $lineups
+                    ->filter(fn (FixtureLineup $lineup): bool => $lineup->starter && $lineup->position !== '')
+                    ->mapWithKeys(fn (FixtureLineup $lineup): array => [(int) $lineup->player_id => $lineup->position])
+                    ->all(),
+            ];
+        }
+
+        $spots = $rows
+            ->filter(fn (FixtureLineupProbability $row): bool => $row->predicted_starter && $row->pitch_x !== null && $row->pitch_y !== null)
+            ->mapWithKeys(fn (FixtureLineupProbability $row): array => [$row->player_id => ['x' => (int) $row->pitch_x, 'y' => (int) $row->pitch_y]])
+            ->all();
+
+        return $this->predictedFormation->derive($spots);
     }
 
     /**

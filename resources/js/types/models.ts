@@ -249,6 +249,8 @@ export interface ManagerLineupPlayerEntry {
     starter: boolean | null;
     subbed_out: boolean | null;
     sub_minute: number | null;
+    /** This pick's start probability (or confirmed lineup) for its own fixture that week — null once it kicked off, before backend data exists, or without any data. */
+    start: LineupPlayerStart | null;
 }
 
 export interface ManagerLineup {
@@ -584,6 +586,8 @@ export interface StartProbabilityEntry {
     predicted_starter: boolean;
     /** Confirmed lineup (worldcup26 first, FF second): true titular, false suplente, null not confirmed yet. */
     confirmed_starter: boolean | null;
+    /** Where he plays in the XI shown, in worldcup26's vocabulary ("Right Back", "Center Left Midfielder"…): worldcup26's own once it confirms, else read off where FútbolFantasy draws its probable XI. Null off the XI or without a drawn pitch. */
+    pitch_position: string | null;
 }
 
 /** One team's side of a fixture's start probabilities. */
@@ -598,6 +602,8 @@ export interface StartProbabilityTeamBlock {
     /** Older than 48 h: shown as "Datos de hace N días" with muted bars. */
     is_stale: boolean;
     confirmed_source: StartConfirmationSource | null;
+    /** "4-3-3": worldcup26's once it confirms the lineup, else approximated from FútbolFantasy's probable XI (shown as "≈4-3-3"). Null when unknown. */
+    formation: string | null;
     players: StartProbabilityEntry[];
 }
 
@@ -613,7 +619,7 @@ export interface TeamNextStartProbabilities extends StartProbabilityTeamBlock {
     is_home: boolean;
 }
 
-/** A roster player's start for his team's next match (manager ficha). */
+/** A roster or player-ficha player's start for his team's next match (manager and player fichas). */
 export interface PlayerNextStart {
     fixture_id: number;
     week_number: number;
@@ -625,4 +631,16 @@ export interface PlayerNextStart {
     fetched_at: string | null;
     source_url: string;
     team_short_name: string;
+    opponent: Team;
+    is_home: boolean;
+    /** The fixture's kickoff (ISO 8601). */
+    date: string;
+}
+
+/** A lineup pick's start facts for their OWN fixture that week (manager index/ficha pitch) — present only while it hasn't kicked off and either FútbolFantasy or worldcup26 have data. */
+export interface LineupPlayerStart {
+    probability: number | null;
+    predicted_starter: boolean;
+    confirmed_starter: boolean | null;
+    is_stale: boolean;
 }

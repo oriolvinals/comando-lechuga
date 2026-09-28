@@ -10,6 +10,7 @@ use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
+use App\Models\FixtureLineupProbability;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
@@ -1504,5 +1505,91 @@ test('the capital gain is null when the owner has no recorded purchase', functio
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('owner.season_manager_id', $owner->id)
         ->where('capitalGain', null)
+    );
+});
+
+test('shows the player start probability for their team next fixture', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $team = Team::factory()->create(['fantasy_id' => 15, 'short_name' => 'ALA']);
+    $rival = Team::factory()->create(['short_name' => 'ATM']);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 8,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'date' => now()->addDays(2),
+        'state' => FixtureState::Scheduled,
+    ]);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'probability' => 82,
+        'predicted_starter' => true,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('player.next_start.probability', 82)
+        ->where('player.next_start.predicted_starter', true)
+        ->where('player.next_start.confirmed_starter', null)
+        ->where('player.next_start.week_number', 8)
+        ->where('player.next_start.is_home', true)
+        ->where('player.next_start.opponent.id', $rival->id)
+        ->where('player.next_start.date', $fixture->date->toIso8601String())
+    );
+});
+
+test('shows titular/suplente instead of a probability once worldcup26 confirms the lineup', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $team = Team::factory()->create();
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 3,
+        'team_local_id' => $team->id,
+        'date' => now()->addDay(),
+        'state' => FixtureState::Scheduled,
+    ]);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'probability' => 60,
+        'predicted_starter' => true,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $team->id,
+        'starter' => true,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('player.next_start.confirmed_starter', true)
+        ->where('player.next_start.confirmed_source', 'worldcup26')
+    );
+});
+
+test('the player next_start is null without any start data', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'team_local_id' => $player->team_id,
+        'date' => now()->addDay(),
+        'state' => FixtureState::Scheduled,
+    ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('player.next_start', null)
     );
 });
