@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Http\Filters\CommaSeparatedList;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -53,7 +54,7 @@ trait ValidatesApiQuery
     private function commaSeparatedIn(array $allowed): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail) use ($allowed): void {
-            $invalid = array_values(array_diff($this->commaSeparatedItems($value), $allowed));
+            $invalid = array_values(array_diff(CommaSeparatedList::items($value), $allowed));
 
             if (!is_string($value) || $invalid !== []) {
                 $fail("{$attribute}: valor no válido (".implode(', ', $invalid).'). Valores permitidos: '.implode(', ', $allowed).'.');
@@ -71,7 +72,7 @@ trait ValidatesApiQuery
     {
         return function (string $attribute, mixed $value, Closure $fail): void {
             $invalid = array_values(array_filter(
-                $this->commaSeparatedItems($value),
+                CommaSeparatedList::items($value),
                 fn (string $item): bool => !ctype_digit($item) || (int) $item === 0,
             ));
 
@@ -79,20 +80,5 @@ trait ValidatesApiQuery
                 $fail("{$attribute}: se esperaban IDs numéricos separados por comas (no válidos: ".implode(', ', $invalid).').');
             }
         };
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function commaSeparatedItems(mixed $value): array
-    {
-        if (!is_string($value)) {
-            return [];
-        }
-
-        return array_values(array_filter(
-            array_map(trim(...), explode(',', $value)),
-            fn (string $item): bool => $item !== '',
-        ));
     }
 }

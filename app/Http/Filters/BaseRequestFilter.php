@@ -41,7 +41,7 @@ abstract class BaseRequestFilter
     {
         return array_values(array_filter(array_map(
             static fn (string $item): int => (int) $item,
-            $this->parseStringList($value),
+            CommaSeparatedList::items($value),
         )));
     }
 
@@ -55,19 +55,7 @@ abstract class BaseRequestFilter
     {
         return array_values(array_filter(array_map(
             static fn (string $item) => $enumClass::tryFrom($item),
-            $this->parseStringList($value),
+            CommaSeparatedList::items($value),
         )));
-    }
-
-    /**
-     * @return string[]
-     */
-    private function parseStringList(?string $value): array
-    {
-        if ($value === null || $value === '') {
-            return [];
-        }
-
-        return array_values(array_filter(array_map(trim(...), explode(',', $value))));
     }
 }

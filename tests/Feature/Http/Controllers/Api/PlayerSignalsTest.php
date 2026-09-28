@@ -285,20 +285,26 @@ test('keeps the number of queries flat however many players the page shows', fun
     expect($withElevenPlayers)->toBe($withOnePlayer);
 });
 
-test('ranks points per million in batch exactly like one player at a time', function (): void {
+test('ranks points per million among the league, ties sharing a rank', function (): void {
     $season = signalsSeason();
-    $players = collect([
+    [$pricey, $bargain, $tiedBargain, $pointless, $unvalued] = [
         Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value' => 50_000_000, 'points' => 20]),
         Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value' => 10_000_000, 'points' => 10]),
         Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value' => 20_000_000, 'points' => 20]),
         Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value' => 5_000_000, 'points' => 0]),
         Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value' => 0, 'points' => 8]),
-    ]);
+    ];
     $metrics = app(PlayerMarketMetrics::class);
 
-    $batch = $metrics->pointsPerMillionForPlayers($players, $season);
+    $batch = $metrics->pointsPerMillionForPlayers(collect([$pricey, $bargain, $tiedBargain, $pointless, $unvalued]), $season);
 
-    foreach ($players as $player) {
-        expect($batch[$player->id])->toBe($metrics->pointsPerMillion($player, $season));
-    }
+    expect($batch)->toBe([
+        $pricey->id => ['value' => 0.4, 'rank' => 3, 'ranked' => 3],
+        $bargain->id => ['value' => 1.0, 'rank' => 1, 'ranked' => 3],
+        $tiedBargain->id => ['value' => 1.0, 'rank' => 1, 'ranked' => 3],
+        $pointless->id => ['value' => 0.0, 'rank' => null, 'ranked' => 3],
+        $unvalued->id => null,
+    ])
+        ->and($metrics->pointsPerMillion($pricey, $season))->toBe(['value' => 0.4, 'rank' => 3, 'ranked' => 3])
+        ->and($metrics->pointsPerMillion($unvalued, $season))->toBeNull();
 });
