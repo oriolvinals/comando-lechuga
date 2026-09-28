@@ -78,7 +78,8 @@ Sections, in order:
      the AI must ask the manager for it before advising on bids/buyouts.)
    - Rules not confirmed for this league (per-club limit, minimum squad) are NOT asserted: the
      docs tell the AI to say "consúltalo en la app" instead of guessing.
-     3-5-2, 3-4-3. Distinguish from a real team's formation derived from its probable/confirmed XI.
+   - Valid fantasy formations: 5-4-1, 5-3-2, 4-5-1, 4-4-2, 4-3-3, 3-5-2, 3-4-3. Distinguish from a
+     real team's formation derived from its probable/confirmed XI.
    - Market (this league): renews daily at 20:00 — the league's creation time, so it's specific
      to this league. Players the league puts on the market last 24 h; the highest bid wins; bids
      are blind (only the number of bids is visible, never amounts or who bid) and on a tie the
