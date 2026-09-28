@@ -121,13 +121,15 @@ test('rejects an invalid players filter with a 422 naming the parameter', functi
     'bad page' => ['page=0', 'page'],
 ]);
 
-test('rejects an invalid activity type with a 422', function (): void {
+test('rejects an invalid activity type with a 422 and still stamps the freshness meta', function (): void {
     consistencySeason();
 
     $response = $this->getJson('/api/activity?type=signing,bogus');
 
     $response->assertUnprocessable();
     $response->assertJsonValidationErrors(['type']);
+    $response->assertJsonPath('meta.timezone', 'Europe/Madrid');
+    $response->assertJsonPath('meta.generated_at', fn (?string $value): bool => $value !== null);
 });
 
 test('tolerates spaces and empty items in a comma separated filter', function (): void {
