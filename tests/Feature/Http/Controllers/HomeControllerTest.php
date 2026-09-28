@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Enums\FixtureState;
 use App\Enums\MarketTrend;
 use App\Enums\PlayerPosition;
+use App\Enums\PlayerStatus;
 use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
+use App\Models\FixtureLineupProbability;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
@@ -205,6 +207,56 @@ test('includes recent scores for each market listing player', function (): void 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('market.0.player.recent_scores', [9, null, null])
+    );
+});
+
+test('includes the next start probability for each market listing player', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create([
+        'position' => PlayerPosition::Striker,
+        'status' => PlayerStatus::Ok,
+    ]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $player->team_id,
+        'date' => now()->addDay(),
+        'state' => FixtureState::Scheduled,
+    ]);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'probability' => 82,
+    ]);
+    MarketPlayer::factory()->create(['player_id' => $player->id]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('market.0.player.next_start.fixture_id', $fixture->id)
+        ->where('market.0.player.next_start.probability', 82)
+    );
+});
+
+test('has no next start for a market listing player without data', function (): void {
+    Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    MarketPlayer::factory()->create([
+        'player_id' => Player::factory()->create([
+            'position' => PlayerPosition::Striker,
+        ])->id,
+    ]);
+
+    $response = $this->get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('market.0.player.next_start', null)
     );
 });
 

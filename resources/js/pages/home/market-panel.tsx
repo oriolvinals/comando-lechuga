@@ -1,9 +1,10 @@
 import { Link, router } from '@inertiajs/react';
-import { RefreshCw, Shield, User } from 'lucide-react';
+import { Armchair, RefreshCw, Shield, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
+import { startBadgeTierClass } from '@/components/hq-lineup-pitch';
 import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
@@ -11,10 +12,17 @@ import { HqSection } from '@/components/hq-section';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { formatCurrency, formatMillions } from '@/lib/format';
+import { dataAgeTooltipLabel, startTone } from '@/lib/start-probability';
 import { useCountdown } from '@/lib/use-countdown';
+import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
-import type { MarketPlayer, PlayerPosition } from '@/types/models';
+import type {
+    MarketPlayer,
+    PlayerNextStart,
+    PlayerPosition,
+    PlayerStatus,
+} from '@/types/models';
 
 interface MarketPanelProps {
     market: MarketPlayer[];
@@ -124,8 +132,62 @@ function RefreshMarketButton({ market }: { market: MarketPlayer[] }) {
 const CELL_CLASS =
     'min-w-0 snap-start max-md:border max-md:border-hq-border-strong md:border-r md:border-b md:border-hq-border';
 
+interface NextStartBadge {
+    label: string;
+    className: string;
+    content: ReactNode;
+}
+
+/**
+ * The listing photo's top-right corner badge: once the lineup is confirmed,
+ * ✓ titular or a bench glyph suplente — otherwise FútbolFantasy's % on the
+ * same tone scale used everywhere else (lilac ≥ 90 %, lime 70–89 %, gold
+ * < 70 %, red injured/suspended). Null once the player's match has kicked
+ * off or without any data — the backend (`StartProbabilities::forPlayersNextFixture`)
+ * already omits `next_start` in both cases.
+ */
+function nextStartBadge(
+    start: PlayerNextStart | null | undefined,
+    status: PlayerStatus,
+    now: number,
+): NextStartBadge | null {
+    if (!start) {
+        return null;
+    }
+
+    if (start.confirmed_starter !== null) {
+        return start.confirmed_starter
+            ? {
+                  label: 'Titular confirmado',
+                  className: 'bg-hq-lime text-hq-ink',
+                  content: '✓',
+              }
+            : {
+                  label: 'Suplente confirmado',
+                  className: 'bg-hq-border-strong text-hq-moss',
+                  content: (
+                      <Armchair aria-hidden="true" className="h-2.5 w-2.5" />
+                  ),
+              };
+    }
+
+    if (start.probability === null) {
+        return null;
+    }
+
+    return {
+        label: start.fetched_at
+            ? `${start.probability} % de ser titular · ${dataAgeTooltipLabel(start.fetched_at, now)}`
+            : `${start.probability} % de ser titular`,
+        className: startBadgeTierClass(startTone(start.probability, status)),
+        content: `${start.probability}%`,
+    };
+}
+
 function MarketCard({ listing }: { listing: MarketPlayer }) {
     const player = listing.player;
+    const now = useNow(60_000);
+    const startBadge = nextStartBadge(player.next_start, player.status, now);
 
     return (
         <Link
@@ -153,6 +215,17 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                         position={player.position}
                         className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-hq-ink px-[3px] py-0.5 text-[9px]"
                     />
+                    {startBadge && (
+                        <HqTooltip
+                            label={startBadge.label}
+                            className={cn(
+                                'absolute -top-1.5 -right-1.5 z-10 h-4 min-w-5 items-center justify-center px-[3px] font-mono text-[10.5px] leading-none font-extrabold tabular-nums',
+                                startBadge.className,
+                            )}
+                        >
+                            {startBadge.content}
+                        </HqTooltip>
+                    )}
                 </span>
                 <div className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] leading-[1.1] font-extrabold text-hq-paper">

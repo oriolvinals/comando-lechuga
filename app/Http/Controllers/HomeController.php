@@ -19,6 +19,7 @@ use App\Models\MarketPlayer;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Services\JornadaMatches;
+use App\Services\StartProbabilities;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -34,7 +35,7 @@ class HomeController extends Controller
     use FiltersSeasonWeeks;
     use ResolvesRequestedWeek;
 
-    public function index(Request $request, JornadaMatches $jornadaMatches): Response
+    public function index(Request $request, JornadaMatches $jornadaMatches, StartProbabilities $startProbabilities): Response
     {
         $season = Season::current();
         $week = $this->resolveWeek($request, $season);
@@ -79,6 +80,12 @@ class HomeController extends Controller
 
         $this->attachCurrentSeason($market->pluck('player'), $season->id);
         $this->attachRecentScores($market->pluck('player'), $season);
+
+        $nextStarts = $startProbabilities->forPlayersNextFixture($market->pluck('player'), $season);
+
+        $market->each(function (MarketPlayer $listing) use ($nextStarts): void {
+            $listing->player->next_start = $nextStarts[$listing->player->id] ?? null;
+        });
 
         $activity = Activity::query()
             ->where('season_id', $season->id)
