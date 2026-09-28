@@ -13,7 +13,6 @@ import {
     START_TONE_TEXT_CLASSES,
     dataAgeDays,
     dataAgeTooltipLabel,
-    isUnavailable,
     meterFill,
     startOutcome,
     startTone,
@@ -211,8 +210,6 @@ export function HqStartRosterRow({
     muted?: boolean;
     fetchedAt?: string | null;
 }) {
-    const unavailable = isUnavailable(entry.player.status);
-
     return (
         <div
             className={cn(
@@ -249,11 +246,6 @@ export function HqStartRosterRow({
                         />
                     )}
                 </div>
-                {unavailable && (entry.probability ?? 0) > 0 && (
-                    <span className="mt-1 block font-mono text-[11px] leading-[1.2] text-hq-moss-dim">
-                        FF aún le da {entry.probability} %
-                    </span>
-                )}
             </div>
             <div className="relative z-10 flex items-center justify-end">
                 {confirmed ? (

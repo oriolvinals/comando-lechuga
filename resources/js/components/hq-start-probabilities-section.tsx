@@ -19,7 +19,6 @@ import { formatMatchDay } from '@/lib/format';
 import {
     averageProbability,
     formatDataAge,
-    isUnavailable,
     splitStartEntries,
 } from '@/lib/start-probability';
 import { useNow } from '@/lib/use-now';
@@ -65,9 +64,7 @@ function SubHead({ label, count }: { label: string; count: number }) {
 /**
  * One player (mock `.t-lrow`): photo with the position tag, the name and
  * our status badge inline on one line (the name truncates before the badge
- * wraps, so every row stays the same height) — plus "FF aún le da N %" on
- * its own small line for a baja FútbolFantasy still rates — then the bar
- * and %, or the outcome chip once confirmed. The name link is stretched
+ * wraps, so every row stays the same height) — then the bar and %, or the outcome chip once confirmed. The name link is stretched
  * over the whole row via its `::after`, so the row itself is ≥ 50 px tall
  * and the whole thing opens the ficha; the bar/chip column stays on the
  * right and sits `relative z-10` so its own hover/focus tooltip still wins
@@ -86,8 +83,6 @@ function StartRow({
     muted?: boolean;
     fetchedAt?: string | null;
 }) {
-    const unavailable = isUnavailable(entry.player.status);
-
     return (
         <div
             className={cn(
@@ -124,11 +119,6 @@ function StartRow({
                         />
                     )}
                 </div>
-                {unavailable && (entry.probability ?? 0) > 0 && (
-                    <span className="mt-1 block font-mono text-[11px] leading-[1.2] text-hq-moss-dim">
-                        FF aún le da {entry.probability} %
-                    </span>
-                )}
             </div>
             <div className="relative z-10 flex items-center justify-end">
                 {confirmed ? (
