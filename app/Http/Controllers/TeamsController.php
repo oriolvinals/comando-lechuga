@@ -18,9 +18,11 @@ use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
+use App\Services\FixtureCalendar;
 use App\Services\LeagueStandings;
 use App\Services\StartProbabilities;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,6 +33,11 @@ class TeamsController extends Controller
     use AttachesNextFixtures;
     use AttachesOwnerManager;
     use AttachesRecentScores;
+
+    /** Equipos tab values for `?vista`. */
+    public const string STANDINGS_VIEW = 'clasificacion';
+
+    public const string CALENDAR_VIEW = 'calendario';
 
     public function __construct(private readonly LeagueStandings $standings) {}
 
@@ -60,16 +67,30 @@ class TeamsController extends Controller
     // pitch uses, so a line of starters here spreads the same way.
     private const float PITCH_LINE_STEP = 76 / 3;
 
-    public function index(): Response
+    /**
+     * The standings table always ships (the header and the calendar both need
+     * it); the fixture-difficulty calendar is only computed and sent on
+     * `?vista=calendario`, the Calendario tab.
+     */
+    public function index(Request $request, FixtureCalendar $calendar): Response
     {
         $season = Season::current();
         $teams = $season->teams;
         $fixtures = $this->standings->fixtures($season);
         $nextByTeam = $this->nextFixtureByTeam($season);
+        $standings = $this->standings->table($teams, $fixtures, $nextByTeam);
+        $isCalendarView = $request->query('vista') === self::CALENDAR_VIEW;
 
-        return Inertia::render('teams/index', [
-            'standings' => $this->standings->table($teams, $fixtures, $nextByTeam),
-        ]);
+        $props = [
+            'standings' => $standings,
+            'view' => $isCalendarView ? self::CALENDAR_VIEW : self::STANDINGS_VIEW,
+        ];
+
+        if ($isCalendarView) {
+            $props['calendar'] = $calendar->build($season, $standings);
+        }
+
+        return Inertia::render('teams/index', $props);
     }
 
     public function show(Team $team, StartProbabilities $startProbabilities): Response

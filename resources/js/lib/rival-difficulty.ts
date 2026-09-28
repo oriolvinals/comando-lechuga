@@ -31,3 +31,13 @@ export const RIVAL_DIFFICULTY_BG_CLASSES: Record<RivalDifficultyLevel, string> =
         mid: 'bg-hq-amber',
         easy: 'bg-hq-lime',
     };
+
+/** Tinted box per level (same hues as the solid fill) — the Equipos calendar cells. */
+export const RIVAL_DIFFICULTY_TINT_CLASSES: Record<
+    RivalDifficultyLevel,
+    string
+> = {
+    hard: 'border-hq-live/45 bg-hq-live/[0.17]',
+    mid: 'border-hq-amber/45 bg-hq-amber/[0.17]',
+    easy: 'border-hq-lime/45 bg-hq-lime/[0.17]',
+};
