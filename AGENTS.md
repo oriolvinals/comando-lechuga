@@ -1,3 +1,49 @@
+# Comando Lechuga — project context
+
+## Product Context
+
+Comando Lechuga is a web application for viewing Liga Fantasy data. Its purpose is to present, in real time, the league
+standings, each team's squad, the transfer market, all players, and matches.
+
+- The application may support multiple seasons, but exactly one season must be active at a time. Its data model and
+  features must allow users to switch the active season in the future.
+- Liga Fantasy data is retrieved through a third-party API. Keep provider-specific response shapes at the integration
+  boundary and map them to the application domain models.
+- This project's role is to retrieve that data and present it clearly to users.
+
+## Domain Model
+
+- `Season`: A Liga Fantasy season. It stores the external league identifier, its date range, and the total number of
+  weeks. The active season is the one whose date range includes `now()`.
+- `Team`: A canonical real-world football club. A team can participate in multiple seasons and has many players.
+- `SeasonManager`: A fantasy manager's team within one season. It stores its external identifier, manager-facing name and
+  logo, current ranking, total and live points, and team value.
+- `Player`: A real-world football player who belongs to one `Team`. It stores the current player data provided by Liga
+  Fantasy.
+- `PlayerSeason`: A player's data for one season — position, market value and its trend, points, and average points.
+- `PlayerMarket`: A daily historical valuation of a player.
+- `MarketPlayer`: The current private-league market listing for one player. It stores the listing's external identifier,
+  expiry, bid count, sale price, and current player value. A player may have at most one current listing.
+- `Fixture`: A scheduled or completed match between two real-world teams in a season. It stores the week, scores, date,
+  and match state.
+- `FixtureLineup`: One player's appearance in a `Fixture` — starter/sub status, position, jersey, and that match's
+  provider stats and fantasy points.
+- `FixtureEvent`: A timestamped in-match event (goal, card, substitution) for a `Fixture`.
+- `FixtureLineupProbability`: A player's start probability, or confirmed starter/sub status, for an upcoming `Fixture`,
+  sourced from FútbolFantasy.
+- `ManagerLineup`: A `SeasonManager`'s selected lineup and tactical formation for one week, with its resulting points.
+- `ManagerLineupPlayer`: One player's slot within a `ManagerLineup`.
+- `ManagerPlayer`: A player currently owned by a `SeasonManager`. It stores the player's buyout clause value, when
+  that clause lock expires, and whether it is shielded. Rows are replaced on every sync to reflect the current squad only.
+- `Activity`: A transfer-market event for one season (signing, sale, buyout, clause shield, weekly prize, or
+  joining the league). It stores the external activity identifier, its type, the source and target `SeasonManager` when
+  applicable, the related `Player` when applicable, the amount, and the week number for weekly-prize entries.
+- `User`: A standard application user account. It is not a Liga Fantasy domain entity.
+
+## Conventions
+
+- Database string columns that do not store an enum must be non-nullable and default to an empty string (`''`).
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
