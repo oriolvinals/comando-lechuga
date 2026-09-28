@@ -453,6 +453,32 @@ export interface StandingsRow {
     next: StandingsNext | null;
 }
 
+/** One of a team's upcoming matches in the fixture-difficulty calendar. */
+export interface FixtureCalendarMatch {
+    fixture_id: number;
+    week_number: number;
+    opponent: Team;
+    is_home: boolean;
+    date: string;
+    /** The rival's current real LaLiga standings position (1 = leader). */
+    rival_position: number;
+    /** −1 against the leader, 0 mid table, +1 against the last team — see `@/lib/rival-difficulty`. */
+    difficulty: number;
+    /** Its jornada comes before the previous listed match's — a moved match played out of order. */
+    rescheduled: boolean;
+}
+
+/** A team's row in the Equipos calendar; rows arrive sorted easiest run first. */
+export interface FixtureCalendarRow {
+    team: Team;
+    /** Current real LaLiga standings position. */
+    position: number;
+    /** Mean difficulty of the listed matches (higher = easier), or null with none. */
+    average: number | null;
+    /** The next (up to 10) scheduled matches, soonest first, postponed ones left out. */
+    matches: FixtureCalendarMatch[];
+}
+
 export type MaxBidStatus =
     'profitable' | 'unprofitable' | 'unavailable' | 'no_data';
 
