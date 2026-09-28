@@ -187,8 +187,10 @@ En `/api/fixtures/{id}`, un jugador sin datos de la Fantasy (no vinculado, o sin
 
 Hay dos formas de vender a un jugador propio:
 
-1. **Ponerlo en el mercado.** Está allí 3 días. Cada día a las 20:00 (hora de Madrid) la liga hace una oferta de entre −10 % y +10 % de su valor de mercado, que el manager acepta o rechaza. Mientras tanto, otros managers también pueden pujar por él.
+1. **Ponerlo en el mercado.** Está allí 3 días. Cada día a las 20:00 (hora de Madrid) la liga hace una oferta de entre −10 % y +10 % de su valor de mercado, que el manager acepta o rechaza. Los otros managers **no** pueden pujar por él.
 2. **Venta inmediata a la liga:** al instante, por el **50 %** de su valor de mercado.
+
+Un jugador que tiene otro manager (esté o no puesto a la venta) solo se puede conseguir de dos maneras: hacerle una oferta directa a ese manager, que la acepta o la rechaza, o pagar su cláusula cuando esté abierta (sección 2.10). La API no ve esas ofertas entre managers.
 
 ### 2.9 Dinero
 
