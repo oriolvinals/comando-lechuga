@@ -192,7 +192,11 @@ function PlayerStartHeadline({
     }
 
     return (
-        <HqTooltip label={dataAgeTooltipLabel(start.fetched_at, now)} focusable>
+        <HqTooltip
+            label={dataAgeTooltipLabel(start.fetched_at, now)}
+            focusable
+            className="-m-2 p-2"
+        >
             {headline}
         </HqTooltip>
     );

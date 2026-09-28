@@ -354,12 +354,15 @@ export function HqStartPitchToken({
     size = 'lg',
     muted = false,
     fetchedAt = null,
+    className,
 }: {
     entry: StartProbabilityEntry;
     confirmed: boolean;
     size?: 'lg' | 'sm';
     muted?: boolean;
     fetchedAt?: string | null;
+    /** Overrides the size-based width — e.g. narrower on a crowded pitch line so name pills stop overlapping. */
+    className?: string;
 }) {
     const now = useNow(60_000);
     const surprise = confirmed && startOutcome(entry) === 'surprise';
@@ -388,6 +391,7 @@ export function HqStartPitchToken({
             className={cn(
                 'group flex flex-col items-center outline-none',
                 size === 'lg' ? 'w-32' : 'w-[72px]',
+                className,
             )}
         >
             <span

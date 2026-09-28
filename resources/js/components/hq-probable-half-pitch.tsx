@@ -164,21 +164,24 @@ export function HqProbableHalfPitch({
                             {formation}
                         </span>
                     )}
-                    {halfPitchSlots(starters).map(({ entry, left, top }) => (
-                        <div
-                            key={entry.player.id}
-                            className="absolute z-[2] -translate-x-1/2 -translate-y-1/2"
-                            style={{ left: `${left}%`, top: `${top}%` }}
-                        >
-                            <HqStartPitchToken
-                                entry={entry}
-                                confirmed={confirmed}
-                                size="sm"
-                                muted={probabilities.is_stale}
-                                fetchedAt={probabilities.fetched_at}
-                            />
-                        </div>
-                    ))}
+                    {halfPitchSlots(starters).map(
+                        ({ entry, left, top, crowded }) => (
+                            <div
+                                key={entry.player.id}
+                                className="absolute z-[2] -translate-x-1/2 -translate-y-1/2"
+                                style={{ left: `${left}%`, top: `${top}%` }}
+                            >
+                                <HqStartPitchToken
+                                    entry={entry}
+                                    confirmed={confirmed}
+                                    size="sm"
+                                    muted={probabilities.is_stale}
+                                    fetchedAt={probabilities.fetched_at}
+                                    className={crowded ? 'w-14' : undefined}
+                                />
+                            </div>
+                        ),
+                    )}
                 </div>
             </div>
             <StartPills

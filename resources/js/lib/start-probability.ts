@@ -284,6 +284,8 @@ export interface StartPitchSlot {
     entry: StartProbabilityEntry;
     left: number;
     top: number;
+    /** True when 5+ players share this line — the half pitch's fixed-width token is wider than the even spacing then allows, so its caller narrows the token to stop the name pills overlapping. */
+    crowded?: boolean;
 }
 
 /** A line's players with the strongest % in the middle (alternating either side of it). */
@@ -530,10 +532,17 @@ export function halfPitchSlots(
     });
 
     if (spots !== null) {
+        const lineCounts = new Map<number, number>();
+
+        spots.forEach(({ depth }) => {
+            lineCounts.set(depth, (lineCounts.get(depth) ?? 0) + 1);
+        });
+
         return spots.map(({ entry, depth, across }) => ({
             entry,
             left: 100 - across,
             top: depth,
+            crowded: (lineCounts.get(depth) ?? 0) >= 5,
         }));
     }
 
@@ -552,6 +561,7 @@ export function halfPitchSlots(
                 entry,
                 left: ((index + 1) / (line.length + 1)) * 100,
                 top: HALF_PITCH_TOP[position] + (wide ? 4 : 0),
+                crowded: line.length >= 5,
             };
         });
     });
