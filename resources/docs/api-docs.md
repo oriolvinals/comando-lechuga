@@ -194,7 +194,7 @@ Un jugador que tiene otro manager (esté o no puesto a la venta) solo se puede c
 
 ### 2.9 Dinero
 
-- Cada manager empieza con **100 M€ y 14 jugadores al azar**.
+- Cada manager empieza con **100 M€ de saldo y 14 jugadores al azar**, que valen en total unos **120 M€** de valor de mercado.
 - Gana **100.000 € por cada punto** que suma su once, cobrados al final de la jornada, además de lo que ingrese por ventas.
 - En la actividad, `weekly_prize` ("Premio semanal") es ese cobro de la jornada. Lo reciben **todos** los managers cada jornada, así que **no** indica quién ganó la jornada.
 
