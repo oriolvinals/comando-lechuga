@@ -30,11 +30,15 @@ class PlayerDetailResource extends JsonResource
             'points' => $this->points,
             'average_points' => (float) $this->average_points,
             'owner_manager' => $this->owner_manager,
+            'next_fixtures' => $this->api_next_fixtures,
+            'next_start' => $this->api_next_start,
+            'value_trend_30d' => $this->api_value_trend_30d,
+            'points_per_million' => $this->api_points_per_million,
+            'owner_gain' => $this->api_owner_gain,
             'market_listing' => $this->api_market_listing,
             'market_history' => $this->api_market_history,
             'scores' => $this->api_scores,
             'ownership_activity' => $this->api_ownership_activity,
-            'next_fixtures' => $this->api_next_fixtures,
         ];
     }
 }

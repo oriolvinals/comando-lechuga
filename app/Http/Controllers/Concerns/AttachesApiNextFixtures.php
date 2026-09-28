@@ -10,14 +10,20 @@ use App\Http\Resources\TeamResource;
 use App\Models\Fixture;
 use App\Models\Player;
 use App\Models\Season;
+use App\Services\LeagueStandings;
 use Illuminate\Support\Collection;
 
 trait AttachesApiNextFixtures
 {
     /**
      * Same source data as AttachesNextFixtures (the web trait), reshaped for
-     * the API: a variable-length list (0-3 entries, soonest first) instead
-     * of a null-padded fixed-length array.
+     * the API:
+     * - a variable-length list (0–3 entries, soonest first) instead of a
+     *   null-padded fixed-length array;
+     * - each entry carries the fixture's id and date, the rival's current
+     *   real-table position and its difficulty (−1 leader … +1 last);
+     * - a rival missing from the table gets nulls rather than a made-up
+     *   mid-table rating.
      *
      * @param  Collection<int, Player>  $players
      */
@@ -48,7 +54,10 @@ trait AttachesApiNextFixtures
                 }
             });
 
-        $players->each(function (Player $player) use ($fixturesByTeam): void {
+        $positions = $fixturesByTeam === [] ? [] : app(LeagueStandings::class)->positions($season);
+        $teamCount = count($positions);
+
+        $players->each(function (Player $player) use ($fixturesByTeam, $positions, $teamCount): void {
             if ($player->status === PlayerStatus::OutOfLeague) {
                 $player->api_next_fixtures = [];
 
@@ -58,13 +67,23 @@ trait AttachesApiNextFixtures
             $player->api_next_fixtures = collect($fixturesByTeam[$player->team_id] ?? [])
                 ->sortBy(fn (Fixture $fixture) => $fixture->date)
                 ->take(3)
-                ->map(fn (Fixture $fixture): array => [
-                    'week_number' => $fixture->week_number,
-                    'opponent' => (new TeamResource($fixture->team_local_id === $player->team_id
-                        ? $fixture->guestTeam
-                        : $fixture->localTeam))->resolve(),
-                    'is_home' => $fixture->team_local_id === $player->team_id,
-                ])
+                ->map(function (Fixture $fixture) use ($player, $positions, $teamCount): array {
+                    $isHome = $fixture->team_local_id === $player->team_id;
+                    $opponent = $isHome ? $fixture->guestTeam : $fixture->localTeam;
+                    $rivalPosition = $positions[$opponent->id] ?? null;
+
+                    return [
+                        'fixture_id' => $fixture->id,
+                        'week_number' => $fixture->week_number,
+                        'date' => $fixture->date->toIso8601String(),
+                        'opponent' => (new TeamResource($opponent))->resolve(),
+                        'is_home' => $isHome,
+                        'rival_position' => $rivalPosition,
+                        'difficulty' => $rivalPosition === null
+                            ? null
+                            : round(LeagueStandings::difficulty($rivalPosition, $teamCount), 3),
+                    ];
+                })
                 ->values()
                 ->all();
         });

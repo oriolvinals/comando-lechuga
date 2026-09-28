@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Filters;
 
+use App\Enums\ApiPlayerSort;
 use App\Enums\PlayerPosition;
-use App\Enums\PlayerSort;
 use App\Enums\PlayerStatus;
 use App\Enums\SortDirection;
 use Illuminate\Http\Request;
@@ -30,7 +30,15 @@ final class ApiPlayerFilter extends BaseRequestFilter
 
     private readonly ?string $search;
 
-    private readonly PlayerSort $sort;
+    private readonly ?bool $free;
+
+    private readonly ?int $minValue;
+
+    private readonly ?int $maxValue;
+
+    private readonly ?int $minStartProbability;
+
+    private readonly ApiPlayerSort $sort;
 
     private readonly SortDirection $direction;
 
@@ -41,7 +49,11 @@ final class ApiPlayerFilter extends BaseRequestFilter
         $this->managers = $this->parseIntList($request->string('manager')->toString());
         $this->statuses = $this->parseEnumList(PlayerStatus::class, $request->string('status')->toString());
         $this->search = $this->parseString($request->string('search')->toString());
-        $this->sort = $this->parseEnum(PlayerSort::class, $request->string('sort')->toString()) ?? PlayerSort::Points;
+        $this->free = $request->filled('free') ? $request->boolean('free') : null;
+        $this->minValue = $request->filled('min_value') ? $request->integer('min_value') : null;
+        $this->maxValue = $request->filled('max_value') ? $request->integer('max_value') : null;
+        $this->minStartProbability = $request->filled('min_start_probability') ? $request->integer('min_start_probability') : null;
+        $this->sort = $this->parseEnum(ApiPlayerSort::class, $request->string('sort')->toString()) ?? ApiPlayerSort::Points;
         $this->direction = $this->parseEnum(SortDirection::class, $request->string('direction')->toString()) ?? SortDirection::Desc;
     }
 
@@ -82,7 +94,28 @@ final class ApiPlayerFilter extends BaseRequestFilter
         return $this->search;
     }
 
-    public function getSort(): PlayerSort
+    /** True: only unowned players; false: only owned ones; null: both. */
+    public function isFree(): ?bool
+    {
+        return $this->free;
+    }
+
+    public function getMinValue(): ?int
+    {
+        return $this->minValue;
+    }
+
+    public function getMaxValue(): ?int
+    {
+        return $this->maxValue;
+    }
+
+    public function getMinStartProbability(): ?int
+    {
+        return $this->minStartProbability;
+    }
+
+    public function getSort(): ApiPlayerSort
     {
         return $this->sort;
     }

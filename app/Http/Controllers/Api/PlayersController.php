@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\PlayerSort;
+use App\Enums\ApiPlayerSort;
+use App\Enums\FixtureState;
+use App\Enums\MarketTrend;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
 use App\Enums\SortDirection;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
-use App\Http\Controllers\Concerns\AttachesApiNextFixtures;
-use App\Http\Controllers\Concerns\AttachesApiRecentScores;
-use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
-use App\Http\Controllers\Concerns\AttachesOwnerManager;
 use App\Http\Controllers\Concerns\ValidatesApiQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Filters\ApiPlayerFilter;
@@ -27,6 +25,8 @@ use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
+use App\Services\ApiPlayerShapes;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Collection;
@@ -36,10 +36,6 @@ use Illuminate\Validation\Rule;
 class PlayersController extends Controller
 {
     use AttachesActivityValueDifference;
-    use AttachesApiNextFixtures;
-    use AttachesApiRecentScores;
-    use AttachesCurrentPlayerSeason;
-    use AttachesOwnerManager;
     use ValidatesApiQuery;
 
     private const array OWNERSHIP_ACTIVITY_TYPES = [
@@ -68,6 +64,22 @@ class PlayersController extends Controller
     /** Statuses the list can filter by. Out-of-league players are never listed. */
     private const array FILTERABLE_STATUSES = ['ok', 'injured', 'doubtful', 'suspended'];
 
+    /**
+     * Sort rank of `player_seasons.market_trend`: one `WHEN ? THEN ?` per
+     * MarketTrend case (12), filled by trendStrengthBindings(). A missing
+     * trend counts as 0.
+     */
+    private const string TREND_STRENGTH_SQL = 'CASE player_seasons.market_trend'
+        .' WHEN ? THEN ? WHEN ? THEN ? WHEN ? THEN ? WHEN ? THEN ? WHEN ? THEN ? WHEN ? THEN ?'
+        .' WHEN ? THEN ? WHEN ? THEN ? WHEN ? THEN ? WHEN ? THEN ? WHEN ? THEN ? WHEN ? THEN ?'
+        .' ELSE 0 END';
+
+    /** Season points per million of current value; 0 without a value. */
+    private const string POINTS_PER_MILLION_SQL = 'CASE WHEN player_seasons.market_value > 0'
+        .' THEN player_seasons.points * 1.0 / player_seasons.market_value ELSE 0 END';
+
+    public function __construct(private readonly ApiPlayerShapes $playerShapes) {}
+
     public function index(Request $request, ApiPlayerFilter $filter): AnonymousResourceCollection
     {
         $this->validateApiQuery($request, [
@@ -76,7 +88,11 @@ class PlayersController extends Controller
             'manager' => ['sometimes', 'nullable', $this->commaSeparatedIds()],
             'status' => ['sometimes', 'nullable', $this->commaSeparatedIn(self::FILTERABLE_STATUSES)],
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'sort' => ['sometimes', 'nullable', Rule::enum(PlayerSort::class)],
+            'free' => ['sometimes', 'nullable', Rule::in(['1', '0', 'true', 'false'])],
+            'min_value' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'max_value' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'min_start_probability' => ['sometimes', 'nullable', 'integer', 'between:0,100'],
+            'sort' => ['sometimes', 'nullable', Rule::enum(ApiPlayerSort::class)],
             'direction' => ['sometimes', 'nullable', Rule::enum(SortDirection::class)],
         ]);
 
@@ -87,8 +103,16 @@ class PlayersController extends Controller
         $managers = $filter->getManagers();
         $statuses = $filter->getStatuses();
         $search = $filter->getSearch();
+        $free = $filter->isFree();
+        $minValue = $filter->getMinValue();
+        $maxValue = $filter->getMaxValue();
+        $minStartProbability = $filter->getMinStartProbability();
+        $ownedThisSeason = fn ($query) => $query->whereHas(
+            'seasonManager',
+            fn ($query) => $query->where('season_id', $season->id),
+        );
 
-        $players = Player::query()
+        $query = Player::query()
             ->select('players.*')
             ->join('player_seasons', function ($join) use ($season): void {
                 $join->on('player_seasons.player_id', '=', 'players.id')
@@ -104,18 +128,21 @@ class PlayersController extends Controller
                 fn ($query) => $query->whereIn('season_manager_id', $managers),
             ))
             ->when($statuses !== [], fn ($query) => $query->whereIn('status', $statuses))
+            ->when($free === true, fn ($query) => $query->whereDoesntHave('seasonManagerPlayers', $ownedThisSeason))
+            ->when($free === false, fn ($query) => $query->whereHas('seasonManagerPlayers', $ownedThisSeason))
+            ->when($minValue !== null, fn ($query) => $query->where('player_seasons.market_value', '>=', $minValue))
+            ->when($maxValue !== null, fn ($query) => $query->where('player_seasons.market_value', '<=', $maxValue))
+            ->when($minStartProbability !== null, fn ($query) => $this->whereNextStartProbabilityAtLeast($query, $season, (int) $minStartProbability))
             ->when($search !== null, fn ($query) => $query->whereRaw(
                 $this->foldedNicknameSql().' LIKE ?',
-                ['%'.Str::lower(Str::ascii($search)).'%'],
-            ))
-            ->orderBy('player_seasons.'.$filter->getSort()->column(), $filter->getDirection()->value)
-            ->paginate(15)
-            ->withQueryString();
+                ['%'.Str::lower(Str::ascii((string) $search)).'%'],
+            ));
 
-        $this->attachOwnerManager($players->getCollection(), $season->id);
-        $this->attachCurrentSeason($players->getCollection(), $season->id);
-        $this->attachApiRecentScores($players->getCollection(), $season);
-        $this->attachApiNextFixtures($players->getCollection(), $season);
+        $this->orderPlayers($query, $filter->getSort(), $filter->getDirection());
+
+        $players = $query->paginate(15)->withQueryString();
+
+        $this->playerShapes->attach($players->getCollection(), $season);
 
         return PlayerResource::collection($players);
     }
@@ -126,17 +153,75 @@ class PlayersController extends Controller
 
         $player->load('team');
         $season = Season::current();
-        $players = new Collection([$player]);
 
-        $this->attachOwnerManager($players, $season->id);
-        $this->attachCurrentSeason($players, $season->id);
-        $this->attachApiNextFixtures($players, $season);
+        $this->playerShapes->attach(new Collection([$player]), $season);
         $this->attachMarketListing($player);
         $this->attachMarketHistory($player);
         $this->attachScores($player, $season);
         $this->attachOwnershipActivity($player, $season);
 
         return new PlayerDetailResource($player);
+    }
+
+    /**
+     * @param  Builder<Player>  $query
+     */
+    private function orderPlayers(Builder $query, ApiPlayerSort $sort, SortDirection $direction): void
+    {
+        $ordered = match ($sort) {
+            ApiPlayerSort::Points => $query->orderBy('player_seasons.points', $direction->value),
+            ApiPlayerSort::Value => $query->orderBy('player_seasons.market_value', $direction->value),
+            ApiPlayerSort::Difference => $query->orderBy('player_seasons.market_value_difference', $direction->value),
+            ApiPlayerSort::Trend => $query
+                ->orderByRaw(self::TREND_STRENGTH_SQL.' '.$direction->value, $this->trendStrengthBindings())
+                ->orderBy('player_seasons.market_value_difference', $direction->value),
+            ApiPlayerSort::PointsPerMillion => $query->orderByRaw(self::POINTS_PER_MILLION_SQL.' '.$direction->value),
+        };
+
+        $ordered->orderBy('players.id');
+    }
+
+    /**
+     * @return list<int|string>
+     */
+    private function trendStrengthBindings(): array
+    {
+        $bindings = [];
+
+        foreach (MarketTrend::cases() as $trend) {
+            $bindings[] = $trend->value;
+            $bindings[] = $trend->strength();
+        }
+
+        return $bindings;
+    }
+
+    /**
+     * Keeps players whose FútbolFantasy start probability for their team's
+     * next match is at least `$minimum`. The next match is the first scheduled
+     * one still to come, the same one `next_start` describes. A confirmed
+     * lineup is not considered here; `next_start.confirmed_starter` says so.
+     *
+     * @param  Builder<Player>  $query
+     */
+    private function whereNextStartProbabilityAtLeast(Builder $query, Season $season, int $minimum): void
+    {
+        $query->whereExists(fn ($exists) => $exists
+            ->selectRaw('1')
+            ->from('fixture_lineup_probabilities')
+            ->whereColumn('fixture_lineup_probabilities.player_id', 'players.id')
+            ->where('fixture_lineup_probabilities.probability', '>=', $minimum)
+            ->where('fixture_lineup_probabilities.fixture_id', fn ($next) => $next
+                ->select('fixtures.id')
+                ->from('fixtures')
+                ->where('fixtures.season_id', $season->id)
+                ->where('fixtures.state', FixtureState::Scheduled->value)
+                ->where('fixtures.date', '>', now())
+                ->where(fn ($teams) => $teams
+                    ->whereColumn('fixtures.team_local_id', 'players.team_id')
+                    ->orWhereColumn('fixtures.team_guest_id', 'players.team_id'))
+                ->orderBy('fixtures.date')
+                ->limit(1)));
     }
 
     private function attachMarketListing(Player $player): void

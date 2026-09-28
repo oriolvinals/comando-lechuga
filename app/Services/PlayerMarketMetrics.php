@@ -12,6 +12,7 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\PlayerSeason;
 use App\Models\Season;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -69,13 +70,7 @@ class PlayerMarketMetrics
 
         $pointsPerMillion = $player->points / ($player->market_value / 1_000_000);
 
-        $rankedPlayers = PlayerSeason::query()
-            ->join('players', 'players.id', '=', 'player_seasons.player_id')
-            ->where('player_seasons.season_id', $season->id)
-            ->whereNotNull('players.fantasy_id')
-            ->where('players.status', '!=', PlayerStatus::OutOfLeague)
-            ->where('player_seasons.points', '>', 0)
-            ->where('player_seasons.market_value', '>', 0);
+        $rankedPlayers = $this->rankedPlayersQuery($season);
 
         $rank = null;
 
@@ -92,6 +87,69 @@ class PlayerMarketMetrics
             'rank' => $rank,
             'ranked' => $rankedPlayers->count(),
         ];
+    }
+
+    /**
+     * pointsPerMillion() for many players at once, keyed by player id, with a
+     * single query for the whole league ranking instead of two per player.
+     *
+     * @param  Collection<int, Player>  $players
+     * @return array<int, array{value: float, rank: int|null, ranked: int}|null>
+     */
+    public function pointsPerMillionForPlayers(Collection $players, Season $season): array
+    {
+        $valuedPlayers = $players->filter(fn (Player $player): bool => $player->market_value > 0);
+
+        /** @var list<array{points: int, market_value: int}> $rankedFigures */
+        $rankedFigures = $valuedPlayers->isEmpty() ? [] : $this->rankedPlayersQuery($season)
+            ->toBase()
+            ->get(['player_seasons.points', 'player_seasons.market_value'])
+            ->map(fn (object $row): array => [
+                'points' => (int) $row->points,
+                'market_value' => (int) $row->market_value,
+            ])
+            ->all();
+
+        $ranked = count($rankedFigures);
+
+        return $players->mapWithKeys(function (Player $player) use ($rankedFigures, $ranked): array {
+            if ($player->market_value <= 0) {
+                return [$player->id => null];
+            }
+
+            $rank = null;
+
+            if ($player->points > 0) {
+                // Same cross-multiplied integer comparison as pointsPerMillion().
+                $rank = 1 + count(array_filter(
+                    $rankedFigures,
+                    fn (array $theirs): bool => $player->points * $theirs['market_value'] < $theirs['points'] * $player->market_value,
+                ));
+            }
+
+            return [$player->id => [
+                'value' => round($player->points / ($player->market_value / 1_000_000), 2),
+                'rank' => $rank,
+                'ranked' => $ranked,
+            ]];
+        })->all();
+    }
+
+    /**
+     * The season's league players that take part in the points-per-million
+     * ranking: listed in the fantasy game, with points and a value.
+     *
+     * @return Builder<PlayerSeason>
+     */
+    private function rankedPlayersQuery(Season $season): Builder
+    {
+        return PlayerSeason::query()
+            ->join('players', 'players.id', '=', 'player_seasons.player_id')
+            ->where('player_seasons.season_id', $season->id)
+            ->whereNotNull('players.fantasy_id')
+            ->where('players.status', '!=', PlayerStatus::OutOfLeague)
+            ->where('player_seasons.points', '>', 0)
+            ->where('player_seasons.market_value', '>', 0);
     }
 
     /**
