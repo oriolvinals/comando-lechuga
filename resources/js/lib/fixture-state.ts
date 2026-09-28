@@ -1,11 +1,48 @@
-import type { FixtureState } from '@/types/models';
+import type { Fixture, FixtureState } from '@/types/models';
 
 export const COUNTDOWN_THRESHOLD_MS = 2 * 60 * 60 * 1000;
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/** How long before kickoff the match ficha starts refreshing itself. */
+const REFRESH_BEFORE_KICKOFF_MS = HOUR_MS;
+
+/**
+ * How long after kickoff the match ficha keeps refreshing itself when the
+ * match isn't live: about 2 h of match plus 1 h after the final whistle
+ * (there's no stored end time).
+ */
+const REFRESH_AFTER_KICKOFF_MS = 3 * HOUR_MS;
 
 const LIVE_STATES: FixtureState[] = ['first_half', 'half_time', 'second_half'];
 
 export function isLiveFixtureState(state: FixtureState): boolean {
     return LIVE_STATES.includes(state);
+}
+
+/**
+ * Whether the match ficha should keep reloading its props: always while the
+ * fixture is live, else from 1 h before kickoff to 3 h after it. Never for a
+ * postponed fixture.
+ */
+export function isInFixtureRefreshWindow(
+    fixture: Pick<Fixture, 'date' | 'state'>,
+    now: number,
+): boolean {
+    if (fixture.state === 'postponed') {
+        return false;
+    }
+
+    if (isLiveFixtureState(fixture.state)) {
+        return true;
+    }
+
+    const kickoff = new Date(fixture.date).getTime();
+
+    return (
+        now >= kickoff - REFRESH_BEFORE_KICKOFF_MS &&
+        now <= kickoff + REFRESH_AFTER_KICKOFF_MS
+    );
 }
 
 export const FIXTURE_STATE_LABELS: Record<FixtureState, string> = {

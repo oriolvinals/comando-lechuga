@@ -24,6 +24,7 @@ import {
     COUNTDOWN_THRESHOLD_MS,
     FIXTURE_STATE_LABELS,
     formatFixtureSecondaryText,
+    isInFixtureRefreshWindow,
     isLiveFixtureState,
 } from '@/lib/fixture-state';
 import {
@@ -56,6 +57,7 @@ const LIVE_REFRESH_PROPS = [
     'events',
     'team_stats',
     'fantasy_scoreboard',
+    'startProbabilities',
 ];
 
 interface FixtureShowProps {
@@ -373,7 +375,12 @@ export default function FixtureShow({
         hasScore,
         secondaryText,
     } = useFixtureTiming(fixture);
-    useLiveFixtureRefresh(isLive, LIVE_REFRESH_PROPS);
+    const refreshClock = useNow(60_000);
+    useLiveFixtureRefresh(
+        isInFixtureRefreshWindow(fixture, refreshClock),
+        LIVE_REFRESH_PROPS,
+        { whileHidden: true },
+    );
     const hasLineups = fixture.state !== 'scheduled' && lineups.length > 0;
     // Before kickoff (and until a live lineup takes over) the section shows
     // FútbolFantasy's probable XIs, or the confirmed ones — its own campo/lista toggle too.
