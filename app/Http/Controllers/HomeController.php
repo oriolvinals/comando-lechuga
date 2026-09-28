@@ -8,21 +8,19 @@ use App\Enums\FixtureState;
 use App\Enums\PlayerPosition;
 use App\Http\Controllers\Concerns\AttachesActivityValueDifference;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
+use App\Http\Controllers\Concerns\AttachesDailyValueDifference;
 use App\Http\Controllers\Concerns\AttachesRecentForm;
 use App\Http\Controllers\Concerns\AttachesRecentScores;
 use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
 use App\Models\Activity;
 use App\Models\Fixture;
-use App\Models\ManagerPlayer;
 use App\Models\MarketPlayer;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Services\JornadaMatches;
 use App\Services\StartProbabilities;
-use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,6 +28,7 @@ class HomeController extends Controller
 {
     use AttachesActivityValueDifference;
     use AttachesCurrentPlayerSeason;
+    use AttachesDailyValueDifference;
     use AttachesRecentForm;
     use AttachesRecentScores;
     use FiltersSeasonWeeks;
@@ -114,29 +113,5 @@ class HomeController extends Controller
             'market' => $market,
             'activity' => $activity,
         ]);
-    }
-
-    /**
-     * Attaches how much each manager's current squad gained or lost in the
-     * latest daily market update: the sum of its players' daily value
-     * differences. A manager without players gets 0.
-     *
-     * @param  Collection<int, SeasonManager>  $standings
-     */
-    private function attachDailyValueDifference(Collection $standings, Season $season): void
-    {
-        $differences = ManagerPlayer::query()
-            ->join('player_seasons', function (JoinClause $join) use ($season): void {
-                $join->on('player_seasons.player_id', '=', 'manager_players.player_id')
-                    ->where('player_seasons.season_id', $season->id);
-            })
-            ->whereIn('manager_players.season_manager_id', $standings->pluck('id'))
-            ->groupBy('manager_players.season_manager_id')
-            ->selectRaw('manager_players.season_manager_id, SUM(player_seasons.market_value_difference) as daily_value_difference')
-            ->pluck('daily_value_difference', 'season_manager_id');
-
-        $standings->each(function (SeasonManager $manager) use ($differences): void {
-            $manager->daily_value_difference = (int) ($differences->get($manager->id) ?? 0);
-        });
     }
 }

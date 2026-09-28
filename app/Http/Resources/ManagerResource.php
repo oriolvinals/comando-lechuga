@@ -26,9 +26,15 @@ class ManagerResource extends JsonResource
             'rank' => $this->position,
             'last_rank' => $this->last_position,
             'total_points' => $this->total_points,
+            'live_points' => $this->live_points,
             'squad_value' => $this->value,
-            'roster' => $this->api_roster,
+            'daily_value_difference' => $this->daily_value_difference,
+            'played_weeks' => $this->api_played_weeks,
+            'average_points' => $this->api_average_points,
+            'week_ranks' => $this->api_week_ranks,
+            'current_lineup' => $this->api_current_lineup,
             'lineup_history' => $this->api_lineup_history,
+            'roster' => $this->api_roster,
             'recent_activity' => $this->api_recent_activity,
         ];
     }

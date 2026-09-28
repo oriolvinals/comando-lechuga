@@ -107,6 +107,37 @@ class SeasonClock
     }
 
     /**
+     * Finished jornadas: every one before the current jornada (trusted as
+     * past even with a postponed match left), plus the current one once it
+     * has finished.
+     *
+     * @return list<int>
+     */
+    public function finishedWeekNumbers(Season $season): array
+    {
+        $weeks = $season->current_week > 1 ? range(1, $season->current_week - 1) : [];
+
+        if ($this->weekState($season, $season->current_week) === self::FINISHED) {
+            $weeks[] = $season->current_week;
+        }
+
+        return $weeks;
+    }
+
+    /**
+     * The jornada a manager's "current" lineup belongs to: the current one
+     * until it has finished, then the next (never past the last jornada).
+     */
+    public function lineupWeek(Season $season): int
+    {
+        if ($this->weekState($season, $season->current_week) !== self::FINISHED) {
+            return $season->current_week;
+        }
+
+        return min($season->current_week + 1, $season->total_weeks);
+    }
+
+    /**
      * Buyouts are closed from 24 h before a jornada's first kickoff until
      * that kickoff; open at any other time.
      *
