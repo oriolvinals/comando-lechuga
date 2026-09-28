@@ -68,11 +68,10 @@ function SubHead({ label, count }: { label: string; count: number }) {
  * wraps, so every row stays the same height) — plus "FF aún le da N %" on
  * its own small line for a baja FútbolFantasy still rates — then the bar
  * and %, or the outcome chip once confirmed. The name link is stretched
- * over the whole row (mock M4 · B) via its `::after`, so the row itself is
- * ≥ 50 px tall and the whole thing opens the ficha; the bar/chip column
- * sits `relative z-10` so its own hover/focus tooltip still wins over the
- * stretched link, and on desktop the name column is capped to 200 px so the
- * bar reads right next to the name instead of far to the right.
+ * over the whole row via its `::after`, so the row itself is ≥ 50 px tall
+ * and the whole thing opens the ficha; the bar/chip column stays on the
+ * right and sits `relative z-10` so its own hover/focus tooltip still wins
+ * over the stretched link.
  */
 function StartRow({
     entry,
@@ -92,7 +91,7 @@ function StartRow({
     return (
         <div
             className={cn(
-                'relative grid min-h-[50px] cursor-pointer grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-2.5 border-b border-hq-border px-3.5 py-[7px] transition-colors hover:bg-hq-panel sm:px-4 md:grid-cols-[36px_minmax(0,200px)_auto] md:justify-start md:gap-x-[18px]',
+                'relative grid min-h-[50px] cursor-pointer grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-2.5 border-b border-hq-border px-3.5 py-[7px] transition-colors hover:bg-hq-panel sm:px-4',
                 dim && 'opacity-60',
             )}
         >

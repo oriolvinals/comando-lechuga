@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\Fixture;
-use App\Models\Player;
 use App\Models\FixtureLineupProbability;
+use App\Models\Player;
 use App\Models\Season;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
