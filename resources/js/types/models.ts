@@ -67,7 +67,7 @@ export interface Player {
     recent_scores_opponents: (Team | null)[];
     /** The team's next 3 upcoming (not yet started) fixtures, soonest first — null-padded at the end when fewer than 3 remain on the calendar. */
     next_fixtures: (NextFixtureSlot | null)[];
-    /** Start probability (or confirmed lineup) for the team's next match. Only present on the manager ficha; null without data. */
+    /** Start probability (or confirmed lineup) for the team's next match. Only present on the manager and team fichas; null without data. */
     next_start?: PlayerNextStart | null;
 }
 

@@ -6,6 +6,7 @@ import { HqLed } from '@/components/hq-led';
 import { HqManagerChip } from '@/components/hq-manager-chip';
 import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
 import { HqNextFixtures } from '@/components/hq-next-fixtures';
+import { HqNextStart } from '@/components/hq-next-start';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqStatusBadge } from '@/components/hq-status-badge';
@@ -154,6 +155,11 @@ export function PlayerRow({
                         className="lg:hidden"
                     />
                 </div>
+                <HqNextStart
+                    start={player.next_start ?? null}
+                    status={player.status}
+                    className="mt-1.5"
+                />
             </div>
 
             {showPosition && (

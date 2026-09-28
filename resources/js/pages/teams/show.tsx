@@ -27,6 +27,7 @@ import type {
     ManagerLineupPlayerEntry,
     NextFixtureSlot,
     Player,
+    PlayerNextStart,
     PlayerPosition,
     StandingsRow,
     Team,
@@ -136,6 +137,25 @@ export default function TeamShow({
 
         return formation ? formation.split('-').map(Number) : null;
     })();
+
+    const nextStartByPlayerId = new Map<number, PlayerNextStart>();
+
+    if (startProbabilities) {
+        for (const entry of startProbabilities.players) {
+            nextStartByPlayerId.set(entry.player.id, {
+                fixture_id: startProbabilities.fixture_id,
+                week_number: startProbabilities.week_number,
+                probability: entry.probability,
+                predicted_starter: entry.predicted_starter,
+                confirmed_starter: entry.confirmed_starter,
+                confirmed_source: startProbabilities.confirmed_source,
+                is_stale: startProbabilities.is_stale,
+                fetched_at: startProbabilities.fetched_at,
+                source_url: startProbabilities.source_url,
+                team_short_name: startProbabilities.team.short_name,
+            });
+        }
+    }
 
     const groups = GROUP_ORDER.map((position) => ({
         position,
@@ -386,7 +406,13 @@ export default function TeamShow({
                                 {group.players.map((player) => (
                                     <PlayerRow
                                         key={player.id}
-                                        player={player}
+                                        player={{
+                                            ...player,
+                                            next_start:
+                                                nextStartByPlayerId.get(
+                                                    player.id,
+                                                ) ?? null,
+                                        }}
                                         showTeam={false}
                                         showPosition={false}
                                     />
