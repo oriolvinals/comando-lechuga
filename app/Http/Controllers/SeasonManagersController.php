@@ -15,10 +15,12 @@ use App\Http\Controllers\Concerns\FiltersSeasonWeeks;
 use App\Http\Controllers\Concerns\ResolvesRequestedWeek;
 use App\Models\Activity;
 use App\Models\ManagerLineup;
+use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Services\StartProbabilities;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,7 +37,7 @@ class SeasonManagersController extends Controller
     use FiltersSeasonWeeks;
     use ResolvesRequestedWeek;
 
-    public function index(Request $request): Response
+    public function index(Request $request, StartProbabilities $startProbabilities): Response
     {
         $season = Season::current();
         $week = $this->resolveWeek($request, $season);
@@ -51,6 +53,7 @@ class SeasonManagersController extends Controller
         $this->attachMatchFinished($lineups, $season);
         $this->attachLineupPlayerScores($lineups);
         $this->attachLineupFixtures($lineups, $season);
+        $this->attachLineupStarts($lineups, $startProbabilities);
 
         return Inertia::render('season-managers/index', [
             'season' => $season,
@@ -96,6 +99,7 @@ class SeasonManagersController extends Controller
         $this->attachMatchFinished($lineupHistory, $season);
         $this->attachLineupPlayerScores($lineupHistory);
         $this->attachLineupFixtures($lineupHistory, $season);
+        $this->attachLineupStarts($lineupHistory, $startProbabilities);
 
         $activity = Activity::query()
             ->where(fn ($query) => $query
@@ -245,5 +249,23 @@ class SeasonManagersController extends Controller
             'won' => $weekNumbersAt($maxPointsByWeek),
             'lost' => $weekNumbersAt($minPointsByWeek),
         ];
+    }
+
+    /**
+     * Attaches each lineup entry's own-fixture start facts
+     * (`ManagerLineupPlayer::$start`), batched across every entry in the
+     * given lineups. Expects `attachLineupFixtures()` to already have
+     * resolved each entry's `fixture`.
+     *
+     * @param  Collection<int, ManagerLineup>  $lineups
+     */
+    private function attachLineupStarts(Collection $lineups, StartProbabilities $startProbabilities): void
+    {
+        $entries = $lineups->flatMap(fn (ManagerLineup $lineup) => $lineup->players);
+        $starts = $startProbabilities->forLineupEntries($entries);
+
+        $entries->each(function (ManagerLineupPlayer $entry) use ($starts): void {
+            $entry->start = $starts[$entry->id] ?? null;
+        });
     }
 }
