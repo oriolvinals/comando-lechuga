@@ -145,7 +145,7 @@ En `/api/fixtures/{id}`, un jugador sin datos de la Fantasy (no vinculado, o sin
 
 ### 2.4 Nota DAZN
 
-`marca_points` es la nota DAZN: estadísticas avanzadas (OPTA) agrupadas en cinco bloques (**portería, defensivas, distribución, ofensivas y negativas**), ponderadas según los minutos jugados. El resultado es una nota de **0 a 4 puntos** que se suma a los demás puntos. Si te preguntan por una nota concreta, explica qué tipo de acciones la suben o la bajan según esos bloques y el tiempo jugado. No inventes una fórmula por estadística: no tenemos todos los datos que usa DAZN.
+`marca_points` es la nota DAZN: estadísticas avanzadas (OPTA) agrupadas en cinco bloques (**portería, defensivas, distribución, ofensivas y negativas**), ponderadas según los minutos jugados. El resultado es una nota de **0 a 4 puntos** que se suma a los demás puntos. La calcula LaLiga Fantasy con DAZN; no tiene nada que ver con FútbolFantasy. Si te preguntan por una nota concreta, explica qué tipo de acciones la suben o la bajan según esos bloques y el tiempo jugado. No inventes una fórmula por estadística: no tenemos todos los datos que usa DAZN.
 
 ### 2.5 Plantilla y alineación
 
@@ -221,7 +221,7 @@ Visto desde el comprador: un jugador que tiene otro manager (esté o no puesto a
 
 ### 2.11 Lo que esta liga no tiene
 
-Esta liga **no** tiene capitán, banquillo ni suplentes automáticos, hueco de entrenador ni cesiones. No los propongas. Los entrenadores no aparecen en la API.
+Esta liga **no** tiene capitán, banquillo ni suplentes automáticos, hueco de entrenador ni cesiones. No los propongas. Los jugadores que no entran en el once simplemente no puntúan: no los llames "banquillo" ni "suplentes". Los entrenadores no aparecen en la API.
 
 ### 2.12 Reglas que no afirmamos
 
