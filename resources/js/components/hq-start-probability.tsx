@@ -1,7 +1,8 @@
 import { Link } from '@inertiajs/react';
 import { User } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { startBadgeTierClass } from '@/components/hq-lineup-pitch';
+import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { formatMatchDateShort } from '@/lib/format';
@@ -12,6 +13,7 @@ import {
     START_TONE_TEXT_CLASSES,
     dataAgeDays,
     dataAgeTooltipLabel,
+    isUnavailable,
     meterFill,
     startOutcome,
     startTone,
@@ -189,6 +191,86 @@ export function HqStartOutcomeChip({
     );
 }
 
+/**
+ * One player row (mock `.t-lrow`): photo with the position tag, the name
+ * and our status badge inline, then the 10-cell bar/% — or the outcome chip
+ * once confirmed. Same row the match ficha's start-probability lists use,
+ * shared here for the team ficha's full non-XI roster (bench, doubts and
+ * bajas) below its probable-XI pitch.
+ */
+export function HqStartRosterRow({
+    entry,
+    confirmed,
+    dim = false,
+    muted = false,
+    fetchedAt = null,
+}: {
+    entry: StartProbabilityEntry;
+    confirmed: boolean;
+    dim?: boolean;
+    muted?: boolean;
+    fetchedAt?: string | null;
+}) {
+    const unavailable = isUnavailable(entry.player.status);
+
+    return (
+        <div
+            className={cn(
+                'relative grid min-h-[50px] cursor-pointer grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-2.5 border-b border-hq-border px-3.5 py-[7px] transition-colors hover:bg-hq-panel sm:px-4',
+                dim && 'opacity-60',
+            )}
+        >
+            <span className="relative block h-9 w-9">
+                <EntityImage
+                    src={entry.player.image}
+                    alt=""
+                    fallback={User}
+                    shape="square"
+                    className="h-9 w-9 rounded-none border border-hq-border-strong bg-hq-well object-cover"
+                    style={{ objectPosition: 'center 20%' }}
+                />
+                <HqPositionTag
+                    position={entry.player.position}
+                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-hq-ink px-[3px] py-0.5 text-[8.5px]"
+                />
+            </span>
+            <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-1.5">
+                    <Link
+                        href={playersShow(entry.player.id).url}
+                        className="min-w-0 flex-1 truncate text-[13.5px] leading-[1.2] font-bold text-hq-paper outline-none after:absolute after:inset-0 after:content-[''] hover:text-hq-lime focus-visible:text-hq-lime focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-hq-lime"
+                    >
+                        {entry.player.nickname}
+                    </Link>
+                    {entry.player.status !== 'ok' && (
+                        <HqStatusBadge
+                            status={entry.player.status}
+                            className="shrink-0"
+                        />
+                    )}
+                </div>
+                {unavailable && (entry.probability ?? 0) > 0 && (
+                    <span className="mt-1 block font-mono text-[11px] leading-[1.2] text-hq-moss-dim">
+                        FF aún le da {entry.probability} %
+                    </span>
+                )}
+            </div>
+            <div className="relative z-10 flex items-center justify-end">
+                {confirmed ? (
+                    <HqStartOutcomeChip facts={entry} />
+                ) : (
+                    <HqStartMeter
+                        probability={entry.probability}
+                        status={entry.player.status}
+                        muted={muted}
+                        fetchedAt={fetchedAt}
+                    />
+                )}
+            </div>
+        </div>
+    );
+}
+
 /** "● Probable" / "● Probable · antigua" / "● Confirmada". */
 export function HqStartStateLabel({
     confirmed,
@@ -312,34 +394,6 @@ export function HqStartAttribution({
     );
 }
 
-const LEGEND: { tone: StartTone; label: string }[] = [
-    { tone: 'sure', label: '≥ 90 % muy probable' },
-    { tone: 'high', label: '70–89 % probable' },
-    { tone: 'low', label: '< 70 % duda' },
-    { tone: 'out', label: 'baja (LaLiga Fantasy)' },
-];
-
-/** The tone key, plus any children (e.g. data freshness). */
-export function HqStartLegend({ children }: { children?: ReactNode }) {
-    return (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 px-3.5 py-2 font-mono text-[10.5px] leading-[1.2] text-hq-moss-dim sm:px-4">
-            {LEGEND.map(({ tone, label }) => (
-                <span key={tone} className="inline-flex items-center gap-[5px]">
-                    <i
-                        aria-hidden="true"
-                        className={cn(
-                            'block h-2 w-2',
-                            START_TONE_BG_CLASSES[tone],
-                        )}
-                    />
-                    {label}
-                </span>
-            ))}
-            {children}
-        </div>
-    );
-}
-
 /**
  * A probable (or confirmed) starter on a pitch (mock `.t-tok`): framed
  * photo with the % badge where the points chip usually sits — the tone
@@ -347,6 +401,13 @@ export function HqStartLegend({ children }: { children?: ReactNode }) {
  * "!" for a surprise starter. Links to the player ficha. While unconfirmed,
  * `fetchedAt` shows a tooltip with how old FútbolFantasy's % is on hover or
  * keyboard focus of the token.
+ *
+ * `size="sm"` is the team ficha's probable-XI pitch only: pixel-identical
+ * to `HqLineupPitch`'s own `PlayerToken` (48 px photo, row-dependent
+ * width via `className`, the same solid corner badge and name pill) so
+ * switching between a played jornada's real lineup and the next one's
+ * probable XI looks like the same pitch. `size="lg"` (the match ficha's
+ * landscape pitch) is unchanged.
  */
 export function HqStartPitchToken({
     entry,
@@ -361,7 +422,7 @@ export function HqStartPitchToken({
     size?: 'lg' | 'sm';
     muted?: boolean;
     fetchedAt?: string | null;
-    /** Overrides the size-based width — e.g. narrower on a crowded pitch line so name pills stop overlapping. */
+    /** Overrides the size-based width — e.g. the team ficha pitch's row-dependent `tokenWidthForRowCount`. */
     className?: string;
 }) {
     const now = useNow(60_000);
@@ -397,7 +458,7 @@ export function HqStartPitchToken({
             <span
                 className={cn(
                     'relative block',
-                    size === 'lg' ? 'h-13 w-13' : 'h-11 w-11',
+                    size === 'lg' ? 'h-13 w-13' : 'h-12 w-12',
                 )}
             >
                 <span
@@ -422,21 +483,30 @@ export function HqStartPitchToken({
                     />
                 )}
                 <span
-                    className={cn(
-                        'absolute -right-3.5 -bottom-[5px] z-10 inline-flex h-[18px] min-w-[30px] items-center justify-center border bg-hq-ink px-[3px] font-mono text-[11px] leading-none font-bold tabular-nums',
-                        START_TONE_TEXT_CLASSES[tone],
-                        START_TONE_BORDER_CLASSES[tone],
-                        muted && 'opacity-60 saturate-[.15]',
-                    )}
+                    className={
+                        size === 'sm'
+                            ? cn(
+                                  'absolute -bottom-[5px] -left-[7px] z-10 inline-flex h-4 min-w-5 items-center justify-center px-[3px] font-mono text-[10.5px] leading-none font-extrabold tabular-nums',
+                                  startBadgeTierClass(tone),
+                                  muted && 'opacity-60 saturate-[.15]',
+                              )
+                            : cn(
+                                  'absolute -right-3.5 -bottom-[5px] z-10 inline-flex h-[18px] min-w-[30px] items-center justify-center border bg-hq-ink px-[3px] font-mono text-[11px] leading-none font-bold tabular-nums',
+                                  START_TONE_TEXT_CLASSES[tone],
+                                  START_TONE_BORDER_CLASSES[tone],
+                                  muted && 'opacity-60 saturate-[.15]',
+                              )
+                    }
                 >
                     {badge}
                 </span>
             </span>
             <span
-                className={cn(
-                    'mt-1.5 block max-w-full truncate bg-[rgba(6,7,5,0.82)] px-1 py-0.5 font-mono leading-[1.1] font-medium text-hq-paper',
-                    size === 'lg' ? 'text-[11px]' : 'text-[10.5px]',
-                )}
+                className={
+                    size === 'sm'
+                        ? 'mt-[5px] block max-w-full truncate bg-[rgba(6,7,5,0.86)] px-1 py-0.5 font-mono text-[10px] leading-[1.1] font-bold text-hq-paper'
+                        : 'mt-1.5 block max-w-full truncate bg-[rgba(6,7,5,0.82)] px-1 py-0.5 font-mono text-[11px] leading-[1.1] font-medium text-hq-paper'
+                }
             >
                 {entry.player.nickname}
             </span>

@@ -74,9 +74,10 @@ function pointsBadgeTierClass(points: number | null): string {
 /**
  * Same tone scale as `startTone` (`@/lib/start-probability`), but solid —
  * this badge sits on the dark pitch over a photo, same reason as
- * `pointsBadgeTierClass` above.
+ * `pointsBadgeTierClass` above. Exported so the team ficha's probable-XI
+ * pitch (`HqStartPitchToken`'s `size="sm"`) uses the identical badge style.
  */
-function startBadgeTierClass(tone: StartTone): string {
+export function startBadgeTierClass(tone: StartTone): string {
     if (tone === 'sure') {
         return 'bg-hq-violet text-hq-ink';
     }
@@ -261,9 +262,10 @@ function isPlayerLiveNow(
 /**
  * The token's width (and so its name pill's): an even share of the pitch's
  * width for the players in that row, so names use all the room the row has
- * instead of a fixed pixel width.
+ * instead of a fixed pixel width. Exported so the team ficha's probable-XI
+ * pitch sizes its tokens the same way, row by row.
  */
-function tokenWidthForRowCount(count: number): string {
+export function tokenWidthForRowCount(count: number): string {
     if (count >= 5) {
         return 'w-[19.5%]';
     }
@@ -418,8 +420,12 @@ function EmptySlot({ widthClass }: { widthClass: string }) {
     );
 }
 
-/** The pitch markings (mock PITCH_V) on plain turf: touchlines, halfway line, centre circle, both boxes. */
-function PitchLines() {
+/**
+ * The pitch markings (mock PITCH_V) on plain turf: touchlines, halfway line,
+ * centre circle, both boxes. Exported so the team ficha's probable-XI pitch
+ * draws the exact same markings at the exact same size.
+ */
+export function PitchLines() {
     return (
         <svg
             aria-hidden="true"
@@ -438,7 +444,8 @@ function PitchLines() {
     );
 }
 
-const PITCH_TAG_CLASS =
+/** Exported so the probable-XI pitch's formation tag matches this one exactly. */
+export const PITCH_TAG_CLASS =
     'absolute z-20 border bg-hq-ink px-1.5 py-1 font-mono text-[10.5px] leading-none font-bold tracking-[0.06em] uppercase';
 
 interface HqLineupPitchProps {

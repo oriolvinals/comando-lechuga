@@ -48,8 +48,8 @@ function SideTag({
 
 /**
  * Both probable — or confirmed — XIs on HqMatchPitch's landscape pitch
- * (local attacking right), each tagged with its formation ("≈4-3-3" while
- * approximated). A player stands where his real role puts him, like on
+ * (local attacking right), each tagged with its formation. A player stands
+ * where his real role puts him, like on
  * HqMatchPitch — or, when a side's roles are unknown, on the line of his
  * fantasy position with the strongest % in the middle. Desktop only, like
  * HqMatchPitch.

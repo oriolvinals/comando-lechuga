@@ -199,9 +199,9 @@ export function splitStartEntries(
 
 /**
  * The side's formation tag: worldcup26's as is once it confirms the
- * lineup, "≈4-3-3" while it's read off FútbolFantasy's probable XI, and
- * none once FF alone confirms (the approximation is of the probable XI,
- * not the confirmed one).
+ * lineup, FútbolFantasy's probable-XI reading while it hasn't, and none
+ * once FF alone confirms (that reading approximates the probable XI, not
+ * the confirmed one).
  */
 export function formationLabel(
     block: Pick<StartProbabilityTeamBlock, 'formation' | 'confirmed_source'>,
@@ -214,7 +214,7 @@ export function formationLabel(
         return block.formation;
     }
 
-    return block.confirmed_source === null ? `≈${block.formation}` : null;
+    return block.confirmed_source === null ? block.formation : null;
 }
 
 /** Mean % of the players that have one, rounded — null when none has. */
@@ -284,8 +284,6 @@ export interface StartPitchSlot {
     entry: StartProbabilityEntry;
     left: number;
     top: number;
-    /** True when 5+ players share this line — the half pitch's fixed-width token is wider than the even spacing then allows, so its caller narrows the token to stop the name pills overlapping. */
-    crowded?: boolean;
 }
 
 /** A line's players with the strongest % in the middle (alternating either side of it). */
@@ -504,45 +502,48 @@ export function landscapeSlots(
 }
 
 /**
- * Height (% from the top) of each line on the vertical half pitch, attacking
- * down with the goalkeeper at the top — matches the team ficha's real match
- * pitch (`HqLineupPitch`'s `ROWS`), not the mock's attacking-up layout.
+ * Depth (% from the top) of the goalkeeper, back line and front line on the
+ * team ficha's portrait pitch when a starter's real match role is known —
+ * the exact same anchors the backend gives a confirmed lineup's own
+ * `pitch_top` (`TeamsController::PITCH_ROW_ANCHOR`), so a probable XI lands
+ * on the identical rows a confirmed one later would.
  */
-const HALF_PITCH_TOP: Record<PitchLine, number> = {
-    goalkeeper: 12,
-    defender: 33,
-    midfield: 58,
-    striker: 84,
+const PORTRAIT_ROLE_ANCHORS: LineAnchors = {
+    goalkeeper: 6,
+    defender: 28,
+    forward: 74,
 };
 
 /**
- * A probable XI on the team ficha's vertical half pitch, attacking down with
- * the goalkeeper at the top — so, as on the team ficha's confirmed pitch,
- * each flank is seen from the goalkeeper: the player's right is the
- * screen's left. By real role when every starter's `pitch_position` is
- * known, else by fantasy position.
+ * Fallback depth (% from the top) by fantasy position, when a starter's
+ * real match role isn't known — matches `HqLineupPitch`'s own fantasy-row
+ * fallback (`ROWS`) so the two pitches still land on the same lines.
+ */
+const PORTRAIT_POSITION_TOP: Record<PitchLine, number> = {
+    goalkeeper: 5,
+    defender: 27,
+    midfield: 50,
+    striker: 73,
+};
+
+/**
+ * A probable XI's spots on the team ficha's portrait pitch (`HqLineupPitch`'s
+ * own `aspect-[280/430]`), attacking down with the goalkeeper at the top —
+ * so, as on the team ficha's confirmed pitch, each flank is seen from the
+ * goalkeeper: the player's right is the screen's left. By real role when
+ * every starter's `pitch_position` is known (landing on the exact rows a
+ * confirmed lineup would), else by fantasy position.
  */
 export function halfPitchSlots(
     starters: StartProbabilityEntry[],
 ): StartPitchSlot[] {
-    const spots = roleSpots(starters, {
-        goalkeeper: HALF_PITCH_TOP.goalkeeper,
-        defender: HALF_PITCH_TOP.defender,
-        forward: HALF_PITCH_TOP.striker,
-    });
+    const spots = roleSpots(starters, PORTRAIT_ROLE_ANCHORS);
 
     if (spots !== null) {
-        const lineCounts = new Map<number, number>();
-
-        spots.forEach(({ depth }) => {
-            lineCounts.set(depth, (lineCounts.get(depth) ?? 0) + 1);
-        });
-
         return spots.map(({ entry, depth, across }) => ({
             entry,
             left: 100 - across,
             top: depth,
-            crowded: (lineCounts.get(depth) ?? 0) >= 5,
         }));
     }
 
@@ -560,8 +561,7 @@ export function halfPitchSlots(
             return {
                 entry,
                 left: ((index + 1) / (line.length + 1)) * 100,
-                top: HALF_PITCH_TOP[position] + (wide ? 4 : 0),
-                crowded: line.length >= 5,
+                top: PORTRAIT_POSITION_TOP[position] + (wide ? 4 : 0),
             };
         });
     });

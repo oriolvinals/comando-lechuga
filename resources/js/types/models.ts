@@ -602,7 +602,7 @@ export interface StartProbabilityTeamBlock {
     /** Older than 48 h: shown as "Datos de hace N días" with muted bars. */
     is_stale: boolean;
     confirmed_source: StartConfirmationSource | null;
-    /** "4-3-3": worldcup26's once it confirms the lineup, else approximated from FútbolFantasy's probable XI (shown as "≈4-3-3"). Null when unknown. */
+    /** "4-3-3": worldcup26's once it confirms the lineup, else approximated from FútbolFantasy's probable XI. Null when unknown. */
     formation: string | null;
     players: StartProbabilityEntry[];
 }
