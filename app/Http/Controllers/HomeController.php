@@ -19,6 +19,7 @@ use App\Models\MarketPlayer;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Services\JornadaMatches;
+use App\Services\ManagerShields;
 use App\Services\StartProbabilities;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -34,7 +35,7 @@ class HomeController extends Controller
     use FiltersSeasonWeeks;
     use ResolvesRequestedWeek;
 
-    public function index(Request $request, JornadaMatches $jornadaMatches, StartProbabilities $startProbabilities): Response
+    public function index(Request $request, JornadaMatches $jornadaMatches, StartProbabilities $startProbabilities, ManagerShields $managerShields): Response
     {
         $season = Season::current();
         $week = $this->resolveWeek($request, $season);
@@ -67,6 +68,11 @@ class HomeController extends Controller
 
         $this->attachRecentForm($standings, $season);
         $this->attachDailyValueDifference($standings, $season);
+
+        $shields = $managerShields->forSeason($season);
+        $standings->each(function (SeasonManager $manager) use ($shields): void {
+            $manager->shields = ManagerShields::current($shields, $manager->id);
+        });
 
         $market = MarketPlayer::query()
             ->with(['player.team'])

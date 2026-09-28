@@ -276,3 +276,33 @@ test('returns the manager\'s last 10 activities as source or target, newest firs
     $response->assertJsonPath('data.recent_activity.0.id', $asTarget->id);
     $response->assertJsonPath('data.recent_activity.1.id', $asSource->id);
 });
+
+test('shows the shields the manager has left in the current shield jornada', function (): void {
+    $season = managerApiSeason(3);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
+
+    foreach ([1 => now()->subDays(10), 2 => now()->subDays(3)] as $weekNumber => $paidAt) {
+        Activity::factory()->create([
+            'season_id' => $season->id,
+            'type' => SeasonActivityType::WeeklyPrize,
+            'source_season_manager_id' => $manager->id,
+            'player_id' => null,
+            'week_number' => $weekNumber,
+            'occurred_at' => $paidAt,
+        ]);
+    }
+
+    foreach ([now()->subDays(4), now()->subDay()] as $shieldedAt) {
+        Activity::factory()->create([
+            'season_id' => $season->id,
+            'type' => SeasonActivityType::Shield,
+            'source_season_manager_id' => $manager->id,
+            'occurred_at' => $shieldedAt,
+        ]);
+    }
+
+    $response = $this->getJson(route('api.managers.show', $manager));
+
+    $response->assertOk();
+    $response->assertJsonPath('data.shields', ['week_number' => 3, 'used' => 1, 'remaining' => 1, 'total' => 2]);
+});

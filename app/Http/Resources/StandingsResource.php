@@ -28,6 +28,7 @@ class StandingsResource extends JsonResource
             'total_points' => $this->total_points,
             'squad_value' => $this->value,
             'recent_form' => $this->api_recent_form,
+            'shields' => $this->api_shields,
         ];
     }
 }

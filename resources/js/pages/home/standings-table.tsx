@@ -5,6 +5,7 @@ import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqSection } from '@/components/hq-section';
+import { HqShieldCount } from '@/components/hq-shield-count';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { formatCurrency } from '@/lib/format';
 import { teamFormBadgeClass } from '@/lib/points';
@@ -158,14 +159,6 @@ function Crest({
     );
 }
 
-function LeaderBadge() {
-    return (
-        <span className="inline-flex h-[18px] shrink-0 items-center border border-hq-gold bg-hq-gold/10 px-[5px] font-mono text-[9.5px] font-bold tracking-[0.08em] text-hq-gold">
-            LÍDER
-        </span>
-    );
-}
-
 function Prize({ position }: { position: number }) {
     const prize = standingsPrize(position);
 
@@ -249,10 +242,17 @@ export function StandingsTable({ season, standings }: StandingsTableProps) {
                                             team={team}
                                             className="h-[42px] w-[42px]"
                                         />
-                                        <span className="min-w-0 truncate font-sans text-[15px] leading-tight font-extrabold text-hq-paper group-hover:text-hq-lime">
-                                            {team.name}
+                                        <span className="flex min-w-0 flex-col items-start gap-[5px]">
+                                            <span className="max-w-full min-w-0 truncate font-sans text-[15px] leading-tight font-extrabold text-hq-paper group-hover:text-hq-lime">
+                                                {team.name}
+                                            </span>
+                                            {team.shields && (
+                                                <HqShieldCount
+                                                    used={team.shields.used}
+                                                    focusable={false}
+                                                />
+                                            )}
                                         </span>
-                                        {index === 0 && <LeaderBadge />}
                                     </Link>
                                 </td>
                                 <td className="text-right text-hq-paper">
@@ -315,6 +315,12 @@ export function StandingsTable({ season, standings }: StandingsTableProps) {
                                     <DailyValueDifference
                                         difference={team.daily_value_difference}
                                     />
+                                    {team.shields && (
+                                        <HqShieldCount
+                                            used={team.shields.used}
+                                            focusable={false}
+                                        />
+                                    )}
                                 </p>
                             </div>
                             <HqLed tone="lime" className="text-2xl">

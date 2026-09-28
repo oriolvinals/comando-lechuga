@@ -25,6 +25,7 @@ use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Services\ApiPlayerShapes;
 use App\Services\LeagueStandings;
+use App\Services\ManagerShields;
 use App\Services\ManagerWeekRanks;
 use App\Services\SeasonClock;
 use App\Services\StartProbabilities;
@@ -43,6 +44,7 @@ class ManagerController extends Controller
         private readonly SeasonClock $clock,
         private readonly ManagerWeekRanks $managerWeekRanks,
         private readonly StartProbabilities $startProbabilities,
+        private readonly ManagerShields $managerShields,
     ) {}
 
     public function show(SeasonManager $seasonManager): ManagerResource
@@ -59,6 +61,11 @@ class ManagerController extends Controller
         $this->attachRoster($seasonManager, $season);
         $this->attachLineups($seasonManager, $season, $finishedWeeks);
         $this->attachRecentActivity($seasonManager, $season);
+
+        $seasonManager->api_shields = ManagerShields::current(
+            $this->managerShields->forSeason($season),
+            $seasonManager->id,
+        );
 
         return new ManagerResource($seasonManager);
     }

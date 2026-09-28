@@ -32,6 +32,7 @@ class ManagerResource extends JsonResource
             'played_weeks' => $this->api_played_weeks,
             'average_points' => $this->api_average_points,
             'week_ranks' => $this->api_week_ranks,
+            'shields' => $this->api_shields,
             'current_lineup' => $this->api_current_lineup,
             'lineup_history' => $this->api_lineup_history,
             'roster' => $this->api_roster,

@@ -1068,3 +1068,75 @@ test('sends each roster player\'s start for his team\'s next match', function ()
         return $page;
     });
 });
+
+/**
+ * Pays jornadas 1 and 2's prizes, so the current shield jornada is 3; the
+ * manager shielded twice in jornada 1 and once in jornada 3.
+ */
+function seedManagerShields(Season $season, SeasonManager $seasonManager): void
+{
+    foreach ([1 => now()->subDays(10), 2 => now()->subDays(3)] as $weekNumber => $paidAt) {
+        Activity::factory()->create([
+            'season_id' => $season->id,
+            'type' => SeasonActivityType::WeeklyPrize,
+            'source_season_manager_id' => $seasonManager->id,
+            'player_id' => null,
+            'week_number' => $weekNumber,
+            'occurred_at' => $paidAt,
+        ]);
+    }
+
+    foreach ([now()->subDays(12), now()->subDays(11), now()->subDay()] as $shieldedAt) {
+        Activity::factory()->create([
+            'season_id' => $season->id,
+            'type' => SeasonActivityType::Shield,
+            'source_season_manager_id' => $seasonManager->id,
+            'occurred_at' => $shieldedAt,
+        ]);
+    }
+}
+
+test('sends the shields used in every jornada up to the current shield jornada', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 3,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    seedManagerShields($season, $seasonManager);
+
+    $response = $this->get(route('season-managers.show', $seasonManager));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('weekShields', [1 => 2, 2 => 0, 3 => 1])
+    );
+});
+
+test('shows each index card\'s shields for the browsed jornada, none after the current shield jornada', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 3,
+        'total_weeks' => 38,
+    ]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    seedManagerShields($season, $seasonManager);
+
+    foreach ([1, 3, 4] as $weekNumber) {
+        ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => $weekNumber]);
+    }
+
+    $this->get(route('season-managers.index', ['week' => 1]))
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('lineups.0.season_manager.shields', ['week_number' => 1, 'used' => 2, 'remaining' => 0, 'total' => 2])
+        );
+    $this->get(route('season-managers.index', ['week' => 3]))
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('lineups.0.season_manager.shields', ['week_number' => 3, 'used' => 1, 'remaining' => 1, 'total' => 2])
+        );
+    $this->get(route('season-managers.index', ['week' => 4]))
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('lineups.0.season_manager.shields', null)
+        );
+});

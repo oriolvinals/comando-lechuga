@@ -179,7 +179,25 @@ export interface SeasonManager {
     recent_form: (number | null)[];
     /** What the current squad gained or lost in the latest daily market update (sum of its players' daily value differences). */
     daily_value_difference: number;
+    /**
+     * Shields in one jornada: the current shield jornada on the home
+     * standings, the browsed jornada on /managers (null after the current
+     * shield jornada). Absent elsewhere.
+     */
+    shields?: ManagerShieldCount | null;
 }
+
+/** A manager's shields (blindajes) in one jornada — 2 per jornada, lost when it ends. */
+export interface ManagerShieldCount {
+    week_number: number;
+    used: number;
+    /** 2 − used, never below 0. */
+    remaining: number;
+    total: number;
+}
+
+/** Shields used per jornada, keyed by week number, from J1 to the current shield jornada. */
+export type ManagerWeekShieldMap = Record<number, number>;
 
 export interface MarketPlayer {
     id: number;

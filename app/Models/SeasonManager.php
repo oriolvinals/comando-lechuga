@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array<int, array{week_number: int, rank: int, managers: int, points: int, is_last: bool}> $api_week_ranks The manager's rank in each finished jornada he had a lineup for. Computed at query time by Api\ManagerController; not a database column.
  * @property int $api_played_weeks Finished jornadas the manager had a lineup for. Computed at query time by Api\ManagerController; not a database column.
  * @property float|null $api_average_points Average lineup points over those jornadas; null before any. Computed at query time by Api\ManagerController; not a database column.
+ * @property array{week_number: int, used: int, remaining: int, total: int} $api_shields The manager's shields in the current shield jornada (ManagerShields). Computed at query time by Api\ManagerController and Api\StandingsController; not a database column.
+ * @property array{week_number: int, used: int, remaining: int, total: int}|null $shields The manager's shields in one jornada (ManagerShields): the current one on the home standings, the browsed one on the managers page (null after the current shield jornada). Computed at query time by HomeController and SeasonManagersController; not a database column.
  */
 #[Table(name: 'season_managers', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
 #[Fillable(['fantasy_id', 'fantasy_user_id', 'name', 'logo', 'primary_color', 'secondary_color', 'total_points', 'live_points', 'position', 'last_position', 'value', 'season_id'])]

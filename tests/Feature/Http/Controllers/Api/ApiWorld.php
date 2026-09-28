@@ -35,8 +35,9 @@ use App\Models\Team;
  *   started jornada 1 (9 points), is in the manager's jornada 1 and 2
  *   lineups, and has an 85 % start probability for jornada 2.
  * - "Ariobretxa" owns Tsygankov (Girona FC). Tsygankov's clause is not
- *   locked, he is shielded, and he has a 60 % start probability. Ariobretxa
- *   bought him via clause from "Comando Lechuga" 15 days ago.
+ *   locked, he is shielded (22 hours ago, so Ariobretxa has 1 shield left
+ *   in jornada 2), and he has a 60 % start probability. Ariobretxa bought
+ *   him via clause from "Comando Lechuga" 15 days ago.
  * - Bellingham (Real Madrid) is free and listed on the league's market.
  */
 final readonly class ApiWorld
@@ -300,6 +301,16 @@ final readonly class ApiWorld
             'amount' => 15_000_000,
             'week_number' => null,
             'occurred_at' => now()->subDays(15),
+        ]);
+        Activity::factory()->create([
+            'season_id' => $season->id,
+            'type' => SeasonActivityType::Shield,
+            'source_season_manager_id' => $rivalManager->id,
+            'target_season_manager_id' => null,
+            'player_id' => $rivalPlayer->id,
+            'amount' => null,
+            'week_number' => null,
+            'occurred_at' => now()->subHours(22),
         ]);
 
         MarketPlayer::factory()->create([

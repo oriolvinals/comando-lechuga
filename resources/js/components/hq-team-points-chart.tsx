@@ -1,8 +1,13 @@
 import { HqEmptyState } from '@/components/hq-empty-state';
+import { HqShieldCount, shieldCountLabel } from '@/components/hq-shield-count';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { teamFormTextClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
-import type { ManagerLineup, ManagerWeekRankMap } from '@/types/models';
+import type {
+    ManagerLineup,
+    ManagerWeekRankMap,
+    ManagerWeekShieldMap,
+} from '@/types/models';
 
 interface HqTeamPointsChartProps {
     lineupHistory: ManagerLineup[];
@@ -13,6 +18,12 @@ interface HqTeamPointsChartProps {
     lostWeeks?: number[];
     /** Weekly place among the league's managers — printed under each J label when given. */
     weekRanks?: ManagerWeekRankMap;
+    /**
+     * Shields used per jornada up to the current shield jornada — the
+     * remaining count is printed under the rank, and the current jornada's
+     * column gets a faint lilac wash. Later jornadas show nothing.
+     */
+    weekShields?: ManagerWeekShieldMap;
 }
 
 /** Solid bar fill per team-form tier — same breakpoints as `teamFormTextClass`. */
@@ -48,6 +59,7 @@ export function HqTeamPointsChart({
     wonWeeks = [],
     lostWeeks = [],
     weekRanks,
+    weekShields,
 }: HqTeamPointsChartProps) {
     if (lineupHistory.length === 0) {
         return (
@@ -61,6 +73,9 @@ export function HqTeamPointsChart({
         (a, b) => a.week_number - b.week_number,
     );
     const maxPoints = Math.max(...weeks.map((week) => week.points), 1);
+    const shieldWeeks = Object.keys(weekShields ?? {}).map(Number);
+    const currentShieldWeek =
+        shieldWeeks.length > 0 ? Math.max(...shieldWeeks) : null;
 
     return (
         <div className="hq-hud flex h-[170px] items-end gap-[5px] border border-hq-border bg-hq-well px-2 pt-2.5 md:h-[190px] md:gap-2.5 md:px-3.5 md:pt-3.5">
@@ -69,6 +84,13 @@ export function HqTeamPointsChart({
                 const won = wonWeeks.includes(week.week_number);
                 const lost = lostWeeks.includes(week.week_number);
                 const weekRank = weekRanks?.[week.week_number];
+                const shieldsUsed = weekShields?.[week.week_number];
+                const shieldsLine = shieldsUsed !== undefined && (
+                    <>
+                        <br />
+                        {shieldCountLabel(shieldsUsed)}
+                    </>
+                );
                 const label = started ? (
                     <>
                         <b className="font-bold">
@@ -93,9 +115,13 @@ export function HqTeamPointsChart({
                                 Farolillo rojo
                             </>
                         )}
+                        {shieldsLine}
                     </>
                 ) : (
-                    `J${week.week_number} · sin empezar`
+                    <>
+                        J{week.week_number} · sin empezar
+                        {shieldsLine}
+                    </>
                 );
 
                 return (
@@ -103,7 +129,11 @@ export function HqTeamPointsChart({
                         key={week.id}
                         label={label}
                         focusable
-                        className="h-full min-w-0 flex-1 flex-col items-center justify-end"
+                        className={cn(
+                            'h-full min-w-0 flex-1 flex-col items-center justify-end',
+                            week.week_number === currentShieldWeek &&
+                                'bg-linear-to-t from-hq-violet/8 to-transparent to-60%',
+                        )}
                     >
                         <span
                             className={cn(
@@ -144,7 +174,8 @@ export function HqTeamPointsChart({
                         {weekRanks && (
                             <span
                                 className={cn(
-                                    'mb-2 font-mono text-[10px] leading-none font-bold tabular-nums',
+                                    'font-mono text-[10px] leading-none font-bold tabular-nums',
+                                    weekShields ? 'mb-[5px]' : 'mb-2',
                                     weekRank?.rank === 1
                                         ? 'text-hq-gold'
                                         : weekRank?.is_last
@@ -154,6 +185,18 @@ export function HqTeamPointsChart({
                             >
                                 {weekRank ? `${weekRank.rank}º` : '·'}
                             </span>
+                        )}
+                        {weekShields && (
+                            // Later jornadas keep an invisible placeholder so
+                            // every column's labels stay on one baseline.
+                            <HqShieldCount
+                                used={shieldsUsed ?? 0}
+                                withTooltip={false}
+                                className={cn(
+                                    'mb-2',
+                                    shieldsUsed === undefined && 'invisible',
+                                )}
+                            />
                         )}
                     </HqTooltip>
                 );

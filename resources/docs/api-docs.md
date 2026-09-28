@@ -210,10 +210,10 @@ Visto desde el comprador: un jugador que tiene otro manager (esté o no puesto a
 
 ### 2.10.1 Blindajes
 
-- Cada manager tiene **2 blindajes por jornada**. El cupo de la jornada cuenta desde que empieza su semana, sin esperar a que se juegue el primer partido. Los que no se usan se pierden al acabar la jornada: no se acumulan.
+- Cada manager tiene **2 blindajes por jornada**. El cupo se renueva cuando la liga paga los premios de la jornada anterior (el `weekly_prize` de la actividad, de madrugada tras acabar la jornada), sin esperar a que se juegue el primer partido de la nueva. Los que no se usan se pierden al acabar la jornada: no se acumulan.
 - Un blindaje dura **24 horas**. Mientras dura, nadie puede llevarse a ese jugador pagando su cláusula; solo sale de la plantilla si su dueño lo vende. En la API: `roster[].buyout_clause.shielded: true` hasta `shielded_until`, y en la actividad sale como `shield` ("Blindaje").
 - Si un rival tiene `shielded: true`, no se le puede clausular hasta `shielded_until`. Tenlo en cuenta al recomendar un clausulazo.
-- La API no dice cuántos blindajes le quedan a un manager. Puedes contar sus `shield` recientes en `/api/activity?manager={id}&type=shield`, pero confírmalo con el usuario.
+- Cuántos blindajes le quedan a un manager en la jornada actual: `shields.remaining` en `/api/managers/{id}` y en cada fila de `/api/standings` (`shields.week_number` es esa jornada). La cuenta se reconstruye con la actividad de la liga, así que si no cuadra con lo que ve el usuario, confírmalo con él.
 - **Para qué se usan:**
   - **Asegurar al jugador para la jornada** (el uso normal). Se blinda justo antes de que se cierre la ventana de cláusulas, para que el blindaje dure hasta ese cierre (`upcoming_week.buyouts_close_at`). A partir de ahí nadie puede clausular hasta que empiece la jornada. Ejemplo: si la jornada empieza el viernes a las 21:00, las cláusulas se cierran el jueves a las 21:00; se blinda el miércoles a las 21:00 y el blindaje dura hasta el jueves a las 21:00, así que el jugador se queda para la jornada.
   - **Proteger a un jugador con la cláusula abierta mientras juega.** Si hace un buen partido, el dueño puede subirle la cláusula después sin tener que estar pendiente del partido en directo.
@@ -304,7 +304,7 @@ Haz estas llamadas **cada vez** que llegue la pregunta.
 |---|---|---|
 | 1. Fichajes y pujas | `/api/season`, `/api/market`, `/api/managers/{id}` (su plantilla) y `/api/players/{id}` de cada candidato | `next_start`, `market_trend`, `points_per_million`, `next_fixtures[].difficulty`, `bids`, `expires_at`; qué posición le falta; su saldo (pregúntalo) |
 | 2. Ventas | `/api/season`, `/api/managers/{id}` y `/api/players/{id}` de los candidatos | `market_trend`, `value_trend_30d`, `next_start`, `status`, `owner_gain`; la oferta de la liga es de ±10 % a las 20:00 |
-| 3. Cláusulas | `/api/season` (`buyouts_open`), `/api/managers/{id}` propio y de rivales | `buyout_clause.amount`, `is_locked`, `locked_until`, `shielded`; su saldo, sin quedar en negativo |
+| 3. Cláusulas | `/api/season` (`buyouts_open`), `/api/managers/{id}` propio y de rivales | `buyout_clause.amount`, `is_locked`, `locked_until`, `shielded`, `shields`; su saldo, sin quedar en negativo |
 | 4. Alineación | `/api/season` (`upcoming_week.lineup_locks_at`), `/api/managers/{id}` (`roster`, `current_lineup`) y `/api/teams` | `next_start`, `status`, una formación válida (2.5), `difficulty` |
 | 5. Análisis de plantilla | `/api/managers/{id}` y `/api/players?manager={id}&sort=points_per_million` | posiciones cubiertas, quién no juega, `market_trend`, `value_trend_30d` |
 | 6. Liga y rivales | `/api/standings`, `/api/managers/{id}` de cada rival y `/api/activity?manager={id}` | `rank`, `week_ranks`, `average_points`, fichajes y cláusulas recientes |
@@ -413,7 +413,8 @@ Clasificación de la liga, por posición. Sin parámetros ni paginación. Da los
         { "week_number": 5, "points": 47, "live": false },
         { "week_number": 6, "points": 54, "live": false },
         { "week_number": 7, "points": 47, "live": false }
-      ]
+      ],
+      "shields": { "week_number": 8, "used": 1, "remaining": 1, "total": 2 }
     }
   ],
   "meta": { "generated_at": "…", "timezone": "Europe/Madrid" }
@@ -436,6 +437,11 @@ Clasificación de la liga, por posición. Sin parámetros ni paginación. Da los
 | `[].recent_form[].week_number` | entero | Jornada. |
 | `[].recent_form[].points` | entero o null | Puntos en esa jornada. |
 | `[].recent_form[].live` | booleano | Si es la jornada en juego. |
+| `[].shields` | objeto | Sus blindajes en la jornada actual de blindajes (ver 2.10.1). Se reconstruyen con la actividad de la liga. |
+| `[].shields.week_number` | entero | Jornada a la que cuentan: la siguiente a la última con premios pagados. |
+| `[].shields.used` | entero | Blindajes usados en esa jornada. |
+| `[].shields.remaining` | entero | Blindajes que le quedan en esa jornada (nunca menos de 0). |
+| `[].shields.total` | entero | Blindajes por jornada: siempre 2. |
 
 ### GET /api/managers/{id}
 
@@ -450,6 +456,7 @@ La ficha de un manager: su forma, su alineación de la jornada, sus jornadas ter
     "live_points": null, "squad_value": 167256574, "daily_value_difference": 4669600,
     "played_weeks": 7, "average_points": 50.71,
     "week_ranks": [ { "week_number": 7, "rank": 1, "managers": 7, "points": 47, "is_last": false } ],
+    "shields": { "week_number": 8, "used": 1, "remaining": 1, "total": 2 },
     "current_lineup": {
       "week_number": 8, "week_state": "not_started", "formation": "4-5-1", "tactical_formation": [4, 5, 1],
       "lineup_locks_at": "2026-10-09T21:00:00+02:00", "points": 0,
@@ -504,6 +511,11 @@ La ficha de un manager: su forma, su alineación de la jornada, sus jornadas ter
 | `week_ranks[].managers` | entero | Managers con alineación esa jornada. |
 | `week_ranks[].points` | entero | Sus puntos esa jornada. |
 | `week_ranks[].is_last` | booleano | Si fue último (o empató en el último puesto). |
+| `shields` | objeto | Sus blindajes en la jornada actual de blindajes (ver 2.10.1). Se reconstruyen con la actividad de la liga. |
+| `shields.week_number` | entero | Jornada a la que cuentan: la siguiente a la última con premios pagados. |
+| `shields.used` | entero | Blindajes usados en esa jornada. |
+| `shields.remaining` | entero | Blindajes que le quedan en esa jornada (nunca menos de 0). |
+| `shields.total` | entero | Blindajes por jornada: siempre 2. |
 | `current_lineup` | objeto o null | La alineación de la jornada en juego o de la próxima: la actual hasta que termina, luego la siguiente. `null` si no tiene; avisa antes de `lineup_locks_at`. |
 | `current_lineup.week_number` | entero | Jornada. |
 | `current_lineup.week_state` | texto | `not_started`, `live` o `finished`. |
@@ -1069,4 +1081,5 @@ Novedades:
 - En cada jugador: `next_start`, `value_trend_30d`, `points_per_million` y `owner_gain`; en sus próximos partidos (`next_fixtures[]`), `fixture_id`, `date`, `rival_position` y `difficulty`.
 - En `scores[]`: `fixture_state`, `minutes`, `marca_points`, `starter`, `subbed_in`, `subbed_out` y `sub_minute`.
 - En `/api/players`: los filtros `free`, `min_value`, `max_value` y `min_start_probability`, y los órdenes `trend` y `points_per_million`.
-- En `/api/managers/{id}`: `live_points`, `daily_value_difference`, `played_weeks`, `average_points`, `week_ranks`, `current_lineup`, `lineup_history[].formation` y `roster[].purchase`.
+- En `/api/managers/{id}`: `live_points`, `daily_value_difference`, `played_weeks`, `average_points`, `week_ranks`, `shields`, `current_lineup`, `lineup_history[].formation` y `roster[].purchase`.
+- En `/api/standings`: `shields` (los blindajes que le quedan a cada manager en la jornada actual).
