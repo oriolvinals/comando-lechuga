@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Enums\FixtureState;
 use App\Models\Fixture;
 use App\Models\ManagerLineup;
 use App\Models\Season;
@@ -18,6 +19,10 @@ trait AttachesLineupFixtures
      * way attachMatchFinished() finds it — not via ManagerLineupPlayer::
      * fixture_id, which isn't always resolved (see AttachesLineupPlayerScores).
      *
+     * A team with a postponed match and its rescheduled replacement in the
+     * same week gets the replacement. Otherwise the latest fixture (by date,
+     * then id) wins, so the choice is deterministic.
+     *
      * @param  Collection<int, ManagerLineup>  $lineups
      */
     private function attachLineupFixtures(Collection $lineups, Season $season): void
@@ -29,10 +34,17 @@ trait AttachesLineupFixtures
             ->where('season_id', $season->id)
             ->whereIn('week_number', $weekNumbers)
             ->with(['localTeam', 'guestTeam'])
+            ->orderByDesc('date')
+            ->orderByDesc('id')
             ->get()
             ->reduce(function (array $carry, Fixture $fixture): array {
-                $carry[$fixture->week_number][$fixture->team_local_id] = $fixture;
-                $carry[$fixture->week_number][$fixture->team_guest_id] = $fixture;
+                foreach ([$fixture->team_local_id, $fixture->team_guest_id] as $teamId) {
+                    $current = $carry[$fixture->week_number][$teamId] ?? null;
+
+                    if ($current === null || ($current->state === FixtureState::Postponed && $fixture->state !== FixtureState::Postponed)) {
+                        $carry[$fixture->week_number][$teamId] = $fixture;
+                    }
+                }
 
                 return $carry;
             }, []);

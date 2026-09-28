@@ -181,6 +181,27 @@ test('shows live points and no next start for a lineup player whose match is liv
     $response->assertJsonPath('data.current_lineup.players.1.next_start.probability', 65);
 });
 
+test('uses the rescheduled fixture, not the postponed one, for a lineup player of the same team and jornada', function (): void {
+    $season = managerApiSeason(2);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $team = Team::factory()->create();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $team->id]);
+    $rescheduled = managerApiFixture($season, 2, FixtureState::Scheduled, $team, now()->addDays(2));
+    managerApiFixture($season, 2, FixtureState::Postponed, $team, now()->addDays(5));
+    FixtureLineupProbability::factory()->create(['fixture_id' => $rescheduled->id, 'player_id' => $player->id, 'probability' => 70]);
+
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $manager->id, 'week_number' => 2]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $lineup->id, 'player_id' => $player->id, 'fixture_id' => null]);
+
+    $response = $this->getJson("/api/managers/{$manager->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.current_lineup.players.0.match.fixture_id', $rescheduled->id);
+    $response->assertJsonPath('data.current_lineup.players.0.match.state', 'scheduled');
+    $response->assertJsonPath('data.current_lineup.players.0.next_start.fixture_id', $rescheduled->id);
+    $response->assertJsonPath('data.current_lineup.players.0.next_start.probability', 70);
+});
+
 test('has a null current lineup when the manager has none for the jornada', function (): void {
     $season = managerApiSeason(2);
     $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
