@@ -8,7 +8,6 @@ import { HqProbableMatchPitch } from '@/components/hq-probable-match-pitch';
 import { HqChannelHeader } from '@/components/hq-section';
 import {
     HqStartAttribution,
-    HqStartLegend,
     HqStartMeter,
     HqStartOutcomeChip,
     HqStartStaleBanner,
@@ -68,7 +67,12 @@ function SubHead({ label, count }: { label: string; count: number }) {
  * our status badge inline on one line (the name truncates before the badge
  * wraps, so every row stays the same height) — plus "FF aún le da N %" on
  * its own small line for a baja FútbolFantasy still rates — then the bar
- * and %, or the outcome chip once confirmed.
+ * and %, or the outcome chip once confirmed. The name link is stretched
+ * over the whole row (mock M4 · B) via its `::after`, so the row itself is
+ * ≥ 50 px tall and the whole thing opens the ficha; the bar/chip column
+ * sits `relative z-10` so its own hover/focus tooltip still wins over the
+ * stretched link, and on desktop the name column is capped to 200 px so the
+ * bar reads right next to the name instead of far to the right.
  */
 function StartRow({
     entry,
@@ -88,7 +92,7 @@ function StartRow({
     return (
         <div
             className={cn(
-                'grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-hq-border px-3.5 py-[7px] transition-colors hover:bg-hq-panel sm:px-4',
+                'relative grid min-h-[50px] cursor-pointer grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-2.5 border-b border-hq-border px-3.5 py-[7px] transition-colors hover:bg-hq-panel sm:px-4 md:grid-cols-[36px_minmax(0,200px)_auto] md:justify-start md:gap-x-[18px]',
                 dim && 'opacity-60',
             )}
         >
@@ -110,7 +114,7 @@ function StartRow({
                 <div className="flex min-w-0 items-center gap-1.5">
                     <Link
                         href={playersShow(entry.player.id).url}
-                        className="min-w-0 flex-1 truncate text-[13.5px] leading-[1.2] font-bold text-hq-paper hover:text-hq-lime"
+                        className="min-w-0 flex-1 truncate text-[13.5px] leading-[1.2] font-bold text-hq-paper outline-none after:absolute after:inset-0 after:content-[''] hover:text-hq-lime focus-visible:text-hq-lime focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-hq-lime"
                     >
                         {entry.player.nickname}
                     </Link>
@@ -127,7 +131,7 @@ function StartRow({
                     </span>
                 )}
             </div>
-            <div className="flex items-center justify-end">
+            <div className="relative z-10 flex items-center justify-end">
                 {confirmed ? (
                     <HqStartOutcomeChip facts={entry} />
                 ) : (
@@ -253,7 +257,8 @@ interface HqStartProbabilitiesSectionProps {
  * or the confirmed ones — on the landscape pitch (desktop "campo" view) and
  * as two columns of rows with the 10-cell bar ("lista" view; phones always).
  * Under each XI: every other available player as bench/doubt rows, then the
- * bajas from our status. Then the key and the attribution.
+ * bajas from our status. Then the attribution (the colour legend lives in
+ * the tone tooltips/hover states instead of a standing key here).
  */
 export function HqStartProbabilitiesSection({
     probabilities,
@@ -360,7 +365,6 @@ export function HqStartProbabilitiesSection({
                     </div>
                 ))}
             </div>
-            {!allConfirmed && <HqStartLegend />}
             <HqStartAttribution
                 sources={blocks.map((block) => ({
                     label: block.team.short_name,
