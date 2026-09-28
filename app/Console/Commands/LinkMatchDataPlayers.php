@@ -157,6 +157,7 @@ class LinkMatchDataPlayers extends Command
         2378 => 192893, // D. Cárdenas - RAY
         2881 => 368593, // D. Martínez - ATM
         2991 => 331742, // D. Villares - RCD
+        2989 => 354646, // Dani Barcia - RCD
         3036 => 331533, // Dani Lorenzo - MGA
         2588 => 231618, // Danjuma - VAL
         184 => 196339, // David Soria - GET
