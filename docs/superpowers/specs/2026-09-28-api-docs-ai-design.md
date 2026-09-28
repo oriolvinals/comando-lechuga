@@ -33,7 +33,9 @@ Sections, in order:
 
 1. **Cómo usar esta API (instrucciones para la IA)**
    - No cache: the endpoints are live; never reuse an earlier response — every new question
-     repeats the requests.
+     repeats the requests. This includes player attributes that can change mid-season (e.g. a
+     player's fantasy position): always use what the latest response says; the docs don't explain
+     how position changes work.
    - Guided onboarding before advising, aimed at users with little AI experience:
      1. "¿Qué manager eres?" — pick from the league managers (`/api/standings`); allow "prefiero
         no decirlo" → general advice without a squad.
