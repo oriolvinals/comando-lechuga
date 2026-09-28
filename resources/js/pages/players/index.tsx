@@ -207,7 +207,7 @@ export default function PlayersIndex({
                         onChange={(event) => setSearch(event.target.value)}
                         placeholder="Buscar jugador…"
                         autoComplete="off"
-                        className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-hq-paper placeholder-hq-moss-dim outline-none"
+                        className="min-w-0 flex-1 bg-transparent font-mono text-base text-hq-paper placeholder-hq-moss-dim outline-none md:text-[13px]"
                     />
                     <kbd className="hidden border border-hq-border-strong px-1.5 py-0.5 font-mono text-[10px] leading-none text-hq-moss-dim sm:inline-block">
                         /
