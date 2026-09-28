@@ -51,10 +51,24 @@ Sections, in order:
         6. Seguimiento de la liga y rivales — clasificación, plantillas, en qué gastan.
         7. Partidos y jornada en curso — cómo va, puntos en vivo, quién juega ahora.
         8. Resumen rápido del día — mercado, cambios de valor, alertas de titularidad, urgencias.
+        9. Dudas de puntuación — por qué un jugador sacó N puntos o tal nota DAZN en una jornada:
+           the AI reads that player's per-jornada `stats` (`[value, points]` per action, plus
+           `marca_points`) and the match events, and explains the breakdown line by line with the
+           scoring table; for the DAZN rating it explains the published components (portería,
+           defensivas, distribución, ofensivas, negativas; scaled by minutes; 0–4) without
+           inventing a per-stat formula, since we don't have the full DAZN inputs.
    - Serves any manager; no max bid; credit FútbolFantasy when using probabilities.
 2. **Manual del juego**
-   - Scoring: LaLiga Fantasy points per action by position (goals 6/6/5/4, clean sheet 4/3/2/1…),
-     DAZN rating (`marca_points`), how `stats` entries read (`[value, fantasy points]`).
+   - Scoring: the full LaLiga Fantasy points table by position (minutes <60 → 1 / ≥60 → 2; goals
+     6/6/5/4; assist 3, chance assist 1; clean sheet >60' 4/3/2/1; per 2 goals conceded −2 GK/DEF,
+     −1 MID/FWD; penalties missed −2 / saved +5 / won +2 / conceded −2; yellow −1, double yellow −1,
+     red −3; +1 per 2 saves; attack/defence bonuses; ball-loss penalties by position), how `stats`
+     entries read (`[value, fantasy points]`), and the DAZN rating (`marca_points`, 0–4, added on
+     top; components as published). Source: the user-provided official table (memory
+     `laliga-fantasy-scoring`), cross-checked with the help-center summary.
+   - Scoring questions need per-jornada data: `/players/{id}` must expose each jornada's `stats`
+     breakdown, `marca_points`, minutes, starter/sub and the fixture id, so the AI can answer
+     "¿por qué sacó 2 puntos?" (confirm in the plan; add it if missing).
    - Squad: max 24 players. The fantasy lineup must be set before the jornada's first match
      kicks off (it locks then). **A manager whose lineup isn't complete when the jornada starts
      doesn't score that jornada.** Once the jornada has started, players can be sold again.
