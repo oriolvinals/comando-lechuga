@@ -218,6 +218,61 @@ test('returns ownership activity (signing, sale, buyout) ordered by date', funct
     $response->assertJsonPath('data.ownership_activity.0.type', 'signing');
 });
 
+test('breaks each jornada score down with minutes, starter, substitution and DAZN points', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $team = Team::factory()->create();
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'state' => FixtureState::Finished,
+        'team_local_id' => $team->id,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $team->id,
+        'starter' => true,
+        'subbed_out' => true,
+        'sub_minute' => 63,
+        'fantasy_points' => 15,
+        'fantasy_stats' => ['mins_played' => [63, 2], 'goals' => [1, 4], 'marca_points' => [-1, 4]],
+    ]);
+
+    $response = $this->getJson("/api/players/{$player->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.scores.0.fixture_id', $fixture->id);
+    $response->assertJsonPath('data.scores.0.fixture_state', 'finished');
+    $response->assertJsonPath('data.scores.0.points', 15);
+    $response->assertJsonPath('data.scores.0.minutes', 63);
+    $response->assertJsonPath('data.scores.0.marca_points', 4);
+    $response->assertJsonPath('data.scores.0.starter', true);
+    $response->assertJsonPath('data.scores.0.subbed_in', false);
+    $response->assertJsonPath('data.scores.0.subbed_out', true);
+    $response->assertJsonPath('data.scores.0.sub_minute', 63);
+    $response->assertJsonPath('data.scores.0.stats.goals', [1, 4]);
+});
+
+test('has null minutes and DAZN points when a score has no fantasy stats', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $team = Team::factory()->create();
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'team_local_id' => $team->id]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $team->id,
+        'fantasy_stats' => null,
+    ]);
+
+    $response = $this->getJson("/api/players/{$player->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.scores.0.minutes', null);
+    $response->assertJsonPath('data.scores.0.marca_points', null);
+});
+
 test('returns next_fixtures without padding', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $team = Team::factory()->create();

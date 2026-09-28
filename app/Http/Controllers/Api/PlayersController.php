@@ -276,9 +276,16 @@ class PlayersController extends Controller
                 return [
                     'fixture_id' => $fixture->id,
                     'week_number' => $fixture->week_number,
+                    'fixture_state' => $fixture->state->value,
                     'opponent' => (new TeamResource($isHome ? $fixture->guestTeam : $fixture->localTeam))->resolve(),
                     'is_home' => $isHome,
                     'points' => $lineup->fantasy_points,
+                    'minutes' => $this->statPair($lineup->fantasy_stats, 'mins_played', 0),
+                    'marca_points' => $this->statPair($lineup->fantasy_stats, 'marca_points', 1),
+                    'starter' => $lineup->starter,
+                    'subbed_in' => $lineup->subbed_in,
+                    'subbed_out' => $lineup->subbed_out,
+                    'sub_minute' => $lineup->sub_minute,
                     'stats' => $lineup->fantasy_stats,
                     'lineup_manager' => $seasonManager === null ? null : [
                         'id' => $seasonManager->id,
@@ -288,6 +295,24 @@ class PlayersController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * One number of a `[value, fantasy points]` stats pair. `$index` 0 is the
+     * raw value (e.g. minutes played) and 1 the points it earned (e.g. the
+     * DAZN rating's points). Null when the stat is missing.
+     *
+     * @param  array<string, mixed>|null  $stats
+     */
+    private function statPair(?array $stats, string $key, int $index): ?int
+    {
+        $pair = $stats[$key] ?? null;
+
+        if (!is_array($pair) || !isset($pair[$index]) || !is_numeric($pair[$index])) {
+            return null;
+        }
+
+        return (int) $pair[$index];
     }
 
     private function attachOwnershipActivity(Player $player, Season $season): void
