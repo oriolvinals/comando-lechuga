@@ -33,6 +33,7 @@ class TeamsController extends Controller
     {
         $season = Season::current();
         $nextByTeam = $this->nextFixtureByTeam($season);
+        $lineupBlocks = $this->startProbabilities->forTeamsNextFixtures($season, $nextByTeam);
         $table = $this->standings->table($season->teams, $this->standings->fixtures($season));
 
         $data = array_map(fn (array $row): array => [
@@ -48,7 +49,7 @@ class TeamsController extends Controller
             'points' => $row['points'],
             'recent_form' => array_map(fn (array $entry): array => $this->presentResult($entry), $row['recent_form']),
             'live' => $row['live'] === null ? null : $this->presentResult($row['live']),
-            'next_fixture' => $this->presentNextFixture($row['team'], $nextByTeam[$row['team']->id] ?? null, $season),
+            'next_fixture' => $this->presentNextFixture($row['team'], $nextByTeam[$row['team']->id] ?? null, $lineupBlocks[$row['team']->id] ?? null),
         ], $table);
 
         return response()->json(['data' => $data]);
@@ -70,16 +71,16 @@ class TeamsController extends Controller
     }
 
     /**
+     * @param  array{fixture_id: int, week_number: int, team: Team, source_url: string, fetched_at: string|null, is_stale: bool, confirmed_source: 'worldcup26'|'futbolfantasy'|null, formation: string|null, players: list<array<string, mixed>>, opponent: Team, is_home: bool}|null  $block
      * @return array<string, mixed>|null
      */
-    private function presentNextFixture(Team $team, ?Fixture $fixture, Season $season): ?array
+    private function presentNextFixture(Team $team, ?Fixture $fixture, ?array $block): ?array
     {
         if ($fixture === null) {
             return null;
         }
 
         $isHome = $fixture->team_local_id === $team->id;
-        $block = $this->startProbabilities->forTeamNextFixture($team, $season);
 
         return [
             'fixture_id' => $fixture->id,

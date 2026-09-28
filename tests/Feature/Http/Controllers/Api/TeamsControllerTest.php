@@ -11,6 +11,7 @@ use App\Models\FixtureLineupProbability;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @return array{0: Season, 1: Team, 2: Team}
@@ -139,4 +140,51 @@ test('has a null next fixture when the team has no match left', function (): voi
 
     $response->assertOk();
     $response->assertJsonPath('data.0.next_fixture', null);
+});
+
+test('keeps the number of queries flat however many teams have a next fixture', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDays(30),
+        'end_date' => now()->addDays(200),
+        'current_week' => 2,
+    ]);
+
+    $addTeamPair = function () use ($season): void {
+        $local = Team::factory()->create();
+        $guest = Team::factory()->create();
+        $season->teams()->attach([$local->id, $guest->id]);
+        $fixture = Fixture::factory()->create([
+            'season_id' => $season->id,
+            'week_number' => 2,
+            'state' => FixtureState::Scheduled,
+            'team_local_id' => $local->id,
+            'team_guest_id' => $guest->id,
+            'date' => now()->addDays(2),
+        ]);
+        $player = Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $local->id]);
+        FixtureLineupProbability::factory()->onPitch(50, 40)->create([
+            'fixture_id' => $fixture->id,
+            'player_id' => $player->id,
+            'probability' => 80,
+        ]);
+    };
+
+    $countQueries = function (): int {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->getJson('/api/teams')->assertOk();
+        DB::disableQueryLog();
+
+        return count(DB::getQueryLog());
+    };
+
+    $addTeamPair();
+    $withOnePair = $countQueries();
+
+    for ($i = 0; $i < 5; $i++) {
+        $addTeamPair();
+    }
+    $withSixPairs = $countQueries();
+
+    expect($withSixPairs)->toBe($withOnePair);
 });
