@@ -111,6 +111,48 @@ Sections, in order:
   manager questions; check it runs the onboarding, re-requests on every question, respects the
   rules (formations, clause windows, 24 h market) and never mentions the max bid.
 
+## Improvements folded in
+
+- **Freshness metadata:** every API response carries `meta.generated_at` (ISO 8601 with offset)
+  and `meta.timezone` ("Europe/Madrid"); the docs tell the AI to quote how fresh the data is.
+- **Times:** every datetime is ISO 8601 with offset; rules phrased in Madrid local time
+  (20:00 market) and the docs remind the AI about DST (CET/CEST).
+- **Money:** always integer euros; the docs say so and show how to render ("12,3 M€").
+- **Efficient calls:** the docs recommend the minimal call set per intention (e.g. "Resumen del
+  día" = `/season` + `/market` + `/managers/{id}`) and to prefer filters over paging all players,
+  while still never reusing earlier responses.
+- **Answer language:** the AI answers in the user's language (default Spanish).
+- **Fantasy formation check:** the docs give the position counts of each valid formation
+  (always 1 goalkeeper) so the AI validates a proposed lineup.
+- **Ownership clarity:** every player shape says who owns him (manager or free) and market
+  listings say whether the seller is the league or a manager.
+
+## Edge cases the API and docs must handle
+
+- **No upcoming jornada** (season break or end): `/season` returns the last jornada and nulls for
+  next fixture / lineup lock / buyout window; docs explain it.
+- **Postponed fixtures:** a postponed match keeps its jornada; lineup lock and buyout window use
+  the first *scheduled* kickoff of the jornada; a player whose match is postponed has no
+  `next_start` for it.
+- **Jornada in progress:** `current_lineup` shows live points for live matches, final points for
+  finished ones, `next_start` only for players whose match hasn't kicked off.
+- **Manager without a lineup** for the current jornada: `current_lineup` is null, and the docs
+  tell the AI to warn before the lock time.
+- **Incomplete squads** (fewer than 11 available players, injured/suspended starters): the docs
+  tell the AI to flag it.
+- **Player without probability** (FF doesn't list him, unlinked, coach, out of league):
+  `next_start` null (or confirmed-only once worldcup26 publishes); stale (> 48 h) flagged via
+  `is_stale`; never guessed.
+- **Confirmed lineup sources disagree:** worldcup26 wins over FF; `next_start.source` says which.
+- **Player changed clubs:** `next_start` and next fixtures follow his current team.
+- **Empty market** (between expiry and the 20:00 renewal, or none listed): `/market` returns an
+  empty list plus the next renewal time via `/season`.
+- **Clause edge cases:** lock until a timestamp (not just "locked"), shielded players, buyout
+  window closed right now — the docs make the AI check `/season` before recommending a buyout.
+- **Invalid filters / unknown ids:** 422 with the offending parameter, 404 for unknown ids.
+- **Ties in the standings / managers who joined mid-season:** averages per jornada count only the
+  jornadas the manager has a lineup for.
+
 ## Out of scope
 
 Authentication, rate limiting, manager cash, the max bid, historical start probabilities in the
