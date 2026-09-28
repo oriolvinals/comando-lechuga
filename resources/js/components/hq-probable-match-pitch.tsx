@@ -3,7 +3,11 @@ import { Fragment } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { MatchPitchLines } from '@/components/hq-match-pitch';
 import { HqStartPitchToken } from '@/components/hq-start-probability';
-import { landscapeSlots, splitStartEntries } from '@/lib/start-probability';
+import {
+    formationLabel,
+    landscapeSlots,
+    splitStartEntries,
+} from '@/lib/start-probability';
 import { cn } from '@/lib/utils';
 import type { StartProbabilityTeamBlock, Team } from '@/types/models';
 
@@ -44,8 +48,10 @@ function SideTag({
 
 /**
  * Both probable — or confirmed — XIs on HqMatchPitch's landscape pitch
- * (local attacking right), each player on the line of his fantasy
- * position with the strongest % in the middle. Desktop only, like
+ * (local attacking right), each tagged with its formation ("≈4-3-3" while
+ * approximated). A player stands where his real role puts him, like on
+ * HqMatchPitch — or, when a side's roles are unknown, on the line of his
+ * fantasy position with the strongest % in the middle. Desktop only, like
  * HqMatchPitch.
  */
 export function HqProbableMatchPitch({
@@ -83,12 +89,11 @@ export function HqProbableMatchPitch({
                                   .starters,
                               side,
                           );
+                const formation = block === null ? null : formationLabel(block);
                 const label =
                     block === null
                         ? 'Sin datos'
-                        : confirmed
-                          ? 'XI confirmado'
-                          : 'XI probable';
+                        : `${confirmed ? 'XI confirmado' : 'XI probable'}${formation ? ` · ${formation}` : ''}`;
 
                 return (
                     <Fragment key={side}>

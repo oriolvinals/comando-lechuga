@@ -21,6 +21,8 @@ use Dom\HTMLDocument;
  * - Every element with `data-probabilidad` is a player block; its wrapper
  *   is the closest `jugador_{id}` element. FF prints each player twice
  *   (pitch + list), merged by id.
+ * - A probable-XI shirt's pitch wrapper also carries its spot on FF's
+ *   pitch (`style="left: X%; top: Y%"`) — see pitchCoordinates().
  */
 class FutbolFantasyTeamPageParser
 {
@@ -103,6 +105,7 @@ class FutbolFantasyTeamPageParser
     private function player(int $futbolfantasyId, Element $block, Element $wrapper): FutbolFantasyPlayer
     {
         $value = trim((string) $block->getAttribute('data-probabilidad'));
+        [$pitchX, $pitchY] = $this->pitchCoordinates($wrapper);
 
         return new FutbolFantasyPlayer(
             futbolfantasyId: $futbolfantasyId,
@@ -127,7 +130,30 @@ class FutbolFantasyTeamPageParser
                 'Delantero' => PlayerPosition::Striker,
                 default => null,
             },
+            pitchX: $pitchX,
+            pitchY: $pitchY,
         );
+    }
+
+    /**
+     * Where FF draws the shirt on its pitch: the wrapper's inline
+     * `style="left: X%; top: Y%"`, FF attacking up (goalkeeper ~87 %,
+     * striker ~18 %). Only the probable XI sits on the pitch in %; the
+     * bench rows below it use px (`top: 44px`) and the list blocks carry no
+     * style, so both read as null.
+     *
+     * @return array{0: int|null, 1: int|null}
+     */
+    private function pitchCoordinates(Element $wrapper): array
+    {
+        $style = (string) $wrapper->getAttribute('style');
+
+        if (preg_match('/(?:^|[;\s])left:\s*(\d+(?:\.\d+)?)%/', $style, $left) !== 1
+            || preg_match('/(?:^|[;\s])top:\s*(\d+(?:\.\d+)?)%/', $style, $top) !== 1) {
+            return [null, null];
+        }
+
+        return [min(100, (int) round((float) $left[1])), min(100, (int) round((float) $top[1]))];
     }
 
     /**

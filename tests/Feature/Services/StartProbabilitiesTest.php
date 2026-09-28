@@ -223,3 +223,56 @@ test('a player\'s next start follows the worldcup26 lineup once there is one', f
         ->and($nextStarts[$lunin->id]['confirmed_starter'])->toBeTrue()
         ->and($nextStarts[$lunin->id]['probability'])->toBeNull();
 });
+
+test('reads the probable XI\'s formation and each starter\'s position off where FútbolFantasy draws him', function (): void {
+    $spots = [
+        'Courtois' => [50, 87], 'Dumfries' => [89, 66], 'Konaté' => [68, 70], 'Rüdiger' => [32, 70], 'Cucurella' => [11, 66],
+        'Bernardo' => [68, 48], 'Tchouaméni' => [32, 48], 'Bellingham' => [50, 34],
+        'Güler' => [89, 27], 'Mbappé' => [50, 18], 'Vinicius' => [11, 27],
+    ];
+    $players = [];
+
+    foreach ($spots as $nickname => [$pitchX, $pitchY]) {
+        $players[$nickname] = startPlayer($this->madrid, $nickname);
+        FixtureLineupProbability::factory()->onPitch($pitchX, $pitchY)->create(['player_id' => $players[$nickname]->id, 'fixture_id' => $this->fixture->id]);
+    }
+
+    $endrick = startPlayer($this->madrid, 'Endrick');
+    startRow($endrick, $this->fixture, ['probability' => 10, 'predicted_starter' => false]);
+
+    $local = app(StartProbabilities::class)->forFixture($this->fixture)['local'];
+    $byPlayer = collect($local['players'])->keyBy(fn (array $entry): int => $entry['player']->id);
+
+    expect($local['formation'])->toBe('4-3-3')
+        ->and($byPlayer[$players['Courtois']->id]['pitch_position'])->toBe('Goalkeeper')
+        ->and($byPlayer[$players['Dumfries']->id]['pitch_position'])->toBe('Right Back')
+        ->and($byPlayer[$players['Bellingham']->id]['pitch_position'])->toBe('Attacking Midfielder')
+        ->and($byPlayer[$players['Vinicius']->id]['pitch_position'])->toBe('Left Forward')
+        ->and($byPlayer[$endrick->id]['pitch_position'])->toBeNull()
+        ->and(app(StartProbabilities::class)->forTeamNextFixture($this->madrid, $this->season)['formation'])->toBe('4-3-3');
+});
+
+test('gives no formation or positions when FútbolFantasy drew no pitch', function (): void {
+    startRow(startPlayer($this->madrid, 'Courtois'), $this->fixture);
+
+    $local = app(StartProbabilities::class)->forFixture($this->fixture)['local'];
+
+    expect($local['formation'])->toBeNull()
+        ->and($local['players'][0]['pitch_position'])->toBeNull();
+});
+
+test('takes the formation and positions of the worldcup26 lineup once it confirms one', function (): void {
+    $this->fixture->update(['local_formation' => '4-2-3-1']);
+    $courtois = startPlayer($this->madrid, 'Courtois');
+    $gonzalo = startPlayer($this->madrid, 'Gonzalo');
+    FixtureLineupProbability::factory()->onPitch(50, 87)->create(['player_id' => $courtois->id, 'fixture_id' => $this->fixture->id]);
+    FixtureLineup::factory()->create(['fixture_id' => $this->fixture->id, 'team_id' => $this->madrid->id, 'player_id' => $courtois->id, 'starter' => true, 'position' => 'Goalkeeper']);
+    FixtureLineup::factory()->create(['fixture_id' => $this->fixture->id, 'team_id' => $this->madrid->id, 'player_id' => $gonzalo->id, 'starter' => true, 'position' => 'Forward']);
+
+    $local = app(StartProbabilities::class)->forFixture($this->fixture)['local'];
+    $byPlayer = collect($local['players'])->keyBy(fn (array $entry): int => $entry['player']->id);
+
+    expect($local['formation'])->toBe('4-2-3-1')
+        ->and($byPlayer[$courtois->id]['pitch_position'])->toBe('Goalkeeper')
+        ->and($byPlayer[$gonzalo->id]['pitch_position'])->toBe('Forward');
+});

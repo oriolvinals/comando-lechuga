@@ -25,7 +25,21 @@ class FixtureLineupProbabilityFactory extends Factory
             'probability' => $this->faker->numberBetween(0, 100),
             'predicted_starter' => false,
             'confirmed_starter' => null,
+            'pitch_x' => null,
+            'pitch_y' => null,
             'fetched_at' => now(),
         ];
+    }
+
+    /**
+     * In FF's probable XI, drawn at this spot of its pitch (FF attacks up).
+     */
+    public function onPitch(int $pitchX, int $pitchY): static
+    {
+        return $this->state(fn (): array => [
+            'predicted_starter' => true,
+            'pitch_x' => $pitchX,
+            'pitch_y' => $pitchY,
+        ]);
     }
 }

@@ -12,6 +12,7 @@ import { HqStatusBadge } from '@/components/hq-status-badge';
 import {
     START_TONE_TEXT_CLASSES,
     formatDataAge,
+    formationLabel,
     halfPitchSlots,
     isUnavailable,
     splitStartEntries,
@@ -117,7 +118,9 @@ function StartPills({
 /**
  * The team ficha's jornada aside before the match (variant B):
  * FútbolFantasy's probable XI — or the confirmed one — on a half pitch
- * attacking down, goalkeeper at the top, then the doubts (≥ 30 %) and the
+ * attacking down, goalkeeper at the top, each player by his real role when
+ * known (see halfPitchSlots) and the formation tagged top-left like the
+ * team ficha's confirmed pitch ("≈4-3-3" while approximated), then the doubts (≥ 30 %) and the
  * bajas from our status as pills, the key and the attribution.
  */
 export function HqProbableHalfPitch({
@@ -131,6 +134,7 @@ export function HqProbableHalfPitch({
         probabilities.players,
         confirmed,
     );
+    const formation = formationLabel(probabilities);
 
     return (
         <div>
@@ -155,6 +159,11 @@ export function HqProbableHalfPitch({
             <div className="p-3.5 sm:p-4">
                 <div className="relative mx-auto aspect-[3/3.3] w-full max-w-[360px] overflow-hidden border border-hq-border bg-hq-pitch">
                     <HalfPitchLines />
+                    {formation && (
+                        <span className="absolute top-2 left-2 z-20 border border-hq-border-bright bg-hq-ink px-1.5 py-1 font-mono text-[10.5px] leading-none font-bold tracking-[0.06em] text-hq-moss uppercase">
+                            {formation}
+                        </span>
+                    )}
                     {halfPitchSlots(starters).map(({ entry, left, top }) => (
                         <div
                             key={entry.player.id}

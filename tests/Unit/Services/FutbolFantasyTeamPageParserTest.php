@@ -77,6 +77,21 @@ test('reads a bench player out of FútbolFantasy\'s probable XI', function (): v
         ->and($endrick->predictedStarter)->toBeFalse();
 });
 
+test('reads where FútbolFantasy draws each probable starter on its pitch', function (): void {
+    $players = parsedPlayersById(parsedFutbolFantasyPage('real-madrid-posible'));
+
+    expect([$players[59]->pitchX, $players[59]->pitchY])->toBe([50, 88])
+        ->and([$players[6055]->pitchX, $players[6055]->pitchY])->toBe([89, 66])
+        ->and([$players[5565]->pitchX, $players[5565]->pitchY])->toBe([20, 18]);
+});
+
+test('leaves the pitch spot empty for a bench shirt drawn in px or a shirt without style', function (): void {
+    $players = parsedPlayersById(parsedFutbolFantasyPage('real-madrid-posible'));
+
+    expect([$players[13564]->pitchX, $players[13564]->pitchY])->toBe([null, null])
+        ->and([$players[17000]->pitchX, $players[17000]->pitchY])->toBe([null, null]);
+});
+
 test('leaves the probability empty when FútbolFantasy gives none', function (): void {
     $mastantuono = parsedPlayersById(parsedFutbolFantasyPage('real-madrid-posible'))[17000];
 

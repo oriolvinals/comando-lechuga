@@ -22,6 +22,8 @@ final readonly class FutbolFantasyPlayer
      * @param  int  $marketValue  `data-valor-laliga-fantasy`, LaLiga Fantasy's market value to the euro
      * @param  int  $totalPoints  `data-puntos-totales-laliga-fantasy`
      * @param  PlayerPosition|null  $position  `data-posicionLaLigaFantasy`
+     * @param  int|null  $pitchX  the probable-XI shirt's `left: X%` on FF's pitch, 0–100 (0 = the team's left touchline — FF attacks up); null off the pitch (bench shirts sit in px rows)
+     * @param  int|null  $pitchY  the probable-XI shirt's `top: Y%` on FF's pitch, 0–100 (0 = the rival goal line, ~87 = the goalkeeper); null off the pitch
      */
     public function __construct(
         public int $futbolfantasyId,
@@ -34,6 +36,8 @@ final readonly class FutbolFantasyPlayer
         public int $marketValue,
         public int $totalPoints,
         public ?PlayerPosition $position,
+        public ?int $pitchX = null,
+        public ?int $pitchY = null,
     ) {}
 
     /**
@@ -54,6 +58,8 @@ final readonly class FutbolFantasyPlayer
             marketValue: $this->marketValue > 0 ? $this->marketValue : $other->marketValue,
             totalPoints: $this->totalPoints,
             position: $this->position ?? $other->position,
+            pitchX: $this->pitchX ?? $other->pitchX,
+            pitchY: $this->pitchY ?? $other->pitchY,
         );
     }
 }

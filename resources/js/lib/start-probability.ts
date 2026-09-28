@@ -2,6 +2,7 @@ import type {
     PlayerPosition,
     PlayerStatus,
     StartProbabilityEntry,
+    StartProbabilityTeamBlock,
 } from '@/types/models';
 
 /** A non-starter at or above this is listed under bench/doubts; the rest fold into "+N < 30 %". */
@@ -196,6 +197,26 @@ export function splitStartEntries(
     return { starters, bench, rest, out };
 }
 
+/**
+ * The side's formation tag: worldcup26's as is once it confirms the
+ * lineup, "≈4-3-3" while it's read off FútbolFantasy's probable XI, and
+ * none once FF alone confirms (the approximation is of the probable XI,
+ * not the confirmed one).
+ */
+export function formationLabel(
+    block: Pick<StartProbabilityTeamBlock, 'formation' | 'confirmed_source'>,
+): string | null {
+    if (block.formation === null) {
+        return null;
+    }
+
+    if (block.confirmed_source === 'worldcup26') {
+        return block.formation;
+    }
+
+    return block.confirmed_source === null ? `≈${block.formation}` : null;
+}
+
 /** Mean % of the players that have one, rounded — null when none has. */
 export function averageProbability(
     entries: StartProbabilityEntry[],
@@ -279,15 +300,178 @@ const LANDSCAPE_DEPTH: Record<PitchLine, number> = {
     striker: 43.5,
 };
 
+/** A worldcup26 position's line — mirrors `App\Enums\MatchPositionLine::fromWorldcup26Text`. */
+export type MatchLine =
+    | 'goalkeeper'
+    | 'defender'
+    | 'defensive_midfielder'
+    | 'midfielder'
+    | 'attacking_midfielder'
+    | 'forward'
+    | 'unknown';
+
+export function matchPositionLine(text: string): MatchLine {
+    if (text.includes('Goalkeeper')) {
+        return 'goalkeeper';
+    }
+
+    if (text.includes('Back') || text.includes('Defender')) {
+        return 'defender';
+    }
+
+    if (text.includes('Defensive Midfielder')) {
+        return 'defensive_midfielder';
+    }
+
+    if (text.includes('Attacking Midfielder')) {
+        return 'attacking_midfielder';
+    }
+
+    if (text.includes('Midfielder')) {
+        return 'midfielder';
+    }
+
+    return text.includes('Forward') ? 'forward' : 'unknown';
+}
+
+/**
+ * A worldcup26 position's flank from the player's own point of view, 0
+ * (left) to 4 (right) — mirrors `App\Enums\MatchPositionSide`.
+ */
+export function matchPositionSideOrder(text: string): number {
+    const hasCenter = text.includes('Center');
+    const hasLeft = text.includes('Left');
+    const hasRight = text.includes('Right');
+
+    if (hasCenter) {
+        return hasLeft ? 1 : hasRight ? 3 : 2;
+    }
+
+    return hasLeft ? 0 : hasRight ? 4 : 2;
+}
+
+const MIDFIELD_LINES: MatchLine[] = [
+    'defensive_midfielder',
+    'midfielder',
+    'attacking_midfielder',
+];
+
+/** Same per-player spacing along a line as the confirmed-lineup pitches (FixturesController / TeamsController). */
+const LINE_STEP = 76 / 3;
+
+/** Depth of the goalkeeper, the back line and the front line on a pitch; midfield lines split the gap evenly. */
+interface LineAnchors {
+    goalkeeper: number;
+    defender: number;
+    forward: number;
+}
+
+/** A starter's spot by real match role: depth along the anchors, across from his own left flank (0–100). */
+interface RoleSpot {
+    entry: StartProbabilityEntry;
+    depth: number;
+    across: number;
+}
+
+/**
+ * The XI by each starter's `pitch_position`, laid out like a confirmed
+ * lineup: one line per match line, midfield lines evenly between the back
+ * and front lines, each line ordered by flank and spread with the same
+ * step. Null unless every starter has a position — then the caller falls
+ * back to the fantasy-position layout.
+ */
+function roleSpots(
+    starters: StartProbabilityEntry[],
+    anchors: LineAnchors,
+): RoleSpot[] | null {
+    if (
+        starters.length === 0 ||
+        starters.some((entry) => entry.pitch_position === null)
+    ) {
+        return null;
+    }
+
+    const placed = starters.map((entry) => {
+        const text = entry.pitch_position ?? '';
+        const line = matchPositionLine(text);
+
+        return {
+            entry,
+            line: line === 'unknown' ? 'midfielder' : line,
+            side: matchPositionSideOrder(text),
+        };
+    });
+    const midfieldLines = MIDFIELD_LINES.filter((line) =>
+        placed.some((spot) => spot.line === line),
+    );
+    const midfieldStep =
+        (anchors.forward - anchors.defender) / (midfieldLines.length + 1);
+    const depthOf = (line: MatchLine): number => {
+        if (
+            line === 'goalkeeper' ||
+            line === 'defender' ||
+            line === 'forward'
+        ) {
+            return anchors[line];
+        }
+
+        return (
+            anchors.defender + midfieldStep * (midfieldLines.indexOf(line) + 1)
+        );
+    };
+
+    const lines = [...new Set(placed.map((spot) => spot.line))];
+
+    return lines.flatMap((lineName) => {
+        const line = placed
+            .filter((spot) => spot.line === lineName)
+            .sort(
+                (a, b) =>
+                    a.side - b.side ||
+                    byProbability(a.entry, b.entry) ||
+                    a.entry.player.id - b.entry.player.id,
+            );
+        const step =
+            line.length <= 1 ? 0 : Math.min(LINE_STEP, 76 / (line.length - 1));
+        const start = 50 - (step * (line.length - 1)) / 2;
+
+        return line.map((mate, index) => ({
+            entry: mate.entry,
+            depth: depthOf(mate.line),
+            across: line.length <= 1 ? 50 : start + index * step,
+        }));
+    });
+}
+
+/** Where the landscape pitch puts each line when the XI has real positions. */
+const LANDSCAPE_ANCHORS: LineAnchors = {
+    goalkeeper: LANDSCAPE_DEPTH.goalkeeper,
+    defender: LANDSCAPE_DEPTH.defender,
+    forward: LANDSCAPE_DEPTH.striker,
+};
+
 /**
  * A probable XI on HqMatchPitch's landscape pitch: the local side attacks
- * right, the guest side is mirrored. Lines come from the fantasy position;
- * with four or more defenders the full-backs step up a little.
+ * right (his left flank along the top, like HqMatchPitch), the guest side
+ * is mirrored. With every starter's `pitch_position` known the XI is drawn
+ * by real role like a confirmed lineup; otherwise lines come from the
+ * fantasy position, and with four or more defenders the full-backs step up
+ * a little.
  */
 export function landscapeSlots(
     starters: StartProbabilityEntry[],
     side: 'local' | 'guest',
 ): StartPitchSlot[] {
+    const spots = roleSpots(starters, LANDSCAPE_ANCHORS);
+
+    if (spots !== null) {
+        return spots.map(({ entry, depth, across }) =>
+            side === 'local'
+                ? { entry, left: depth, top: across }
+                : { entry, left: 100 - depth, top: 100 - across },
+        );
+    }
+
     return PITCH_LINES.flatMap((position) => {
         const line = centreOut(
             starters.filter((entry) => entry.player.position === position),
@@ -322,11 +506,28 @@ const HALF_PITCH_TOP: Record<PitchLine, number> = {
 
 /**
  * A probable XI on the team ficha's vertical half pitch, attacking down with
- * the goalkeeper at the top.
+ * the goalkeeper at the top — so, as on the team ficha's confirmed pitch,
+ * each flank is seen from the goalkeeper: the player's right is the
+ * screen's left. By real role when every starter's `pitch_position` is
+ * known, else by fantasy position.
  */
 export function halfPitchSlots(
     starters: StartProbabilityEntry[],
 ): StartPitchSlot[] {
+    const spots = roleSpots(starters, {
+        goalkeeper: HALF_PITCH_TOP.goalkeeper,
+        defender: HALF_PITCH_TOP.defender,
+        forward: HALF_PITCH_TOP.striker,
+    });
+
+    if (spots !== null) {
+        return spots.map(({ entry, depth, across }) => ({
+            entry,
+            left: 100 - across,
+            top: depth,
+        }));
+    }
+
     return PITCH_LINES.flatMap((position) => {
         const line = centreOut(
             starters.filter((entry) => entry.player.position === position),

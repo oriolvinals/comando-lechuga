@@ -107,6 +107,19 @@ test('stores each linked player\'s probability on the team\'s fixture for the pa
         ->and($rows[$endrick->id]->predicted_starter)->toBeFalse();
 });
 
+test('stores where FútbolFantasy draws each probable starter on its pitch', function (): void {
+    ['fixture' => $fixture, 'courtois' => $courtois, 'vinicius' => $vinicius, 'endrick' => $endrick] = madridHostsVillarrealInWeek8();
+    fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-posible'))]);
+
+    $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
+
+    $rows = FixtureLineupProbability::query()->where('fixture_id', $fixture->id)->get()->keyBy('player_id');
+
+    expect([$rows[$courtois->id]->pitch_x, $rows[$courtois->id]->pitch_y])->toBe([50, 88])
+        ->and([$rows[$vinicius->id]->pitch_x, $rows[$vinicius->id]->pitch_y])->toBe([20, 18])
+        ->and([$rows[$endrick->id]->pitch_x, $rows[$endrick->id]->pitch_y])->toBe([null, null]);
+});
+
 test('updates the existing rows instead of adding new ones', function (): void {
     ['fixture' => $fixture, 'courtois' => $courtois] = madridHostsVillarrealInWeek8();
     FixtureLineupProbability::factory()->create([
@@ -163,6 +176,7 @@ test('keeps the last predicted % and XI when FútbolFantasy confirms the lineup'
         ->and($rows[$courtois->id]->confirmed_starter)->toBeTrue()
         ->and($rows[$vinicius->id]->probability)->toBe(60)
         ->and($rows[$vinicius->id]->predicted_starter)->toBeTrue()
+        ->and([$rows[$vinicius->id]->pitch_x, $rows[$vinicius->id]->pitch_y])->toBe([20, 18])
         ->and($rows[$vinicius->id]->confirmed_starter)->toBeFalse()
         ->and($rows[$endrick->id]->probability)->toBe(10)
         ->and($rows[$endrick->id]->predicted_starter)->toBeFalse()

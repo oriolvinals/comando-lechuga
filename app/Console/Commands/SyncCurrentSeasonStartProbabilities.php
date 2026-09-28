@@ -210,6 +210,8 @@ class SyncCurrentSeasonStartProbabilities extends Command
                             'probability' => $ffPlayer->probability,
                             'predicted_starter' => $ffPlayer->predictedStarter,
                             'confirmed_starter' => null,
+                            'pitch_x' => $ffPlayer->pitchX,
+                            'pitch_y' => $ffPlayer->pitchY,
                             'fetched_at' => $fetchedAt,
                         ]
                         : [

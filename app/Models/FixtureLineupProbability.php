@@ -26,13 +26,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int|null $probability 0–100; null when FF gave no % (pre-season, or confirmed before we saw a %)
  * @property-read bool $predicted_starter In FF's probable XI (`data-onceFF="titular"`)
  * @property-read bool|null $confirmed_starter From FF's "Alineación confirmada": true = Titular, false = Suplente, null = not confirmed
+ * @property-read int|null $pitch_x Where FF drew him in its probable XI, 0–100 from the team's left touchline (FF attacks up); null off the XI
+ * @property-read int|null $pitch_y Where FF drew him in its probable XI, 0–100 from the rival goal line (~87 = goalkeeper); null off the XI
  * @property-read CarbonImmutable $fetched_at
  * @property-read CarbonImmutable|null $created_at
  * @property-read CarbonImmutable|null $updated_at
  */
 #[UseFactory(FixtureLineupProbabilityFactory::class)]
 #[Table(name: 'fixture_lineup_probabilities', key: 'id', keyType: 'int', incrementing: true, timestamps: true)]
-#[Fillable(['player_id', 'fixture_id', 'probability', 'predicted_starter', 'confirmed_starter', 'fetched_at'])]
+#[Fillable(['player_id', 'fixture_id', 'probability', 'predicted_starter', 'confirmed_starter', 'pitch_x', 'pitch_y', 'fetched_at'])]
 class FixtureLineupProbability extends Model
 {
     /** @use HasFactory<FixtureLineupProbabilityFactory> */
@@ -67,6 +69,8 @@ class FixtureLineupProbability extends Model
             'probability' => 'int',
             'predicted_starter' => 'bool',
             'confirmed_starter' => 'bool',
+            'pitch_x' => 'int',
+            'pitch_y' => 'int',
             'fetched_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
