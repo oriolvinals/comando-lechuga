@@ -222,15 +222,17 @@ function MarketListingStatus({
                 label={`Cierra ${formatFullDateTime(marketListing.expires_at)}`}
                 tone="gold"
                 focusable
-                className="mt-3 mb-2.5 justify-center"
+                className="mt-3 mb-2.5 flex w-full justify-center"
             >
                 <HqLed tone="gold" className="text-[30px]">
                     {countdown}
                 </HqLed>
             </HqTooltip>
-            <span className="inline-block bg-hq-khaki px-[9px] py-1.5 font-mono text-sm leading-none font-bold whitespace-nowrap text-[#16140c]">
-                {formatCurrency(marketListing.sale_price)}
-            </span>
+            <div>
+                <span className="inline-block bg-hq-khaki px-[9px] py-1.5 font-mono text-sm leading-none font-bold whitespace-nowrap text-[#16140c]">
+                    {formatCurrency(marketListing.sale_price)}
+                </span>
+            </div>
             <p className={cn(LABEL_CLASS, 'mt-2.5 text-hq-moss-dim')}>
                 Precio de salida · valor {formatCurrency(marketListing.value)}
             </p>
