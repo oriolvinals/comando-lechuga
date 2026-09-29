@@ -424,7 +424,17 @@ final class MatchDifficulty {
   - `tests/Unit/Services/MaxBidFormulaTest.php` no cambia, porque usa entradas directas.
   - `tests/Feature/Console/Commands/BacktestMaxBidTest.php`: la columna nueva.
 
-**No toques `MaxBidParameters`.**
+**Añadido por el usuario (2026-09-29): la probabilidad de titularidad.**
+- `MaxBidInputs` gana `?float $nextStartProbability` (0–1). Es la probabilidad de FútbolFantasy para el **próximo** partido del jugador en `$at`: la fila de `fixture_lineup_probabilities` de ese partido con `fetched_at <= $at` más reciente, usando `probability / 100`, o `1.0` si `confirmed_starter === true` y `0.0` si es `false`. Vale `null` si no hay fila, lo que ocurre en el backtest antes de la J8.
+- En `sportFactors()`, la participación que hoy es `p` (reciente) pasa a ser `p' = (1 − λ)·p + λ·prob` cuando `nextStartProbability` no es null, y `p` si lo es.
+- `λ = MaxBidParameters::startProbabilityWeight`, **nuevo parámetro con valor 0,5**. Es el único parámetro que se añade; los existentes no se tocan.
+- `BacktestMaxBid --grid` barre también `startProbabilityWeight` ∈ {0, 0,25, 0,5, 0,75}.
+- **Tests:**
+  - `MaxBidFormulaTest`: sin probabilidad, el resultado es idéntico al de hoy; con probabilidad 0 o 1, la participación se mueve en el sentido correcto.
+  - `MaxBidCalculatorTest`: `gatherInputs` lee la fila correcta (la más reciente con `fetched_at <= $at`) y la confirmada manda sobre el %.
+- **Comparación final (Paso 5):** muestra el antes y el después por separado para la dificultad nueva y para la probabilidad, con Koski y Rüdiger entre los jugadores.
+
+**No toques los parámetros existentes de `MaxBidParameters`.** El único que se añade es `startProbabilityWeight`.
 
 - [ ] **Paso 1:** actualiza los tests. Deben FALLAR si las expectativas cambian.
 - [ ] **Paso 2:** implementa.
