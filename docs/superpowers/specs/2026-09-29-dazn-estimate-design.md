@@ -29,9 +29,9 @@ En la app este baremo se llama **v1**. Corresponde a la versión **v2.5** de la 
   - Con `fantasy_stats` presente: `mins_played[0]`.
   - Sin `fantasy_stats` (respaldo): minutos derivados según la sección 2.4.
 - **Resto de variables:**
-  - `m = min(minutos / 90, 1)`. Con 0 minutos, la estimación es 0.
-  - **Portería a cero:** el equipo del jugador lleva 0 goles encajados en el marcador del partido (`local_score` y `guest_score`). En vivo significa "de momento".
-  - **Victoria**, solo en el respaldo: goles del equipo mayores que los del rival.
+  - `m = min(minutos / 90, 1)`. Con 0 minutos **no hay estimación** (`null`), para que los suplentes que no juegan no muestren un 0.
+  - **Portería a cero:** el equipo del jugador lleva 0 goles encajados en el marcador del partido (`local_score` y `guest_score`, con nulo contado como 0). En vivo significa "de momento".
+  - **Victoria:** goles del equipo mayores que los del rival (se usa en los dos escenarios; ver tablas).
 - **Cálculo:** `raw = base + Σ valor × peso`. Se redondea `raw` a 4 decimales y se aplican los umbrales: `< 0,65` → 0, `< 1,50` → 1, `< 2,25` → 2, `< 3,00` → 3, y el resto → 4. Un valor igual al umbral cuenta en el tramo superior.
 
 ### 2.2 Escenario principal: Fantasy más faltas de worldcup26
@@ -122,6 +122,7 @@ El motor devuelve, junto a la nota, hasta **4 motivos en castellano**. Se ordena
 
 - `fixture_lineups.dazn_estimate`: `unsignedTinyInteger`, nullable. Es la estimación vigente, o la congelada si ya hay nota oficial.
 - `fixture_lineups.dazn_estimate_version`: `string`, NOT NULL, default `''`, según la convención de AGENTS.md. Hoy siempre vale `'v1'`.
+- `fixture_lineups.dazn_estimate_meta`: `json`, nullable. Guarda `{source, minutes, reasons}` de la misma estimación, para que las vistas no tengan que recalcular ni conocer la posición.
 - `fixtures.dazn_published`: `boolean`, default `false`. Pasa a `true` cuando algún jugador del partido tiene `marca_points[1] > 0`.
   - Así la regla "todo el partido pasa a oficial" se evalúa en un único sitio, sin recorrer las alineaciones en cada vista.
   - Una vez en `true` no vuelve atrás.
@@ -138,26 +139,26 @@ Se añaden a `$fillable`, casts y docblocks de los modelos, y states `withDaznEs
 - **Enganche:** `SyncsMatchData::syncMatchDataForFixtures()` llama a un paso nuevo `refreshDaznEstimates($fixture)` justo después de `fillFantasyScores()`, para cada partido sincronizado. El paso:
   1. Si `fixture.dazn_published` ya es `true`, no hace nada: la estimación está congelada.
   2. Si algún jugador tiene `marca_points[1] > 0`, marca `dazn_published = true` y no recalcula. La estimación guardada en la pasada anterior queda congelada.
-  3. Si no, recalcula y guarda `dazn_estimate` y `dazn_estimate_version` de todas las filas con `player_id`. Carga las `PlayerSeason` de esos jugadores para la temporada del partido en una sola consulta.
+  3. Si no, recalcula y guarda `dazn_estimate`, `dazn_estimate_version` y `dazn_estimate_meta` de todas las filas con `player_id`. Carga las `PlayerSeason` de esos jugadores para la temporada del partido en una sola consulta.
 - **Frecuencia:** cada 20 s con `season:sync-live-match-data`, desde 90 minutos antes del inicio hasta 4 horas después. Si la nota oficial tarda más, lo cubren `season:sync-current-match-data` (de 4 a 48 horas) y el backfill diario, que comparten el mismo trait.
 - **Fallos:** si falla la llamada a Fantasy para un jugador, su fila se queda sin `fantasy_stats` y se estima con el respaldo. Una fila sin posición se queda con `dazn_estimate = null`.
 
 ## 5. Presentación: una sola regla para web y API
 
-`App\Support\DaznEstimatePresenter` (o un concern equivalente) recibe una fila y su partido y devuelve:
+`App\Services\DaznEstimatePresenter::present(FixtureLineup, Fixture)` es una función pura que solo lee columnas guardadas, sin recalcular. Devuelve:
 
 ```
 dazn_points           int|null   oficial: marca_points[1] si fixture.dazn_published; si no, null
 dazn_estimate         int|null   ver la regla de visibilidad
 dazn_estimate_version string     'v1' o '' si no hay estimación
-dazn_estimate_reasons list<string>  solo mientras la estimación es provisional (recalculada al presentar)
+dazn_estimate_reasons list<string>  solo mientras la estimación es provisional (de dazn_estimate_meta)
 dazn_estimate_source  'fantasy'|'worldcup26'|null  solo mientras es provisional
 ```
 
 **Regla de visibilidad de `dazn_estimate`:**
 
 - Si el partido tiene nota oficial publicada: la estimación congelada, que puede ser `null` en partidos antiguos sin relleno.
-- Si no la tiene: la estimación guardada, solo si el partido ha terminado o el jugador lleva **15 minutos o más**. Si no se cumple, `null`.
+- Si no la tiene: la estimación guardada, solo si el partido ha terminado o el jugador lleva **15 minutos o más** (`dazn_estimate_meta.minutes`). Si no se cumple, `null`.
 
 `dazn_points` deja de depender de `state === Finished` y pasa a depender de `dazn_published`. En la práctica es lo mismo, y así sigue siendo coherente cuando el partido termina sin nota todavía.
 
@@ -192,7 +193,7 @@ Sigue el mock validado `public/_dazn.html`, que no se commitea.
 - **Campos nuevos:**
   - `lineups[]` de `/api/fixtures/{id}`: `dazn_estimate` y `dazn_estimate_version`.
   - `scores[]` de `/api/players/{id}`: los mismos dos campos.
-  - Entradas de jugador en las alineaciones de `/api/managers/{id}`: los mismos dos campos.
+  - Jugadores de `lineup_history[]` en `/api/managers/{id}`: los mismos dos campos. `current_lineup` no cambia.
   - Los motivos no se exponen en la API.
 - **`resources/docs/api-docs.md`:**
   - §2.4 "Nota DAZN": explicar la estimación, la versión, los 15 minutos, la congelación y que la oficial siempre manda.
