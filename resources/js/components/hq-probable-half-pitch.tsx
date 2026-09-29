@@ -8,7 +8,6 @@ import {
     HqStartPitchToken,
     HqStartRosterRow,
     HqStartStaleBanner,
-    HqStartStateLabel,
 } from '@/components/hq-start-probability';
 import {
     formationLabel,
@@ -77,6 +76,19 @@ export function HqProbableHalfPitch({
                                 {formation}
                             </span>
                         )}
+                        <span
+                            className={cn(
+                                PITCH_TAG_CLASS,
+                                'top-2 left-1/2 -translate-x-1/2 whitespace-nowrap',
+                                confirmed
+                                    ? 'border-hq-lime text-hq-lime'
+                                    : probabilities.is_stale
+                                      ? 'border-hq-gold text-hq-gold'
+                                      : 'border-hq-khaki text-hq-khaki',
+                            )}
+                        >
+                            {confirmed ? 'CONFIRMADO' : 'PROBABLE'}
+                        </span>
                         {slots.map(({ entry, left, bottom }) => (
                             <div
                                 key={entry.player.id}
@@ -103,18 +115,6 @@ export function HqProbableHalfPitch({
                         ))}
                     </div>
                 </div>
-            </div>
-            <div className="flex items-center justify-between gap-2 px-3.5 pb-2.5 font-mono text-[10.5px] leading-[1.2] font-medium tracking-[0.07em] text-hq-moss-dim uppercase sm:px-4">
-                <span>
-                    {confirmed ? 'Once confirmado' : 'Once probable'} · J
-                    {probabilities.week_number}{' '}
-                    {probabilities.is_home ? 'vs' : '@'}{' '}
-                    {probabilities.opponent.short_name}
-                </span>
-                <HqStartStateLabel
-                    confirmed={confirmed}
-                    stale={probabilities.is_stale}
-                />
             </div>
             {probabilities.is_stale && probabilities.fetched_at && (
                 <HqStartStaleBanner
