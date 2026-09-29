@@ -70,7 +70,7 @@ class PlayersController extends Controller
         return $expression;
     }
 
-    public function index(PlayerFilter $filter): Response
+    public function index(PlayerFilter $filter, StartProbabilities $startProbabilities): Response
     {
         $season = Season::current();
 
@@ -110,6 +110,12 @@ class PlayersController extends Controller
         $this->attachCurrentSeason($players->getCollection(), $season->id);
         $this->attachRecentScores($players->getCollection(), $season);
         $this->attachNextFixtures($players->getCollection(), $season);
+
+        $nextStarts = $startProbabilities->forPlayersNextFixture($players->getCollection(), $season);
+
+        $players->getCollection()->each(function (Player $player) use ($nextStarts): void {
+            $player->next_start = $nextStarts[$player->id] ?? null;
+        });
 
         $realTeams = Team::query()
             ->orderBy('main_name')

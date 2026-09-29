@@ -20,6 +20,8 @@ use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -576,6 +578,75 @@ test('gives an out-of-league player 5 null next_fixtures on their own ficha', fu
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('player.next_fixtures', [null, null, null, null, null])
     );
+});
+
+test('shows each listed player start probability for their team next fixture', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $team = Team::factory()->create();
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 8,
+        'team_local_id' => $team->id,
+        'date' => now()->addDays(2),
+        'state' => FixtureState::Scheduled,
+    ]);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+        'probability' => 82,
+        'predicted_starter' => true,
+    ]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('players.data.0.id', $player->id)
+        ->where('players.data.0.next_start.probability', 82)
+        ->where('players.data.0.next_start.fixture_id', $fixture->id)
+    );
+});
+
+test('keeps the players index query count flat however many players the page shows', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addMonth()]);
+    $team = Team::factory()->create();
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $team->id,
+        'date' => now()->addDays(2),
+        'state' => FixtureState::Scheduled,
+    ]);
+
+    $createPlayers = function (int $count) use ($team, $fixture): void {
+        Player::factory()->count($count)->create([
+            'team_id' => $team->id,
+            'status' => PlayerStatus::Ok,
+            'position' => PlayerPosition::Striker,
+        ])->each(fn (Player $player) => FixtureLineupProbability::factory()->create([
+            'player_id' => $player->id,
+            'fixture_id' => $fixture->id,
+        ]));
+    };
+
+    $countQueries = function (): int {
+        app()->forgetScopedInstances();
+        Cache::flush();
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->get(route('players.index'))->assertOk();
+        DB::disableQueryLog();
+
+        return count(DB::getQueryLog());
+    };
+
+    $createPlayers(1);
+    $withOnePlayer = $countQueries();
+
+    $createPlayers(14);
+    $withFifteenPlayers = $countQueries();
+
+    expect($withFifteenPlayers)->toBe($withOnePlayer);
 });
 
 test('lists the real teams for the team filter', function (): void {
