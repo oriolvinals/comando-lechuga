@@ -160,26 +160,11 @@ function OfficialTooltip({
             </span>
             <span>LaLiga Fantasy: {official}</span>
             {estimate !== null && (
-                <>
-                    <span>
-                        Comando Lechuga estimó: {estimate}{' '}
-                        {estimateDifferenceLabel(estimate - official)}
-                    </span>
-                    <small className="text-[10.5px] text-hq-moss">
-                        Nuestra estimación se congeló al publicarse la nota
-                        oficial.
-                    </small>
-                </>
+                <span>
+                    Comando Lechuga estimó: {estimate}
+                    {estimate === official && ' ✓'}
+                </span>
             )}
         </span>
     );
-}
-
-/** "✓" when the estimate matched, otherwise the signed gap, e.g. "(+1)" or "(−2)". */
-function estimateDifferenceLabel(difference: number): string {
-    if (difference === 0) {
-        return '✓';
-    }
-
-    return `(${difference > 0 ? '+' : '−'}${Math.abs(difference)})`;
 }

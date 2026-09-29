@@ -180,7 +180,7 @@ Sigue el mock validado `public/_dazn.html`, que no se commitea.
   - la lista de motivos, con viñetas `·`;
   - pie: "Acierta la nota exacta ~7 de cada 10 veces y casi siempre queda a ±1. LaLiga Fantasy publica la oficial al acabar el partido."
   - Si la fuente es worldcup26, el pie dice en su lugar: "Estimación con datos parciales: menos fiable (~6 de cada 10)."
-- **Oficial con estimación congelada:** el número oficial sin pulso. El tooltip "DAZN OFICIAL" lleva "LaLiga Fantasy: N" y "Comando Lechuga estimó: M (±d)", o "✓" si coinciden. Pie: "Nuestra estimación se congeló al publicarse la nota oficial."
+- **Oficial con estimación congelada:** el número oficial sin pulso. El tooltip "DAZN OFICIAL" lleva "LaLiga Fantasy: N" y "Comando Lechuga estimó: M", con "✓" añadido si coincide con la oficial. Sin pie adicional.
 - **Componente:** uno nuevo, `HqDaznBadge` (`resources/js/components/hq-dazn-badge.tsx`), que reciben:
   - `hq-lineup-player-token.tsx`: la variante `bench` sustituye su bloque DAZN actual y la variante `pitch` lo añade debajo del nombre, sobre una placa oscura;
   - `hq-player-stats-modal.tsx`: con `HqPlayerStatsEntry` ampliado;
