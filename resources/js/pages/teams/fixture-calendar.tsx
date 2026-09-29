@@ -88,14 +88,15 @@ function visibleRows(
 
 /** A match cell: jornada and C/F on top, crest, rival, then the bars with the number under them. */
 const CELL =
-    'relative flex h-[66px] w-[62px] shrink-0 flex-col items-center border';
+    'relative flex h-[66px] w-full min-w-[62px] flex-col items-center border';
 
 /**
- * Every match column is this fixed width — the 62px cell plus 2px either
- * side, so neighbouring cells sit 4px apart — with its heading centered over
- * it. The leftover row width goes to a filler column at the end.
+ * Match columns are at least the 62px cell plus 2px either side (cells 4px
+ * apart) and share the leftover row width equally — the team and average
+ * columns are `w-px` so they only take their content — with the heading
+ * centered over each.
  */
-const MATCH_COLUMN = 'w-[66px] min-w-[66px] px-0.5';
+const MATCH_COLUMN = 'min-w-[66px] px-0.5';
 
 function MatchCell({ match }: { match: FixtureCalendarMatch }) {
     const level =
@@ -116,6 +117,7 @@ function MatchCell({ match }: { match: FixtureCalendarMatch }) {
         <HqDifficultyTooltip
             match={match}
             focusable={false}
+            className="flex w-full"
             details={
                 <>
                     <br />
@@ -265,9 +267,8 @@ function MatchCountToggle({
  * mid, red hard) with the 5-bar gauge and the number under it; each cell
  * opens that match's ficha. A rescheduled match keeps its own jornada label
  * (amber when it comes out of jornada order). Rows are sorted easiest run
- * first — lowest average. The fixed-width match columns sit packed next to
- * the team, with the average right after them; a filler column takes the
- * leftover width at the end of the row.
+ * first — lowest average. The match columns stretch to fill the row with a
+ * constant 4px gap, the average right after them.
  */
 export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
     const { url } = usePage();
@@ -309,7 +310,7 @@ export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
                     </caption>
                     <thead>
                         <tr className="border-b border-hq-border-strong text-[10.5px] tracking-[0.07em] text-hq-moss-dim uppercase">
-                            <th className="sticky left-0 z-10 bg-hq-ink px-3.5 py-[9px] text-left font-semibold sm:px-5">
+                            <th className="sticky left-0 z-10 w-px bg-hq-ink px-3.5 py-[9px] text-left font-semibold sm:px-5">
                                 Equipo
                             </th>
                             {Array.from({ length: matchCount }, (_, index) => (
@@ -323,10 +324,9 @@ export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
                                     {index + 1}º
                                 </th>
                             ))}
-                            <th className="px-3.5 py-[9px] text-center font-semibold whitespace-nowrap">
+                            <th className="w-px px-3.5 py-[9px] text-center font-semibold whitespace-nowrap">
                                 Media
                             </th>
-                            <td aria-hidden="true" className="w-full p-0" />
                         </tr>
                     </thead>
                     <tbody>
@@ -391,7 +391,6 @@ export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
                                 <td className="px-3.5 py-1 text-center">
                                     <AverageGauge average={average} />
                                 </td>
-                                <td aria-hidden="true" className="p-0" />
                             </tr>
                         ))}
                     </tbody>
