@@ -2,6 +2,7 @@ import { Link, router } from '@inertiajs/react';
 import { Armchair, RefreshCw, Shield, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
+import { HqCompareToggle } from '@/components/compare/compare-toggle';
 import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import { startBadgeTierClass } from '@/components/hq-lineup-pitch';
@@ -11,6 +12,7 @@ import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqSection } from '@/components/hq-section';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
+import { useCompareSelection } from '@/lib/compare-selection';
 import { formatCurrency, formatMillions } from '@/lib/format';
 import { dataAgeTooltipLabel, startTone } from '@/lib/start-probability';
 import { useCountdown } from '@/lib/use-countdown';
@@ -188,102 +190,119 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
     const player = listing.player;
     const now = useNow(60_000);
     const startBadge = nextStartBadge(player.next_start, player.status, now);
+    const isCompared = useCompareSelection().some(
+        (entry) => entry.id === player.id,
+    );
 
     return (
-        <Link
-            href={playersShow(player.id).url}
-            style={
-                {
-                    '--pc': POSITION_COLOR_VARS[player.position],
-                } as CSSProperties
-            }
-            className={cn(
-                CELL_CLASS,
-                'relative flex flex-col bg-hq-ink px-3.5 pt-3.5 pb-[13px] shadow-[inset_0_3px_0_var(--pc)] transition-colors hover:bg-hq-panel',
-            )}
-        >
-            <div className="flex items-start gap-[11px]">
-                <span className="relative shrink-0 pb-2.5">
-                    <EntityImage
-                        src={player.image}
-                        alt={player.nickname}
-                        fallback={User}
-                        shape="square"
-                        className="h-[58px] w-[58px] rounded-none border border-hq-border-strong bg-hq-panel-alt object-cover object-top text-hq-moss-dim"
-                    />
-                    <HqPositionTag
-                        position={player.position}
-                        className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-hq-ink px-[3px] py-0.5 text-[9px]"
-                    />
-                    {startBadge && (
-                        <HqTooltip
-                            label={startBadge.label}
-                            className={cn(
-                                'absolute -top-1.5 -right-1.5 z-10 h-4 min-w-5 items-center justify-center px-[3px] font-mono text-[10.5px] leading-none font-extrabold tabular-nums',
-                                startBadge.className,
-                            )}
-                        >
-                            {startBadge.content}
-                        </HqTooltip>
-                    )}
-                </span>
-                <div className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] leading-[1.1] font-extrabold text-hq-paper">
-                        {player.nickname}
-                    </span>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-[5px] font-mono text-[10.5px] leading-none text-hq-moss">
-                        <EntityImage
-                            src={player.team.logo}
-                            alt={player.team.main_name}
-                            fallback={Shield}
-                            shape="square"
-                            className="h-[13px] w-[13px] rounded-none"
-                        />
-                        <span>{player.team.short_name}</span>
-                    </div>
-                    {player.status !== 'ok' && (
-                        <div className="mt-1.5 flex">
-                            <HqStatusBadge status={player.status} />
-                        </div>
-                    )}
-                </div>
-                <div className="shrink-0 text-right">
-                    <HqLed
-                        tone={player.points < 0 ? 'live' : 'lime'}
-                        className="block text-[24px]"
-                    >
-                        {player.points}
-                    </HqLed>
-                    <span className="mt-1 block font-mono text-[9.5px] leading-none font-bold tracking-[0.12em] text-hq-moss-dim">
-                        PTS
-                    </span>
-                </div>
-            </div>
-
-            <div className="mt-3.5 font-mono text-[15px] leading-none font-semibold text-hq-paper tabular-nums">
-                {formatCurrency(listing.value)}
-            </div>
-            <div className="mt-1.5 min-h-3.5">
-                <HqMarketValueDifference
-                    difference={player.market_value_difference}
-                    trend={player.market_trend}
-                    className="text-xs"
-                />
-            </div>
-
-            <div className="mt-auto flex items-center gap-1.5 pt-3">
-                <HqRecentScores
-                    scores={player.recent_scores}
-                    finished={player.recent_scores_finished}
-                    size="sm"
-                />
-                {listing.bids > 0 && (
-                    <span className="ml-auto inline-flex shrink-0 items-center border border-hq-ember bg-hq-ember/10 px-[5px] py-[3px] font-mono text-[10.5px] leading-none font-bold tracking-[0.04em] text-hq-ember">
-                        {listing.bids} {listing.bids === 1 ? 'PUJA' : 'PUJAS'}
-                    </span>
+        <div className={cn(CELL_CLASS, 'relative')}>
+            <Link
+                href={playersShow(player.id).url}
+                style={
+                    {
+                        '--pc': POSITION_COLOR_VARS[player.position],
+                    } as CSSProperties
+                }
+                className={cn(
+                    'relative flex h-full flex-col bg-hq-ink px-3.5 pt-3.5 pb-[13px] shadow-[inset_0_3px_0_var(--pc)] transition-colors hover:bg-hq-panel',
+                    isCompared &&
+                        'bg-[linear-gradient(160deg,color-mix(in_srgb,var(--color-hq-lime)_8%,transparent),transparent_55%)] shadow-[inset_0_3px_0_var(--pc),inset_0_0_0_1px_color-mix(in_srgb,var(--color-hq-lime)_45%,transparent)]',
                 )}
+            >
+                <div className="flex items-start gap-[11px]">
+                    <span className="relative shrink-0 pb-2.5">
+                        <EntityImage
+                            src={player.image}
+                            alt={player.nickname}
+                            fallback={User}
+                            shape="square"
+                            className="h-[58px] w-[58px] rounded-none border border-hq-border-strong bg-hq-panel-alt object-cover object-top text-hq-moss-dim"
+                        />
+                        <HqPositionTag
+                            position={player.position}
+                            className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-hq-ink px-[3px] py-0.5 text-[9px]"
+                        />
+                        {startBadge && (
+                            <HqTooltip
+                                label={startBadge.label}
+                                className={cn(
+                                    'absolute -top-1.5 -right-1.5 z-10 h-4 min-w-5 items-center justify-center px-[3px] font-mono text-[10.5px] leading-none font-extrabold tabular-nums',
+                                    startBadge.className,
+                                )}
+                            >
+                                {startBadge.content}
+                            </HqTooltip>
+                        )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] leading-[1.1] font-extrabold text-hq-paper">
+                            {player.nickname}
+                        </span>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-[5px] font-mono text-[10.5px] leading-none text-hq-moss">
+                            <EntityImage
+                                src={player.team.logo}
+                                alt={player.team.main_name}
+                                fallback={Shield}
+                                shape="square"
+                                className="h-[13px] w-[13px] rounded-none"
+                            />
+                            <span>{player.team.short_name}</span>
+                        </div>
+                        {player.status !== 'ok' && (
+                            <div className="mt-1.5 flex">
+                                <HqStatusBadge status={player.status} />
+                            </div>
+                        )}
+                    </div>
+                    <div className="shrink-0 pt-[30px] text-right">
+                        <HqLed
+                            tone={player.points < 0 ? 'live' : 'lime'}
+                            className="block text-[24px]"
+                        >
+                            {player.points}
+                        </HqLed>
+                        <span className="mt-1 block font-mono text-[9.5px] leading-none font-bold tracking-[0.12em] text-hq-moss-dim">
+                            PTS
+                        </span>
+                    </div>
+                </div>
+
+                <div className="mt-3.5 font-mono text-[15px] leading-none font-semibold text-hq-paper tabular-nums">
+                    {formatCurrency(listing.value)}
+                </div>
+                <div className="mt-1.5 min-h-3.5">
+                    <HqMarketValueDifference
+                        difference={player.market_value_difference}
+                        trend={player.market_trend}
+                        className="text-xs"
+                    />
+                </div>
+
+                <div className="mt-auto flex items-center gap-1.5 pt-3">
+                    <HqRecentScores
+                        scores={player.recent_scores}
+                        finished={player.recent_scores_finished}
+                        size="sm"
+                    />
+                    {listing.bids > 0 && (
+                        <span className="ml-auto inline-flex shrink-0 items-center border border-hq-ember bg-hq-ember/10 px-[5px] py-[3px] font-mono text-[10.5px] leading-none font-bold tracking-[0.04em] text-hq-ember">
+                            {listing.bids}{' '}
+                            {listing.bids === 1 ? 'PUJA' : 'PUJAS'}
+                        </span>
+                    )}
+                </div>
+            </Link>
+            <div className="absolute top-[9px] right-[9px] z-10 flex">
+                <HqCompareToggle
+                    variant="card"
+                    player={{
+                        id: player.id,
+                        name: player.nickname,
+                        image: player.image,
+                    }}
+                />
             </div>
-        </Link>
+        </div>
     );
 }
 

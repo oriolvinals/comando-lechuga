@@ -12,6 +12,12 @@ import { cn } from '@/lib/utils';
 
 interface HqCompareToggleProps {
     player: CompareEntry;
+    /**
+     * `row` (lists): a 32 px button tinted with the player's slot colour.
+     * `card` (home market): a bare 22 px box on the card corner with a 44 px
+     * hit area, lime when chosen (mock `_mercado-comparar`).
+     */
+    variant?: 'row' | 'card';
     className?: string;
 }
 
@@ -20,7 +26,11 @@ interface HqCompareToggleProps {
  * row's own click (open the ficha) fire, and it is disabled — with a tooltip
  * saying why — once three other players are chosen.
  */
-export function HqCompareToggle({ player, className }: HqCompareToggleProps) {
+export function HqCompareToggle({
+    player,
+    variant = 'row',
+    className,
+}: HqCompareToggleProps) {
     const selection = useCompareSelection();
     const slot = selection.findIndex((entry) => entry.id === player.id);
     const selected = slot >= 0;
@@ -44,21 +54,34 @@ export function HqCompareToggle({ player, className }: HqCompareToggleProps) {
             aria-label={`Comparar ${player.name}`}
             style={
                 selected
-                    ? ({ '--slot': COMPARE_SLOT_COLORS[slot] } as CSSProperties)
+                    ? ({
+                          '--slot':
+                              variant === 'card'
+                                  ? 'var(--color-hq-lime)'
+                                  : COMPARE_SLOT_COLORS[slot],
+                      } as CSSProperties)
                     : undefined
             }
             className={cn(
-                'relative flex size-8 shrink-0 items-center justify-center before:absolute before:-inset-1.5 before:content-[""]',
+                'relative flex shrink-0 items-center justify-center before:absolute before:content-[""]',
+                variant === 'card'
+                    ? 'size-[22px] before:-inset-[11px]'
+                    : 'size-8 before:-inset-1.5',
                 full ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
                 className,
             )}
         >
             <span
                 className={cn(
-                    'flex size-[22px] items-center justify-center border transition-colors',
+                    'flex size-[22px] items-center justify-center border transition-colors motion-reduce:transition-none',
                     selected
                         ? 'border-(--slot) bg-(--slot) text-hq-ink'
-                        : 'border-hq-border-bright text-hq-moss hover:border-hq-lime hover:text-hq-lime',
+                        : cn(
+                              'border-hq-border-bright text-hq-moss',
+                              !full &&
+                                  'hover:border-hq-lime hover:text-hq-lime',
+                              variant === 'card' && 'bg-hq-ink',
+                          ),
                 )}
             >
                 {selected ? (

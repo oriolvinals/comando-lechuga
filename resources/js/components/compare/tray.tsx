@@ -11,16 +11,43 @@ import {
     removeFromCompare,
     useCompareSelection,
 } from '@/lib/compare-selection';
-import { PLAYER_SEARCH_INPUT_ID } from '@/lib/player-search';
 import { cn } from '@/lib/utils';
+
+/**
+ * Where focus lands once the tray empties: the given element or, when the
+ * page has none, its h1 (made programmatically focusable), so focus is
+ * never dropped onto the body.
+ */
+function focusFallback(id: string | undefined): void {
+    const target =
+        (id !== undefined ? document.getElementById(id) : null) ??
+        document.querySelector<HTMLElement>('main h1') ??
+        document.querySelector<HTMLElement>('h1');
+
+    if (target === null) {
+        return;
+    }
+
+    if (!target.hasAttribute('tabindex') && target.tabIndex < 0) {
+        target.setAttribute('tabindex', '-1');
+    }
+
+    target.focus({ preventScroll: true });
+}
+
+interface HqCompareTrayProps {
+    /** Element to focus once the tray empties (the players search on the list); the page h1 otherwise. */
+    focusFallbackId?: string;
+}
 
 /**
  * The fixed bottom tray of the comparator's entry (mock D `.tray`): up to
  * three chosen players, each with its own ×, "Vaciar" and "Comparar N →".
  * Hidden without a selection; above the phone bottom bar. Removing a player
- * moves focus to the next × or, when none is left, to the players search.
+ * moves focus to the next × or, when none is left, to `focusFallbackId`
+ * or the page h1.
  */
-export function HqCompareTray() {
+export function HqCompareTray({ focusFallbackId }: HqCompareTrayProps) {
     const selection = useCompareSelection();
     const [announcement, setAnnouncement] = useState('');
     const removeRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -34,12 +61,15 @@ export function HqCompareTray() {
 
         const index = Math.min(focusAfterRemove.current, selection.length - 1);
         focusAfterRemove.current = null;
-        const target =
-            index >= 0
-                ? removeRefs.current[index]
-                : document.getElementById(PLAYER_SEARCH_INPUT_ID);
-        target?.focus({ preventScroll: true });
-    }, [selection]);
+
+        if (index >= 0) {
+            removeRefs.current[index]?.focus({ preventScroll: true });
+
+            return;
+        }
+
+        focusFallback(focusFallbackId);
+    }, [selection, focusFallbackId]);
 
     useEffect(() => {
         // The first render only restores a saved selection: nothing to announce.
@@ -151,9 +181,7 @@ export function HqCompareTray() {
                                 type="button"
                                 onClick={() => {
                                     clearCompare();
-                                    document
-                                        .getElementById(PLAYER_SEARCH_INPUT_ID)
-                                        ?.focus({ preventScroll: true });
+                                    focusFallback(focusFallbackId);
                                 }}
                                 className="ml-auto hidden h-11 cursor-pointer items-center px-3 font-mono text-[11px] font-bold tracking-[0.06em] text-hq-moss uppercase hover:text-hq-paper min-[480px]:inline-flex sm:h-9"
                             >

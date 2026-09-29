@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { Info, Shield, User } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { useState } from 'react';
+import { HqCompareButton } from '@/components/compare/compare-button';
 import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import {
@@ -295,6 +296,14 @@ export default function PlayerShow({
                         </Link>
                         <HqStatusBadge status={player.status} variant="long" />
                     </div>
+                    <HqCompareButton
+                        player={{
+                            id: player.id,
+                            name: player.nickname,
+                            image: player.image,
+                        }}
+                        className="mt-3"
+                    />
                 </div>
             </div>
 

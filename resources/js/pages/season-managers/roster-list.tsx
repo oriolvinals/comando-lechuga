@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
 import { Lock, LockOpen, Shield, ShieldCheck, User } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { HqCompareToggle } from '@/components/compare/compare-toggle';
 import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
@@ -30,12 +31,12 @@ const GROUP_ORDER: PlayerPosition[] = [
 ];
 
 /**
- * Desktop columns (mock `.rhead`/`.rrow`): photo · player · clause · next
+ * Desktop columns (mock `.rhead`/`.rrow`): compare box · photo · player · clause · next
  * fixtures + difficulty · last 3 · value + today · points. Below `lg` the row
  * folds into the phone layout (see RosterRow).
  */
 const ROW_GRID =
-    'lg:grid-cols-[46px_minmax(130px,1.1fr)_minmax(170px,1.25fr)_96px_104px_minmax(118px,0.9fr)_50px] lg:gap-3';
+    'lg:grid-cols-[32px_46px_minmax(130px,1.1fr)_minmax(170px,1.25fr)_96px_104px_minmax(118px,0.9fr)_50px] lg:gap-3';
 
 const CLAUSE_LINE_CLASS =
     'flex items-center gap-[5px] font-mono text-[10.5px] leading-[1.2] font-bold tracking-[0.04em] whitespace-nowrap uppercase';
@@ -159,10 +160,19 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
         <div
             onClick={() => router.visit(playerUrl)}
             className={cn(
-                'grid cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-2 border-b border-hq-border px-3.5 py-3 transition-colors hover:bg-hq-panel lg:px-4 lg:py-2.5',
+                'grid cursor-pointer grid-cols-[32px_40px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-2 border-b border-hq-border px-3.5 py-3 transition-colors hover:bg-hq-panel lg:px-4 lg:py-2.5',
                 ROW_GRID,
             )}
         >
+            <HqCompareToggle
+                player={{
+                    id: entry.player.id,
+                    name: entry.player.nickname,
+                    image: entry.player.image,
+                }}
+                className="self-center"
+            />
+
             <EntityImage
                 src={entry.player.image}
                 alt=""
@@ -207,7 +217,7 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                 <RosterClauseStatus entry={entry} now={now} />
             </div>
 
-            <div className="col-span-2 flex flex-col gap-[5px] lg:col-span-1">
+            <div className="col-span-3 flex flex-col gap-[5px] lg:col-span-1">
                 <MobileCaption>Próximos</MobileCaption>
                 <HqNextFixtures
                     fixtures={entry.player.next_fixtures}
@@ -238,7 +248,7 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                 />
             </div>
 
-            <div className="col-start-3 row-start-1 flex flex-col items-center gap-0.5 lg:col-start-auto lg:row-start-auto lg:justify-self-end">
+            <div className="col-start-4 row-start-1 flex flex-col items-center gap-0.5 lg:col-start-auto lg:row-start-auto lg:justify-self-end">
                 <HqLed tone="lime" className="text-[26px]">
                     {entry.player.points}
                 </HqLed>
@@ -279,6 +289,7 @@ export function RosterList({ roster }: RosterListProps) {
                     ROW_GRID,
                 )}
             >
+                <span />
                 <span />
                 <span>Jugador</span>
                 <span>Cláusula</span>

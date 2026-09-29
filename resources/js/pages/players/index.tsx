@@ -371,7 +371,7 @@ export default function PlayersIndex({
                 </nav>
             )}
 
-            <HqCompareTray />
+            <HqCompareTray focusFallbackId={PLAYER_SEARCH_INPUT_ID} />
         </div>
     );
 }
