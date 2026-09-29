@@ -171,6 +171,8 @@ En `/api/fixtures/{id}`, un jugador sin datos de la Fantasy (no vinculado, o sin
 
 `marca_points` es la nota DAZN: estadísticas avanzadas (OPTA) agrupadas en cinco bloques (**portería, defensivas, distribución, ofensivas y negativas**), ponderadas según los minutos jugados. El resultado es una nota de **0 a 4 puntos** que se suma a los demás puntos. La calcula LaLiga Fantasy con DAZN; no tiene nada que ver con FútbolFantasy. Si te preguntan por una nota concreta, explica qué tipo de acciones la suben o la bajan según esos bloques y el tiempo jugado. No inventes una fórmula por estadística: no tenemos todos los datos que usa DAZN.
 
+**Estimación propia (`dazn_estimate`).** Mientras LaLiga Fantasy no publica las notas DAZN de un partido, Comando Lechuga estima la de cada jugador con sus stats en vivo (baremo `dazn_estimate_version` = `"v1"`: acierta la nota exacta ~7 de cada 10 veces y casi siempre queda a ±1). Solo se da si el jugador lleva 15 minutos o más, o si el partido ya ha terminado. En cuanto aparece la primera nota oficial del partido, las estimaciones se congelan y dejan de cambiar: sirven para comparar con la oficial. **La nota oficial (`marca_points`) siempre manda**; `dazn_estimate` nunca suma puntos.
+
 ### 2.5 Plantilla y alineación
 
 - Máximo **24 jugadores** por plantilla.
@@ -573,6 +575,8 @@ La ficha de un manager: su forma, su alineación de la jornada, sus jornadas ter
 | `lineup_history[].players[].position` | texto | Posición en la que se alineó. |
 | `lineup_history[].players[].points` | entero o null | Sus puntos; `null` si no jugó. |
 | `lineup_history[].players[].match_finished` | booleano | Si su partido había terminado. Con `points: null` significa que no llegó a jugar. |
+| `lineup_history[].players[].dazn_estimate` | entero o null | Estimación propia de la nota DAZN mientras no hay oficial (apartado 2.4); `null` si no aplica. |
+| `lineup_history[].players[].dazn_estimate_version` | texto | Baremo usado (`"v1"`); `""` sin estimación. |
 | `roster` | lista | La plantilla completa actual. |
 | `roster[].player` | objeto | El jugador, con la forma completa de `/api/players`. |
 | `roster[].player.id` | entero | Id del jugador. |
@@ -765,6 +769,8 @@ Un jugador en el mercado trae, por ejemplo, `"market_listing": { "sale_price": 5
 | `scores[].points` | entero o null | Puntos fantasy de ese partido. |
 | `scores[].minutes` | entero o null | Minutos jugados. |
 | `scores[].marca_points` | entero o null | Puntos de la nota DAZN (0–4). |
+| `scores[].dazn_estimate` | entero o null | Estimación propia de la nota DAZN mientras no hay oficial (apartado 2.4); `null` si no aplica. |
+| `scores[].dazn_estimate_version` | texto | Baremo usado (`"v1"`); `""` sin estimación. |
 | `scores[].starter` | booleano | Si fue titular. |
 | `scores[].subbed_in` | booleano | Si entró desde el banquillo. |
 | `scores[].subbed_out` | booleano | Si fue sustituido. |
@@ -952,6 +958,8 @@ La ficha de un partido: el marcador, las alineaciones con puntos y desglose, los
 | `lineups[].counterpart_player` | objeto o null | El otro jugador del cambio `{id, nickname}`. |
 | `lineups[].points` | entero o null | Puntos fantasy en este partido. |
 | `lineups[].stats` | objeto | Desglose `{clave: [valor, puntos]}` (apartado 2.3). |
+| `lineups[].dazn_estimate` | entero o null | Estimación propia de la nota DAZN mientras no hay oficial (apartado 2.4); `null` si no aplica. |
+| `lineups[].dazn_estimate_version` | texto | Baremo usado (`"v1"`); `""` sin estimación. |
 | `events` | lista | Goles, tarjetas y decisiones del VAR, por minuto. |
 | `events[].id` | entero | Id del evento. |
 | `events[].minute` | entero | Minuto. |
@@ -1108,3 +1116,4 @@ Novedades:
 - En `/api/players`: los filtros `free`, `min_value`, `max_value` y `min_start_probability`, y los órdenes `trend` y `points_per_million`.
 - En `/api/managers/{id}`: `live_points`, `daily_value_difference`, `played_weeks`, `average_points`, `week_ranks`, `shields`, `current_lineup`, `lineup_history[].formation` y `roster[].purchase`.
 - En `/api/standings`: `shields` (los blindajes que le quedan a cada manager en la jornada actual).
+- **2026-09-29:** `dazn_estimate` y `dazn_estimate_version` en `scores[]` (`/api/players/{id}`), `lineups[]` (`/api/fixtures/{id}`) y `lineup_history[].players[]` (`/api/managers/{id}`): la estimación propia de la nota DAZN mientras no hay oficial (apartado 2.4).

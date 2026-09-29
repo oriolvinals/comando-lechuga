@@ -78,7 +78,7 @@ final readonly class ApiWorld
         $sevilla = Team::factory()->create(['main_name' => 'Sevilla FC']);
         $season->teams()->attach([$barcelona->id, $madrid->id, $girona->id, $sevilla->id]);
 
-        $finished = Fixture::factory()->create([
+        $finished = Fixture::factory()->daznPublished()->create([
             'season_id' => $season->id,
             'week_number' => 1,
             'team_local_id' => $barcelona->id,
@@ -182,7 +182,7 @@ final readonly class ApiWorld
             ]);
         }
 
-        FixtureLineup::factory()->create([
+        FixtureLineup::factory()->withDaznEstimate(points: 2)->create([
             'fixture_id' => $finished->id,
             'player_id' => $owned->id,
             'team_id' => $barcelona->id,

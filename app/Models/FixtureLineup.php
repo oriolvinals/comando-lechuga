@@ -33,6 +33,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read string $dazn_estimate_version
  * @property-read array{source: string, minutes: int, reasons: list<string>}|null $dazn_estimate_meta
  * @property array<string, mixed>|null $resolved_stats fantasy_stats if present, else worldcup26StatsFallback(stats). Computed at query time by Api\FixturesController; not a database column.
+ * @property array{dazn_points: int|null, dazn_estimate: int|null, dazn_estimate_version: string, dazn_estimate_reasons: list<string>, dazn_estimate_source: string|null} $api_dazn DaznEstimatePresenter::present() for this lineup and its fixture. Computed at query time by Api\FixturesController; not a database column.
  */
 #[UseFactory(FixtureLineupFactory::class)]
 #[Table(name: 'fixture_lineups', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]

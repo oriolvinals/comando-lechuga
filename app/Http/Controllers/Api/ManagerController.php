@@ -190,6 +190,8 @@ class ManagerController extends Controller
                 'position' => $entry->position->value,
                 'points' => $entry->points,
                 'match_finished' => $entry->match_finished,
+                'dazn_estimate' => $entry->dazn_estimate,
+                'dazn_estimate_version' => $entry->dazn_estimate_version,
             ])->all(),
         ];
     }

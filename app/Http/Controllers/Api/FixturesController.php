@@ -12,6 +12,7 @@ use App\Models\Fixture;
 use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\Season;
+use App\Services\DaznEstimatePresenter;
 use Illuminate\Http\JsonResponse;
 
 class FixturesController extends Controller
@@ -48,8 +49,9 @@ class FixturesController extends Controller
             ->with('player', 'counterpartPlayer')
             ->get();
 
-        $lineups->each(function (FixtureLineup $lineup): void {
+        $lineups->each(function (FixtureLineup $lineup) use ($fixture): void {
             $lineup->resolved_stats = $lineup->fantasy_stats ?? $this->worldcup26StatsFallback($lineup->stats);
+            $lineup->api_dazn = DaznEstimatePresenter::present($lineup, $fixture);
         });
 
         $fixture->api_lineups = $lineups;
