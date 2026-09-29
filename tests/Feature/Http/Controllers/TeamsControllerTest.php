@@ -965,3 +965,29 @@ test('sends the probable XI of the team\'s next match', function (): void {
         ->where('startProbabilities.players.0.probability', 80)
     );
 });
+
+test('the ficha squad skips each player\'s next fixtures, which the team\'s own next fixtures already show', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->addDays(3),
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+
+    $this->get(route('teams.show', $team))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('squad', 1)
+            ->missing('squad.0.next_fixtures')
+            ->where('nextFixtures.0.opponent.id', $rival->id)
+        );
+});

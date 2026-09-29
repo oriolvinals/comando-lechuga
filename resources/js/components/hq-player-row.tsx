@@ -1,6 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import { Shield, User } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import { HqManagerChip } from '@/components/hq-manager-chip';
@@ -21,6 +21,8 @@ interface PlayerRowLayout {
     showTeam?: boolean;
     /** Show the position column. Off when rows are already grouped under a position heading. */
     showPosition?: boolean;
+    /** Show the next fixtures + difficulty column. Off on a team's own ficha, which already shows the club's next fixtures once. */
+    showNextFixtures?: boolean;
 }
 
 interface PlayerRowProps extends PlayerRowLayout {
@@ -29,40 +31,46 @@ interface PlayerRowProps extends PlayerRowLayout {
 
 /**
  * Desktop columns (mock `.ptable`): photo · player · pos · estado · pertenece
- * a · próximos + dificultad · últimas 3 · valor + hoy · pts. Literal class
- * strings so Tailwind can see them.
+ * a · próximos + dificultad · últimas 3 · valor + hoy · pts, minus the ones
+ * the layout turns off — so a hidden column never leaves a gap. Applied
+ * through the `--player-row-columns` custom property.
  */
-const ROW_GRID = {
-    full: 'lg:grid-cols-[46px_minmax(140px,1.4fr)_44px_76px_minmax(110px,1fr)_118px_120px_minmax(124px,0.9fr)_48px]',
-    noPosition:
-        'lg:grid-cols-[46px_minmax(140px,1.4fr)_76px_minmax(110px,1fr)_118px_120px_minmax(124px,0.9fr)_48px]',
-    noTeam: 'lg:grid-cols-[46px_minmax(140px,1.4fr)_44px_76px_118px_120px_minmax(124px,0.9fr)_48px]',
-    compact:
-        'lg:grid-cols-[46px_minmax(140px,1.4fr)_76px_118px_120px_minmax(124px,0.9fr)_48px]',
-} as const;
-
-function rowGrid({
+function rowGridStyle({
     showTeam = true,
     showPosition = true,
-}: PlayerRowLayout): string {
-    if (showTeam) {
-        return showPosition ? ROW_GRID.full : ROW_GRID.noPosition;
-    }
+    showNextFixtures = true,
+}: PlayerRowLayout): CSSProperties {
+    const columns = [
+        '46px',
+        'minmax(140px,1.4fr)',
+        showPosition && '44px',
+        '76px',
+        showTeam && 'minmax(110px,1fr)',
+        showNextFixtures && '118px',
+        '120px',
+        'minmax(124px,0.9fr)',
+        '48px',
+    ].filter(Boolean);
 
-    return showPosition ? ROW_GRID.noTeam : ROW_GRID.compact;
+    return { '--player-row-columns': columns.join(' ') } as CSSProperties;
 }
+
+/** The desktop grid; its columns come from {@link rowGridStyle}. */
+const ROW_GRID = 'lg:grid-cols-(--player-row-columns)';
 
 /** The column headings for a list of {@link PlayerRow}s (desktop only). */
 export function PlayerRowHeader({
     showTeam = true,
     showPosition = true,
+    showNextFixtures = true,
 }: PlayerRowLayout) {
     return (
         <div
             aria-hidden="true"
+            style={rowGridStyle({ showTeam, showPosition, showNextFixtures })}
             className={cn(
                 'hidden items-end gap-3 border-b border-hq-border-strong px-4 py-[9px] font-mono text-[10.5px] leading-[1.2] font-semibold tracking-[0.07em] text-hq-moss-dim uppercase lg:grid',
-                rowGrid({ showTeam, showPosition }),
+                ROW_GRID,
             )}
         >
             <span />
@@ -70,7 +78,7 @@ export function PlayerRowHeader({
             {showPosition && <span className="text-center">Pos.</span>}
             <span>Estado</span>
             {showTeam && <span>Pertenece a</span>}
-            <span>Próximos · dificultad</span>
+            {showNextFixtures && <span>Próximos · dificultad</span>}
             <span>Últimas 3 jornadas</span>
             <span className="text-right">Valor · hoy</span>
             <span className="text-right">Pts</span>
@@ -94,6 +102,7 @@ export function PlayerRow({
     player,
     showTeam = true,
     showPosition = true,
+    showNextFixtures = true,
 }: PlayerRowProps) {
     const playerUrl = playersShow(player.id).url;
     const ownerManager = player.owner_manager;
@@ -101,9 +110,10 @@ export function PlayerRow({
     return (
         <div
             onClick={() => router.visit(playerUrl)}
+            style={rowGridStyle({ showTeam, showPosition, showNextFixtures })}
             className={cn(
                 'grid cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-2.5 border-b border-hq-border px-3.5 py-3 transition-colors hover:bg-hq-panel lg:gap-x-3 lg:px-4 lg:py-2.5',
-                rowGrid({ showTeam, showPosition }),
+                ROW_GRID,
             )}
         >
             <EntityImage
@@ -178,16 +188,23 @@ export function PlayerRow({
                 </div>
             )}
 
-            <div className="order-9 flex flex-col items-end gap-[5px] justify-self-end lg:order-none lg:items-start lg:justify-self-auto">
-                <MobileCaption>Próximos</MobileCaption>
-                <HqNextFixtures
-                    fixtures={player.next_fixtures}
-                    size="sm"
-                    focusable={false}
-                />
-            </div>
+            {showNextFixtures && (
+                <div className="order-9 flex flex-col items-end gap-[5px] justify-self-end lg:order-none lg:items-start lg:justify-self-auto">
+                    <MobileCaption>Próximos</MobileCaption>
+                    <HqNextFixtures
+                        fixtures={player.next_fixtures}
+                        size="sm"
+                        focusable={false}
+                    />
+                </div>
+            )}
 
-            <div className="order-8 col-span-2 flex flex-col gap-[5px] lg:order-none lg:col-span-1">
+            <div
+                className={cn(
+                    'order-8 flex flex-col gap-[5px] lg:order-none lg:col-span-1',
+                    showNextFixtures ? 'col-span-2' : 'col-span-full',
+                )}
+            >
                 <MobileCaption>Últimas 3</MobileCaption>
                 <HqRecentScores
                     scores={player.recent_scores}

@@ -75,17 +75,20 @@ function Kpi({
     hot = false,
     children,
     sub,
+    className,
 }: {
     label: string;
     hot?: boolean;
     children: ReactNode;
     sub?: ReactNode;
+    className?: string;
 }) {
     return (
         <div
             className={cn(
                 'min-w-0 bg-hq-ink px-3.5 py-3.5 sm:px-4',
                 hot && 'bg-linear-to-b from-hq-lime/6 to-hq-ink',
+                className,
             )}
         >
             <p className="hq-label">{label}</p>
@@ -272,6 +275,7 @@ export default function TeamShow({
                 )}
                 <Kpi
                     label="Valor plantilla"
+                    className="col-span-2 md:col-span-1"
                     sub={
                         squadValueDifference !== 0 ? (
                             <span
@@ -291,8 +295,8 @@ export default function TeamShow({
                 >
                     {formatCurrency(squadValue)}
                 </Kpi>
-                <Kpi label="Próximos">
-                    <HqNextFixtures fixtures={nextFixtures} />
+                <Kpi label="Próximos" className="col-span-2 md:col-span-1">
+                    <HqNextFixtures fixtures={nextFixtures} size="lg" />
                 </Kpi>
             </div>
 
@@ -408,6 +412,7 @@ export default function TeamShow({
                                     <PlayerRowHeader
                                         showTeam={false}
                                         showPosition={false}
+                                        showNextFixtures={false}
                                     />
                                 )}
                                 {group.players.map((player) => (
@@ -422,6 +427,7 @@ export default function TeamShow({
                                         }}
                                         showTeam={false}
                                         showPosition={false}
+                                        showNextFixtures={false}
                                     />
                                 ))}
                             </section>

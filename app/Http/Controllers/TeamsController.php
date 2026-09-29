@@ -116,7 +116,6 @@ class TeamsController extends Controller
         $this->attachOwnerManager($squad, $season->id);
         $this->attachCurrentSeason($squad, $season->id);
         $this->attachRecentScores($squad, $season);
-        $this->attachNextFixtures($squad, $season);
 
         $table = collect($this->standings->table($season->teams, $this->standings->fixtures($season)));
         $standing = $table->first(fn (array $row): bool => $row['team']->id === $team->id);
