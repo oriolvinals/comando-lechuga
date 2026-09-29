@@ -55,6 +55,12 @@ final readonly class MaxBidParameters
          * through a mid-season break. Every other case uses the phase decay.
          */
         public float $decayStrongRiseBreak = 0.925,
+        /**
+         * Weight λ of FútbolFantasy's start probability for the next match in
+         * the participation: `(1 − λ)·recent + λ·probability` when there is
+         * one, the recent participation alone when there isn't.
+         */
+        public float $startProbabilityWeight = 0.5,
     ) {
         $maximumBenches = count(MaxBidCalculator::RECENCY_WEIGHTS);
 

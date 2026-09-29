@@ -37,10 +37,27 @@ export interface NextFixtureSlot {
     week_number: number;
     opponent: Team;
     is_home: boolean;
-    /** The rival's current real LaLiga standings position (1 = leader). */
-    rival_position: number;
-    /** −1 against the leader, 0 mid table, +1 against the last team — see `@/lib/rival-difficulty`. */
-    difficulty: number;
+    /** Kick-off, ISO 8601. */
+    date: string;
+    /** The rival's current real LaLiga standings position (1 = leader), or null when not in the table. */
+    rival_position: number | null;
+    /** 0–10, 10 = hardest — see `@/lib/rival-difficulty`. Null when the rival isn't rated. */
+    difficulty: number | null;
+    difficulty_variant: DifficultyVariant | null;
+    /** Contributions to the internal ease (higher = easier); empty without a difficulty. */
+    difficulty_components: DifficultyComponents | [];
+    /** Whether the rival's absences made this match easier (only its very next match). */
+    absence_adjusted: boolean | null;
+}
+
+/** Which rival strength a difficulty weighs: overall, its defence (for attackers) or its attack (for defenders). */
+export type DifficultyVariant = 'general' | 'attack' | 'defense';
+
+/** Contributions to a match's internal ease (higher = easier). */
+export interface DifficultyComponents {
+    rival_strength: number;
+    home: number;
+    absences: number;
 }
 
 export interface Player {
@@ -471,10 +488,15 @@ export interface FixtureCalendarMatch {
     opponent: Team;
     is_home: boolean;
     date: string;
-    /** The rival's current real LaLiga standings position (1 = leader). */
-    rival_position: number;
-    /** −1 against the leader, 0 mid table, +1 against the last team — see `@/lib/rival-difficulty`. */
-    difficulty: number;
+    /** The rival's current real LaLiga standings position (1 = leader), or null when not in the table. */
+    rival_position: number | null;
+    /** 0–10, 10 = hardest — see `@/lib/rival-difficulty`. Null when the rival isn't rated. */
+    difficulty: number | null;
+    difficulty_variant: DifficultyVariant | null;
+    /** Contributions to the internal ease (higher = easier); empty without a difficulty. */
+    difficulty_components: DifficultyComponents | [];
+    /** Whether the rival's absences made this match easier (only its very next match). */
+    absence_adjusted: boolean | null;
     /** Its jornada comes before the previous listed match's — a moved match played out of order. */
     rescheduled: boolean;
 }
@@ -484,7 +506,7 @@ export interface FixtureCalendarRow {
     team: Team;
     /** Current real LaLiga standings position. */
     position: number;
-    /** Mean difficulty of the listed matches (higher = easier), or null with none. */
+    /** Mean 0–10 difficulty of the listed matches (lower = easier), or null with none. */
     average: number | null;
     /** The next (up to 10) scheduled matches, soonest first, postponed ones left out. */
     matches: FixtureCalendarMatch[];
@@ -498,7 +520,7 @@ export interface MaxBidRival {
     /** Real LaLiga standings position on the reference date. */
     position: number;
     days_until: number;
-    /** −1 (leader) … +1 (last). */
+    /** The rival's ease, −1 (hardest) … +1 (easiest): (5 − difficulty) / 5 of the 0–10 difficulty. */
     difficulty: number;
     /** Proximity weight, 0,5^(days/7). */
     weight: number;

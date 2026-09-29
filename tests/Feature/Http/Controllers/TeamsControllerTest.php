@@ -777,9 +777,17 @@ test('next fixtures are padded to 3, only scheduled, ordered by date, and resolv
         ->where('nextFixtures.2', null)
         // Team 1st (beat rivalA), rivalB 2nd (unplayed), rivalA 3rd.
         ->where('nextFixtures.0.rival_position', 3)
-        ->where('nextFixtures.0.difficulty', fn (int|float $difficulty): bool => (float) $difficulty === 1.0)
+        // Away at rivalA, who has a (weak) finished-match performance record
+        // from the fixture above — harder than the plain away baseline (6.0)
+        // would be with no performance data at all, but still clearly harder
+        // than playing at home.
+        ->where('nextFixtures.0.difficulty', fn (int|float $difficulty): bool => (float) $difficulty > 5.0 && (float) $difficulty <= 10.0)
+        ->where('nextFixtures.0.difficulty_variant', 'general')
         ->where('nextFixtures.1.rival_position', 2)
-        ->where('nextFixtures.1.difficulty', fn (int|float $difficulty): bool => (float) $difficulty === 0.0)
+        // Home against rivalB, who has no matches or squad-value data at all
+        // — team strength is 0 for it, so difficulty reduces to the home
+        // baseline alone (5 − 2.5·0.4).
+        ->where('nextFixtures.1.difficulty', fn (int|float $difficulty): bool => (float) $difficulty === 4.0)
     );
 });
 
@@ -956,4 +964,30 @@ test('sends the probable XI of the team\'s next match', function (): void {
         ->where('startProbabilities.opponent.id', $rival->id)
         ->where('startProbabilities.players.0.probability', 80)
     );
+});
+
+test('the ficha squad skips each player\'s next fixtures, which the team\'s own next fixtures already show', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->addDays(3),
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+
+    $this->get(route('teams.show', $team))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('squad', 1)
+            ->missing('squad.0.next_fixtures')
+            ->where('nextFixtures.0.opponent.id', $rival->id)
+        );
 });

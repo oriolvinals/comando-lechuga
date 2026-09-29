@@ -522,7 +522,7 @@ export default function PlayerShow({
                         title="Próximos rivales"
                         action={
                             <HqTooltip
-                                label="Dificultad = posición del rival en la tabla, de −1 (líder) a +1 (último), misma fórmula que la puja máxima"
+                                label="Dificultad de 0 a 10 (10 = más difícil) según la fuerza del rival (valor de plantilla + rendimiento), si se juega en casa y, en el próximo partido, sus bajas"
                                 wrap
                                 focusable
                                 className="items-center gap-1.5"

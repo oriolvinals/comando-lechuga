@@ -158,8 +158,11 @@ class LeagueStandings
 
     /**
      * How hard a rival is by its standings position: −1 for the leader, 0 mid
-     * table, +1 for the last team — `(position − (N+1)/2) / ((N−1)/2)`. Shared
-     * by the max bid model and the "next fixtures" difficulty gauge.
+     * table, +1 for the last team — `(position − (N+1)/2) / ((N−1)/2)`. Only
+     * the table baseline `season:backtest-team-strength` compares the team
+     * strength model against.
+     *
+     * @deprecated For app use, rate matches with `MatchDifficulty` instead.
      */
     public static function difficulty(int $position, int $teamCount): float
     {

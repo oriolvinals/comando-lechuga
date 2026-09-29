@@ -1,16 +1,20 @@
 <?php
 
 use App\Enums\BadScoreRule;
+use App\Enums\DifficultyVariant;
 use App\Enums\FixtureState;
 use App\Enums\MaxBidStatus;
+use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
+use App\Models\FixtureLineupProbability;
 use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\Team;
 use App\Services\LeagueStandings;
+use App\Services\MatchDifficulty;
 use App\Services\MaxBidCalculator;
 use App\Services\MaxBidParameters;
 
@@ -25,6 +29,8 @@ beforeEach(function (): void {
 
 /**
  * A current-season player with one market value per day, the last one today.
+ * A midfielder unless `position` says otherwise, so his rivals are rated
+ * with a fixed difficulty variant (attack).
  *
  * @param  list<int>  $values  oldest first
  * @param  array<string, mixed>  $attributes
@@ -33,7 +39,7 @@ function maxBidPlayer(Season $season, array $values, array $attributes = []): Pl
 {
     $team = isset($attributes['team_id']) ? Team::query()->findOrFail($attributes['team_id']) : Team::factory()->create();
     $season->teams()->syncWithoutDetaching([$team->id]);
-    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, ...$attributes]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, 'position' => PlayerPosition::Midfield, ...$attributes]);
 
     foreach (array_values($values) as $index => $value) {
         PlayerMarket::factory()->create([
@@ -217,7 +223,7 @@ test('a bench player gets the bench factor of a positive daily increment', funct
     // Without the one-bench rule, which would otherwise cap this benched player's increment at 0.
     $parameters = new MaxBidParameters(benchesBeforeUnprofitable: 0);
 
-    $estimate = (new MaxBidCalculator(app(LeagueStandings::class), $parameters))->estimate($player, $this->season);
+    $estimate = (new MaxBidCalculator(app(LeagueStandings::class), app(MatchDifficulty::class), $parameters))->estimate($player, $this->season);
 
     expect($estimate->dailyIncrement)->toEqualWithDelta(
         ($estimate->momentumIncrement + $estimate->marketAdjustment + $estimate->sportAdjustment) * $parameters->benchIncrementFactor,
@@ -243,6 +249,8 @@ test('each upcoming rival weighs by how soon the match is', function (): void {
     $leader = Team::factory()->create();
     $bottom = Team::factory()->create();
     $this->season->teams()->syncWithoutDetaching([$leader->id, $bottom->id]);
+    // The leader also has the most valuable squad, so its strength makes it a hard rival.
+    maxBidPlayer($this->season, array_fill(0, 4, 2_000_000_000), ['team_id' => $leader->id]);
     Fixture::factory()->create([
         'season_id' => $this->season->id, 'week_number' => 1, 'date' => now()->subDays(5),
         'team_local_id' => $leader->id, 'team_guest_id' => $bottom->id,
@@ -257,15 +265,100 @@ test('each upcoming rival weighs by how soon the match is', function (): void {
 
     $estimate = app(MaxBidCalculator::class)->estimate($player, $this->season);
     [$soon, $later] = $estimate->upcomingRivals;
+    $leaderFixture = Fixture::query()->where('team_guest_id', $leader->id)->where('state', FixtureState::Scheduled)->sole();
 
     expect($soon['team']->id)->toBe($leader->id)
         ->and($soon['position'])->toBe(1)
         ->and($soon['days_until'])->toBe(1)
-        ->and($soon['difficulty'])->toBe(-1.0)
+        // The midfielder's rival ease (−1 hard … +1 easy): MatchDifficulty's attack variant, "now".
+        ->and($soon['difficulty'])->toBe(app(MatchDifficulty::class)->for($leaderFixture, $player->team_id, DifficultyVariant::Attack)->rivalEase)
+        ->and($soon['difficulty'])->toBeLessThan(0.0)
         ->and($soon['weight'])->toEqualWithDelta(0.5 ** (1 / 7), 0.0001)
         ->and($later['days_until'])->toBe(20)
         ->and($later['weight'])->toEqualWithDelta(0.5 ** (20 / 7), 0.0001)
         ->and($estimate->rivalsEffect)->toBeLessThan(0.0);
+});
+
+/**
+ * A strong-squad rival that beat a weak one, and a scheduled match of
+ * `$player`'s team against it `$inDays` from now, at home.
+ *
+ * @param  list<int>  $rivalValues  its star's daily values, oldest first, the last one today
+ */
+function strongRivalFixture(Season $season, Player $player, int $inDays, array $rivalValues = [2_000_000_000, 2_000_000_000, 2_000_000_000, 2_000_000_000]): Fixture
+{
+    $strong = Team::factory()->create();
+    $weak = Team::factory()->create();
+    $season->teams()->syncWithoutDetaching([$strong->id, $weak->id]);
+    maxBidPlayer($season, $rivalValues, ['team_id' => $strong->id]);
+    Fixture::factory()->create([
+        'season_id' => $season->id, 'week_number' => 1, 'date' => now()->subDays(5),
+        'team_local_id' => $strong->id, 'team_guest_id' => $weak->id,
+        'local_score' => 4, 'guest_score' => 0, 'state' => FixtureState::Finished,
+    ]);
+
+    return Fixture::factory()->create([
+        'season_id' => $season->id, 'week_number' => 8, 'date' => now()->addDays($inDays)->setTime(18, 0),
+        'team_local_id' => $player->team_id, 'team_guest_id' => $strong->id, 'state' => FixtureState::Scheduled,
+    ]);
+}
+
+test('each upcoming rival is rated with the difficulty variant the player\'s position faces', function (PlayerPosition $position, DifficultyVariant $variant): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000], ['position' => $position]);
+    $fixture = strongRivalFixture($this->season, $player, 2);
+
+    $rival = app(MaxBidCalculator::class)->gatherInputs($player, $this->season)->upcomingRivals[0];
+
+    expect($rival['difficulty'])->toBe(app(MatchDifficulty::class)->for($fixture, $player->team_id, $variant)->rivalEase);
+})->with([
+    'goalkeeper faces the attack' => [PlayerPosition::Goalkeeper, DifficultyVariant::Defense],
+    'striker faces the defense' => [PlayerPosition::Striker, DifficultyVariant::Attack],
+]);
+
+test('a past reference date rates the upcoming rivals at that date', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000, 10_400_000, 10_500_000]);
+    // The rival's star was cheap two days ago and is a 2 000 M star today.
+    $fixture = strongRivalFixture($this->season, $player, 2, [1_000_000, 1_000_000, 1_000_000, 2_000_000_000]);
+    $at = now()->subDays(2);
+
+    $rival = app(MaxBidCalculator::class)->gatherInputs($player, $this->season, $at)->upcomingRivals[0];
+
+    // Its squad value then made it a weaker rival than it is today.
+    expect($rival['difficulty'])->toBe(app(MatchDifficulty::class)->for($fixture, $player->team_id, DifficultyVariant::Attack, $at->endOfDay())->rivalEase)
+        ->and($rival['difficulty'])->not->toBe(app(MatchDifficulty::class)->for($fixture, $player->team_id, DifficultyVariant::Attack)->rivalEase);
+});
+
+test('gathering the inputs reads the start probability of the player\'s next match', function (?int $probability, ?bool $confirmed, ?float $expected): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    $next = strongRivalFixture($this->season, $player, 2);
+    $later = strongRivalFixture($this->season, $player, 9);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id, 'fixture_id' => $next->id, 'probability' => $probability,
+        'confirmed_starter' => $confirmed, 'fetched_at' => now()->subHour(),
+    ]);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id, 'fixture_id' => $later->id, 'probability' => 5, 'fetched_at' => now()->subHour(),
+    ]);
+
+    expect(app(MaxBidCalculator::class)->gatherInputs($player, $this->season)->nextStartProbability)->toBe($expected);
+})->with([
+    'a predicted %' => [80, null, 0.8],
+    'a confirmed starter beats the %' => [20, true, 1.0],
+    'a confirmed substitute beats the %' => [90, false, 0.0],
+    'no % and no confirmation' => [null, null, null],
+]);
+
+test('the start probability ignores a row fetched after the reference moment and is null without one', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000, 10_400_000]);
+    $next = strongRivalFixture($this->season, $player, 2);
+    FixtureLineupProbability::factory()->create([
+        'player_id' => $player->id, 'fixture_id' => $next->id, 'probability' => 70, 'fetched_at' => now()->subHour(),
+    ]);
+    $calculator = app(MaxBidCalculator::class);
+
+    expect($calculator->gatherInputs($player, $this->season, now()->subDay())->nextStartProbability)->toBeNull()
+        ->and($calculator->gatherInputs($player, $this->season)->nextStartProbability)->toBe(0.7)
+        ->and($calculator->gatherInputs(maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]), $this->season)->nextStartProbability)->toBeNull();
 });
 
 test('a team with no upcoming fixture has a neutral rivals effect', function (): void {
@@ -314,7 +407,7 @@ test('the formula with default parameters on the gathered inputs equals estimate
 
 test('a calculator built with a different decay projects differently', function (): void {
     $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
-    $slower = new MaxBidCalculator(app(LeagueStandings::class), new MaxBidParameters(incrementDecayBreak: 0.8, incrementDecayMatchweek: 0.8));
+    $slower = new MaxBidCalculator(app(LeagueStandings::class), app(MatchDifficulty::class), new MaxBidParameters(incrementDecayBreak: 0.8, incrementDecayMatchweek: 0.8));
 
     $default = app(MaxBidCalculator::class)->estimate($player, $this->season);
     $custom = $slower->estimate($player, $this->season);
@@ -372,20 +465,29 @@ test('pins the formula on a sport-rich scenario with explicit parameters', funct
         benchIncrementFactor: 0.5,
         benchesBeforeUnprofitable: 0,
         badScoreRule: BadScoreRule::Off,
+        startProbabilityWeight: 0.5,
     );
 
-    $estimate = (new MaxBidCalculator(app(LeagueStandings::class), $parameters))->estimate($player, $this->season);
+    $estimate = (new MaxBidCalculator(app(LeagueStandings::class), app(MatchDifficulty::class), $parameters))->estimate($player, $this->season);
 
-    // form = (20/3 − 5) / 5; participation = 0,5·0,25 + 0,3·(0,5 + 0,5·70/90) + 0,2·1;
-    // leader (1st of 4) in 2 days, bottom (4th) in 9 days.
+    // form = (20/3 − 5) / 5; participation = 0,5·0,25 + 0,3·(0,5 + 0,5·70/90) + 0,2·1 (no start probability).
+    // Rivals, rated by MatchDifficulty for a midfielder (attack variant: the rival's defensive
+    // solidity), both at the player's home (+0,4). Neither has market values, so both are left
+    // out of the squad value z (z = 0), and each played 2 matches (shrink weight 2/(2+8) = 0,2):
+    // - leader (won both 3-0): solidity = 0,8·0 + 0,2·(0,7·0,408 + 0,3·0,356) = 0,078;
+    //   ease e = −0,078 + 0,4 = 0,322 → difficulty round(5 − 2,5·0,322) = 4,2 → rivalEase 0,16;
+    // - bottom (lost both 0-3): solidity = −0,084; e = 0,484 → difficulty 3,8 → rivalEase 0,24.
+    // rivalsEffect = (0,5^(2/7)·0,16 + 0,5^(9/7)·0,24) / 3 = 0,076564633;
+    // score = 0,5^(2/7)·(0,4·form + 0,3·(2·participation − 1)) + 0,3·3·rivalsEffect = 0,284929814.
     expect($estimate->status)->toBe(MaxBidStatus::Profitable)
         ->and($estimate->form)->toEqualWithDelta(1 / 3, 1e-9)
         ->and($estimate->participation)->toEqualWithDelta(0.716666667, 1e-9)
-        ->and($estimate->rivalsEffect)->toEqualWithDelta(-0.136722559, 1e-9)
-        ->and($estimate->sportScore)->toEqualWithDelta(0.092971340, 1e-9)
-        ->and($estimate->dailyIncrement)->toEqualWithDelta(141_629.415, 0.001)
-        ->and($estimate->projection[14])->toBe(11_383_062)
-        ->and($estimate->bid)->toBe(12_017_894);
+        ->and(array_column($estimate->upcomingRivals, 'difficulty'))->toBe([0.16, 0.24])
+        ->and($estimate->rivalsEffect)->toEqualWithDelta(0.076564633, 1e-9)
+        ->and($estimate->sportScore)->toEqualWithDelta(0.284929814, 1e-9)
+        ->and($estimate->dailyIncrement)->toEqualWithDelta(161_593.097, 0.001)
+        ->and($estimate->projection[14])->toBe(11_521_632)
+        ->and($estimate->bid)->toBe(12_141_660);
 });
 
 test('gathering the inputs records the team\'s points in its last three matches, newest first', function (): void {

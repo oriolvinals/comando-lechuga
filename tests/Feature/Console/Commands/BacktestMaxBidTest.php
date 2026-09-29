@@ -128,6 +128,7 @@ test('grid-searches the model parameters in memory, printing the defaults row an
     $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-09-10', '--grid' => true])
         ->expectsOutputToContain('Pasada 1')
         ->expectsOutputToContain('Pasada 2')
+        ->expectsOutputToContain('| Peso rivales | Peso titular. |')
         ->expectsOutputToContain('defaults')
         ->expectsOutputToContain('tendencia: rise_steady')
         ->assertSuccessful();

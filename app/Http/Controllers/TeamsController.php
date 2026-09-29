@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DifficultyVariant;
 use App\Enums\FixtureState;
 use App\Enums\MatchPositionLine;
 use App\Enums\MatchPositionSide;
@@ -21,6 +22,7 @@ use App\Models\Team;
 use App\Services\DaznEstimatePresenter;
 use App\Services\FixtureCalendar;
 use App\Services\LeagueStandings;
+use App\Services\MatchDifficulty;
 use App\Services\StartProbabilities;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -94,7 +96,7 @@ class TeamsController extends Controller
         return Inertia::render('teams/index', $props);
     }
 
-    public function show(Team $team, StartProbabilities $startProbabilities): Response
+    public function show(Team $team, StartProbabilities $startProbabilities, MatchDifficulty $matchDifficulty): Response
     {
         $season = Season::current();
 
@@ -114,25 +116,34 @@ class TeamsController extends Controller
         $this->attachOwnerManager($squad, $season->id);
         $this->attachCurrentSeason($squad, $season->id);
         $this->attachRecentScores($squad, $season);
-        $this->attachNextFixtures($squad, $season);
 
         $table = collect($this->standings->table($season->teams, $this->standings->fixtures($season)));
         $standing = $table->first(fn (array $row): bool => $row['team']->id === $team->id);
 
-        /** @var array<int, int> $positions */
-        $positions = $table->mapWithKeys(fn (array $row): array => [$row['team']->id => $row['position']])->all();
+        $ownNextFixtures = Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('state', FixtureState::Scheduled)
+            ->where(fn ($query) => $query
+                ->where('team_local_id', $team->id)
+                ->orWhere('team_guest_id', $team->id))
+            ->with(['localTeam', 'guestTeam'])
+            ->orderBy('date')
+            ->take(3)
+            ->get()
+            ->values();
+
+        /** @var list<array{0: Fixture, 1: int, 2: DifficultyVariant}> $ownNextFixtureItems */
+        $ownNextFixtureItems = [];
+
+        foreach ($ownNextFixtures as $fixture) {
+            $ownNextFixtureItems[] = [$fixture, $team->id, DifficultyVariant::General];
+        }
+
+        $ownNextFixtureResults = $ownNextFixtureItems === [] ? [] : $matchDifficulty->forMany($ownNextFixtureItems);
+
         $nextFixtures = array_pad(
-            Fixture::query()
-                ->where('season_id', $season->id)
-                ->where('state', FixtureState::Scheduled)
-                ->where(fn ($query) => $query
-                    ->where('team_local_id', $team->id)
-                    ->orWhere('team_guest_id', $team->id))
-                ->with(['localTeam', 'guestTeam'])
-                ->orderBy('date')
-                ->take(3)
-                ->get()
-                ->map(fn (Fixture $fixture): array => $this->nextFixtureSlot($fixture, $team->id, $positions))
+            $ownNextFixtures
+                ->map(fn (Fixture $fixture, int $index): array => $this->nextFixtureSlot($fixture, $team->id, $ownNextFixtureResults[$index] ?? null))
                 ->values()
                 ->all(),
             3,

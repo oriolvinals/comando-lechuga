@@ -451,12 +451,13 @@ class StartProbabilities
      * date — the same "próximo partido" the team ficha and the roster show,
      * and the same `date > now()` guard as the sync command's `nextFixture`,
      * so an overdue Scheduled fixture (a postponement, for example) doesn't
-     * keep showing stale probabilities.
+     * keep showing stale probabilities. Public so `MatchDifficulty` finds the
+     * same next match its absence adjustment reads the probable XI for.
      *
      * @param  list<int>  $teamIds
-     * @return array<int, Fixture>
+     * @return array<int, Fixture> keyed by team id, with `localTeam`/`guestTeam` loaded
      */
-    private function nextFixtures(Season $season, array $teamIds): array
+    public function nextFixtures(Season $season, array $teamIds): array
     {
         if ($teamIds === []) {
             return [];

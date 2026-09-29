@@ -20,7 +20,7 @@ final readonly class MaxBidInputs
     /**
      * @param  list<int>  $lastPoints  fantasy points of the player's last three finished lineups, newest first (pending points as 0)
      * @param  list<array{starter: bool, minutes: int}>  $recentParticipation  the team's last three finished matches, newest first
-     * @param  list<array{team: Team, position: int, days_until: int, difficulty: float}>  $upcomingRivals  soonest first
+     * @param  list<array{team: Team, position: int, days_until: int, difficulty: float}>  $upcomingRivals  soonest first; `difficulty` is MatchDifficulty's `rivalEase` (−1 hard … +1 easy), not its 0–10 difficulty
      * @param  list<int>  $recentTeamPoints  the team's points (3 a win, 1 a draw, 0 a loss) in the same matches as `$recentParticipation`, newest first
      */
     public function __construct(
@@ -43,6 +43,13 @@ final readonly class MaxBidInputs
         public ?string $referenceDate = null,
         /** Whether his market trend over his last seven values is a steady, accelerating or sharply accelerating rise. */
         public bool $strongRise = false,
+        /**
+         * FútbolFantasy's chance (0–1) that he starts his next match: its
+         * latest % fetched up to the requested moment, or 1 / 0 once he is
+         * confirmed as a starter / substitute. Null without a row (or a
+         * figure) for that match.
+         */
+        public ?float $nextStartProbability = null,
     ) {}
 
     /** Fantasy points of the most recent finished lineup, null when he has none. */
