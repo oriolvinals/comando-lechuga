@@ -12,6 +12,7 @@ use App\Models\Season;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * A team's strength at a date, from squad value and recent performance. See
@@ -21,7 +22,8 @@ use Illuminate\Support\Collection;
  * `season:backtest-team-strength` with other parameters; `inputsAt()` gathers
  * it from the database with a handful of aggregated queries (never one per
  * team or per team-match), and `ratingsAt()` memoizes the result per instance
- * like `MaxBidCalculator` does, keyed by season and minute.
+ * like `MaxBidCalculator` does, keyed by season and minute. For the current
+ * hour, `ratingsAt()` also caches the inputs across requests for an hour.
  */
 final class TeamStrength
 {
@@ -29,20 +31,46 @@ final class TeamStrength
     private array $ratingsMemo = [];
 
     /**
-     * `fromInputs()`'s ratings for the season's teams at `$at`, memoized per
-     * instance so repeated calls for the same season and minute don't repeat
-     * the database work.
+     * `fromInputs()`'s ratings for the season's teams at `$at` with the
+     * default parameters, memoized per instance so repeated calls for the
+     * same season and minute don't repeat the database work.
      *
      * @return array<int, TeamStrengthRating> keyed by team id
      */
-    public function ratingsAt(Season $season, CarbonInterface $at, ?TeamStrengthParameters $parameters = null): array
+    public function ratingsAt(Season $season, CarbonInterface $at): array
     {
         $key = "{$season->id}:".CarbonImmutable::parse($at)->format('Y-m-d H:i');
 
         return $this->ratingsMemo[$key] ??= self::fromInputs(
-            $this->inputsAt($season, $at),
-            $parameters ?? new TeamStrengthParameters,
+            $this->cachedInputsAt($season, $at),
+            new TeamStrengthParameters,
         );
+    }
+
+    /**
+     * `inputsAt()`, cached for an hour (as plain arrays) when `$at` falls in
+     * the current hour, so the lineup aggregation runs at most once an hour
+     * per season. Any other time — a backtest or an explicit past date — is
+     * computed fresh, so no stale data crosses dates.
+     *
+     * @return list<TeamStrengthInputs>
+     */
+    private function cachedInputsAt(Season $season, CarbonInterface $at): array
+    {
+        $hour = CarbonImmutable::parse($at)->format('Y-m-d H');
+
+        if ($hour !== CarbonImmutable::now()->format('Y-m-d H')) {
+            return $this->inputsAt($season, $at);
+        }
+
+        /** @var list<array{teamId: int, matches: int, logValue: float|null, goalDifference: float|null, shotsOnTargetDifference: float|null, keyPassesFor: float|null, goalsFor: float|null, shotsOnTargetFor: float|null, failedToScoreRate: float|null, goalsAgainst: float|null, shotsOnTargetAgainst: float|null, keyPassesAgainst: float|null}> $rows */
+        $rows = Cache::remember(
+            "team-strength:inputs:{$season->id}:{$hour}",
+            3600,
+            fn (): array => array_map(fn (TeamStrengthInputs $inputs): array => $inputs->toArray(), $this->inputsAt($season, $at)),
+        );
+
+        return array_map(TeamStrengthInputs::fromArray(...), $rows);
     }
 
     /**
@@ -68,7 +96,7 @@ final class TeamStrength
         return array_values($teamIds
             ->map(fn (int $teamId): TeamStrengthInputs => self::teamInputs(
                 $teamId,
-                $logValues[$teamId] ?? 0.0,
+                $logValues[$teamId] ?? null,
                 $matchAggregates[$teamId] ?? null,
             ))
             ->all());
@@ -76,7 +104,7 @@ final class TeamStrength
 
     /**
      * @param  Collection<int, int>  $teamIds
-     * @return array<int, float> ln(sum of the topPlayers highest values) keyed by team id
+     * @return array<int, float> ln(sum of the topPlayers highest values) keyed by team id, only for teams with any
      */
     private function squadLogValues(Collection $teamIds, CarbonInterface $at): array
     {
@@ -93,9 +121,10 @@ final class TeamStrength
             ->whereDate('player_markets.date', $referenceDate)
             ->whereIn('players.team_id', $teamIds)
             ->orderByDesc('player_markets.value')
+            ->toBase()
             ->get(['players.team_id as team_id', 'player_markets.value as value'])
             ->groupBy('team_id')
-            ->map(fn (Collection $rows): float => log($rows->take($topPlayers)->sum(fn (PlayerMarket $row): int => $row->value) + 1))
+            ->map(fn (Collection $rows): float => log($rows->take($topPlayers)->sum(fn (object $row): int => (int) $row->value) + 1))
             ->all();
     }
 
@@ -131,9 +160,10 @@ final class TeamStrength
 
         $shotsOnTarget = FixtureLineup::query()
             ->whereIn('fixture_id', $fixtures->pluck('id'))
+            ->toBase()
             ->get(['fixture_id', 'team_id', 'stats'])
-            ->groupBy(fn (FixtureLineup $lineup): string => "{$lineup->fixture_id}:{$lineup->team_id}")
-            ->map(fn (Collection $lineups): int => (int) $lineups->sum(fn (FixtureLineup $lineup): int => self::statValue($lineup->stats, 'shotsOnTarget')));
+            ->groupBy(fn (object $lineup): string => "{$lineup->fixture_id}:{$lineup->team_id}")
+            ->map(fn (Collection $lineups): int => (int) $lineups->sum(fn (object $lineup): int => self::statValue(self::decodeStats($lineup->stats), 'shotsOnTarget')));
 
         $aggregates = [];
 
@@ -212,7 +242,7 @@ final class TeamStrength
     /**
      * @param  array{matches: int, goals_for: int, goals_against: int, shots_for: int, shots_against: int, failed_to_score: int, key_passes_for: int, key_passes_against: int, key_passes_matches: int}|null  $aggregate
      */
-    private static function teamInputs(int $teamId, float $logValue, ?array $aggregate): TeamStrengthInputs
+    private static function teamInputs(int $teamId, ?float $logValue, ?array $aggregate): TeamStrengthInputs
     {
         $matches = $aggregate['matches'] ?? 0;
 
@@ -236,6 +266,18 @@ final class TeamStrength
             shotsOnTargetAgainst: $aggregate['shots_against'] / $matches,
             keyPassesAgainst: $keyPassesMatches > 0 ? $aggregate['key_passes_against'] / $keyPassesMatches : null,
         );
+    }
+
+    /**
+     * A raw `fixture_lineups.stats` JSON column, read without hydrating the model.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function decodeStats(mixed $stats): array
+    {
+        $decoded = is_string($stats) ? json_decode($stats, true) : null;
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**
@@ -323,16 +365,17 @@ final class TeamStrength
                 + ($keyPassesAgainstZ[$teamId] ?? 0.0)
             ) / 3;
 
-            $general = (1 - $weight) * $valueZ[$teamId] + $weight * $performanceZ;
-            $offensiveThreat = (1 - $weight) * $valueZ[$teamId]
+            $teamValueZ = $valueZ[$teamId] ?? 0.0;
+            $general = (1 - $weight) * $teamValueZ + $weight * $performanceZ;
+            $offensiveThreat = (1 - $weight) * $teamValueZ
                 + $weight * ((1 - $parameters->specificShare) * $performanceZ + $parameters->specificShare * $attackZ);
-            $defensiveSolidity = (1 - $weight) * $valueZ[$teamId]
+            $defensiveSolidity = (1 - $weight) * $teamValueZ
                 + $weight * ((1 - $parameters->specificShare) * $performanceZ + $parameters->specificShare * $defenseZ);
 
             $ratings[$teamId] = new TeamStrengthRating(
                 teamId: $teamId,
                 matches: $input->matches,
-                valueZ: $valueZ[$teamId],
+                valueZ: $teamValueZ,
                 performanceZ: $performanceZ,
                 attackZ: $attackZ,
                 defenseZ: $defenseZ,

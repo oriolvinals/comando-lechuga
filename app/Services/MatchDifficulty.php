@@ -14,6 +14,7 @@ use App\Models\PlayerSeason;
 use App\Models\Season;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * How hard a match is for one of its teams, from the rival's team strength,
@@ -27,7 +28,8 @@ use Carbon\CarbonInterface;
  * Strength, absences and standings are computed once per season and date and
  * memoized per instance — bound `scoped`, so one instance per request — and
  * `forMany()` costs the same number of queries for
- * one match as for a whole calendar.
+ * one match as for a whole calendar. Across requests, the strength inputs
+ * are cached per hour (see `TeamStrength`) and the absences for 10 minutes.
  *
  * @phpstan-type TeamAbsence array{fixture_id: int, share: float, z: float}
  */
@@ -49,9 +51,10 @@ final class MatchDifficulty
     ) {}
 
     /**
-     * Null when the fixture has no date or `$teamId` is not one of its two
-     * teams. Pass null for now; an explicit `$at` (even today) disables the
-     * absence adjustment.
+     * Null when the fixture has no date, `$teamId` is not one of its two
+     * teams or the rival has no strength rating (it is not a season team).
+     * Pass null for now; an explicit `$at` (even today) disables the absence
+     * adjustment.
      */
     public function for(Fixture $fixture, int $teamId, DifficultyVariant $variant, ?CarbonInterface $at = null): ?MatchDifficultyResult
     {
@@ -96,7 +99,12 @@ final class MatchDifficulty
         $rivalId = $isHome ? $fixture->team_guest_id : $fixture->team_local_id;
 
         $rivalRating = $this->strength->ratingsAt($season, $at)[$rivalId] ?? null;
-        $rivalStrength = -($rivalRating?->for($variant) ?? 0.0);
+
+        if ($rivalRating === null) {
+            return null;
+        }
+
+        $rivalStrength = -$rivalRating->for($variant);
         $home = $parameters->homeBonus * ($isHome ? 1 : -1);
 
         $absences = 0.0;
@@ -165,22 +173,32 @@ final class MatchDifficulty
     /**
      * Each team with a next match: that match, the share `a` of its regulars'
      * value that won't play it, and `a`'s z-score among those teams (0 when
-     * every team has the same share). Memoized per season; only ever
-     * computed for "now".
+     * every team has the same share). Memoized per season and cached for 10
+     * minutes across requests; only ever computed for "now".
      *
      * @return array<int, TeamAbsence> keyed by team id
      */
     private function absences(Season $season, TeamStrengthParameters $parameters): array
     {
-        if (isset($this->absencesMemo[$season->id])) {
-            return $this->absencesMemo[$season->id];
-        }
+        return $this->absencesMemo[$season->id] ??= Cache::remember(
+            "team-strength:absences:{$season->id}",
+            600,
+            fn (): array => $this->computeAbsences($season, $parameters),
+        );
+    }
 
+    /**
+     * {@see absences()} without the memo or the cache.
+     *
+     * @return array<int, TeamAbsence> keyed by team id
+     */
+    private function computeAbsences(Season $season, TeamStrengthParameters $parameters): array
+    {
         $teamIds = array_values(array_map(intval(...), $season->teams()->pluck('teams.id')->all()));
         $nextFixtures = $this->startProbabilities->nextFixtures($season, $teamIds);
 
         if ($nextFixtures === []) {
-            return $this->absencesMemo[$season->id] = [];
+            return [];
         }
 
         $regulars = $this->regularStarters($season, array_keys($nextFixtures), $parameters);
@@ -228,7 +246,7 @@ final class MatchDifficulty
             $absences[$teamId] = ['fixture_id' => $fixture->id, 'share' => $shares[$teamId], 'z' => $zScores[$teamId]];
         }
 
-        return $this->absencesMemo[$season->id] = $absences;
+        return $absences;
     }
 
     /**
@@ -288,10 +306,15 @@ final class MatchDifficulty
             ->whereIn('fixture_id', $fixtures->pluck('id'))
             ->whereIn('team_id', $teamIds)
             ->whereNotNull('player_id')
+            ->toBase()
             ->get(['team_id', 'player_id', 'fantasy_stats'])
-            ->each(function (FixtureLineup $lineup) use (&$minutes): void {
-                $minutes[$lineup->team_id][(int) $lineup->player_id] = ($minutes[$lineup->team_id][(int) $lineup->player_id] ?? 0)
-                    + (int) ($lineup->fantasy_stats['mins_played'][0] ?? 0);
+            ->each(function (object $lineup) use (&$minutes): void {
+                $teamId = (int) $lineup->team_id;
+                $playerId = (int) $lineup->player_id;
+                $fantasyStats = is_string($lineup->fantasy_stats) ? json_decode($lineup->fantasy_stats, true) : null;
+
+                $minutes[$teamId][$playerId] = ($minutes[$teamId][$playerId] ?? 0)
+                    + (int) (is_array($fantasyStats) ? ($fantasyStats['mins_played'][0] ?? 0) : 0);
             });
 
         $regulars = [];

@@ -472,22 +472,22 @@ test('pins the formula on a sport-rich scenario with explicit parameters', funct
 
     // form = (20/3 − 5) / 5; participation = 0,5·0,25 + 0,3·(0,5 + 0,5·70/90) + 0,2·1 (no start probability).
     // Rivals, rated by MatchDifficulty for a midfielder (attack variant: the rival's defensive
-    // solidity), both at the player's home (+0,4). Neither has market values, so both have the
-    // lowest squad value z = −0,985, and each played 2 matches (shrink weight 2/(2+8) = 0,2):
-    // - leader (won both 3-0): solidity = 0,8·(−0,985) + 0,2·(0,7·0,408 + 0,3·0,356) = −0,709;
-    //   ease e = 0,709 + 0,4 = 1,109 → difficulty round(5 − 2,5·1,109) = 2,2 → rivalEase 0,56;
-    // - bottom (lost both 0-3): solidity = −0,872; e = 1,272 → difficulty 1,8 → rivalEase 0,64.
-    // rivalsEffect = (0,5^(2/7)·0,56 + 0,5^(9/7)·0,64) / 3 = 0,240631704;
-    // score = 0,5^(2/7)·(0,4·form + 0,3·(2·participation − 1)) + 0,3·3·rivalsEffect = 0,432590178.
+    // solidity), both at the player's home (+0,4). Neither has market values, so both are left
+    // out of the squad value z (z = 0), and each played 2 matches (shrink weight 2/(2+8) = 0,2):
+    // - leader (won both 3-0): solidity = 0,8·0 + 0,2·(0,7·0,408 + 0,3·0,356) = 0,078;
+    //   ease e = −0,078 + 0,4 = 0,322 → difficulty round(5 − 2,5·0,322) = 4,2 → rivalEase 0,16;
+    // - bottom (lost both 0-3): solidity = −0,084; e = 0,484 → difficulty 3,8 → rivalEase 0,24.
+    // rivalsEffect = (0,5^(2/7)·0,16 + 0,5^(9/7)·0,24) / 3 = 0,076564633;
+    // score = 0,5^(2/7)·(0,4·form + 0,3·(2·participation − 1)) + 0,3·3·rivalsEffect = 0,284929814.
     expect($estimate->status)->toBe(MaxBidStatus::Profitable)
         ->and($estimate->form)->toEqualWithDelta(1 / 3, 1e-9)
         ->and($estimate->participation)->toEqualWithDelta(0.716666667, 1e-9)
-        ->and(array_column($estimate->upcomingRivals, 'difficulty'))->toBe([0.56, 0.64])
-        ->and($estimate->rivalsEffect)->toEqualWithDelta(0.240631704, 1e-9)
-        ->and($estimate->sportScore)->toEqualWithDelta(0.432590178, 1e-9)
-        ->and($estimate->dailyIncrement)->toEqualWithDelta(176_949.775, 0.001)
-        ->and($estimate->projection[14])->toBe(11_628_224)
-        ->and($estimate->bid)->toBe(12_236_933);
+        ->and(array_column($estimate->upcomingRivals, 'difficulty'))->toBe([0.16, 0.24])
+        ->and($estimate->rivalsEffect)->toEqualWithDelta(0.076564633, 1e-9)
+        ->and($estimate->sportScore)->toEqualWithDelta(0.284929814, 1e-9)
+        ->and($estimate->dailyIncrement)->toEqualWithDelta(161_593.097, 0.001)
+        ->and($estimate->projection[14])->toBe(11_521_632)
+        ->and($estimate->bid)->toBe(12_141_660);
 });
 
 test('gathering the inputs records the team\'s points in its last three matches, newest first', function (): void {

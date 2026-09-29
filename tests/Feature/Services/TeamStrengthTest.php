@@ -11,6 +11,7 @@ use App\Services\TeamStrength;
 use App\Services\TeamStrengthInputs;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -127,6 +128,12 @@ test('excludes a fixture and a market value dated after $at', function (): void 
 });
 
 test('a team with no matches has null averages and rates equal to its value z', function (): void {
+    PlayerMarket::factory()->create([
+        'player_id' => Player::factory()->create(['team_id' => $this->teamC->id])->id,
+        'date' => '2026-09-30',
+        'value' => 80_000_000,
+    ]);
+
     $inputs = teamStrengthInputsByTeam($this->season, now());
     $c = $inputs[$this->teamC->id];
 
@@ -140,7 +147,7 @@ test('a team with no matches has null averages and rates equal to its value z', 
         ->and($c->failedToScoreRate)->toBeNull()
         ->and($c->goalsAgainst)->toBeNull()
         ->and($c->shotsOnTargetAgainst)->toBeNull()
-        ->and($c->logValue)->toBe(0.0);
+        ->and($c->logValue)->toEqualWithDelta(log(80_000_000 + 1), 1e-9);
 
     $ratings = app(TeamStrength::class)->ratingsAt($this->season, now());
 
@@ -178,4 +185,46 @@ test('sums only the topPlayers highest squad values per team', function (): void
     $topFifteenSum = array_sum(range(2, 16)) * 1_000_000;
 
     expect($inputs[$team->id]->logValue)->toEqualWithDelta(log($topFifteenSum + 1), 1e-9);
+});
+
+test('a team with no market values has a null log value and a value z of 0', function (): void {
+    $inputs = teamStrengthInputsByTeam($this->season, now());
+
+    expect($inputs[$this->teamC->id]->logValue)->toBeNull();
+
+    $ratings = app(TeamStrength::class)->ratingsAt($this->season, now());
+
+    // A and B are ±1 on value between the two teams that have one; C is left
+    // out of that z and sits at the mean instead of far below it.
+    expect($ratings[$this->teamC->id]->valueZ)->toBe(0.0)
+        ->and($ratings[$this->teamA->id]->valueZ)->toEqualWithDelta(1.0, 1e-9)
+        ->and($ratings[$this->teamB->id]->valueZ)->toEqualWithDelta(-1.0, 1e-9);
+});
+
+test('caches the inputs for the current hour so a later request skips the lineup query', function (): void {
+    Cache::flush();
+
+    $first = app(TeamStrength::class)->ratingsAt($this->season, now());
+
+    app()->forgetScopedInstances();
+    $this->travel(20)->minutes();
+
+    DB::enableQueryLog();
+    $second = app(TeamStrength::class)->ratingsAt($this->season, now());
+
+    expect(collect(DB::getQueryLog())->pluck('query')->filter(fn (string $query): bool => str_contains($query, 'fixture_lineups')))->toBeEmpty()
+        ->and($second)->toEqual($first);
+});
+
+test('does not cache the inputs at an explicit past time', function (): void {
+    Cache::flush();
+
+    app(TeamStrength::class)->ratingsAt($this->season, now()->subDays(2));
+
+    app()->forgetScopedInstances();
+
+    DB::enableQueryLog();
+    app(TeamStrength::class)->ratingsAt($this->season, now()->subDays(2));
+
+    expect(collect(DB::getQueryLog())->pluck('query')->filter(fn (string $query): bool => str_contains($query, 'fixture_lineups')))->not->toBeEmpty();
 });

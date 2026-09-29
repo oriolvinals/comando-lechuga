@@ -119,7 +119,7 @@ trait AttachesNextFixtures
      * One upcoming fixture seen from `$teamId`'s side, with the difficulty
      * spread from `$result` — a single MatchDifficulty::forMany() entry
      * computed by the caller, in the same order as the fixtures it passed.
-     * A null `$result` (fixture with no date, or `$teamId` outside it —
+     * A null `$result` (fixture with no date, `$teamId` outside it or an unrated rival —
      * MatchDifficulty::for()'s own null cases) carries through as
      * `difficulty: null` and the other difficulty keys null/empty.
      *

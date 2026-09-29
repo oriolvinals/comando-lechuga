@@ -13,6 +13,7 @@ use App\Models\Team;
 use App\Services\MatchDifficulty;
 use App\Services\MatchDifficultyResult;
 use App\Services\TeamStrength;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -43,12 +44,14 @@ function difficultyFixture(Season $season, Team $local, Team $guest, string $dat
 }
 
 /**
- * A fresh instance: MatchDifficulty (and TeamStrength) are scoped per
- * request, so their memos would otherwise outlive the data changes a test makes.
+ * A fresh instance with an empty cache: MatchDifficulty (and TeamStrength)
+ * are scoped per request and cache strength and absences across requests, so
+ * their memos would otherwise outlive the data changes a test makes.
  */
 function matchDifficulty(): MatchDifficulty
 {
     app()->forgetScopedInstances();
+    Cache::flush();
 
     return app(MatchDifficulty::class);
 }
@@ -332,6 +335,40 @@ test('the result serializes the difficulty, its variant and its components', fun
         'absence_adjusted' => false,
         'rival_position' => $result->rivalPosition,
     ]);
+});
+
+test('a rival without a strength rating gives null', function (): void {
+    $teamA = difficultyTeam($this->season, 100_000_000);
+    difficultyTeam($this->season, 200_000_000);
+    $unrated = Team::factory()->create();
+
+    $fixture = difficultyFixture($this->season, $teamA, $unrated, '2026-10-04 18:00:00');
+
+    expect(matchDifficulty()->for($fixture, $teamA->id, DifficultyVariant::General))->toBeNull();
+});
+
+test('a second request within the hour reuses the cached strength and absences instead of the lineup queries', function (): void {
+    $teamA = difficultyTeam($this->season, 100_000_000);
+    $teamB = difficultyTeam($this->season, 200_000_000);
+    $finished = difficultyFixture($this->season, $teamA, $teamB, '2026-09-27 18:00:00', FixtureState::Finished);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $finished->id,
+        'team_id' => $teamB->id,
+        'player_id' => Player::factory()->create(['team_id' => $teamB->id])->id,
+        'fantasy_stats' => ['mins_played' => [90, 1]],
+    ]);
+    $next = difficultyFixture($this->season, $teamA, $teamB, '2026-10-04 18:00:00');
+
+    $first = matchDifficulty()->for($next, $teamA->id, DifficultyVariant::General);
+
+    app()->forgetScopedInstances();
+    $this->travel(5)->minutes();
+
+    DB::enableQueryLog();
+    $second = app(MatchDifficulty::class)->for($next, $teamA->id, DifficultyVariant::General);
+
+    expect(collect(DB::getQueryLog())->pluck('query')->filter(fn (string $query): bool => str_contains($query, 'fixture_lineups')))->toBeEmpty()
+        ->and($second)->toEqual($first);
 });
 
 test('match difficulty and team strength are shared within a request', function (): void {

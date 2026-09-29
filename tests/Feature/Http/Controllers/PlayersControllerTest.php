@@ -524,19 +524,22 @@ test('rates each player\'s next fixtures with the difficulty variant matching th
     ]);
     $goalkeeper = Player::factory()->create(['status' => PlayerStatus::Ok, 'position' => PlayerPosition::Goalkeeper]);
     $striker = Player::factory()->create(['status' => PlayerStatus::Ok, 'position' => PlayerPosition::Striker]);
+    // Only a season team has a strength rating, so only its matches get a difficulty.
+    [$goalkeeperRival, $strikerRival] = Team::factory()->count(2)->create();
+    $season->teams()->attach([$goalkeeperRival->id, $strikerRival->id]);
 
     Fixture::factory()->create([
         'season_id' => $season->id,
         'date' => now()->addDays(3),
         'team_local_id' => $goalkeeper->team_id,
-        'team_guest_id' => Team::factory()->create()->id,
+        'team_guest_id' => $goalkeeperRival->id,
         'state' => FixtureState::Scheduled,
     ]);
     Fixture::factory()->create([
         'season_id' => $season->id,
         'date' => now()->addDays(3),
         'team_local_id' => $striker->team_id,
-        'team_guest_id' => Team::factory()->create()->id,
+        'team_guest_id' => $strikerRival->id,
         'state' => FixtureState::Scheduled,
     ]);
 

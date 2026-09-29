@@ -19,6 +19,7 @@ use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
 use App\Services\PlayerMarketMetrics;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 function signalsSeason(): Season
@@ -269,11 +270,12 @@ test('keeps the number of queries flat however many players the page shows', fun
     signalsNextFixture($season, $team, Team::factory()->create());
 
     $countQueries = function (): int {
-        // MatchDifficulty (and TeamStrength) are bound scoped: without this,
-        // their per-request memos would carry over into the second
-        // measurement below (a test-only artifact — a real request always
-        // gets a fresh instance) and hide any real N+1.
+        // MatchDifficulty (and TeamStrength) are bound scoped and cache their
+        // inputs across requests: without resetting both, their memos and
+        // cache would carry over into the second measurement below and hide
+        // any real N+1 — this measures the cold path every time.
         app()->forgetScopedInstances();
+        Cache::flush();
         DB::flushQueryLog();
         DB::enableQueryLog();
         $this->getJson('/api/players')->assertOk();
