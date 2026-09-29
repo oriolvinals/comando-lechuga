@@ -302,7 +302,7 @@ Compara el ritmo de subida o bajada del valor de mercado de los últimos 3 días
 
 ### 3.3 Dificultad del rival (`next_fixtures[].difficulty`)
 
-Va de **0** (muy fácil) a **10** (muy difícil), a partir de la fuerza del rival, si el partido es en casa o fuera y sus bajas. `difficulty_variant` dice contra qué fuerza del rival se mide, según la posición del jugador: `attack` (centrocampistas y delanteros, miden la fuerza defensiva del rival), `defense` (porteros y defensas, miden su fuerza de ataque) o `general` (sin jugador de por medio, como en `/api/teams`). `rival_position` sigue siendo su puesto en la tabla real, informativo. Ambos valen `null` si no se puede calcular el partido.
+Va de **0** (muy fácil) a **10** (muy difícil), a partir de la fuerza del rival, si el partido es en casa o fuera y sus bajas. `difficulty_variant` dice contra qué fuerza del rival se mide, según la posición del jugador: `attack` (centrocampistas y delanteros, miden la fuerza defensiva del rival), `defense` (porteros y defensas, miden su fuerza de ataque) o `general` (entrenadores o jugadores sin posición). `rival_position` sigue siendo su puesto en la tabla real, informativo. Los tres valen `null` si no se puede calcular el partido.
 
 ### 3.4 Formación real y papel en el campo
 
@@ -333,7 +333,7 @@ Haz estas llamadas **cada vez** que llegue la pregunta.
 | 1. Fichajes y pujas | `/api/season`, `/api/market`, `/api/managers/{id}` (su plantilla) y `/api/players/{id}` de cada candidato | `next_start`, `market_trend`, `points_per_million`, `next_fixtures[].difficulty`, `bids`, `expires_at`; qué posición le falta; su saldo (pregúntalo) |
 | 2. Ventas | `/api/season`, `/api/managers/{id}` y `/api/players/{id}` de los candidatos | `market_trend`, `value_trend_30d`, `next_start`, `status`, `owner_gain`; la oferta de la liga es de ±10 % a las 20:00 |
 | 3. Cláusulas | `/api/season` (`buyouts_open`), `/api/managers/{id}` propio y de rivales | `buyout_clause.amount`, `is_locked`, `locked_until`, `shielded`, `shields`; su saldo, sin quedar en negativo |
-| 4. Alineación | `/api/season` (`upcoming_week.lineup_locks_at`), `/api/managers/{id}` (`roster`, `current_lineup`) y `/api/teams` | `next_start`, `status`, una formación válida (2.5), `difficulty` |
+| 4. Alineación | `/api/season` (`upcoming_week.lineup_locks_at`), `/api/managers/{id}` (`roster`, `current_lineup`) | `next_start`, `status`, una formación válida (2.5), `roster[].player.next_fixtures[].difficulty` |
 | 5. Análisis de plantilla | `/api/managers/{id}` y `/api/players?manager={id}&sort=points_per_million` | posiciones cubiertas, quién no juega, `market_trend`, `value_trend_30d` |
 | 6. Liga y rivales | `/api/standings`, `/api/managers/{id}` de cada rival y `/api/activity?manager={id}` | `rank`, `week_ranks`, `average_points`, fichajes y cláusulas recientes |
 | 7. Jornada en curso | `/api/season`, `/api/managers/{id}` (`current_lineup`) y `/api/fixtures/{id}` de los partidos en juego | `live_points`, `current_lineup.players[].points`, `match.state`, `display_clock`, `events` |
