@@ -9,6 +9,7 @@ import { derivePlayer } from '@/components/compare/derive';
 import { ComparePickerDialog } from '@/components/compare/picker-dialog';
 import { useComparison } from '@/components/compare/use-comparison';
 import { CompareViewA } from '@/components/compare/view-a';
+import { CompareViewB } from '@/components/compare/view-b';
 import { CompareViewSwitch } from '@/components/compare/view-switch';
 import AppLayout from '@/layouts/app-layout';
 import { COMPARE_MAX } from '@/lib/compare-selection';
@@ -233,9 +234,9 @@ export default function PlayersCompare({
                             </div>
                         ) : (
                             <>
-                                {/* Task 11: <CompareVerdict /> when godMode. Tasks 9–10: views B and C. */}
+                                {/* Task 11: <CompareVerdict /> when godMode. Task 10: view C. */}
                                 {comparison.view === 'a' && <CompareViewA />}
-                                {comparison.view === 'b' && null}
+                                {comparison.view === 'b' && <CompareViewB />}
                                 {comparison.view === 'c' && null}
                             </>
                         )}

@@ -378,7 +378,11 @@ export function trackMetrics(currentWeek: number): TrackMetric[] {
                 row.value_trend_30d !== null && row.value_trend_30d > 0
                     ? row.value_trend_30d
                     : null,
-            player: (player) => player.value_trend_30d?.multiple ?? null,
+            player: (player) => {
+                const multiple = player.value_trend_30d?.multiple ?? null;
+
+                return multiple !== null && multiple > 0 ? multiple : null;
+            },
             format: (value) => `×${formatDecimal(value)}`,
         },
         {
@@ -388,7 +392,7 @@ export function trackMetrics(currentWeek: number): TrackMetric[] {
             scale: 'sqrt',
             noBest: true,
             league: (row) => (row.value > 0 ? row.value : null),
-            player: (player) => player.value,
+            player: (player) => (player.value > 0 ? player.value : null),
             format: formatMillions,
         },
     ];
