@@ -731,3 +731,72 @@ export interface LineupPlayerStart {
     /** When FútbolFantasy was last read successfully (ISO 8601) — null without a probability row. */
     fetched_at: string | null;
 }
+
+export type CompareView = 'a' | 'b' | 'c';
+
+/** A fantasy manager as the comparator shows it (owner chip, league cloud colours). */
+export interface CompareManager {
+    id: number;
+    name: string;
+    logo: string;
+    color: string | null;
+}
+
+/** One lineup row of a compared player this season (ComparedPlayers::scores). */
+export interface ComparedPlayerScore extends DaznFields {
+    fixture_id: number;
+    week_number: number;
+    fixture_state: FixtureState;
+    opponent: Team;
+    is_home: boolean;
+    points: number | null;
+    /** `fantasy_stats.mins_played[0]`, 0 when missing. */
+    minutes: number;
+    starter: boolean;
+}
+
+export interface ComparedPlayerClause {
+    amount: number;
+    locked_until: string;
+    is_locked: boolean;
+    shielded: boolean;
+    shielded_until: string | null;
+    /** The current owner's latest signing/buyout — null when he already had him on joining. */
+    purchase: {
+        amount: number;
+        type: Extract<SeasonActivityType, 'signing' | 'buyout'>;
+        occurred_at: string;
+    } | null;
+}
+
+export interface ComparedPlayerListing {
+    sale_price: number;
+    bids: number;
+    expires_at: string;
+    seller: string;
+}
+
+/** Everything the comparator shows about one compared player (App\Services\ComparedPlayers). */
+export interface ComparedPlayer {
+    id: number;
+    name: string;
+    image: string;
+    position: PlayerPosition;
+    status: PlayerStatus;
+    team: Team;
+    value: number;
+    difference: number;
+    trend: MarketTrend | null;
+    value_trend_30d: PlayerValueTrend | null;
+    /** Up to 31 `[Y-m-d, value]` snapshots, oldest first. */
+    market_history: [string, number][];
+    points: number;
+    average_points: number;
+    points_per_million: PlayerPointsPerMillion | null;
+    scores: ComparedPlayerScore[];
+    next_fixtures: (NextFixtureSlot | null)[];
+    next_start: PlayerNextStart | null;
+    owner: CompareManager | null;
+    clause: ComparedPlayerClause | null;
+    listing: ComparedPlayerListing | null;
+}

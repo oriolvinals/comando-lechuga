@@ -35,7 +35,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property MarketTrend|null $market_trend Computed at query time from the current season's PlayerSeason; not a database column.
  * @property int $points Computed at query time from the current season's PlayerSeason; not a database column.
  * @property string $average_points Computed at query time from the current season's PlayerSeason; not a database column.
- * @property array{id: int, name: string, logo: string}|null $owner_manager Computed at query time by PlayersController; not a database column.
+ * @property array{id: int, name: string, logo: string, primary_color: string|null}|null $owner_manager Computed at query time by AttachesOwnerManager; not a database column.
  * @property array<int, int|null> $recent_scores Points for the last 3 played matches, oldest first, ordered by fixture date; null-padded at the end when fewer than 3 exist. Computed at query time by PlayersController; not a database column.
  * @property array<int, bool> $recent_scores_finished Per recent_scores slot, whether a real finished fixture exists there — false means the team hasn't played that many matches yet, never "not called up" (a finished fixture with no score is still true, with a null recent_scores value). Computed at query time alongside recent_scores; not a database column.
  * @property array<int, Team|null> $recent_scores_opponents Per recent_scores slot, the rival the player's team faced in that match. Computed at query time alongside recent_scores; not a database column.

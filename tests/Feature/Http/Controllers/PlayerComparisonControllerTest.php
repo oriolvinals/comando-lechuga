@@ -118,3 +118,17 @@ test('currentWeek is the current jornada before it kicks off and the next one on
     $this->get(route('players.compare'))
         ->assertInertia(fn (Assert $page): Assert => $page->where('currentWeek', 6));
 });
+
+test('sends the compared players in the order of ids', function (): void {
+    comparisonSeason();
+    $first = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    $second = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    $this->get(route('players.compare', ['ids' => "{$second->id},{$first->id}"]))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('players', 2)
+            ->where('players.0.id', $second->id)
+            ->where('players.1.id', $first->id)
+            ->has('players.0.scores')
+            ->has('players.0.next_fixtures', 3));
+});

@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Services\ComparedPlayers;
 use App\Services\SeasonClock;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,7 +25,7 @@ class PlayerComparisonController extends Controller
     /** @var list<string> */
     public const array VIEWS = ['a', 'b', 'c'];
 
-    public function show(Request $request, SeasonClock $clock): Response
+    public function show(Request $request, SeasonClock $clock, ComparedPlayers $comparedPlayers): Response
     {
         $season = Season::current();
         $ids = $this->comparableIds($this->requestedIds($request->query('ids')), $season);
@@ -33,7 +34,7 @@ class PlayerComparisonController extends Controller
             'currentWeek' => $this->comparisonWeek($season, $clock),
             'view' => $this->requestedView($request->query('vista')),
             'ids' => $ids,
-            'players' => fn (): array => [],
+            'players' => fn (): array => $comparedPlayers->forIds($ids, $season),
             'league' => fn (): array => [],
             'managers' => fn (): array => $this->managers($season),
         ]);
