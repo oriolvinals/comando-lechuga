@@ -151,6 +151,15 @@ test('prints a summary of the teams, the parsed and linked players and the unlin
         ->assertSuccessful();
 });
 
+test('shows a progress bar that says which team it is fetching', function (): void {
+    madridHostsVillarrealInWeek8();
+    fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-posible'))]);
+
+    $this->artisan(SyncCurrentSeasonStartProbabilities::class)
+        ->expectsOutputToContain('RMA: fetching its FútbolFantasy page')
+        ->assertSuccessful();
+});
+
 test('reports the season teams missing from the FútbolFantasy team map', function (): void {
     ['season' => $season] = madridHostsVillarrealInWeek8();
     $season->teams()->attach(Team::factory()->create(['fantasy_id' => 999, 'short_name' => 'XYZ'])->id);

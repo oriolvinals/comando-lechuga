@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Throwable;
 
 #[Signature('season:sync-start-probabilities {--force : Fetch every team now, ignoring when each one is next due}')]
@@ -52,6 +53,9 @@ class SyncCurrentSeasonStartProbabilities extends Command
     /** @var list<string> */
     private array $unlinked = [];
 
+    /** One step per team; its message says what the command is doing right now (fetching, or pausing between requests). */
+    private ?ProgressBar $progress = null;
+
     /**
      * @throws Throwable
      */
@@ -65,11 +69,21 @@ class SyncCurrentSeasonStartProbabilities extends Command
         $missingFromMap = [];
         $requests = 0;
 
-        foreach ($season->teams()->orderBy('short_name')->get() as $team) {
+        $teams = $season->teams()->orderBy('short_name')->get();
+        $this->progress = $this->output->createProgressBar($teams->count());
+        $this->progress->setFormat(' %current%/%max% [%bar%] %elapsed:6s% %message%');
+        $this->progress->setMessage('');
+        $this->progress->start();
+
+        foreach ($teams as $team) {
+            $this->progress->setMessage($team->short_name);
+            $this->progress->display();
+
             $slug = FutbolFantasyTeams::slugFor($team->fantasy_id);
 
             if ($slug === null) {
                 $missingFromMap[] = $team->short_name;
+                $this->progress->advance();
 
                 continue;
             }
@@ -78,19 +92,27 @@ class SyncCurrentSeasonStartProbabilities extends Command
 
             if ($nextFixture === null) {
                 $counts['no_match']++;
+                $this->progress->advance();
 
                 continue;
             }
 
             if (!$force && !$this->isDue($team, $nextFixture)) {
                 $counts['not_due']++;
+                $this->progress->advance();
 
                 continue;
             }
 
             if ($requests > 0) {
-                Sleep::for(random_int(self::MIN_PAUSE_SECONDS, self::MAX_PAUSE_SECONDS))->seconds();
+                $pause = random_int(self::MIN_PAUSE_SECONDS, self::MAX_PAUSE_SECONDS);
+                $this->progress->setMessage("{$team->short_name}: waiting {$pause}s before the next request");
+                $this->progress->display();
+                Sleep::for($pause)->seconds();
             }
+
+            $this->progress->setMessage("{$team->short_name}: fetching its FútbolFantasy page");
+            $this->progress->display();
 
             $requests++;
             Cache::forever(self::ATTEMPTED_AT_CACHE_PREFIX.$team->id, now()->getTimestamp());
@@ -100,6 +122,7 @@ class SyncCurrentSeasonStartProbabilities extends Command
             } catch (FatalRequestException|RequestException|FutbolFantasyPageException $exception) {
                 $counts['failed']++;
                 $this->warnAndLog("Skipped {$team->short_name}: {$exception->getMessage()}");
+                $this->progress->advance();
 
                 continue;
             }
@@ -107,7 +130,13 @@ class SyncCurrentSeasonStartProbabilities extends Command
             $counts['fetched']++;
             $this->playersParsed += count($page->players);
             $this->store($team, $season, $page, $linker);
+            $this->progress->advance();
         }
+
+        $this->progress->setMessage('done');
+        $this->progress->finish();
+        $this->progress = null;
+        $this->newLine();
 
         $this->summarize($counts, $missingFromMap);
 
@@ -257,7 +286,9 @@ class SyncCurrentSeasonStartProbabilities extends Command
 
     private function warnAndLog(string $message): void
     {
+        $this->progress?->clear();
         $this->warn($message);
+        $this->progress?->display();
         Log::warning("season:sync-start-probabilities — {$message}");
     }
 }
