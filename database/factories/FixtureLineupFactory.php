@@ -38,4 +38,16 @@ class FixtureLineupFactory extends Factory
             'fantasy_stats' => null,
         ];
     }
+
+    /**
+     * @param  list<string>  $reasons
+     */
+    public function withDaznEstimate(int $points = 2, int $minutes = 90, string $source = 'fantasy', array $reasons = ['90 minutos jugados']): static
+    {
+        return $this->state(fn (): array => [
+            'dazn_estimate' => $points,
+            'dazn_estimate_version' => 'v1',
+            'dazn_estimate_meta' => ['source' => $source, 'minutes' => $minutes, 'reasons' => $reasons],
+        ]);
+    }
 }

@@ -68,3 +68,19 @@ test('unresolved_name defaults to null', function (): void {
 
     expect($lineup->unresolved_name)->toBeNull();
 });
+
+test('casts the DAZN estimate columns', function (): void {
+    $lineup = FixtureLineup::factory()->withDaznEstimate(points: 3, minutes: 67, source: 'worldcup26', reasons: ['67 minutos jugados', '1 gol'])->create()->fresh();
+
+    expect($lineup->dazn_estimate)->toBe(3)
+        ->and($lineup->dazn_estimate_version)->toBe('v1')
+        ->and($lineup->dazn_estimate_meta)->toBe(['source' => 'worldcup26', 'minutes' => 67, 'reasons' => ['67 minutos jugados', '1 gol']]);
+});
+
+test('defaults to no DAZN estimate', function (): void {
+    $lineup = FixtureLineup::factory()->create()->fresh();
+
+    expect($lineup->dazn_estimate)->toBeNull()
+        ->and($lineup->dazn_estimate_version)->toBe('')
+        ->and($lineup->dazn_estimate_meta)->toBeNull();
+});
