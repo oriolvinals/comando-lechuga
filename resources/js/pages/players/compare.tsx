@@ -60,6 +60,7 @@ export default function PlayersCompare({
     const [copyState, setCopyState] = useState<CopyState>('idle');
     const picked = useRef(false);
     const copyResetTimer = useRef<number | undefined>(undefined);
+    const announceTimer = useRef<number | undefined>(undefined);
     const derived = useMemo(
         () => players.map((player) => derivePlayer(player, currentWeek, now)),
         [players, currentWeek, now],
@@ -82,7 +83,13 @@ export default function PlayersCompare({
     const pickerOpen = picker !== null;
     const canAdd = ids.length < COMPARE_MAX;
 
-    useEffect(() => () => window.clearTimeout(copyResetTimer.current), []);
+    useEffect(
+        () => () => {
+            window.clearTimeout(copyResetTimer.current);
+            window.clearTimeout(announceTimer.current);
+        },
+        [],
+    );
 
     const context: CompareContextValue = {
         players,
@@ -136,10 +143,15 @@ export default function PlayersCompare({
             setCopyState(state);
             // Emptied first so a repeated "Enlace copiado" is announced again.
             setAnnouncement('');
-            window.requestAnimationFrame(() =>
-                setAnnouncement(
-                    state === 'done' ? 'Enlace copiado' : 'No se pudo copiar',
-                ),
+            window.clearTimeout(announceTimer.current);
+            announceTimer.current = window.setTimeout(
+                () =>
+                    setAnnouncement(
+                        state === 'done'
+                            ? 'Enlace copiado'
+                            : 'No se pudo copiar',
+                    ),
+                100,
             );
             window.clearTimeout(copyResetTimer.current);
             copyResetTimer.current = window.setTimeout(
