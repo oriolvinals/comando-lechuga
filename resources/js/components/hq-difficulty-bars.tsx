@@ -10,9 +10,10 @@ import {
 import { cn } from '@/lib/utils';
 
 /**
- * - `stack`: full-width 3px rule with the number under it (Próximos 3).
- * - `inline`: flexible 3px rule with the number beside it (calendar cell foot).
- * - `gauge`: five 7×9px segments with a level-coloured number (ficha list, calendar average).
+ * Every layout puts the number under the bars:
+ * - `stack`: full-width 3px rule, small moss number (Próximos 3).
+ * - `inline`: full-width 3px rule, small paper number (calendar cell foot).
+ * - `gauge`: five 7×9px segments, level-coloured number (ficha lists, calendar average).
  */
 export type HqDifficultyBarsLayout = 'stack' | 'inline' | 'gauge';
 
@@ -25,7 +26,7 @@ interface HqDifficultyBarsProps {
 
 /**
  * The 5-segment difficulty gauge (more lit bars = harder, coloured by level)
- * with the exact 0–10 difficulty in small mono type next to it — option B of
+ * with the exact 0–10 difficulty in small mono type under it — option B of
  * the difficulty mock. Purely visual: the caller wraps it in the tooltip.
  */
 export function HqDifficultyBars({
@@ -43,8 +44,7 @@ export function HqDifficultyBars({
                 layout === 'gauge'
                     ? 'grid grid-cols-[repeat(5,7px)] gap-0.5'
                     : 'flex h-[3px] gap-px',
-                layout === 'stack' && 'w-full',
-                layout === 'inline' && 'flex-1',
+                layout !== 'gauge' && 'w-full',
             )}
         >
             {Array.from({ length: 5 }, (_, segment) => (
@@ -68,12 +68,9 @@ export function HqDifficultyBars({
             className={cn(
                 'font-mono leading-none font-bold tabular-nums',
                 layout === 'stack' && 'mt-[3px] text-[9.5px] text-hq-moss',
-                layout === 'inline' && 'text-[9px] text-hq-paper',
+                layout === 'inline' && 'mt-[3px] text-[9px] text-hq-paper',
                 layout === 'gauge' &&
-                    cn(
-                        'min-w-[22px] text-right text-xs',
-                        RIVAL_DIFFICULTY_TEXT_CLASSES[level],
-                    ),
+                    cn('mt-1 text-xs', RIVAL_DIFFICULTY_TEXT_CLASSES[level]),
             )}
         >
             {formatDifficulty(difficulty)}
@@ -83,11 +80,8 @@ export function HqDifficultyBars({
     return (
         <span
             className={cn(
-                layout === 'stack'
-                    ? 'flex w-full flex-col items-center'
-                    : 'flex items-center',
-                layout === 'inline' && 'gap-1',
-                layout === 'gauge' && 'gap-[7px]',
+                'flex flex-col items-center',
+                layout !== 'gauge' && 'w-full',
                 className,
             )}
         >

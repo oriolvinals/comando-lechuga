@@ -1,5 +1,6 @@
-import { Link, router, usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Shield, UserX } from 'lucide-react';
+import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import {
     HqDifficultyBars,
@@ -14,6 +15,7 @@ import {
     rivalDifficultyLevel,
 } from '@/lib/rival-difficulty';
 import { cn } from '@/lib/utils';
+import { show as fixturesShow } from '@/routes/fixtures';
 import { show as teamsShow } from '@/routes/teams';
 import type { FixtureCalendarMatch, FixtureCalendarRow } from '@/types/models';
 
@@ -84,8 +86,16 @@ function visibleRows(
         );
 }
 
+/** A match cell: jornada and C/F on top, crest, rival, then the bars with the number under them. */
 const CELL =
-    'relative flex h-[52px] w-[62px] shrink-0 flex-col items-center border';
+    'relative flex h-[66px] w-[62px] shrink-0 flex-col items-center border';
+
+/**
+ * Every match column is this fixed width — the 62px cell plus 2px either
+ * side, so neighbouring cells sit 4px apart — with its heading centered over
+ * it. The leftover row width goes to a filler column at the end.
+ */
+const MATCH_COLUMN = 'w-[66px] min-w-[66px] px-0.5';
 
 function MatchCell({ match }: { match: FixtureCalendarMatch }) {
     const level =
@@ -93,10 +103,19 @@ function MatchCell({ match }: { match: FixtureCalendarMatch }) {
             ? null
             : rivalDifficultyLevel(match.difficulty);
     const venue = match.is_home ? 'En casa' : 'Fuera';
+    const label = [
+        `J${match.week_number}`,
+        `${venue} contra ${match.opponent.main_name}`,
+        match.difficulty === null
+            ? 'sin dificultad'
+            : `dificultad ${formatDifficulty(match.difficulty)} sobre 10`,
+        ...(match.absence_adjusted === true ? ['bajas del rival'] : []),
+    ].join(', ');
 
     return (
         <HqDifficultyTooltip
             match={match}
+            focusable={false}
             details={
                 <>
                     <br />
@@ -112,9 +131,12 @@ function MatchCell({ match }: { match: FixtureCalendarMatch }) {
                 </>
             }
         >
-            <span
+            <Link
+                href={fixturesShow(match.fixture_id).url}
+                aria-label={label}
                 className={cn(
                     CELL,
+                    'cursor-pointer transition-[filter] hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-hq-lime',
                     level === null
                         ? 'border-hq-border-strong bg-hq-panel-alt'
                         : RIVAL_DIFFICULTY_TINT_CLASSES[level],
@@ -130,16 +152,12 @@ function MatchCell({ match }: { match: FixtureCalendarMatch }) {
                 >
                     J{match.week_number}
                 </span>
-                <span
-                    aria-label={venue}
-                    className="absolute top-[3px] right-1 font-mono text-[8.5px] leading-none font-bold text-hq-moss-dim"
-                >
+                <span className="absolute top-[3px] right-1 font-mono text-[8.5px] leading-none font-bold text-hq-moss-dim">
                     {match.is_home ? 'C' : 'F'}
                 </span>
                 {match.absence_adjusted === true && (
                     <UserX
-                        role="img"
-                        aria-label="Bajas del rival"
+                        aria-hidden="true"
                         className="absolute top-[13px] right-[3px] size-[9px] text-hq-moss"
                         strokeWidth={2.4}
                     />
@@ -149,7 +167,7 @@ function MatchCell({ match }: { match: FixtureCalendarMatch }) {
                     alt=""
                     fallback={Shield}
                     shape="square"
-                    className="mt-[9px] size-[18px] rounded-none bg-transparent object-contain"
+                    className="mt-3 size-[18px] rounded-none bg-transparent object-contain"
                 />
                 <span className="mt-[3px] font-mono text-[9.5px] leading-none font-bold tracking-[0.04em] text-hq-paper uppercase">
                     {match.opponent.short_name}
@@ -158,10 +176,10 @@ function MatchCell({ match }: { match: FixtureCalendarMatch }) {
                     <HqDifficultyBars
                         difficulty={match.difficulty}
                         layout="inline"
-                        className="absolute inset-x-[5px] bottom-1"
+                        className="mt-1 px-[5px]"
                     />
                 )}
-            </span>
+            </Link>
         </HqDifficultyTooltip>
     );
 }
@@ -172,7 +190,7 @@ function AverageGauge({ average }: { average: number | null }) {
     }
 
     return (
-        <span className="inline-flex justify-end">
+        <span className="inline-flex justify-center">
             <HqDifficultyBars difficulty={average} layout="gauge" />
             <span className="sr-only">
                 Media {formatDifficulty(average)} sobre 10,{' '}
@@ -182,7 +200,18 @@ function AverageGauge({ average }: { average: number | null }) {
     );
 }
 
-function MatchCountToggle({ matchCount }: { matchCount: MatchCount }) {
+/**
+ * The 5/10 switch. The page already has all 10 matches, so it only changes
+ * local state and rewrites `?partidos` in the address bar (keeping Inertia's
+ * history state) — no request.
+ */
+function MatchCountToggle({
+    matchCount,
+    onChange,
+}: {
+    matchCount: MatchCount;
+    onChange: (next: MatchCount) => void;
+}) {
     const select = (next: MatchCount) => {
         if (next === matchCount) {
             return;
@@ -196,11 +225,12 @@ function MatchCountToggle({ matchCount }: { matchCount: MatchCount }) {
             url.searchParams.set(MATCH_COUNT_PARAM, String(next));
         }
 
-        router.replace({
-            url: `${url.pathname}${url.search}`,
-            preserveScroll: true,
-            preserveState: true,
-        });
+        window.history.replaceState(
+            window.history.state,
+            '',
+            `${url.pathname}${url.search}${url.hash}`,
+        );
+        onChange(next);
     };
 
     return (
@@ -232,18 +262,27 @@ function MatchCountToggle({ matchCount }: { matchCount: MatchCount }) {
 /**
  * Each team's next 5 or 10 scheduled matches in date order (`?partidos=5`
  * picks 5), every cell tinted by its 0–10 difficulty level (lime easy, amber
- * mid, red hard) with the 5-bar gauge and the number at its foot. A
- * rescheduled match keeps its own jornada label (amber when it comes out of
- * jornada order). Rows are sorted easiest run first — lowest average.
+ * mid, red hard) with the 5-bar gauge and the number under it; each cell
+ * opens that match's ficha. A rescheduled match keeps its own jornada label
+ * (amber when it comes out of jornada order). Rows are sorted easiest run
+ * first — lowest average. The fixed-width match columns sit packed next to
+ * the team, with the average right after them; a filler column takes the
+ * leftover width at the end of the row.
  */
 export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
-    const matchCount = matchCountFromUrl(usePage().url);
+    const { url } = usePage();
+    const [matchCount, setMatchCount] = useState<MatchCount>(() =>
+        matchCountFromUrl(url),
+    );
     const visible = visibleRows(rows, matchCount);
 
     return (
         <>
             <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-b border-hq-border bg-hq-panel px-3.5 py-2.5 font-mono text-[11px] font-semibold tracking-[0.06em] text-hq-moss-dim uppercase sm:px-5">
-                <MatchCountToggle matchCount={matchCount} />
+                <MatchCountToggle
+                    matchCount={matchCount}
+                    onChange={setMatchCount}
+                />
                 <span>Próximos {matchCount} partidos · más fácil primero</span>
                 <span className="ml-auto flex items-center gap-2.5">
                     {(['easy', 'mid', 'hard'] as const).map((level) => (
@@ -261,7 +300,8 @@ export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
                 </span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* relative: keeps the sr-only (absolute) labels inside the scroll box, not widening the page. */}
+            <div className="relative overflow-x-auto">
                 <table className="w-full border-collapse font-mono text-[13px] tabular-nums">
                     <caption className="sr-only">
                         Próximos {matchCount} partidos de cada equipo por
@@ -275,14 +315,18 @@ export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
                             {Array.from({ length: matchCount }, (_, index) => (
                                 <th
                                     key={index}
-                                    className="px-1 py-[9px] text-center font-semibold"
+                                    className={cn(
+                                        MATCH_COLUMN,
+                                        'py-[9px] text-center font-semibold',
+                                    )}
                                 >
                                     {index + 1}º
                                 </th>
                             ))}
-                            <th className="px-3.5 py-[9px] text-right font-semibold sm:pr-5">
+                            <th className="px-3.5 py-[9px] text-center font-semibold whitespace-nowrap">
                                 Media
                             </th>
+                            <td aria-hidden="true" className="w-full p-0" />
                         </tr>
                     </thead>
                     <tbody>
@@ -322,7 +366,10 @@ export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
                                         return (
                                             <td
                                                 key={index}
-                                                className="px-1 py-1"
+                                                className={cn(
+                                                    MATCH_COLUMN,
+                                                    'py-1 text-center',
+                                                )}
                                             >
                                                 {match ? (
                                                     <MatchCell match={match} />
@@ -331,7 +378,7 @@ export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
                                                         aria-label="Sin partido"
                                                         className={cn(
                                                             CELL,
-                                                            'justify-center border-dashed border-hq-border-strong font-mono text-[11px] text-hq-moss-dim',
+                                                            'inline-flex justify-center border-dashed border-hq-border-strong font-mono text-[11px] text-hq-moss-dim',
                                                         )}
                                                     >
                                                         –
@@ -341,9 +388,10 @@ export function FixtureCalendarTable({ rows }: { rows: FixtureCalendarRow[] }) {
                                         );
                                     },
                                 )}
-                                <td className="px-3.5 py-1 text-right sm:pr-5">
+                                <td className="px-3.5 py-1 text-center">
                                     <AverageGauge average={average} />
                                 </td>
+                                <td aria-hidden="true" className="p-0" />
                             </tr>
                         ))}
                     </tbody>

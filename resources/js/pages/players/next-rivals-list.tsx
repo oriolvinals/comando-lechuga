@@ -17,9 +17,9 @@ import type { NextFixtureSlot } from '@/types/models';
 
 /**
  * The club's next fixtures as a ruled list (mock `.nrs`): jornada, rival
- * crest and name (@ when away), Casa/Fuera (+ "Bajas del rival" when its
+ * crest and name, Casa/Fuera (+ "Bajas del rival" when its
  * absences eased the match), and on the right the rival's table position,
- * the 5-segment 0–10 difficulty gauge with its number, and its level.
+ * the 5-segment 0–10 difficulty gauge with its number under it, and its level.
  */
 export function NextRivalsList({
     fixtures,
