@@ -215,6 +215,9 @@ export function HqLineupPlayerToken({
     const clickable = entry.player !== null && onSelect !== undefined;
     const handleClick = clickable ? () => onSelect(entry) : undefined;
     const hasPlayed = entry.starter || entry.subbed_in;
+    const hasDazn =
+        hasPlayed &&
+        (entry.dazn_points !== null || entry.dazn_estimate !== null);
     const subMinute =
         entry.subbed_in || entry.subbed_out ? entry.sub_minute : null;
     const events = eventIcons(entry);
@@ -389,16 +392,18 @@ export function HqLineupPlayerToken({
                     </div>
                 )}
             </div>
-            {entry.player && entry.points !== null && (
+            {entry.player && (entry.points !== null || hasDazn) && (
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    <span
-                        className={cn(
-                            'inline-flex h-8 min-w-10 items-center justify-center px-[5px] font-mono text-base leading-none font-bold tabular-nums',
-                            matchPointsBadgeClass(entry.points),
-                        )}
-                    >
-                        {entry.points}
-                    </span>
+                    {entry.points !== null && (
+                        <span
+                            className={cn(
+                                'inline-flex h-8 min-w-10 items-center justify-center px-[5px] font-mono text-base leading-none font-bold tabular-nums',
+                                matchPointsBadgeClass(entry.points),
+                            )}
+                        >
+                            {entry.points}
+                        </span>
+                    )}
                     {hasPlayed && <HqDaznBadge entry={entry} size="sm" />}
                 </div>
             )}
