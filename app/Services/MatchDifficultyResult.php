@@ -20,7 +20,7 @@ final readonly class MatchDifficultyResult
         /** (5 − difficulty) / 5, for MaxBidCalculator only. */
         public float $rivalEase,
         public DifficultyVariant $variant,
-        /** Whether the rival's missing regulars lowered the difficulty. */
+        /** Whether the rival's absences made this match easier (a positive `absences` component). */
         public bool $absenceAdjusted,
         /** The rival's standings position, informative only. */
         public ?int $rivalPosition,
@@ -33,7 +33,7 @@ final readonly class MatchDifficultyResult
     ) {}
 
     /**
-     * @return array{difficulty: float, difficulty_variant: string, difficulty_components: array{rival_strength: float, home: float, absences: float}}
+     * @return array{difficulty: float, difficulty_variant: string, difficulty_components: array{rival_strength: float, home: float, absences: float}, absence_adjusted: bool, rival_position: int|null}
      */
     public function toArray(): array
     {
@@ -41,6 +41,8 @@ final readonly class MatchDifficultyResult
             'difficulty' => $this->difficulty,
             'difficulty_variant' => $this->variant->value,
             'difficulty_components' => $this->components,
+            'absence_adjusted' => $this->absenceAdjusted,
+            'rival_position' => $this->rivalPosition,
         ];
     }
 }

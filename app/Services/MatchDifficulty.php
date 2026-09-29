@@ -25,7 +25,8 @@ use Carbon\CarbonInterface;
  * shown as `difficulty = clamp(5 − scaleSlope·e, 0, 10)`.
  *
  * Strength, absences and standings are computed once per season and date and
- * memoized per instance, so `forMany()` costs the same number of queries for
+ * memoized per instance — bound `scoped`, so one instance per request — and
+ * `forMany()` costs the same number of queries for
  * one match as for a whole calendar.
  *
  * @phpstan-type TeamAbsence array{fixture_id: int, share: float, z: float}
@@ -49,8 +50,8 @@ final class MatchDifficulty
 
     /**
      * Null when the fixture has no date or `$teamId` is not one of its two
-     * teams. Without `$at` the match is judged now, the only time the
-     * rival's absences count.
+     * teams. Pass null for now; an explicit `$at` (even today) disables the
+     * absence adjustment.
      */
     public function for(Fixture $fixture, int $teamId, DifficultyVariant $variant, ?CarbonInterface $at = null): ?MatchDifficultyResult
     {
@@ -59,7 +60,8 @@ final class MatchDifficulty
 
     /**
      * {@see for()} for many matches at once, sharing one strength, absence
-     * and standings computation per season.
+     * and standings computation per season. Pass null for now; an explicit
+     * `$at` (even today) disables the absence adjustment.
      *
      * @param  list<array{0: Fixture, 1: int, 2: DifficultyVariant}>  $items
      * @return list<MatchDifficultyResult|null> in the same order as `$items`
@@ -105,7 +107,7 @@ final class MatchDifficulty
 
             if ($rivalAbsence !== null && $rivalAbsence['fixture_id'] === $fixture->id) {
                 $absences = $parameters->absenceWeight * $rivalAbsence['z'];
-                $absenceAdjusted = $rivalAbsence['share'] > 0.0;
+                $absenceAdjusted = $absences > 0.0;
             }
         }
 
@@ -196,6 +198,7 @@ final class MatchDifficulty
         foreach ($nextFixtures as $teamId => $fixture) {
             $block = $blocks[$teamId] ?? null;
             $entries = $block === null ? null : collect($block['players'])->keyBy(fn (array $entry): int => $entry['player']->id);
+            $isConfirmed = $block !== null && $block['confirmed_source'] !== null;
             $totalValue = 0;
             $missingValue = 0;
 
@@ -209,7 +212,7 @@ final class MatchDifficulty
                 $value = (int) $values->get($playerId, 0);
                 $totalValue += $value;
 
-                if ($this->willMiss($player, $entries?->get($playerId), $parameters)) {
+                if ($this->willMiss($player, $entries?->get($playerId), $isConfirmed, $parameters)) {
                     $missingValue += $value;
                 }
             }
@@ -229,18 +232,24 @@ final class MatchDifficulty
     }
 
     /**
-     * A regular won't play when FútbolFantasy's XI for the match leaves him
-     * out (not a predicted starter and under `absentProbabilityBelow` %, or
-     * not in a confirmed lineup); when FF has nothing on him, when his
-     * status says he is injured, suspended or gone.
+     * A regular won't play when:
+     * - the XI is confirmed and he is not in it (unlisted, or `confirmed_starter === false`);
+     * - FútbolFantasy's probable XI lists him but not as a predicted starter,
+     *   or under `absentProbabilityBelow` %;
+     * - FF does not list him, or there is no XI at all, and his status says
+     *   he is injured, suspended or gone.
      *
      * @param  array{player: Player, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, pitch_position: string|null}|null  $entry
      */
-    private function willMiss(Player $player, ?array $entry, TeamStrengthParameters $parameters): bool
+    private function willMiss(Player $player, ?array $entry, bool $isConfirmed, TeamStrengthParameters $parameters): bool
     {
+        if ($isConfirmed) {
+            return $entry === null || $entry['confirmed_starter'] === false;
+        }
+
         if ($entry !== null) {
-            return $entry['confirmed_starter'] === false
-                || (!$entry['predicted_starter'] && $entry['probability'] !== null && $entry['probability'] < $parameters->absentProbabilityBelow);
+            return !$entry['predicted_starter']
+                || ($entry['probability'] !== null && $entry['probability'] < $parameters->absentProbabilityBelow);
         }
 
         return in_array($player->status, [PlayerStatus::Injured, PlayerStatus::Suspended, PlayerStatus::OutOfLeague], true);

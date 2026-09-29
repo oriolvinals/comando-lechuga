@@ -12,6 +12,7 @@ use App\Models\Season;
 use App\Models\Team;
 use App\Services\MatchDifficulty;
 use App\Services\MatchDifficultyResult;
+use App\Services\TeamStrength;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -41,8 +42,14 @@ function difficultyFixture(Season $season, Team $local, Team $guest, string $dat
     ]);
 }
 
+/**
+ * A fresh instance: MatchDifficulty (and TeamStrength) are scoped per
+ * request, so their memos would otherwise outlive the data changes a test makes.
+ */
 function matchDifficulty(): MatchDifficulty
 {
+    app()->forgetScopedInstances();
+
     return app(MatchDifficulty::class);
 }
 
@@ -129,12 +136,12 @@ describe('absences', function (): void {
         // The rival's regulars: an expensive star and a cheap one, both
         // playing the whole of the rival's two finished matches.
         $this->star = Player::factory()->create(['team_id' => $this->rival->id, 'status' => PlayerStatus::Ok, 'market_value' => 90_000_000]);
-        $cheap = Player::factory()->create(['team_id' => $this->rival->id, 'status' => PlayerStatus::Ok, 'market_value' => 10_000_000]);
+        $this->cheap = Player::factory()->create(['team_id' => $this->rival->id, 'status' => PlayerStatus::Ok, 'market_value' => 10_000_000]);
 
         foreach (['2026-09-20 18:00:00', '2026-09-27 18:00:00'] as $date) {
             $finished = difficultyFixture($this->season, $this->rival, $this->other, $date, FixtureState::Finished);
 
-            foreach ([$this->star, $cheap] as $player) {
+            foreach ([$this->star, $this->cheap] as $player) {
                 FixtureLineup::factory()->create([
                     'fixture_id' => $finished->id,
                     'team_id' => $this->rival->id,
@@ -146,7 +153,8 @@ describe('absences', function (): void {
 
         $this->nextMatch = difficultyFixture($this->season, $this->teamA, $this->rival, '2026-10-04 18:00:00');
         $this->laterMatch = difficultyFixture($this->season, $this->rival, $this->teamA, '2026-10-11 18:00:00');
-        difficultyFixture($this->season, $this->other, Team::factory()->create(), '2026-10-04 20:00:00');
+        $this->stranger = Team::factory()->create();
+        $this->otherNext = difficultyFixture($this->season, $this->other, $this->stranger, '2026-10-04 20:00:00');
     });
 
     test('an injured expensive regular of the rival lowers the general and attack difficulty, never the defense one', function (): void {
@@ -187,6 +195,64 @@ describe('absences', function (): void {
 
         expect($after->absenceAdjusted)->toBeTrue()
             ->and($after->difficulty)->toBeLessThan($before->difficulty);
+    });
+
+    test('a confirmed XI marks a regular left out as absent', function (): void {
+        FixtureLineupProbability::factory()->create([
+            'fixture_id' => $this->nextMatch->id,
+            'player_id' => $this->star->id,
+            'predicted_starter' => true,
+            'probability' => 90,
+            'confirmed_starter' => false,
+        ]);
+        FixtureLineupProbability::factory()->create([
+            'fixture_id' => $this->nextMatch->id,
+            'player_id' => $this->cheap->id,
+            'predicted_starter' => true,
+            'probability' => 90,
+            'confirmed_starter' => true,
+        ]);
+
+        $result = matchDifficulty()->for($this->nextMatch, $this->teamA->id, DifficultyVariant::General);
+
+        expect($result->absenceAdjusted)->toBeTrue()
+            ->and($result->components['absences'])->toBeGreaterThan(0.0);
+    });
+
+    test('with no team missing anyone the absence contribution is 0', function (): void {
+        $result = matchDifficulty()->for($this->nextMatch, $this->teamA->id, DifficultyVariant::General);
+
+        expect($result->absenceAdjusted)->toBeFalse()
+            ->and($result->components['absences'])->toBe(0.0);
+    });
+
+    test('a rival missing less than the others gets no flag and a harder match', function (): void {
+        // The other side's regulars: a cheap injured one and an expensive fit one.
+        $otherFit = Player::factory()->create(['team_id' => $this->other->id, 'status' => PlayerStatus::Ok, 'market_value' => 80_000_000]);
+        $otherInjured = Player::factory()->create(['team_id' => $this->other->id, 'status' => PlayerStatus::Ok, 'market_value' => 20_000_000]);
+
+        Fixture::query()->where('state', FixtureState::Finished)->get()->each(function (Fixture $finished) use ($otherFit, $otherInjured): void {
+            foreach ([$otherFit, $otherInjured] as $player) {
+                FixtureLineup::factory()->create([
+                    'fixture_id' => $finished->id,
+                    'team_id' => $this->other->id,
+                    'player_id' => $player->id,
+                    'fantasy_stats' => ['mins_played' => [90, 1]],
+                ]);
+            }
+        });
+
+        $before = matchDifficulty()->for($this->otherNext, $this->stranger->id, DifficultyVariant::General);
+
+        $this->star->update(['status' => PlayerStatus::Injured]);
+        $otherInjured->update(['status' => PlayerStatus::Injured]);
+
+        $after = matchDifficulty()->for($this->otherNext, $this->stranger->id, DifficultyVariant::General);
+
+        expect($after->absenceAdjusted)->toBeFalse()
+            ->and($after->components['absences'])->toBeLessThan(0.0)
+            ->and($after->difficulty)->toBeGreaterThan($before->difficulty)
+            ->and(matchDifficulty()->for($this->nextMatch, $this->teamA->id, DifficultyVariant::General)->absenceAdjusted)->toBeTrue();
     });
 
     test('there is no absence adjustment for a match that is not the rival\'s next one', function (): void {
@@ -263,5 +329,12 @@ test('the result serializes the difficulty, its variant and its components', fun
         'difficulty' => $result->difficulty,
         'difficulty_variant' => 'attack',
         'difficulty_components' => $result->components,
+        'absence_adjusted' => false,
+        'rival_position' => $result->rivalPosition,
     ]);
+});
+
+test('match difficulty and team strength are shared within a request', function (): void {
+    expect(app(MatchDifficulty::class))->toBe(app(MatchDifficulty::class))
+        ->and(app(TeamStrength::class))->toBe(app(TeamStrength::class));
 });
