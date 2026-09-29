@@ -63,13 +63,48 @@ export function HqProbableHalfPitch({
 
     return (
         <div>
-            {probabilities.is_stale && probabilities.fetched_at && (
-                <HqStartStaleBanner
-                    fetchedAt={probabilities.fetched_at}
-                    now={now}
-                />
-            )}
-            <div className="flex items-center justify-between gap-2 px-3.5 pt-2.5 font-mono text-[10.5px] leading-[1.2] font-medium tracking-[0.07em] text-hq-moss-dim uppercase sm:px-4">
+            <div className="p-3.5 sm:p-4">
+                <div className="mx-auto max-w-[360px]">
+                    <div className="hq-hud relative aspect-[280/430] w-full border border-hq-border-strong bg-hq-pitch">
+                        <PitchLines />
+                        {formation && (
+                            <span
+                                className={cn(
+                                    PITCH_TAG_CLASS,
+                                    'top-2 left-2 border-hq-border-bright text-hq-moss',
+                                )}
+                            >
+                                {formation}
+                            </span>
+                        )}
+                        {slots.map(({ entry, left, bottom }) => (
+                            <div
+                                key={entry.player.id}
+                                className={cn(
+                                    'absolute z-[2] flex -translate-x-1/2 justify-center',
+                                    tokenWidthForRowCount(
+                                        lineCounts.get(bottom) ?? 1,
+                                    ),
+                                )}
+                                style={{
+                                    left: `${left}%`,
+                                    bottom: `${bottom}%`,
+                                }}
+                            >
+                                <HqStartPitchToken
+                                    entry={entry}
+                                    confirmed={confirmed}
+                                    size="sm"
+                                    muted={probabilities.is_stale}
+                                    fetchedAt={probabilities.fetched_at}
+                                    className="w-full"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 px-3.5 pb-2.5 font-mono text-[10.5px] leading-[1.2] font-medium tracking-[0.07em] text-hq-moss-dim uppercase sm:px-4">
                 <span>
                     {confirmed ? 'Once confirmado' : 'Once probable'} · J
                     {probabilities.week_number}{' '}
@@ -81,42 +116,12 @@ export function HqProbableHalfPitch({
                     stale={probabilities.is_stale}
                 />
             </div>
-            <div className="p-3.5 sm:p-4">
-                <div className="hq-hud relative mx-auto aspect-[280/430] w-full max-w-[360px] border border-hq-border-strong bg-hq-pitch">
-                    <PitchLines />
-                    {formation && (
-                        <span
-                            className={cn(
-                                PITCH_TAG_CLASS,
-                                'top-2 left-2 border-hq-border-bright text-hq-moss',
-                            )}
-                        >
-                            {formation}
-                        </span>
-                    )}
-                    {slots.map(({ entry, left, bottom }) => (
-                        <div
-                            key={entry.player.id}
-                            className={cn(
-                                'absolute z-[2] flex -translate-x-1/2 justify-center',
-                                tokenWidthForRowCount(
-                                    lineCounts.get(bottom) ?? 1,
-                                ),
-                            )}
-                            style={{ left: `${left}%`, bottom: `${bottom}%` }}
-                        >
-                            <HqStartPitchToken
-                                entry={entry}
-                                confirmed={confirmed}
-                                size="sm"
-                                muted={probabilities.is_stale}
-                                fetchedAt={probabilities.fetched_at}
-                                className="w-full"
-                            />
-                        </div>
-                    ))}
-                </div>
-            </div>
+            {probabilities.is_stale && probabilities.fetched_at && (
+                <HqStartStaleBanner
+                    fetchedAt={probabilities.fetched_at}
+                    now={now}
+                />
+            )}
             {nonStarters.length > 0 && (
                 <>
                     <SubHead
