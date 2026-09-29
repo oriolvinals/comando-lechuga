@@ -146,13 +146,19 @@ trait SyncsMatchData
             ->whereNotNull('player_id')
             ->get();
 
-        $hasOfficialRating = $lineups->contains(
-            fn (FixtureLineup $lineup): bool => (int) ($lineup->fantasy_stats['marca_points'][1] ?? 0) > 0,
-        );
-
-        if ($hasOfficialRating) {
+        if (DaznEstimateWriter::hasOfficialRating($lineups)) {
             $fixture->update(['dazn_published' => true]);
 
+            return;
+        }
+
+        // Re-check right before writing: another sync run (e.g. the daily
+        // backfill and this live sync overlapping) may have just published the
+        // fixture between the query above and now. Skip rather than overwrite
+        // the estimate that's meant to stay frozen for comparison.
+        $stillUnpublished = Fixture::query()->whereKey($fixture->id)->where('dazn_published', false)->exists();
+
+        if (!$stillUnpublished) {
             return;
         }
 

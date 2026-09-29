@@ -42,11 +42,7 @@ class BackfillSeasonDaznEstimates extends Command
                 $fixturesTouched++;
             }
 
-            $hasOfficialRating = $lineups->contains(
-                fn (FixtureLineup $lineup): bool => (int) ($lineup->fantasy_stats['marca_points'][1] ?? 0) > 0,
-            );
-
-            if ($hasOfficialRating) {
+            if (DaznEstimateWriter::hasOfficialRating($lineups)) {
                 $fixture->update(['dazn_published' => true]);
             }
         }

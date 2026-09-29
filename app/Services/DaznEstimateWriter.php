@@ -19,6 +19,21 @@ final class DaznEstimateWriter
     public function __construct(private readonly DaznEstimator $estimator) {}
 
     /**
+     * Whether any of a fixture's lineups already carries an official DAZN
+     * rating (`fantasy_stats.marca_points[1] > 0`) — the single rule for
+     * flipping a fixture's `dazn_published` flag, shared by the live-sync
+     * recompute loop and the one-off backfill command.
+     *
+     * @param  Collection<int, FixtureLineup>  $lineups
+     */
+    public static function hasOfficialRating(Collection $lineups): bool
+    {
+        return $lineups->contains(
+            fn (FixtureLineup $lineup): bool => (int) ($lineup->fantasy_stats['marca_points'][1] ?? 0) > 0,
+        );
+    }
+
+    /**
      * @param  Collection<int, FixtureLineup>  $lineups
      * @return int the number of lineup rows written
      */
