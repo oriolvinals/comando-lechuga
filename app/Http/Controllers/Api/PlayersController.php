@@ -283,7 +283,7 @@ class PlayersController extends Controller
                     'is_home' => $isHome,
                     'points' => $lineup->fantasy_points,
                     'minutes' => $this->statPair($lineup->fantasy_stats, 'mins_played', 0),
-                    'marca_points' => $this->statPair($lineup->fantasy_stats, 'marca_points', 1),
+                    'marca_points' => $dazn['dazn_points'],
                     'dazn_estimate' => $dazn['dazn_estimate'],
                     'dazn_estimate_version' => $dazn['dazn_estimate_version'],
                     'starter' => $lineup->starter,
