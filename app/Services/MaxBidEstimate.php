@@ -35,6 +35,12 @@ final readonly class MaxBidEstimate
         public ?float $sportScore = null,
         public ?float $form = null,
         public ?float $participation = null,
+        /** Recent participation before mixing in the start probability, 0–1. */
+        public ?float $recentParticipationShare = null,
+        /** The FútbolFantasy start probability used for the next match, 0–1; null when there is none. */
+        public ?float $nextStartProbability = null,
+        /** How much of `participation` comes from `nextStartProbability`, 0–1. */
+        public ?float $startProbabilityWeight = null,
         public array $recentParticipation = [],
         public ?float $rivalsEffect = null,
         public array $upcomingRivals = [],
@@ -64,6 +70,9 @@ final readonly class MaxBidEstimate
             'sport_score' => $this->sportScore,
             'form' => $this->form,
             'participation' => $this->participation,
+            'recent_participation_share' => $this->recentParticipationShare,
+            'next_start_probability' => $this->nextStartProbability,
+            'start_probability_weight' => $this->startProbabilityWeight,
             'recent_participation' => $this->recentParticipation,
             'rivals_effect' => $this->rivalsEffect,
             'upcoming_rivals' => $this->upcomingRivals,

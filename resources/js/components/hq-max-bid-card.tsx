@@ -55,6 +55,21 @@ function formatDecimal(value: number): string {
     });
 }
 
+function formatPercent(value: number): string {
+    return `${Math.round(value * 100)} %`;
+}
+
+/** How `participation` was built, e.g. "50 % reciente + 50 % prevista". */
+function participationMixHint(estimate: MaxBidEstimate): string {
+    if (estimate.next_start_probability === null) {
+        return '100 % reciente (sin dato previsto)';
+    }
+
+    const weight = estimate.start_probability_weight ?? 0;
+
+    return `${formatPercent(1 - weight)} reciente + ${formatPercent(weight)} prevista`;
+}
+
 function formatSigned(value: number): string {
     return value.toLocaleString('es-ES', {
         minimumFractionDigits: 2,
@@ -791,9 +806,34 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                             valueClass={toneClass(estimate.form ?? 0)}
                         />
                         <BreakdownRow
-                            label={`Participación ${estimate.recent_participation
+                            label={`Participación reciente ${estimate.recent_participation
                                 .map((match) => `${match.minutes}'`)
                                 .join(' · ')}`}
+                            value={formatDecimal(
+                                estimate.recent_participation_share ?? 0,
+                            )}
+                            valueClass="text-hq-paper"
+                        />
+                        <BreakdownRow
+                            label="Titularidad prevista (FútbolFantasy)"
+                            value={
+                                estimate.next_start_probability === null
+                                    ? '—'
+                                    : formatPercent(
+                                          estimate.next_start_probability,
+                                      )
+                            }
+                            valueClass="text-hq-paper"
+                        />
+                        <BreakdownRow
+                            label={
+                                <>
+                                    Participación usada
+                                    <span className="block text-[10.5px] text-hq-moss/70">
+                                        {participationMixHint(estimate)}
+                                    </span>
+                                </>
+                            }
                             value={formatDecimal(estimate.participation ?? 0)}
                             valueClass="text-hq-paper"
                         />

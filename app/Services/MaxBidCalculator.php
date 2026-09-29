@@ -210,6 +210,9 @@ class MaxBidCalculator
             sportScore: $sport['score'],
             form: $sport['form'],
             participation: $sport['participation'],
+            recentParticipationShare: $sport['recent_participation_share'],
+            nextStartProbability: $inputs->nextStartProbability,
+            startProbabilityWeight: $parameters->startProbabilityWeight,
             recentParticipation: $inputs->recentParticipation,
             rivalsEffect: $sport['rivals_effect'],
             upcomingRivals: $sport['upcoming_rivals'],
@@ -287,12 +290,13 @@ class MaxBidCalculator
      * Each rival's `difficulty` is its ease, −1 (hard) … +1 (easy):
      * MatchDifficulty's `rivalEase`, not its 0–10 difficulty.
      *
-     * @return array{score: float, form: float, participation: float, rivals_effect: float, upcoming_rivals: list<array{team: Team, position: int, days_until: int, difficulty: float, weight: float}>}
+     * @return array{score: float, form: float, participation: float, recent_participation_share: float, rivals_effect: float, upcoming_rivals: list<array{team: Team, position: int, days_until: int, difficulty: float, weight: float}>}
      */
     private static function sportFactors(MaxBidInputs $inputs, MaxBidParameters $parameters): array
     {
         $form = self::form($inputs);
-        $participation = self::participation($inputs);
+        $recentParticipationShare = self::participation($inputs);
+        $participation = $recentParticipationShare;
 
         if ($inputs->nextStartProbability !== null) {
             $participation = (1 - $parameters->startProbabilityWeight) * $participation
@@ -320,6 +324,7 @@ class MaxBidCalculator
             'score' => $score,
             'form' => $form,
             'participation' => $participation,
+            'recent_participation_share' => $recentParticipationShare,
             'rivals_effect' => $rivalsEffect,
             'upcoming_rivals' => $upcomingRivals,
         ];

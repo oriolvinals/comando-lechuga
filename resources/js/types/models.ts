@@ -547,7 +547,14 @@ export interface MaxBidEstimate {
     daily_increment: number | null;
     sport_score: number | null;
     form: number | null;
+    /** Participation used by the estimate: recent share mixed with the start probability. */
     participation: number | null;
+    /** Recent participation before mixing, 0–1. */
+    recent_participation_share: number | null;
+    /** FútbolFantasy start probability for the next match, 0–1, or null. */
+    next_start_probability: number | null;
+    /** Weight of the start probability in `participation`, 0–1. */
+    start_probability_weight: number | null;
     /** Team's last 3 matches, newest first. */
     recent_participation: { starter: boolean; minutes: number }[];
     rivals_effect: number | null;

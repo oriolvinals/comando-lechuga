@@ -233,3 +233,22 @@ test('a start probability pulls the participation towards it by startProbability
 test('the start probability weight defaults to 0,5', function (): void {
     expect((new MaxBidParameters)->startProbabilityWeight)->toBe(0.5);
 });
+
+test('the estimate exposes recent participation, the start probability and its weight next to the mixed participation', function (?float $probability): void {
+    $recent = [['starter' => false, 'minutes' => 30], ['starter' => true, 'minutes' => 90], ['starter' => true, 'minutes' => 60]];
+    $parameters = new MaxBidParameters(startProbabilityWeight: 0.4);
+    $without = MaxBidCalculator::estimateFromInputs(formulaInputs(['recentParticipation' => $recent]), $parameters);
+
+    $estimate = MaxBidCalculator::estimateFromInputs(formulaInputs(['recentParticipation' => $recent, 'nextStartProbability' => $probability]), $parameters);
+    $array = $estimate->toArray();
+
+    expect($estimate->recentParticipationShare)->toEqualWithDelta($without->participation, 1e-12)
+        ->and($estimate->nextStartProbability)->toBe($probability)
+        ->and($estimate->startProbabilityWeight)->toBe(0.4)
+        ->and($array['recent_participation_share'])->toBe($estimate->recentParticipationShare)
+        ->and($array['next_start_probability'])->toBe($probability)
+        ->and($array['start_probability_weight'])->toBe(0.4);
+})->with([
+    'without probability' => [null],
+    'with probability' => [0.9],
+]);
