@@ -302,7 +302,7 @@ Compara el ritmo de subida o bajada del valor de mercado de los últimos 3 días
 
 ### 3.3 Dificultad del rival (`next_fixtures[].difficulty`)
 
-Es la posición del rival en la tabla real (`rival_position`), escalada de **−1** (líder: el partido más difícil) a **+1** (colista: el más fácil); 0 es media tabla. Vale `null` si el rival no está en la tabla.
+Va de **0** (muy fácil) a **10** (muy difícil), a partir de la fuerza del rival, si el partido es en casa o fuera y sus bajas. `difficulty_variant` dice contra qué fuerza del rival se mide, según la posición del jugador: `attack` (centrocampistas y delanteros, miden la fuerza defensiva del rival), `defense` (porteros y defensas, miden su fuerza de ataque) o `general` (sin jugador de por medio, como en `/api/teams`). `rival_position` sigue siendo su puesto en la tabla real, informativo. Ambos valen `null` si no se puede calcular el partido.
 
 ### 3.4 Formación real y papel en el campo
 
@@ -629,7 +629,7 @@ Un parámetro desconocido o un valor no válido devuelve **422** (p. ej. `positi
       "market_value": 169996294, "market_value_difference": 2870579, "market_trend": "rise_steady",
       "points": 117, "average_points": 16.71, "owner_manager": null,
       "recent_scores": [ { "week_number": 7, "opponent": { "id": 23, "name": "Sevilla FC", "logo": "…" }, "points": 21 } ],
-      "next_fixtures": [ { "fixture_id": 77, "week_number": 8, "date": "2026-10-10T18:30:00+02:00", "opponent": { "id": 22, "name": "Getafe CF", "logo": "…" }, "is_home": true, "rival_position": 11, "difficulty": 0.053 } ],
+      "next_fixtures": [ { "fixture_id": 77, "week_number": 8, "date": "2026-10-10T18:30:00+02:00", "opponent": { "id": 22, "name": "Getafe CF", "logo": "…" }, "is_home": true, "rival_position": 11, "difficulty": 3.8, "difficulty_variant": "attack" } ],
       "next_start": { "fixture_id": 77, "week_number": 8, "date": "2026-10-10T18:30:00+02:00", "opponent": { "id": 22, "name": "Getafe CF", "logo": "…" }, "is_home": true, "probability": 80, "predicted_starter": true, "confirmed_starter": null, "source": "futbolfantasy", "is_stale": false, "fetched_at": "2026-09-28T19:09:17+02:00", "source_url": "https://www.futbolfantasy.com/laliga/equipos/barcelona" },
       "value_trend_30d": { "multiple": 1.57, "value": 108501367, "date": "2026-08-29" },
       "points_per_million": { "value": 0.69, "rank": 392, "ranked": 439 },
@@ -671,8 +671,9 @@ Un parámetro desconocido o un valor no válido devuelve **422** (p. ej. `positi
 | `[].next_fixtures[].date` | fecha y hora | Hora de inicio. |
 | `[].next_fixtures[].opponent` | objeto | Rival. |
 | `[].next_fixtures[].is_home` | booleano | Si juega en casa. |
-| `[].next_fixtures[].rival_position` | entero o null | Posición del rival en la tabla real. |
-| `[].next_fixtures[].difficulty` | número o null | −1 (líder, más difícil) … +1 (colista, más fácil). |
+| `[].next_fixtures[].rival_position` | entero o null | Posición del rival en la tabla real; informativo. |
+| `[].next_fixtures[].difficulty` | número o null | 0 (muy fácil) … 10 (muy difícil). `null` si no se puede calcular (apartado 3.3). |
+| `[].next_fixtures[].difficulty_variant` | texto o null | `attack`, `defense` o `general` — contra qué fuerza del rival se mide `difficulty` (apartado 3.3). |
 | `[].next_start` | objeto o null | Titularidad en su próximo partido (apartado 3.2); `null` = sin datos. |
 | `[].next_start.fixture_id` | entero | Partido al que se refiere. |
 | `[].next_start.week_number` | entero | Jornada de ese partido. |
@@ -1086,7 +1087,7 @@ La clasificación real de LaLiga (partidos terminados y en juego) y, para cada e
 | aplazado | postponed | `postponed` |
 | en juego | live | `live`, `first_half`, `half_time`, `second_half` |
 | tendencia de mercado | market trend | `market_trend` |
-| dificultad del rival | opponent difficulty | `difficulty`, `rival_position` |
+| dificultad del rival | opponent difficulty | `difficulty`, `difficulty_variant`, `rival_position` |
 | plusvalía | owner's paper gain | `owner_gain` |
 | hora de Madrid | Madrid time (CET/CEST) | `meta.timezone`, offset `+01:00`/`+02:00` |
 
@@ -1109,6 +1110,7 @@ Estos cambios **rompen** a los clientes que usaban la versión anterior:
 - `average_points` es un número, no un texto.
 - Todas las fechas y horas vienen en hora de Madrid (`+01:00`/`+02:00`).
 - En `/api/players` y `/api/activity`, un parámetro desconocido o un valor no válido devuelve 422 en lugar de ignorarse (también `position=coach` y `status=out_of_league`).
+- **2026-09-29:** `next_fixtures[].difficulty` pasa de −1…+1 (+1 = fácil) a 0–10 (10 = difícil); nuevo `difficulty_variant`.
 
 Novedades:
 - `/api/season` y `/api/teams`.

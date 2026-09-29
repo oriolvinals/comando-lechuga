@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Enums\DifficultyVariant;
 use App\Enums\FixtureState;
 use App\Enums\PlayerStatus;
 use App\Http\Resources\TeamResource;
 use App\Models\Fixture;
 use App\Models\Player;
 use App\Models\Season;
-use App\Services\LeagueStandings;
+use App\Services\MatchDifficulty;
+use App\Services\MatchDifficultyResult;
 use Illuminate\Support\Collection;
 
 trait AttachesApiNextFixtures
@@ -21,9 +23,12 @@ trait AttachesApiNextFixtures
      * - a variable-length list (0–3 entries, soonest first) instead of a
      *   null-padded fixed-length array;
      * - each entry carries the fixture's id and date, the rival's current
-     *   real-table position and its difficulty (−1 leader … +1 last);
-     * - a rival missing from the table gets nulls rather than a made-up
-     *   mid-table rating.
+     *   real-table position, and its difficulty on MatchDifficulty's 0–10
+     *   scale (10 = hardest) with the variant the player's position faces
+     *   (DifficultyVariant::forPosition), in a single forMany() call for
+     *   every player on the page — mirroring AttachesNextFixtures;
+     * - a match MatchDifficulty can't rate (fixture with no date, or the
+     *   team outside it) gets nulls rather than a made-up mid-table rating.
      *
      * @param  Collection<int, Player>  $players
      */
@@ -54,38 +59,71 @@ trait AttachesApiNextFixtures
                 }
             });
 
-        $positions = $fixturesByTeam === [] ? [] : app(LeagueStandings::class)->positions($season);
-        $teamCount = count($positions);
+        /** @var array<int, list<Fixture>> $playerFixtures keyed by player id */
+        $playerFixtures = [];
 
-        $players->each(function (Player $player) use ($fixturesByTeam, $positions, $teamCount): void {
+        /** @var list<array{0: Fixture, 1: int, 2: DifficultyVariant}> $items */
+        $items = [];
+
+        $eligiblePlayers->each(function (Player $player) use ($fixturesByTeam, &$playerFixtures, &$items): void {
+            $variant = DifficultyVariant::forPosition($player->position);
+
+            $fixtures = collect($fixturesByTeam[$player->team_id] ?? [])
+                ->sortBy(fn (Fixture $fixture) => $fixture->date)
+                ->take(3)
+                ->values();
+
+            $playerFixtures[$player->id] = $fixtures->all();
+
+            foreach ($fixtures as $fixture) {
+                $items[] = [$fixture, $player->team_id, $variant];
+            }
+        });
+
+        $results = $items === [] ? [] : app(MatchDifficulty::class)->forMany($items);
+        $offset = 0;
+
+        $players->each(function (Player $player) use (&$offset, $playerFixtures, $results): void {
             if ($player->status === PlayerStatus::OutOfLeague) {
                 $player->api_next_fixtures = [];
 
                 return;
             }
 
-            $player->api_next_fixtures = collect($fixturesByTeam[$player->team_id] ?? [])
-                ->sortBy(fn (Fixture $fixture) => $fixture->date)
-                ->take(3)
-                ->map(function (Fixture $fixture) use ($player, $positions, $teamCount): array {
-                    $isHome = $fixture->team_local_id === $player->team_id;
-                    $opponent = $isHome ? $fixture->guestTeam : $fixture->localTeam;
-                    $rivalPosition = $positions[$opponent->id] ?? null;
+            $slots = [];
 
-                    return [
-                        'fixture_id' => $fixture->id,
-                        'week_number' => $fixture->week_number,
-                        'date' => $fixture->date->toIso8601String(),
-                        'opponent' => (new TeamResource($opponent))->resolve(),
-                        'is_home' => $isHome,
-                        'rival_position' => $rivalPosition,
-                        'difficulty' => $rivalPosition === null
-                            ? null
-                            : round(LeagueStandings::difficulty($rivalPosition, $teamCount), 3),
-                    ];
-                })
-                ->values()
-                ->all();
+            foreach ($playerFixtures[$player->id] ?? [] as $fixture) {
+                $slots[] = $this->apiNextFixtureSlot($fixture, $player->team_id, $results[$offset] ?? null);
+                $offset++;
+            }
+
+            $player->api_next_fixtures = $slots;
         });
+    }
+
+    /**
+     * One upcoming fixture seen from `$teamId`'s side, with the difficulty
+     * spread from `$result` — a single MatchDifficulty::forMany() entry
+     * computed by the caller, in the same order as the fixtures it passed.
+     * A null `$result` carries through as `difficulty`, `difficulty_variant`
+     * and `rival_position` all null.
+     *
+     * @return array{fixture_id: int, week_number: int, date: string, opponent: array<string, mixed>, is_home: bool, rival_position: int|null, difficulty: float|null, difficulty_variant: string|null}
+     */
+    private function apiNextFixtureSlot(Fixture $fixture, int $teamId, ?MatchDifficultyResult $result): array
+    {
+        $isHome = $fixture->team_local_id === $teamId;
+        $opponent = $isHome ? $fixture->guestTeam : $fixture->localTeam;
+
+        return [
+            'fixture_id' => $fixture->id,
+            'week_number' => $fixture->week_number,
+            'date' => $fixture->date->toIso8601String(),
+            'opponent' => (new TeamResource($opponent))->resolve(),
+            'is_home' => $isHome,
+            'rival_position' => $result?->rivalPosition,
+            'difficulty' => $result?->difficulty,
+            'difficulty_variant' => $result?->variant->value,
+        ];
     }
 }

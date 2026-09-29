@@ -130,7 +130,7 @@ test('rates each next fixture by the rival\'s real standings position', function
     $charlie = Team::factory()->create(['main_name' => 'Charlie FC']);
     $delta = Team::factory()->create(['main_name' => 'Delta FC']);
     $season->teams()->attach([$alpha->id, $bravo->id, $charlie->id, $delta->id]);
-    Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $alpha->id]);
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $alpha->id, 'position' => PlayerPosition::Striker]);
     $fixture = signalsNextFixture($season, $alpha, $delta);
 
     $response = $this->getJson('/api/players');
@@ -139,8 +139,9 @@ test('rates each next fixture by the rival\'s real standings position', function
     $response->assertJsonPath('data.0.next_fixtures.0.fixture_id', $fixture->id);
     $response->assertJsonPath('data.0.next_fixtures.0.date', $fixture->date->toIso8601String());
     $response->assertJsonPath('data.0.next_fixtures.0.rival_position', 4);
-    // json_encode writes 1.0 as 1, so compare loosely.
-    expect($response->json('data.0.next_fixtures.0.difficulty'))->toEqual(1.0);
+    $response->assertJsonPath('data.0.next_fixtures.0.difficulty_variant', 'attack');
+    // json_encode writes 4.0 as 4, so compare loosely.
+    expect($response->json('data.0.next_fixtures.0.difficulty'))->toEqual(4.0);
 });
 
 test('adds the 30-day value multiple, points per million with rank and the owner\'s gain', function (): void {
@@ -268,6 +269,11 @@ test('keeps the number of queries flat however many players the page shows', fun
     signalsNextFixture($season, $team, Team::factory()->create());
 
     $countQueries = function (): int {
+        // MatchDifficulty (and TeamStrength) are bound scoped: without this,
+        // their per-request memos would carry over into the second
+        // measurement below (a test-only artifact — a real request always
+        // gets a fresh instance) and hide any real N+1.
+        app()->forgetScopedInstances();
         DB::flushQueryLog();
         DB::enableQueryLog();
         $this->getJson('/api/players')->assertOk();
@@ -276,10 +282,14 @@ test('keeps the number of queries flat however many players the page shows', fun
         return count(DB::getQueryLog());
     };
 
-    Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $team->id, 'market_value' => 10_000_000, 'points' => 10]);
+    // A fixed position keeps the difficulty variant (and so which
+    // MatchDifficulty branches run) identical between both measurements —
+    // a random position could make one draw skip the absence adjustment
+    // (DifficultyVariant::Defense) and the other not, for a flaky count.
+    Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $team->id, 'market_value' => 10_000_000, 'points' => 10, 'position' => PlayerPosition::Striker]);
     $withOnePlayer = $countQueries();
 
-    Player::factory()->count(10)->create(['status' => PlayerStatus::Ok, 'team_id' => $team->id, 'market_value' => 10_000_000, 'points' => 10]);
+    Player::factory()->count(10)->create(['status' => PlayerStatus::Ok, 'team_id' => $team->id, 'market_value' => 10_000_000, 'points' => 10, 'position' => PlayerPosition::Striker]);
     $withElevenPlayers = $countQueries();
 
     expect($withElevenPlayers)->toBe($withOnePlayer);
