@@ -241,3 +241,27 @@ html {
 .hq-crest-cut {
     clip-path: polygon(15% 0, 100% 0, 100% 85%, 85% 100%, 0 100%, 0 15%);
 }
+
+/* Comparador: resaltado de jugador (data-hl en la raíz de la vista) y modal selector */
+.cmp-view [data-slot] {
+    transition: opacity 0.16s ease-out;
+}
+
+.cmp-view[data-hl='0'] [data-slot]:not([data-slot='0']),
+.cmp-view[data-hl='1'] [data-slot]:not([data-slot='1']),
+.cmp-view[data-hl='2'] [data-slot]:not([data-slot='2']) {
+    opacity: 0.3;
+}
+
+@keyframes cmp-pick-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cmp-view [data-slot] {
+        transition: none;
+    }
+}
