@@ -681,9 +681,10 @@ export default function FixtureShow({
                                       ? fixture.local_team
                                       : fixture.guest_team,
                               points: selectedEntry.points ?? 0,
-                              daznPoints:
-                                  fixture.state === 'finished'
-                                      ? (selectedEntry.dazn_points ?? undefined)
+                              dazn:
+                                  selectedEntry.starter ||
+                                  selectedEntry.subbed_in
+                                      ? selectedEntry
                                       : undefined,
                               stats:
                                   selectedEntry.stats ?? ({} as JornadaStats),

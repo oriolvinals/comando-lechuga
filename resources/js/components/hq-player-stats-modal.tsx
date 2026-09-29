@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { ArrowUpRight, Shield, User, X } from 'lucide-react';
 import { useEffect, useId, useRef } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqDaznBadge } from '@/components/hq-dazn-badge';
 import { HqFixtureCard } from '@/components/hq-fixture-card';
 import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
 import { HqPositionTag } from '@/components/hq-position-tag';
@@ -13,6 +14,7 @@ import { show as playersShow } from '@/routes/players';
 import { show as seasonManagersShow } from '@/routes/season-managers';
 import { show as teamsShow } from '@/routes/teams';
 import type {
+    DaznFields,
     Fixture,
     JornadaStats,
     ManagerLineupPlayerEntry,
@@ -25,7 +27,8 @@ export interface HqPlayerStatsEntry {
     player: Player;
     team: Team;
     points: number;
-    daznPoints?: number;
+    /** DAZN rating fields of that match — omit when the player had no minutes. */
+    dazn?: DaznFields;
     stats: JornadaStats;
     lineupManager?: SeasonManager | null;
     subMinute?: { minute: number; direction: 'in' | 'out' } | null;
@@ -41,9 +44,10 @@ export function lineupPlayerStatsEntry(
         player: selected.player,
         team: selected.player.team,
         points: selected.points ?? 0,
-        daznPoints:
-            selected.stats?.mins_played !== undefined
-                ? selected.stats.marca_points?.[1]
+        dazn:
+            selected.stats?.mins_played !== undefined ||
+            selected.dazn_estimate !== null
+                ? selected
                 : undefined,
         stats: selected.stats ?? {},
         fixture: selected.fixture,
@@ -106,7 +110,7 @@ export function HqPlayerStatsModal({
         player,
         team,
         points,
-        daznPoints,
+        dazn,
         stats,
         lineupManager,
         subMinute,
@@ -216,16 +220,7 @@ export function HqPlayerStatsModal({
                         >
                             {points}
                         </span>
-                        {daznPoints !== undefined && (
-                            <span className="flex items-center gap-1 font-mono text-[11px] text-hq-moss">
-                                <img
-                                    src="/images/dazn-logo.png"
-                                    alt="DAZN"
-                                    className="h-4 w-4"
-                                />
-                                {daznPoints}
-                            </span>
-                        )}
+                        {dazn && <HqDaznBadge entry={dazn} size="md" />}
                     </div>
                 </div>
 

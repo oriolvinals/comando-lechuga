@@ -103,7 +103,19 @@ export interface Fixture {
     guest_team: Team;
 }
 
-export interface FixtureLineupEntry {
+/** DAZN rating fields shared by every per-match player entry (see DaznEstimatePresenter). */
+export interface DaznFields {
+    /** Official LaLiga Fantasy rating, only once the fixture's ratings are published. */
+    dazn_points: number | null;
+    /** Our estimate: provisional while unpublished (15+ min or full time), frozen after. */
+    dazn_estimate: number | null;
+    dazn_estimate_version: string;
+    /** Why the provisional estimate is what it is; empty once official. */
+    dazn_estimate_reasons: string[];
+    dazn_estimate_source: 'fantasy' | 'worldcup26' | null;
+}
+
+export interface FixtureLineupEntry extends DaznFields {
     id: number;
     player: Player | null;
     unresolved_name: string | null;
@@ -118,7 +130,6 @@ export interface FixtureLineupEntry {
     counterpart_player: Player | null;
     points: number | null;
     stats: JornadaStats | null;
-    dazn_points: number | null;
     x: number | null;
     y: number | null;
     lineup_manager: SeasonManager | null;
@@ -235,7 +246,7 @@ export interface Season {
 
 export type JornadaStats = Record<string, [number, number]>;
 
-export interface ManagerLineupPlayerEntry {
+export interface ManagerLineupPlayerEntry extends DaznFields {
     id: number;
     points: number | null;
     stats: JornadaStats | null;
@@ -311,7 +322,7 @@ export interface PlayerFichaMarketListing {
     value: number;
 }
 
-export interface PlayerFichaScore {
+export interface PlayerFichaScore extends DaznFields {
     id: number;
     team_id: number;
     team: Team;

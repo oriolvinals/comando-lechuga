@@ -225,16 +225,16 @@ export default function PlayerShow({
         teamJoinedAt,
     );
 
+    /** Only official ratings count — a provisional estimate would skew the average. */
     const daznScores = scores.filter(
         (score) =>
-            score.stats != null &&
-            !didNotPlayMatch(score.stats, score.fixture.state) &&
-            score.stats.marca_points,
+            score.dazn_points !== null &&
+            !didNotPlayMatch(score.stats ?? {}, score.fixture.state),
     );
     const daznAverage =
         daznScores.length > 0
             ? daznScores.reduce(
-                  (sum, score) => sum + (score.stats?.marca_points?.[1] ?? 0),
+                  (sum, score) => sum + (score.dazn_points ?? 0),
                   0,
               ) / daznScores.length
             : null;

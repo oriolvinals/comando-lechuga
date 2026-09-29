@@ -1,6 +1,7 @@
 import { User } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqDaznBadge } from '@/components/hq-dazn-badge';
 import { HqManagerChip } from '@/components/hq-manager-chip';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqTooltip } from '@/components/hq-tooltip';
@@ -293,6 +294,11 @@ export function HqLineupPlayerToken({
                         {playerName(entry)}
                     </span>
                 </button>
+                {hasPlayed && (
+                    <span className="mt-0.5 flex empty:hidden">
+                        <HqDaznBadge entry={entry} size="xs" plate />
+                    </span>
+                )}
                 {entry.lineup_manager && (
                     <HqManagerChip
                         manager={entry.lineup_manager}
@@ -393,19 +399,7 @@ export function HqLineupPlayerToken({
                     >
                         {entry.points}
                     </span>
-                    {hasPlayed && entry.dazn_points !== null && (
-                        <HqTooltip
-                            label="Puntos DAZN"
-                            className="inline-flex items-center gap-1 font-mono text-[11px] leading-none font-semibold text-hq-moss"
-                        >
-                            <img
-                                src="/images/dazn-logo.png"
-                                alt="DAZN"
-                                className="h-3.5 w-3.5"
-                            />
-                            {entry.dazn_points}
-                        </HqTooltip>
-                    )}
+                    {hasPlayed && <HqDaznBadge entry={entry} size="sm" />}
                 </div>
             )}
         </div>
