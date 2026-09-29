@@ -129,6 +129,18 @@ html {
         outline: 2px solid var(--color-hq-lime);
         outline-offset: 2px;
     }
+
+    /* Everything clickable shows the pointer; a cursor-* utility (text, help, not-allowed) still wins. */
+    button:not(:disabled),
+    [role='button']:not([aria-disabled='true']),
+    [role='tab'],
+    summary {
+        cursor: pointer;
+    }
+
+    button:disabled {
+        cursor: default;
+    }
 }
 
 @layer components {

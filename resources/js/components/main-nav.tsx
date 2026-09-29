@@ -150,7 +150,7 @@ export function MobileBottomNav() {
         <>
             {isSheetOpen && (
                 <div
-                    className="fixed inset-0 z-[150] bg-black/60 lg:hidden"
+                    className="fixed inset-0 z-[150] cursor-pointer bg-black/60 lg:hidden"
                     onClick={() => setIsSheetOpen(false)}
                 >
                     <nav
