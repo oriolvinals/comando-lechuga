@@ -24,6 +24,7 @@ use App\Models\ManagerPlayer;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Services\ApiPlayerShapes;
+use App\Services\BuyoutClausePresenter;
 use App\Services\LeagueStandings;
 use App\Services\ManagerShields;
 use App\Services\ManagerWeekRanks;
@@ -113,22 +114,10 @@ class ManagerController extends Controller
             ->keyBy('player_id');
 
         $seasonManager->api_roster = $roster->map(function (ManagerPlayer $entry) use ($purchases): array {
-            $purchase = $purchases->get($entry->player_id);
-
             return [
                 'player' => (new PlayerResource($entry->player))->resolve(),
-                'purchase' => $purchase === null ? null : [
-                    'amount' => $purchase->amount,
-                    'type' => $purchase->type->value,
-                    'occurred_at' => $purchase->occurred_at->toIso8601String(),
-                ],
-                'buyout_clause' => [
-                    'amount' => $entry->buyout_clause,
-                    'locked_until' => $entry->buyout_clause_locked_until->toIso8601String(),
-                    'is_locked' => $entry->buyout_clause_locked_until->isFuture(),
-                    'shielded' => $entry->shielded,
-                    'shielded_until' => $entry->shielded_until?->toIso8601String(),
-                ],
+                'purchase' => BuyoutClausePresenter::purchase($purchases->get($entry->player_id)),
+                'buyout_clause' => BuyoutClausePresenter::clause($entry),
             ];
         })->all();
     }
