@@ -2,6 +2,7 @@
 
 use App\Console\Commands\SyncLiveSeasonMatchData;
 use App\Enums\FixtureState;
+use App\Enums\PlayerPosition;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetPlayerRequest;
 use App\Http\Integrations\Worldcup26\Requests\GetEventRequest;
@@ -1292,4 +1293,175 @@ test('drops a VAR decision whose team cannot be matched to the fixture', functio
     $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
 
     expect(FixtureEvent::query()->where('fixture_id', $fixture->id)->count())->toBe(0);
+});
+
+test('estimates the DAZN rating of every resolved player while no official rating exists', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 3]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'wc26_id' => 401882926,
+        'week_number' => 3,
+        'date' => now()->subMinutes(30),
+    ]);
+    $player = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001, 'fantasy_id' => 2759, 'position' => PlayerPosition::Goalkeeper]);
+
+    $payload = liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'competitors' => [
+                        ['homeAway' => 'home', 'score' => '1'],
+                        ['homeAway' => 'away', 'score' => '0'],
+                    ],
+                ],
+            ],
+        ],
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 5001, 'displayName' => 'Known Player'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => []],
+                ],
+            ],
+        ],
+    ]);
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make([
+            'id' => 2759,
+            'playerStats' => [
+                ['weekNumber' => 3, 'totalPoints' => 10, 'stats' => ['mins_played' => [90, 2], 'saves' => [3, 1]]],
+            ],
+        ]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $lineup = FixtureLineup::query()->where('player_id', $player->id)->sole();
+    // Portero, 90', 3 paradas, victoria, a cero: 0,25 + 1,20 + 0,60 + 0,10 + 0,25 = 2,40 → 3
+    expect($lineup->dazn_estimate)->toBe(3)
+        ->and($lineup->dazn_estimate_version)->toBe('v1')
+        ->and($lineup->dazn_estimate_meta['source'])->toBe('fantasy')
+        ->and($lineup->dazn_estimate_meta['minutes'])->toBe(90)
+        ->and($fixture->fresh()->dazn_published)->toBeFalse();
+});
+
+test('freezes the whole fixture once any official DAZN rating arrives', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 3]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'wc26_id' => 401882926,
+        'week_number' => 3,
+        'date' => now()->subMinutes(30),
+    ]);
+    $player = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001, 'fantasy_id' => 2759, 'position' => PlayerPosition::Goalkeeper]);
+    FixtureLineup::factory()->withDaznEstimate(points: 1, minutes: 80)->create([
+        'fixture_id' => $fixture->id, 'player_id' => $player->id, 'team_id' => $home->id, 'wc26_id' => 5001,
+    ]);
+
+    $payload = liveMatchEventPayload([
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 5001, 'displayName' => 'Known Player'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => []],
+                ],
+            ],
+        ],
+    ]);
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make([
+            'id' => 2759,
+            'playerStats' => [
+                ['weekNumber' => 3, 'totalPoints' => 10, 'stats' => ['mins_played' => [90, 2], 'marca_points' => [-1, 3]]],
+            ],
+        ]),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $lineup = FixtureLineup::query()->where('player_id', $player->id)->sole();
+    expect($fixture->fresh()->dazn_published)->toBeTrue()
+        ->and($lineup->dazn_estimate)->toBe(1)
+        ->and($lineup->dazn_estimate_meta['minutes'])->toBe(80);
+});
+
+test('uses the worldcup26 fallback when Fantasy fails for a player', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 3]);
+    $home = Team::factory()->create(['wc26_id' => 83]);
+    $away = Team::factory()->create(['wc26_id' => 86]);
+    $season->teams()->attach([$home->id, $away->id]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'team_local_id' => $home->id,
+        'team_guest_id' => $away->id,
+        'wc26_id' => 401882926,
+        'week_number' => 3,
+        'date' => now()->subMinutes(30),
+    ]);
+    $player = Player::factory()->create(['team_id' => $home->id, 'wc26_id' => 5001, 'fantasy_id' => 2759, 'position' => PlayerPosition::Goalkeeper]);
+
+    $payload = liveMatchEventPayload([
+        'header' => [
+            'competitions' => [
+                [
+                    'status' => ['type' => ['name' => 'STATUS_SECOND_HALF'], 'displayClock' => "67'"],
+                ],
+            ],
+        ],
+        'rosters' => [
+            [
+                'homeAway' => 'home',
+                'team' => ['id' => 83],
+                'formation' => '4-3-3',
+                'roster' => [
+                    ['athlete' => ['id' => 5001, 'displayName' => 'Known Player'], 'starter' => true, 'position' => ['displayName' => 'GK'], 'jersey' => '1', 'stats' => [['name' => 'saves', 'value' => 2]]],
+                ],
+            ],
+        ],
+    ]);
+
+    $worldcup26Connector = (new Worldcup26Connector)->withMockClient(new MockClient([
+        GetEventRequest::class => MockResponse::make($payload),
+    ]));
+    app()->instance(Worldcup26Connector::class, $worldcup26Connector);
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerRequest::class => MockResponse::make([], 500),
+    ]));
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+
+    $this->artisan(SyncLiveSeasonMatchData::class)->assertSuccessful();
+
+    $lineup = FixtureLineup::query()->where('player_id', $player->id)->sole();
+    expect($lineup->fantasy_stats)->toBeNull()
+        ->and($lineup->dazn_estimate_meta['source'])->toBe('worldcup26')
+        ->and($lineup->dazn_estimate)->not->toBeNull();
 });

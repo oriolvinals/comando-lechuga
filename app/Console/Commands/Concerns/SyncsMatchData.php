@@ -11,7 +11,9 @@ use App\Models\Fixture;
 use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\Player;
+use App\Models\PlayerSeason;
 use App\Models\Team;
+use App\Services\DaznEstimator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -65,6 +67,7 @@ trait SyncsMatchData
             });
 
             $this->fillFantasyScores($fixture, $fantasyConnector, $fantasyPlayerCache);
+            $this->refreshDaznEstimates($fixture);
 
             $synced++;
         }
@@ -125,6 +128,52 @@ trait SyncsMatchData
                     'fantasy_stats' => is_array($weekStats['stats'] ?? null) ? $weekStats['stats'] : null,
                 ]);
             });
+    }
+
+    /**
+     * Re-estimates every resolved player's DAZN rating until LaLiga Fantasy
+     * publishes the official ones. The first official rating (> 0) on any
+     * player flips `dazn_published` and freezes the whole fixture: the last
+     * estimates stay as they were, for the "Comando Lechuga estimó" comparison.
+     */
+    private function refreshDaznEstimates(Fixture $fixture): void
+    {
+        if ($fixture->dazn_published) {
+            return;
+        }
+
+        $lineups = FixtureLineup::query()
+            ->where('fixture_id', $fixture->id)
+            ->whereNotNull('player_id')
+            ->get();
+
+        $hasOfficialRating = $lineups->contains(
+            fn (FixtureLineup $lineup): bool => (int) ($lineup->fantasy_stats['marca_points'][1] ?? 0) > 0,
+        );
+
+        if ($hasOfficialRating) {
+            $fixture->update(['dazn_published' => true]);
+
+            return;
+        }
+
+        $positionsByPlayer = PlayerSeason::query()
+            ->where('season_id', $fixture->season_id)
+            ->whereIn('player_id', $lineups->pluck('player_id'))
+            ->get()
+            ->mapWithKeys(fn (PlayerSeason $playerSeason): array => [$playerSeason->player_id => $playerSeason->position]);
+
+        $estimator = app(DaznEstimator::class);
+
+        foreach ($lineups as $lineup) {
+            $estimate = $estimator->estimate($lineup, $fixture, $positionsByPlayer->get($lineup->player_id));
+
+            $lineup->update([
+                'dazn_estimate' => $estimate?->points,
+                'dazn_estimate_version' => $estimate === null ? '' : DaznEstimator::VERSION,
+                'dazn_estimate_meta' => $estimate?->toMeta(),
+            ]);
+        }
     }
 
     /**
