@@ -177,6 +177,10 @@ export function CompareViewC() {
                 : `~${score.dazn_estimate} DAZN (provisional)`;
         }
 
+        if (metric === 'points' && score.minutes > 0 && value === null) {
+            return '—';
+        }
+
         if (value === null) {
             return metric === 'minutes' ? "0'" : 'no jugó';
         }
@@ -253,7 +257,18 @@ export function CompareViewC() {
             const top = tops[column] === lane;
             const more = score
                 ? [
-                      metric !== 'points' ? `${score.points ?? 0} pts` : '',
+                      metric !== 'points' ? `${score.points ?? '—'} pts` : '',
+                      metric === 'dazn' &&
+                      score.dazn_points !== null &&
+                      score.dazn_estimate !== null
+                          ? `estimación congelada ${score.dazn_estimate}`
+                          : '',
+                      metric === 'dazn' &&
+                      score.dazn_points === null &&
+                      score.dazn_estimate !== null &&
+                      score.minutes > 0
+                          ? 'provisional, en juego o sin publicar'
+                          : '',
                       metric !== 'dazn'
                           ? `DAZN ${score.dazn_points ?? (score.dazn_estimate === null ? '—' : `~${score.dazn_estimate}`)}`
                           : '',
@@ -754,7 +769,7 @@ export function CompareViewC() {
                                                         <>
                                                             <span
                                                                 aria-hidden="true"
-                                                                className="flex h-[22px] items-center"
+                                                                className="pointer-events-none flex h-[22px] items-center"
                                                             >
                                                                 {daznShown ? (
                                                                     <HqDaznBadge
@@ -763,8 +778,8 @@ export function CompareViewC() {
                                                                         }
                                                                         size="row"
                                                                     />
-                                                                ) : metric ===
-                                                                      'dazn' &&
+                                                                ) : metric !==
+                                                                      'minutes' &&
                                                                   score.minutes >
                                                                       0 ? (
                                                                     <span className="font-mono text-[11px] text-hq-moss-dim">
