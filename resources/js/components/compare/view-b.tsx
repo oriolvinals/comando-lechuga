@@ -343,36 +343,53 @@ export function CompareViewB() {
             player: Number(marker.dataset.bi),
         };
         const last = players.length - 1;
-        const moves: Record<string, { track: number; player: number }> = {
-            ArrowLeft: { ...current, player: Math.max(0, current.player - 1) },
-            ArrowRight: {
-                ...current,
-                player: Math.min(last, current.player + 1),
-            },
-            ArrowUp: { ...current, track: Math.max(0, current.track - 1) },
-            ArrowDown: {
-                ...current,
-                track: Math.min(tracks.length - 1, current.track + 1),
-            },
-            Home: { ...current, player: 0 },
-            End: { ...current, player: last },
+        const playerMoves: Record<string, number> = {
+            ArrowLeft: Math.max(0, current.player - 1),
+            ArrowRight: Math.min(last, current.player + 1),
+            Home: 0,
+            End: last,
         };
-        const next = moves[event.key];
+        const trackSteps: Record<string, number> = {
+            ArrowUp: -1,
+            ArrowDown: 1,
+        };
+        const step = trackSteps[event.key];
 
-        if (!next) {
+        if (!(event.key in playerMoves) && step === undefined) {
             return;
         }
 
         event.preventDefault();
-        const root = tracksRef.current;
-        const onTrack = Array.from(
-            root?.querySelectorAll<HTMLElement>(`[data-bm="${next.track}"]`) ??
-                [],
-        );
+        const markersOn = (track: number) =>
+            Array.from(
+                tracksRef.current?.querySelectorAll<HTMLElement>(
+                    `[data-bm="${track}"]`,
+                ) ?? [],
+            );
+        const player = playerMoves[event.key] ?? current.player;
+        let onTrack = markersOn(current.track);
+
+        // ↑/↓ skip tracks where nobody has a value; at either end, stay put.
+        if (step !== undefined) {
+            onTrack = [];
+
+            for (
+                let candidate = current.track + step;
+                candidate >= 0 && candidate < tracks.length;
+                candidate += step
+            ) {
+                const found = markersOn(candidate);
+
+                if (found.length > 0) {
+                    onTrack = found;
+                    break;
+                }
+            }
+        }
+
         const target =
-            onTrack.find(
-                (element) => Number(element.dataset.bi) === next.player,
-            ) ?? onTrack[Math.min(next.player, onTrack.length - 1)];
+            onTrack.find((element) => Number(element.dataset.bi) === player) ??
+            onTrack[Math.min(player, onTrack.length - 1)];
 
         target?.focus();
     };
@@ -770,7 +787,7 @@ export function CompareViewB() {
                                                     style={laneStyle}
                                                 >
                                                     <span
-                                                        role="img"
+                                                        role="button"
                                                         tabIndex={
                                                             isTabStop ? 0 : -1
                                                         }

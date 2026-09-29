@@ -337,7 +337,7 @@ export function trackMetrics(currentWeek: number): TrackMetric[] {
             note: 'total de la temporada',
             scale: 'linear',
             league: (row) => (row.points > 0 ? row.points : null),
-            player: (player) => player.points,
+            player: (player) => (player.points > 0 ? player.points : null),
             format: (value) => String(value),
         },
         {
@@ -346,7 +346,8 @@ export function trackMetrics(currentWeek: number): TrackMetric[] {
             note: 'puntos por partido',
             scale: 'linear',
             league: (row) => (row.points > 0 ? row.average_points : null),
-            player: (player) => player.average_points,
+            player: (player) =>
+                player.points > 0 ? player.average_points : null,
             format: formatAverage,
         },
         {
@@ -355,7 +356,10 @@ export function trackMetrics(currentWeek: number): TrackMetric[] {
             note: 'puntos por millón de valor',
             scale: 'sqrt',
             league: (row) => (row.points > 0 ? row.ppm : null),
-            player: (player) => player.points_per_million?.value ?? null,
+            player: (player) =>
+                player.points > 0
+                    ? (player.points_per_million?.value ?? null)
+                    : null,
             format: formatDecimal,
         },
         {
