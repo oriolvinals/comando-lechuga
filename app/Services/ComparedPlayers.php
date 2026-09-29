@@ -89,6 +89,7 @@ final class ComparedPlayers
 
         $historyByPlayer = PlayerMarket::query()
             ->whereIn('player_id', $ids)
+            ->where('date', '>=', now()->subDays(LeagueCloud::VALUE_HISTORY_DAYS)->toDateString())
             ->orderBy('date')
             ->get()
             ->groupBy('player_id');

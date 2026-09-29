@@ -12,6 +12,7 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\PlayerSeason;
 use App\Models\Season;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -33,26 +34,46 @@ class PlayerMarketMetrics
      */
     public function valueTrend(int $currentValue, Collection $marketHistory): ?array
     {
-        $latest = $marketHistory->last();
+        return $this->valueTrendFromSnapshots($currentValue, array_values($marketHistory
+            ->map(fn (PlayerMarket $snapshot): array => ['date' => $snapshot->date->toDateString(), 'value' => $snapshot->value])
+            ->all()));
+    }
 
-        if (!$latest instanceof PlayerMarket) {
+    /**
+     * valueTrend() over plain `Y-m-d`/value pairs, for callers that load the
+     * whole league's history with `toBase()` and can't afford hydrating a
+     * PlayerMarket model per snapshot (LeagueCloud).
+     *
+     * @param  list<array{date: string, value: int}>  $snapshots  oldest first; `date` may carry a time, only its `Y-m-d` counts
+     * @return array{multiple: float, value: int, date: string}|null
+     */
+    public function valueTrendFromSnapshots(int $currentValue, array $snapshots): ?array
+    {
+        $latest = end($snapshots);
+
+        if ($latest === false) {
             return null;
         }
 
-        $referenceDate = $latest->date->subDays(self::VALUE_TREND_DAYS);
+        $referenceDate = CarbonImmutable::parse(substr($latest['date'], 0, 10))
+            ->subDays(self::VALUE_TREND_DAYS)
+            ->toDateString();
+        $past = null;
 
-        $past = $marketHistory
-            ->filter(fn (PlayerMarket $snapshot): bool => $snapshot->date->lessThanOrEqualTo($referenceDate))
-            ->last();
+        foreach ($snapshots as $snapshot) {
+            if (substr($snapshot['date'], 0, 10) <= $referenceDate) {
+                $past = $snapshot;
+            }
+        }
 
-        if (!$past instanceof PlayerMarket || $past->value <= 0) {
+        if ($past === null || $past['value'] <= 0) {
             return null;
         }
 
         return [
-            'multiple' => round($currentValue / $past->value, 2),
-            'value' => $past->value,
-            'date' => $past->date->toDateString(),
+            'multiple' => round($currentValue / $past['value'], 2),
+            'value' => $past['value'],
+            'date' => substr($past['date'], 0, 10),
         ];
     }
 

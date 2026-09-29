@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Cache;
  * clouds of the comparator's "Pistas", the picker's search and the hover
  * cards. Ranks, medians and "supera al X %" are computed on the client over
  * these rows. Loading the whole league's value trend is expensive, so the
- * rows are cached for 15 minutes. `start_probability` is for the comparator's first
+ * history is read as plain rows (no PlayerMarket models) and the rows are
+ * cached for 15 minutes. `start_probability` is for the comparator's first
  * upcoming jornada (`$fromWeek`), like the compared players' own figure.
  *
  * @phpstan-type LeagueCloudRow array{id: int, name: string, image: string, position: string|null, team_short: string, owner_id: int|null, points: int, average_points: float, ppm: float|null, start_probability: int|null, value_trend_30d: float|null, value: int, difference: int}
@@ -100,12 +101,19 @@ final class LeagueCloud
         $pointsPerMillion = $this->marketMetrics->pointsPerMillionForPlayers($players, $season);
         $starts = $this->startProbabilities->forPlayersNextFixture($players, $season, $fromWeek);
 
-        $historyByPlayer = PlayerMarket::query()
+        /** @var array<int, list<array{date: string, value: int}>> $historyByPlayer */
+        $historyByPlayer = [];
+
+        PlayerMarket::query()
             ->whereIn('player_id', $ids)
             ->where('date', '>=', now()->subDays(self::VALUE_HISTORY_DAYS)->toDateString())
             ->orderBy('date')
-            ->get()
-            ->groupBy('player_id');
+            ->toBase()
+            ->get(['player_id', 'date', 'value'])
+            ->each(function (object $row) use (&$historyByPlayer): void {
+                /** @var object{player_id: int|string, date: string, value: int|string} $row */
+                $historyByPlayer[(int) $row->player_id][] = ['date' => $row->date, 'value' => (int) $row->value];
+            });
 
         return array_values($players
             ->map(fn (Player $player): array => [
@@ -119,9 +127,9 @@ final class LeagueCloud
                 'average_points' => (float) $player->average_points,
                 'ppm' => $pointsPerMillion[$player->id]['value'] ?? null,
                 'start_probability' => ($starts[$player->id]['week_number'] ?? null) === $fromWeek ? self::startValue($starts[$player->id]) : null,
-                'value_trend_30d' => $this->marketMetrics->valueTrend(
+                'value_trend_30d' => $this->marketMetrics->valueTrendFromSnapshots(
                     $player->market_value,
-                    $historyByPlayer->get($player->id) ?? new Collection,
+                    $historyByPlayer[$player->id] ?? [],
                 )['multiple'] ?? null,
                 'value' => $player->market_value,
                 'difference' => $player->market_value_difference,
