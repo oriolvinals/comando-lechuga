@@ -60,16 +60,15 @@ export function CompareVerdict() {
                     Veredicto
                 </h2>
                 <div
-                    role="tablist"
+                    role="group"
                     aria-label="Decisión"
                     className="inline-flex border border-hq-border-strong"
                 >
                     {LENSES.map((item) => (
                         <button
                             key={item.key}
-                            role="tab"
                             type="button"
-                            aria-selected={lens === item.key}
+                            aria-pressed={lens === item.key}
                             onClick={() => setLens(item.key)}
                             className={cn(
                                 'h-11 cursor-pointer px-3 font-mono text-[11px] font-bold tracking-[0.06em] uppercase transition-colors sm:h-8',

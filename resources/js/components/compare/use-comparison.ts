@@ -31,6 +31,7 @@ export function useComparison({
     );
     const focusAfterLoad = useRef<string | null>(null);
     const normalized = useRef(false);
+    const opening = useRef(true);
 
     const visit = (
         nextIds: number[],
@@ -64,8 +65,18 @@ export function useComparison({
         );
     };
 
-    // The tray and the lists show the comparator's players once you go back.
+    // The tray and the lists show the comparator's players once you go back —
+    // except when the page opens with none (a stale link, or no ids at all):
+    // that must not wipe a selection the user is still building.
     useEffect(() => {
+        if (opening.current) {
+            opening.current = false;
+
+            if (players.length === 0) {
+                return;
+            }
+        }
+
         replaceCompare(
             players.map((player) => ({
                 id: player.id,
@@ -96,6 +107,10 @@ export function useComparison({
     return {
         view: activeView,
         setView: (next: CompareView) => {
+            if (next === activeView) {
+                return;
+            }
+
             setActiveView(next);
             rememberCompareView(next);
             visit(ids, next, ['view']);

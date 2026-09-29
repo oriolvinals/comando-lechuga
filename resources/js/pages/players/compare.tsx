@@ -1,7 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Check, Link2, Plus } from 'lucide-react';
 import type { ReactElement } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HqChartTooltip } from '@/components/compare/chart-tooltip';
 import { CompareContext } from '@/components/compare/compare-context';
 import type { CompareContextValue } from '@/components/compare/compare-context';
@@ -16,6 +16,7 @@ import { CompareViewSwitch } from '@/components/compare/view-switch';
 import AppLayout from '@/layouts/app-layout';
 import { COMPARE_MAX } from '@/lib/compare-selection';
 import { useNow } from '@/lib/use-now';
+import { cn } from '@/lib/utils';
 import { index as playersIndex } from '@/routes/players';
 import type {
     CompareManager,
@@ -58,6 +59,7 @@ export default function PlayersCompare({
     const [announcement, setAnnouncement] = useState('');
     const [copyState, setCopyState] = useState<CopyState>('idle');
     const picked = useRef(false);
+    const copyResetTimer = useRef<number | undefined>(undefined);
     const derived = useMemo(
         () => players.map((player) => derivePlayer(player, currentWeek, now)),
         [players, currentWeek, now],
@@ -67,7 +69,7 @@ export default function PlayersCompare({
         [managers],
     );
 
-    const openPicker = (replaceIndex: number | null) => {
+    const openPicker = useCallback((replaceIndex: number | null) => {
         picked.current = false;
         setPicker({
             replaceIndex,
@@ -76,7 +78,11 @@ export default function PlayersCompare({
                     ? document.activeElement
                     : null,
         });
-    };
+    }, []);
+    const pickerOpen = picker !== null;
+    const canAdd = ids.length < COMPARE_MAX;
+
+    useEffect(() => () => window.clearTimeout(copyResetTimer.current), []);
 
     const context: CompareContextValue = {
         players,
@@ -99,6 +105,8 @@ export default function PlayersCompare({
 
             if (
                 event.key !== '/' ||
+                pickerOpen ||
+                !canAdd ||
                 event.metaKey ||
                 event.ctrlKey ||
                 event.altKey ||
@@ -112,25 +120,32 @@ export default function PlayersCompare({
             }
 
             event.preventDefault();
-
-            if (picker === null && ids.length < COMPARE_MAX) {
-                openPicker(null);
-            }
+            openPicker(null);
         };
 
         // Capture phase: runs before the shell's own "/" (player search), which skips prevented events.
         window.addEventListener('keydown', onKeyDown, true);
 
         return () => window.removeEventListener('keydown', onKeyDown, true);
-    });
+    }, [pickerOpen, canAdd, openPicker]);
 
     const copyLink = () => {
+        window.clearTimeout(copyResetTimer.current);
+
         const done = (state: CopyState) => {
             setCopyState(state);
-            setAnnouncement(
-                state === 'done' ? 'Enlace copiado' : 'No se pudo copiar',
+            // Emptied first so a repeated "Enlace copiado" is announced again.
+            setAnnouncement('');
+            window.requestAnimationFrame(() =>
+                setAnnouncement(
+                    state === 'done' ? 'Enlace copiado' : 'No se pudo copiar',
+                ),
             );
-            window.setTimeout(() => setCopyState('idle'), 2200);
+            window.clearTimeout(copyResetTimer.current);
+            copyResetTimer.current = window.setTimeout(
+                () => setCopyState('idle'),
+                2200,
+            );
         };
 
         try {
@@ -184,7 +199,11 @@ export default function PlayersCompare({
                                 type="button"
                                 onClick={copyLink}
                                 aria-label={copyLabel}
-                                className="aria-[label='Enlace copiado']:border-hq-lime aria-[label='Enlace copiado']:text-hq-lime inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-[7px] border border-hq-border-strong px-3 font-mono text-[11px] font-bold tracking-[0.06em] whitespace-nowrap text-hq-moss uppercase transition-colors hover:border-hq-lime hover:text-hq-lime max-sm:w-11 max-sm:px-0"
+                                className={cn(
+                                    'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-[7px] border border-hq-border-strong px-3 font-mono text-[11px] font-bold tracking-[0.06em] whitespace-nowrap text-hq-moss uppercase transition-colors hover:border-hq-lime hover:text-hq-lime max-sm:w-11 max-sm:px-0',
+                                    copyState === 'done' &&
+                                        'border-hq-lime text-hq-lime',
+                                )}
                             >
                                 {copyState === 'done' ? (
                                     <Check

@@ -12,7 +12,7 @@ import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqSection } from '@/components/hq-section';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
-import { useCompareSelection } from '@/lib/compare-selection';
+import { useCompareSelection, toCompareEntry } from '@/lib/compare-selection';
 import { formatCurrency, formatMillions } from '@/lib/format';
 import { dataAgeTooltipLabel, startTone } from '@/lib/start-probability';
 import { useCountdown } from '@/lib/use-countdown';
@@ -295,11 +295,7 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
             <div className="absolute top-[9px] right-[9px] z-10 flex">
                 <HqCompareToggle
                     variant="card"
-                    player={{
-                        id: player.id,
-                        name: player.nickname,
-                        image: player.image,
-                    }}
+                    player={toCompareEntry(player)}
                 />
             </div>
         </div>

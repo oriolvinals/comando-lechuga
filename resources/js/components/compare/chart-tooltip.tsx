@@ -1,9 +1,10 @@
-import type { FocusEvent, PointerEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
     createContext,
     useCallback,
     useContext,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -96,12 +97,18 @@ export function HqChartTooltip({ children }: { children: ReactNode }) {
         bubble.style.visibility = 'visible';
     }, [tip]);
 
+    // Before paint, so a new bubble never flashes at its previous spot.
+    useLayoutEffect(() => {
+        if (tip) {
+            place();
+        }
+    }, [tip, place]);
+
     useEffect(() => {
         if (!tip) {
             return;
         }
 
-        place();
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 setTip(null);
@@ -176,48 +183,6 @@ export function useChartTooltip(): ChartTooltipApi {
     return api;
 }
 
-/** Props that show `content()` over (or beside) the element on hover, focus and tap. */
-export function useTipTarget(
-    content: () => ReactNode,
-    options: { side?: boolean } = {},
-) {
-    const { show, hide } = useChartTooltip();
-
-    const open = (element: Element) =>
-        show(
-            content(),
-            () => {
-                if (!element.isConnected) {
-                    return null;
-                }
-
-                const rect = element.getBoundingClientRect();
-
-                return {
-                    left: rect.left,
-                    right: rect.right,
-                    top: rect.top,
-                    bottom: rect.bottom,
-                    side: options.side,
-                };
-            },
-            element,
-        );
-
-    return {
-        'data-cmp-tip': '',
-        onPointerEnter: (event: PointerEvent<Element>) =>
-            open(event.currentTarget),
-        onPointerLeave: (event: PointerEvent<Element>) => {
-            if (event.pointerType !== 'touch') {
-                hide(event.currentTarget);
-            }
-        },
-        onFocus: (event: FocusEvent<Element>) => open(event.currentTarget),
-        onBlur: (event: FocusEvent<Element>) => hide(event.currentTarget),
-    };
-}
-
 /** `data-hl` on the view root dims every other player's `[data-slot]` to 30 % (rules in app.css). */
 export function useSlotHighlight() {
     const [highlighted, setHighlighted] = useState<number | null>(null);
@@ -239,31 +204,6 @@ export function useSlotHighlight() {
             'data-hl': highlighted ?? undefined,
         },
     };
-}
-
-type Handler = ((...args: never[]) => void) | undefined;
-
-/** Merges prop objects, chaining handlers with the same name (tip + highlight on one element). */
-export function mergeProps<T extends Record<string, unknown>>(
-    ...sources: T[]
-): T {
-    const merged: Record<string, unknown> = {};
-
-    for (const source of sources) {
-        for (const [key, value] of Object.entries(source)) {
-            const previous = merged[key];
-
-            merged[key] =
-                typeof previous === 'function' && typeof value === 'function'
-                    ? (...args: never[]) => {
-                          (previous as NonNullable<Handler>)(...args);
-                          (value as NonNullable<Handler>)(...args);
-                      }
-                    : value;
-        }
-    }
-
-    return merged as T;
 }
 
 /** One row of a tooltip: slot colour, name, value and an optional extra (rank, % …); the hovered one in bold. */

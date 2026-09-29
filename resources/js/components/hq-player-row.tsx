@@ -11,6 +11,7 @@ import { HqNextStart } from '@/components/hq-next-start';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqStatusBadge } from '@/components/hq-status-badge';
+import { toCompareEntry } from '@/lib/compare-selection';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { show as playersShow } from '@/routes/players';
@@ -140,11 +141,7 @@ export function PlayerRow({
         >
             {comparable && (
                 <HqCompareToggle
-                    player={{
-                        id: player.id,
-                        name: player.nickname,
-                        image: player.image,
-                    }}
+                    player={toCompareEntry(player)}
                     className="self-center"
                 />
             )}

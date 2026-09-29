@@ -8,6 +8,7 @@ import { HqFixtureCard } from '@/components/hq-fixture-card';
 import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { MatchEventIcons } from '@/components/match-event-icons';
+import { toCompareEntry } from '@/lib/compare-selection';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
@@ -244,11 +245,7 @@ export function HqPlayerStatsModal({
 
                 <div className="flex items-center justify-between gap-2 border-t border-hq-border px-3 py-2 sm:px-4">
                     <HqCompareButton
-                        player={{
-                            id: player.id,
-                            name: player.nickname,
-                            image: player.image,
-                        }}
+                        player={toCompareEntry(player)}
                         onWaiting={onClose}
                     />
                     <Link

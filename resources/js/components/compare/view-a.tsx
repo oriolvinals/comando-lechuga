@@ -40,6 +40,9 @@ import {
 } from '@/lib/format';
 import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
 import {
+    RIVAL_DIFFICULTY_BG_CLASSES,
+    RIVAL_DIFFICULTY_EASY_BELOW,
+    RIVAL_DIFFICULTY_HARD_FROM,
     RIVAL_DIFFICULTY_LABELS,
     RIVAL_DIFFICULTY_TEXT_CLASSES,
     formatDifficulty,
@@ -71,6 +74,9 @@ const DASH = <span className="font-mono text-sm text-hq-moss-dim">—</span>;
 
 const BIG_NUMBER = 'font-mono text-[15px] font-bold text-hq-paper tabular-nums';
 const SMALL_NOTE = 'font-mono text-[11px] text-hq-moss-dim';
+
+/** The "Próximos 3" strip's fácil / media / difícil zones, sized by the rival-difficulty thresholds on the 0–10 scale. */
+const DIFFICULTY_ZONES = `${RIVAL_DIFFICULTY_EASY_BELOW}fr ${RIVAL_DIFFICULTY_HARD_FROM - RIVAL_DIFFICULTY_EASY_BELOW}fr ${10 - RIVAL_DIFFICULTY_HARD_FROM}fr`;
 
 function shortDay(iso: string): string {
     const date = new Date(iso);
@@ -186,11 +192,18 @@ function NextThree({
                         <div
                             role="img"
                             aria-label={`Calendario de ${player.name}: dificultad media ${formatDifficulty(average)} de 10${rivalAverage !== null ? `, rival medio ${formatAverage(rivalAverage)}.º` : ''}, ${derived.nextHomeCount} de ${derived.upcoming.length} en casa`}
-                            className="relative my-0.5 grid h-2 grid-cols-[35fr_30fr_35fr] gap-0.5"
+                            className="relative my-0.5 grid h-2 gap-0.5"
+                            style={{ gridTemplateColumns: DIFFICULTY_ZONES }}
                         >
-                            <i className="block bg-hq-lime/22" />
-                            <i className="block bg-hq-amber/22" />
-                            <i className="block bg-hq-live/30" />
+                            {(['easy', 'mid', 'hard'] as const).map((zone) => (
+                                <i
+                                    key={zone}
+                                    className={cn(
+                                        'block opacity-25',
+                                        RIVAL_DIFFICULTY_BG_CLASSES[zone],
+                                    )}
+                                />
+                            ))}
                             <span
                                 className="absolute -top-1 -ml-0.5 h-4 w-1 shadow-[0_0_0_2px_var(--color-hq-ink)]"
                                 style={{

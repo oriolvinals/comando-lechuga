@@ -13,6 +13,7 @@ import { HqRecentScores } from '@/components/hq-recent-scores';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { resolveClauseStatus } from '@/lib/clause-status';
+import { toCompareEntry } from '@/lib/compare-selection';
 import { formatCurrency, formatFullDateTime } from '@/lib/format';
 import { POSITION_GROUP_LABELS } from '@/lib/player-labels';
 import { useLockCountdown } from '@/lib/use-lock-countdown';
@@ -165,11 +166,7 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
             )}
         >
             <HqCompareToggle
-                player={{
-                    id: entry.player.id,
-                    name: entry.player.nickname,
-                    image: entry.player.image,
-                }}
+                player={toCompareEntry(entry.player)}
                 className="self-center"
             />
 

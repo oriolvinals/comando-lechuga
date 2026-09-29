@@ -23,6 +23,7 @@ import { HqStartOutcomeChip } from '@/components/hq-start-probability';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
+import { toCompareEntry } from '@/lib/compare-selection';
 import {
     formatAverage,
     formatCurrency,
@@ -297,11 +298,7 @@ export default function PlayerShow({
                         <HqStatusBadge status={player.status} variant="long" />
                     </div>
                     <HqCompareButton
-                        player={{
-                            id: player.id,
-                            name: player.nickname,
-                            image: player.image,
-                        }}
+                        player={toCompareEntry(player)}
                         className="mt-3"
                     />
                 </div>

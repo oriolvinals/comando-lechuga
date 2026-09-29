@@ -24,6 +24,15 @@ export interface CompareEntry {
     image: string;
 }
 
+/** The tray entry for a player as the lists, roster, market, ficha and modal send it. */
+export function toCompareEntry(player: {
+    id: number;
+    nickname: string;
+    image: string;
+}): CompareEntry {
+    return { id: player.id, name: player.nickname, image: player.image };
+}
+
 const EMPTY: CompareEntry[] = [];
 let current: CompareEntry[] | null = null;
 

@@ -145,26 +145,29 @@ export function CompareViewB() {
 
     const tracks = useMemo<TrackData[]>(() => {
         const positions = players.map((player) => player.position);
+        // The cloud is cached for minutes: the compared players count with their live figures, never their cached row.
+        const comparedIds = new Set(players.map((player) => player.id));
+        const others = league.filter((row) => !comparedIds.has(row.id));
 
         return trackMetrics(currentWeek).map((metric, trackIndex) => {
-            const values = trackValues(league, metric, scope, positions);
             const playerValues = players.map((player, index) =>
                 metric.player(player, derived[index]),
             );
-            const known = [
-                ...values,
-                ...playerValues.filter(
-                    (value): value is number => value !== null,
-                ),
+            const live = playerValues.filter(
+                (value): value is number => value !== null,
+            );
+            const values = [
+                ...trackValues(others, metric, scope, positions),
+                ...live,
             ];
             const domain: [number, number] =
                 metric.fixed ??
-                (known.length === 0
+                (values.length === 0
                     ? [0, 1]
-                    : [Math.min(...known), Math.max(...known)]);
+                    : [Math.min(...values), Math.max(...values)]);
             const dots: TrackDot[] = [];
 
-            for (const row of league) {
+            for (const row of others) {
                 const value = metric.league(row);
 
                 if (
@@ -787,13 +790,16 @@ export function CompareViewB() {
                                                     style={laneStyle}
                                                 >
                                                     <span
-                                                        role="button"
+                                                        role="img"
                                                         tabIndex={
                                                             isTabStop ? 0 : -1
                                                         }
                                                         data-bm={trackIndex}
                                                         data-bi={index}
-                                                        aria-label={tip?.text}
+                                                        aria-label={
+                                                            tip?.text ??
+                                                            player.name
+                                                        }
                                                         {...markerProps(
                                                             trackIndex,
                                                             index,

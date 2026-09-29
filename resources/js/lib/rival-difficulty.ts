@@ -5,12 +5,18 @@
  */
 export type RivalDifficultyLevel = 'hard' | 'mid' | 'easy';
 
+/** Below this 0–10 difficulty a match is easy. */
+export const RIVAL_DIFFICULTY_EASY_BELOW = 3.5;
+
+/** From this 0–10 difficulty on a match is hard (in between, mid). */
+export const RIVAL_DIFFICULTY_HARD_FROM = 6.5;
+
 export function rivalDifficultyLevel(difficulty: number): RivalDifficultyLevel {
-    if (difficulty < 3.5) {
+    if (difficulty < RIVAL_DIFFICULTY_EASY_BELOW) {
         return 'easy';
     }
 
-    return difficulty < 6.5 ? 'mid' : 'hard';
+    return difficulty < RIVAL_DIFFICULTY_HARD_FROM ? 'mid' : 'hard';
 }
 
 /** 1–5 lit segments for the gauge — more bars, harder match. */
