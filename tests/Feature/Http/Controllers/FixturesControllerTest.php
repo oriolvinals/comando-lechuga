@@ -192,7 +192,7 @@ test('includes lineups with pitch coordinates, points and dazn', function (): vo
     );
 });
 
-test('shows a provisional DAZN estimate for a live player with 15+ minutes', function (): void {
+test('shows a provisional DAZN estimate for a live player', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::SecondHalf]);
     $player = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
@@ -217,7 +217,7 @@ test('shows a provisional DAZN estimate for a live player with 15+ minutes', fun
     );
 });
 
-test('hides the DAZN estimate of a live player under 15 minutes', function (): void {
+test('shows the DAZN estimate of a live player under what used to be the 15-minute threshold', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::SecondHalf]);
     $player = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
@@ -234,7 +234,8 @@ test('hides the DAZN estimate of a live player under 15 minutes', function (): v
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('lineups.0.dazn_estimate', null)
+        ->where('lineups.0.dazn_estimate', 2)
+        ->where('lineups.0.dazn_estimate_reasons', ['10 minutos jugados'])
     );
 });
 

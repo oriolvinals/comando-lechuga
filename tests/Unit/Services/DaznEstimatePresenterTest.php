@@ -22,7 +22,7 @@ function presentDazn(array $lineup = [], array $fixture = []): array
 
 $estimated = fn (int $minutes): array => ['dazn_estimate' => 2, 'dazn_estimate_version' => 'v1', 'dazn_estimate_meta' => ['source' => 'fantasy', 'minutes' => $minutes, 'reasons' => ["{$minutes} minutos jugados"]]];
 
-test('shows a provisional estimate once the player has 15 minutes', function () use ($estimated): void {
+test('shows a provisional estimate as soon as it exists', function () use ($estimated): void {
     expect(presentDazn($estimated(15)))->toBe([
         'dazn_points' => null,
         'dazn_estimate' => 2,
@@ -32,9 +32,9 @@ test('shows a provisional estimate once the player has 15 minutes', function () 
     ]);
 });
 
-test('hides a live estimate under 15 minutes', function () use ($estimated): void {
-    expect(presentDazn($estimated(14))['dazn_estimate'])->toBeNull()
-        ->and(presentDazn($estimated(14))['dazn_estimate_reasons'])->toBe([]);
+test('shows a live estimate under what used to be the 15-minute threshold', function () use ($estimated): void {
+    expect(presentDazn($estimated(1))['dazn_estimate'])->toBe(2)
+        ->and(presentDazn($estimated(1))['dazn_estimate_reasons'])->toBe(['1 minutos jugados']);
 });
 
 test('shows any estimate once the match is finished and still unpublished', function () use ($estimated): void {

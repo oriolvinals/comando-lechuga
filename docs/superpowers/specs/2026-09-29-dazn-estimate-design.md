@@ -158,7 +158,7 @@ dazn_estimate_source  'fantasy'|'worldcup26'|null  solo mientras es provisional
 **Regla de visibilidad de `dazn_estimate`:**
 
 - Si el partido tiene nota oficial publicada: la estimación congelada, que puede ser `null` en partidos antiguos sin relleno.
-- Si no la tiene: la estimación guardada, solo si el partido ha terminado o el jugador lleva **15 minutos o más** (`dazn_estimate_meta.minutes`). Si no se cumple, `null`.
+- Si no la tiene: la estimación guardada, visible desde que el jugador entra al campo (a los 0 minutos no hay estimación: el propio `DaznEstimator` devuelve `null`, así que un suplente que no ha jugado o una fila antes del pitido inicial no muestran nada).
 
 `dazn_points` deja de depender de `state === Finished` y pasa a depender de `dazn_published`. En la práctica es lo mismo, y así sigue siendo coherente cuando el partido termina sin nota todavía.
 
@@ -196,7 +196,7 @@ Sigue el mock validado `public/_dazn.html`, que no se commitea.
   - Jugadores de `lineup_history[]` en `/api/managers/{id}`: los mismos dos campos. `current_lineup` no cambia.
   - Los motivos no se exponen en la API.
 - **`resources/docs/api-docs.md`:**
-  - §2.4 "Nota DAZN": explicar la estimación, la versión, los 15 minutos, la congelación y que la oficial siempre manda.
+  - §2.4 "Nota DAZN": explicar la estimación, la versión, que es visible desde que el jugador entra al campo, la congelación y que la oficial siempre manda.
   - Las tablas de los tres endpoints.
   - Una entrada en §7 "Cambios".
 - **Tests de documentación:** `ApiWorld` incluye filas con `dazn_estimate`, para que `ApiDocsDriftTest` encuentre los campos documentados.
@@ -223,7 +223,7 @@ Comando `season:backfill-dazn-estimates`:
    - marca `dazn_published` y congela cuando llega la primera nota mayor que 0, sin recalcular;
    - usa el respaldo de worldcup26 si Fantasy falla.
 3. **Web:**
-   - `FixturesControllerTest`: nota provisional antes y oficial más congelada después, y la regla de los 15 minutos.
+   - `FixturesControllerTest`: nota provisional antes y oficial más congelada después.
    - `PlayersControllerTest`, `SeasonManagersController` y `TeamsController`: que llegan los campos.
 4. **API:** `FixtureShowTest`, `PlayerShowTest`, el test del mánager y `ApiDocsDriftTest`.
 5. **Comando de relleno:** que rellena, marca publicado y es idempotente.

@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\FixtureState;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
 
 /**
  * The one visibility rule for DAZN ratings, shared by the web and the API.
- * Official ratings only once the fixture is published; before that, the stored
- * estimate once the player has 15 minutes, or at any time after full time.
+ * Official ratings only once the fixture is published; before that, the
+ * stored estimate as soon as it exists (the estimator itself returns null at
+ * 0 minutes, so an unused substitute or a player before kickoff shows nothing).
  */
 final class DaznEstimatePresenter
 {
-    public const int MIN_VISIBLE_MINUTES = 15;
-
     /**
      * @return array{dazn_points: int|null, dazn_estimate: int|null, dazn_estimate_version: string, dazn_estimate_reasons: list<string>, dazn_estimate_source: string|null}
      */
@@ -38,11 +36,6 @@ final class DaznEstimatePresenter
         }
 
         $isProvisional = !$published && $estimate !== null;
-
-        if ($isProvisional && $fixture->state !== FixtureState::Finished && (int) ($meta['minutes'] ?? 0) < self::MIN_VISIBLE_MINUTES) {
-            $estimate = null;
-            $isProvisional = false;
-        }
 
         return [
             'dazn_points' => $published && $officialIsNumeric ? (int) $official : null,

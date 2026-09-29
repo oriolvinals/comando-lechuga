@@ -208,7 +208,7 @@ test('returns the possession, corners and key passes of each side', function ():
     $response->assertJsonPath('data.team_stats.3.guest', 4);
 });
 
-test('shows the provisional DAZN estimate for a live fixture once the 15-minute floor is met', function (): void {
+test('shows the provisional DAZN estimate for a live fixture', function (): void {
     $season = Season::factory()->create();
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::SecondHalf]);
 
@@ -225,7 +225,7 @@ test('shows the provisional DAZN estimate for a live fixture once the 15-minute 
     $response->assertJsonPath('data.lineups.0.dazn_estimate_version', 'v1');
 });
 
-test('hides the DAZN estimate for a live fixture before the 15-minute floor', function (): void {
+test('shows the DAZN estimate for a live fixture under what used to be the 15-minute floor', function (): void {
     $season = Season::factory()->create();
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::SecondHalf]);
 
@@ -238,8 +238,8 @@ test('hides the DAZN estimate for a live fixture before the 15-minute floor', fu
     $response = $this->getJson("/api/fixtures/{$fixture->id}");
 
     $response->assertOk();
-    $response->assertJsonPath('data.lineups.0.dazn_estimate', null);
-    $response->assertJsonPath('data.lineups.0.dazn_estimate_version', '');
+    $response->assertJsonPath('data.lineups.0.dazn_estimate', 2);
+    $response->assertJsonPath('data.lineups.0.dazn_estimate_version', 'v1');
 });
 
 test('returns the VAR decision label on a var event', function (): void {

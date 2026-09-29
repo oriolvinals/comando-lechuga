@@ -107,7 +107,7 @@ export interface Fixture {
 export interface DaznFields {
     /** Official LaLiga Fantasy rating, only once the fixture's ratings are published. */
     dazn_points: number | null;
-    /** Our estimate: provisional while unpublished (15+ min or full time), frozen after. */
+    /** Our estimate: provisional while unpublished (shown from the player's first minute), frozen after. */
     dazn_estimate: number | null;
     dazn_estimate_version: string;
     /** Why the provisional estimate is what it is; empty once official. */

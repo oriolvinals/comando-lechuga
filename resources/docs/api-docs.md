@@ -173,7 +173,7 @@ La nota DAZN son estadísticas avanzadas (OPTA) agrupadas en cinco bloques (**po
 
 `scores[].marca_points` (`/api/players/{id}`) es siempre la nota oficial ya resuelta: `null` mientras LaLiga Fantasy no la ha publicado para ese partido, el número final una vez publicada. Dentro de `stats` (ambos endpoints, apartado 2.3), en cambio, `marca_points` es el par en bruto que manda el proveedor y vale 0 sin significado hasta la publicación — no lo uses para explicar la nota.
 
-**Estimación propia (`dazn_estimate`).** Mientras LaLiga Fantasy no publica las notas DAZN de un partido, Comando Lechuga estima la de cada jugador con sus stats en vivo (baremo `dazn_estimate_version` = `"v1"`: acierta la nota exacta ~7 de cada 10 veces y casi siempre queda a ±1). Solo se da si el jugador lleva 15 minutos o más, o si el partido ya ha terminado. En cuanto aparece la primera nota oficial del partido, las estimaciones se congelan y dejan de cambiar: sirven para comparar con la oficial. **La nota oficial (`marca_points`) siempre manda**; `dazn_estimate` nunca suma puntos.
+**Estimación propia (`dazn_estimate`).** Mientras LaLiga Fantasy no publica las notas DAZN de un partido, Comando Lechuga estima la de cada jugador con sus stats en vivo (baremo `dazn_estimate_version` = `"v1"`: acierta la nota exacta ~7 de cada 10 veces y casi siempre queda a ±1). Es visible desde que el jugador entra al campo (a los 0 minutos no hay estimación). En cuanto aparece la primera nota oficial del partido, las estimaciones se congelan y dejan de cambiar: sirven para comparar con la oficial. **La nota oficial (`marca_points`) siempre manda**; `dazn_estimate` nunca suma puntos.
 
 ### 2.5 Plantilla y alineación
 
@@ -577,7 +577,7 @@ La ficha de un manager: su forma, su alineación de la jornada, sus jornadas ter
 | `lineup_history[].players[].position` | texto | Posición en la que se alineó. |
 | `lineup_history[].players[].points` | entero o null | Sus puntos; `null` si no jugó. |
 | `lineup_history[].players[].match_finished` | booleano | Si su partido había terminado. Con `points: null` significa que no llegó a jugar. |
-| `lineup_history[].players[].dazn_estimate` | entero o null | Estimación de Comando Lechuga (0–4): provisional mientras la nota oficial no se ha publicado (solo con 15+ minutos o al acabar el partido); congelada para comparar una vez publicada. `null` si no hay estimación. |
+| `lineup_history[].players[].dazn_estimate` | entero o null | Estimación de Comando Lechuga (0–4): provisional mientras la nota oficial no se ha publicado (visible desde que el jugador entra al campo); congelada para comparar una vez publicada. `null` si no hay estimación. |
 | `lineup_history[].players[].dazn_estimate_version` | texto | Baremo usado (`"v1"`); `""` sin estimación. |
 | `roster` | lista | La plantilla completa actual. |
 | `roster[].player` | objeto | El jugador, con la forma completa de `/api/players`. |
@@ -771,7 +771,7 @@ Un jugador en el mercado trae, por ejemplo, `"market_listing": { "sale_price": 5
 | `scores[].points` | entero o null | Puntos fantasy de ese partido. |
 | `scores[].minutes` | entero o null | Minutos jugados. |
 | `scores[].marca_points` | entero o null | Nota DAZN oficial (0–4); `null` hasta que LaLiga Fantasy la publica (apartado 2.4). |
-| `scores[].dazn_estimate` | entero o null | Estimación de Comando Lechuga (0–4): provisional mientras la nota oficial no se ha publicado (solo con 15+ minutos o al acabar el partido); congelada para comparar una vez publicada. `null` si no hay estimación. |
+| `scores[].dazn_estimate` | entero o null | Estimación de Comando Lechuga (0–4): provisional mientras la nota oficial no se ha publicado (visible desde que el jugador entra al campo); congelada para comparar una vez publicada. `null` si no hay estimación. |
 | `scores[].dazn_estimate_version` | texto | Baremo usado (`"v1"`); `""` sin estimación. |
 | `scores[].starter` | booleano | Si fue titular. |
 | `scores[].subbed_in` | booleano | Si entró desde el banquillo. |
@@ -960,7 +960,7 @@ La ficha de un partido: el marcador, las alineaciones con puntos y desglose, los
 | `lineups[].counterpart_player` | objeto o null | El otro jugador del cambio `{id, nickname}`. |
 | `lineups[].points` | entero o null | Puntos fantasy en este partido. |
 | `lineups[].stats` | objeto | Desglose `{clave: [valor, puntos]}` (apartado 2.3). |
-| `lineups[].dazn_estimate` | entero o null | Estimación de Comando Lechuga (0–4): provisional mientras la nota oficial no se ha publicado (solo con 15+ minutos o al acabar el partido); congelada para comparar una vez publicada. `null` si no hay estimación. |
+| `lineups[].dazn_estimate` | entero o null | Estimación de Comando Lechuga (0–4): provisional mientras la nota oficial no se ha publicado (visible desde que el jugador entra al campo); congelada para comparar una vez publicada. `null` si no hay estimación. |
 | `lineups[].dazn_estimate_version` | texto | Baremo usado (`"v1"`); `""` sin estimación. |
 | `events` | lista | Goles, tarjetas y decisiones del VAR, por minuto. |
 | `events[].id` | entero | Id del evento. |
