@@ -56,6 +56,30 @@ test('shows the official rating and the frozen estimate once published, without 
     ]);
 });
 
+test('hides the frozen estimate once published if the player has no official rating', function () use ($estimated): void {
+    $presented = presentDazn($estimated(90), ['state' => FixtureState::Finished, 'dazn_published' => true]);
+
+    expect($presented)->toBe([
+        'dazn_points' => null,
+        'dazn_estimate' => null,
+        'dazn_estimate_version' => '',
+        'dazn_estimate_reasons' => [],
+        'dazn_estimate_source' => null,
+    ]);
+});
+
+test('treats an official rating of 0 as official and keeps the frozen estimate', function () use ($estimated): void {
+    $presented = presentDazn([...$estimated(90), 'fantasy_stats' => ['marca_points' => [-1, 0]]], ['state' => FixtureState::Finished, 'dazn_published' => true]);
+
+    expect($presented)->toBe([
+        'dazn_points' => 0,
+        'dazn_estimate' => 2,
+        'dazn_estimate_version' => 'v1',
+        'dazn_estimate_reasons' => [],
+        'dazn_estimate_source' => null,
+    ]);
+});
+
 test('an unused substitute has neither an official rating nor an estimate', function (): void {
     expect(presentDazn([], ['state' => FixtureState::Finished, 'dazn_published' => true]))->toBe([
         'dazn_points' => null,

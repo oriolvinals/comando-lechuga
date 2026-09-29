@@ -24,8 +24,18 @@ final class DaznEstimatePresenter
     {
         $published = $fixture->dazn_published;
         $official = $lineup->fantasy_stats['marca_points'][1] ?? null;
+        $officialIsNumeric = is_numeric($official);
         $meta = $lineup->dazn_estimate_meta ?? [];
         $estimate = $lineup->dazn_estimate;
+
+        if ($published && !$officialIsNumeric) {
+            // Published fixture, but this player's own official rating never
+            // arrived (failed Fantasy fetch, no fantasy_id, unresolved row...).
+            // A numeric 0 still counts as official — only a genuinely missing
+            // value hides the frozen estimate, which would otherwise render as
+            // a provisional badge that can never resolve.
+            $estimate = null;
+        }
 
         $isProvisional = !$published && $estimate !== null;
 
@@ -35,10 +45,10 @@ final class DaznEstimatePresenter
         }
 
         return [
-            'dazn_points' => $published && is_numeric($official) ? (int) $official : null,
+            'dazn_points' => $published && $officialIsNumeric ? (int) $official : null,
             'dazn_estimate' => $estimate,
             'dazn_estimate_version' => $estimate === null ? '' : $lineup->dazn_estimate_version,
-            'dazn_estimate_reasons' => $isProvisional ? array_values($meta['reasons'] ?? []) : [],
+            'dazn_estimate_reasons' => $isProvisional ? ($meta['reasons'] ?? []) : [],
             'dazn_estimate_source' => $isProvisional ? ($meta['source'] ?? null) : null,
         ];
     }
