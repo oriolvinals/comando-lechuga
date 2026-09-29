@@ -1,6 +1,9 @@
+import { describeMarketTrend } from '@/components/hq-market-trend-icon';
 import { resolveClauseStatus } from '@/lib/clause-status';
 import type { ClauseStatus } from '@/lib/clause-status';
 import { formatAverage, formatDecimal, formatMillions } from '@/lib/format';
+import { STATUS_LABELS } from '@/lib/player-labels';
+import { formatDifficulty, rivalDifficultyLevel } from '@/lib/rival-difficulty';
 import { startTone } from '@/lib/start-probability';
 import type { StartTone } from '@/lib/start-probability';
 import type {
@@ -470,4 +473,491 @@ export function jitter(id: number, salt: number): number {
     const x = Math.sin((id + salt) * 9301 + 49297) * 233280;
 
     return x - Math.floor(x);
+}
+
+export type VerdictLens = 'buy' | 'sell' | 'start';
+
+export interface VerdictReason {
+    /** Bold opening ("En el mercado a 5,2 M€"). */
+    lead: string;
+    rest: string;
+}
+
+export interface VerdictEvidenceRow {
+    label: string;
+    hint: string | null;
+    texts: string[];
+    values: (number | null)[] | null;
+    lowerIsBetter: boolean;
+    /** Fichar/Alinear underline the best; Vender marks the worst signal (the lowest value) in red. */
+    mark: 'best' | 'worst' | null;
+}
+
+export interface Verdict {
+    title: string;
+    /** Player indexes, best score first. */
+    order: number[];
+    /** Players ruled out for this lens (can't be bought now / won't play). */
+    out: boolean[];
+    /** Null when even the top score is ruled out ("Ninguno"). */
+    recommended: number | null;
+    reasons: VerdictReason[];
+    rows: VerdictEvidenceRow[];
+}
+
+type ScoredLens = Omit<Verdict, 'order' | 'recommended'> & {
+    scores: number[];
+};
+
+/** Min–max among the compared players (mock D `norm`): missing = 0, all equal = 0,5. */
+export function normalizeAmong(
+    values: (number | null)[],
+    lowerIsBetter = false,
+): number[] {
+    const present = values.filter((value): value is number => value !== null);
+
+    if (present.length === 0) {
+        return values.map(() => 0);
+    }
+
+    const low = Math.min(...present);
+    const high = Math.max(...present);
+
+    return values.map((value) => {
+        if (value === null) {
+            return 0;
+        }
+
+        if (high === low) {
+            return 0.5;
+        }
+
+        const normalized = (value - low) / (high - low);
+
+        return lowerIsBetter ? 1 - normalized : normalized;
+    });
+}
+
+function canBuy(item: DerivedPlayer): boolean {
+    return item.acquire.kind === 'market' || item.acquire.kind === 'clause';
+}
+
+function lockLeftOf(item: DerivedPlayer, now: number): string | null {
+    return item.acquire.until ? formatLockLeft(item.acquire.until, now) : null;
+}
+
+function acquireText(
+    item: DerivedPlayer,
+    player: ComparedPlayer,
+    now: number,
+): string {
+    const amount =
+        item.acquire.amount === null
+            ? '—'
+            : formatMillions(item.acquire.amount);
+
+    switch (item.acquire.kind) {
+        case 'market':
+            return `Mercado · ${amount}`;
+        case 'clause':
+            return `Cláusula abierta · ${amount}${player.owner ? ` · de ${player.owner.name}` : ''}`;
+        case 'locked': {
+            const left = lockLeftOf(item, now);
+
+            return `Bloqueada · ${amount}${left ? ` · se abre en ${left}` : ''}`;
+        }
+        case 'shielded':
+            return `Blindado · ${amount}`;
+        case 'owned':
+            return 'Con dueño';
+        default:
+            return 'Libre · no está en el mercado';
+    }
+}
+
+function isFalling(player: ComparedPlayer): boolean {
+    return player.trend !== null && !describeMarketTrend(player.trend).rising;
+}
+
+function startText(item: DerivedPlayer): string {
+    if (item.startTone === 'out') {
+        return 'Baja';
+    }
+
+    return item.startProbability === null ? '—' : `${item.startProbability} %`;
+}
+
+function buyLens(
+    players: ComparedPlayer[],
+    derived: DerivedPlayer[],
+    now: number,
+): ScoredLens {
+    const ppmValues = players.map(
+        (player) => player.points_per_million?.value ?? null,
+    );
+    const riseValues = players.map(
+        (player) => player.value_trend_30d?.multiple ?? null,
+    );
+    const ppm = normalizeAmong(ppmValues);
+    const average = normalizeAmong(
+        players.map((player) => player.average_points),
+    );
+    const rise = normalizeAmong(riseValues);
+    // 0–10 difficulty: the lowest average is the easiest calendar.
+    const easyCalendar = normalizeAmong(
+        derived.map((item) => item.nextAverageDifficulty),
+        true,
+    );
+
+    return {
+        title: 'Para fichar',
+        scores: players.map(
+            (_, index) =>
+                (canBuy(derived[index]) ? 1 : -2) +
+                0.9 * ppm[index] +
+                average[index] +
+                0.6 * rise[index] +
+                0.4 * easyCalendar[index],
+        ),
+        out: derived.map((item) => !canBuy(item)),
+        reasons: players.map((player, index) => {
+            const item = derived[index];
+
+            if (canBuy(item)) {
+                return {
+                    lead: `${item.acquire.kind === 'market' ? 'En el mercado' : 'Cláusula abierta'} a ${formatMillions(item.acquire.amount ?? 0)}`,
+                    rest: `${player.points_per_million ? `${formatDecimal(player.points_per_million.value)} pts/M€ · ` : ''}media ${formatAverage(player.average_points)}`,
+                };
+            }
+
+            if (item.acquire.kind === 'locked') {
+                const left = lockLeftOf(item, now);
+
+                return {
+                    lead: 'Cláusula bloqueada',
+                    rest: left ? `${left} más` : '',
+                };
+            }
+
+            return item.acquire.kind === 'free'
+                ? { lead: 'Libre', rest: 'pero hoy no está en el mercado' }
+                : { lead: 'No se puede fichar ahora', rest: '' };
+        }),
+        rows: [
+            {
+                label: 'Cómo conseguirlo',
+                hint: 'y cuánto cuesta',
+                texts: players.map((player, index) =>
+                    acquireText(derived[index], player, now),
+                ),
+                values: null,
+                lowerIsBetter: false,
+                mark: null,
+            },
+            {
+                label: 'Pts / M€',
+                hint: null,
+                texts: ppmValues.map((value) =>
+                    value === null ? '—' : formatDecimal(value),
+                ),
+                values: ppmValues,
+                lowerIsBetter: false,
+                mark: 'best',
+            },
+            {
+                label: 'Media',
+                hint: 'por partido',
+                texts: players.map((player) =>
+                    formatAverage(player.average_points),
+                ),
+                values: players.map((player) => player.average_points),
+                lowerIsBetter: false,
+                mark: 'best',
+            },
+            {
+                label: 'Subida 30 días',
+                hint: null,
+                texts: riseValues.map((value) =>
+                    value === null ? '—' : `×${formatDecimal(value)}`,
+                ),
+                values: riseValues,
+                lowerIsBetter: false,
+                mark: 'best',
+            },
+            {
+                label: 'Próximos 3',
+                hint: 'dificultad media',
+                texts: derived.map((item) =>
+                    item.nextAverageDifficulty === null
+                        ? '—'
+                        : formatDifficulty(item.nextAverageDifficulty),
+                ),
+                values: derived.map((item) => item.nextAverageDifficulty),
+                lowerIsBetter: true,
+                mark: 'best',
+            },
+        ],
+    };
+}
+
+function sellLens(
+    players: ComparedPlayer[],
+    derived: DerivedPlayer[],
+    currentWeek: number,
+    now: number,
+): ScoredLens {
+    const startValues = derived.map((item) =>
+        item.startTone === 'out' ? 0 : item.startProbability,
+    );
+    const dropping = normalizeAmong(
+        players.map((player) => player.difference),
+        true,
+    );
+    // 0–10 difficulty: the highest average is the hardest calendar.
+    const hardCalendar = normalizeAmong(
+        derived.map((item) => item.nextAverageDifficulty),
+    );
+    const lowStart = normalizeAmong(startValues, true);
+    const badForm = normalizeAmong(
+        derived.map((item) => item.last3Points),
+        true,
+    );
+
+    return {
+        title: 'Vender antes',
+        scores: players.map(
+            (player, index) =>
+                1.2 * dropping[index] +
+                0.7 * hardCalendar[index] +
+                lowStart[index] +
+                0.8 * badForm[index] +
+                (isFalling(player) ? 0.6 : 0),
+        ),
+        out: players.map(() => false),
+        reasons: players.map((player, index) => {
+            const item = derived[index];
+            const bits: string[] = [];
+
+            if (player.trend !== null) {
+                bits.push(
+                    describeMarketTrend(player.trend).label.toLowerCase(),
+                );
+            }
+
+            if (
+                item.nextAverageDifficulty !== null &&
+                rivalDifficultyLevel(item.nextAverageDifficulty) === 'hard'
+            ) {
+                bits.push('calendario difícil');
+            }
+
+            if (item.startTone === 'low' || item.startTone === 'out') {
+                bits.push(
+                    `titularidad ${item.startTone === 'out' ? 'nula' : `${item.startProbability} %`}`,
+                );
+            }
+
+            if (player.difference < 0) {
+                return {
+                    lead: `Pierde ${formatMillions(Math.abs(player.difference))} hoy`,
+                    rest: bits.join(' · '),
+                };
+            }
+
+            return bits.length > 0
+                ? { lead: '', rest: bits.join(' · ') }
+                : { lead: 'Sin señales de venta', rest: '' };
+        }),
+        rows: [
+            {
+                label: 'Valor hoy',
+                hint: 'sin ganador',
+                texts: players.map((player) => formatMillions(player.value)),
+                values: null,
+                lowerIsBetter: false,
+                mark: null,
+            },
+            {
+                label: 'Tendencia',
+                hint: 'cambio de hoy',
+                texts: players.map((player) =>
+                    player.trend
+                        ? describeMarketTrend(player.trend).label
+                        : '—',
+                ),
+                values: players.map((player) => player.difference),
+                lowerIsBetter: false,
+                mark: 'worst',
+            },
+            {
+                label: 'Últimas 3',
+                hint: 'puntos · minutos',
+                texts: derived.map(
+                    (item) => `${item.last3Points} pts · ${item.last3Minutes}'`,
+                ),
+                values: derived.map((item) => item.last3Points),
+                lowerIsBetter: false,
+                mark: 'worst',
+            },
+            {
+                label: `Titularidad J${currentWeek}`,
+                hint: null,
+                texts: derived.map(startText),
+                values: startValues,
+                lowerIsBetter: false,
+                mark: 'worst',
+            },
+            {
+                label: 'Propiedad',
+                hint: 'cláusula',
+                texts: players.map((player, index) =>
+                    acquireText(derived[index], player, now),
+                ),
+                values: null,
+                lowerIsBetter: false,
+                mark: null,
+            },
+        ],
+    };
+}
+
+function rivalText(slot: NextFixtureSlot): string {
+    const details = [
+        slot.rival_position !== null ? `${slot.rival_position}.º` : null,
+        slot.difficulty !== null
+            ? `dificultad ${formatDifficulty(slot.difficulty)}`
+            : null,
+    ].filter((detail): detail is string => detail !== null);
+
+    return `${slot.is_home ? 'vs' : '@'} ${slot.opponent.main_name}${details.length > 0 ? ` (${details.join(', ')})` : ''}`;
+}
+
+function startLens(
+    players: ComparedPlayer[],
+    derived: DerivedPlayer[],
+    currentWeek: number,
+): ScoredLens {
+    const rivalValues = players.map(
+        (player) => player.next_fixtures[0]?.difficulty ?? null,
+    );
+    const start = normalizeAmong(
+        derived.map((item) =>
+            item.startTone === 'out' ? null : item.startProbability,
+        ),
+    );
+    // 0–10 difficulty: the lowest is the easiest rival.
+    const easyRival = normalizeAmong(rivalValues, true);
+    const form = normalizeAmong(derived.map((item) => item.last3Points));
+    const dazn = normalizeAmong(derived.map((item) => item.daznAverage));
+
+    return {
+        title: `Para alinear en J${currentWeek}`,
+        scores: players.map(
+            (_, index) =>
+                (derived[index].startTone === 'out' ? -5 : 0) +
+                1.4 * start[index] +
+                0.8 * easyRival[index] +
+                form[index] +
+                0.6 * dazn[index],
+        ),
+        out: derived.map((item) => item.startTone === 'out'),
+        reasons: players.map((player, index) => {
+            const item = derived[index];
+            const next = player.next_fixtures[0];
+
+            if (item.startTone === 'out') {
+                return { lead: STATUS_LABELS[player.status], rest: 'no juega' };
+            }
+
+            return {
+                lead:
+                    item.startProbability === null
+                        ? 'Sin %'
+                        : `${item.startProbability} % titular`,
+                rest: `${next ? `${rivalText(next)} · ` : ''}${item.last3Points} pts en 3 jornadas`,
+            };
+        }),
+        rows: [
+            {
+                label: `Titularidad J${currentWeek}`,
+                hint: 'FútbolFantasy',
+                texts: derived.map(startText),
+                values: derived.map((item) =>
+                    item.startTone === 'out' ? -1 : item.startProbability,
+                ),
+                lowerIsBetter: false,
+                mark: 'best',
+            },
+            {
+                label: `Rival J${currentWeek}`,
+                hint: 'dificultad 0–10',
+                texts: players.map((player) => {
+                    const next = player.next_fixtures[0];
+
+                    if (!next) {
+                        return '—';
+                    }
+
+                    return `${next.is_home ? '' : '@ '}${next.opponent.short_name} · ${next.difficulty !== null ? formatDifficulty(next.difficulty) : '—'}`;
+                }),
+                values: rivalValues,
+                lowerIsBetter: true,
+                mark: 'best',
+            },
+            {
+                label: 'Forma',
+                hint: 'últimas 3',
+                texts: derived.map((item) => `${item.last3Points} pts`),
+                values: derived.map((item) => item.last3Points),
+                lowerIsBetter: false,
+                mark: 'best',
+            },
+            {
+                label: 'Media DAZN',
+                hint: 'oficial',
+                texts: derived.map((item) =>
+                    item.daznAverage === null
+                        ? '—'
+                        : formatAverage(item.daznAverage),
+                ),
+                values: derived.map((item) =>
+                    item.daznAverage === null
+                        ? null
+                        : Math.round(item.daznAverage * 10) / 10,
+                ),
+                lowerIsBetter: false,
+                mark: 'best',
+            },
+        ],
+    };
+}
+
+/**
+ * God mode only: which of the compared players to buy, sell or field (spec §5b,
+ * mock D `lensDef`). Every signal is min–max among the compared players, and
+ * difficulty is the 0–10 scale where lower is easier.
+ */
+export function verdict(
+    lens: VerdictLens,
+    players: ComparedPlayer[],
+    derived: DerivedPlayer[],
+    currentWeek: number,
+    now: number,
+): Verdict {
+    const { scores, ...result } =
+        lens === 'buy'
+            ? buyLens(players, derived, now)
+            : lens === 'sell'
+              ? sellLens(players, derived, currentWeek, now)
+              : startLens(players, derived, currentWeek);
+    const order = players
+        .map((_, index) => index)
+        .sort((a, b) => scores[b] - scores[a]);
+    const top = order.at(0);
+
+    return {
+        ...result,
+        order,
+        recommended: top === undefined || result.out[top] ? null : top,
+    };
 }

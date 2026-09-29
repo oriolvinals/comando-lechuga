@@ -132,3 +132,28 @@ test('sends the compared players in the order of ids', function (): void {
             ->has('players.0.scores')
             ->has('players.0.next_fixtures', 3));
 });
+
+test('godMode is false on the comparator without the key or with a wrong one', function (): void {
+    config(['services.god_mode.key' => 'super-secret-key']);
+    comparisonSeason();
+
+    $this->get(route('players.compare'))
+        ->assertInertia(fn (Assert $page): Assert => $page->where('godMode', false));
+
+    $this->get(route('players.compare').'?god_mode=wrong-key')
+        ->assertRedirect(route('players.compare'))
+        ->assertCookieMissing('god_mode');
+});
+
+test('the configured key turns godMode on for the comparator through the remembered cookie', function (): void {
+    config(['services.god_mode.key' => 'super-secret-key']);
+    comparisonSeason();
+
+    $this->get(route('players.compare', ['ids' => '1']).'&god_mode=super-secret-key')
+        ->assertRedirect(route('players.compare', ['ids' => '1']))
+        ->assertCookie('god_mode', '1');
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.compare'))
+        ->assertInertia(fn (Assert $page): Assert => $page->where('godMode', true));
+});

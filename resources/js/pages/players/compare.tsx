@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Check, Link2, Plus } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -8,6 +8,7 @@ import type { CompareContextValue } from '@/components/compare/compare-context';
 import { derivePlayer } from '@/components/compare/derive';
 import { ComparePickerDialog } from '@/components/compare/picker-dialog';
 import { useComparison } from '@/components/compare/use-comparison';
+import { CompareVerdict } from '@/components/compare/verdict';
 import { CompareViewA } from '@/components/compare/view-a';
 import { CompareViewB } from '@/components/compare/view-b';
 import { CompareViewC } from '@/components/compare/view-c';
@@ -48,6 +49,7 @@ export default function PlayersCompare({
     league,
     managers,
 }: PlayersCompareProps) {
+    const { godMode } = usePage().props;
     const now = useNow(60_000);
     const comparison = useComparison({ ids, view, players });
     const [picker, setPicker] = useState<PickerTarget | null>(null);
@@ -235,7 +237,7 @@ export default function PlayersCompare({
                             </div>
                         ) : (
                             <>
-                                {/* Task 11: <CompareVerdict /> when godMode. */}
+                                {godMode && <CompareVerdict />}
                                 {comparison.view === 'a' && <CompareViewA />}
                                 {comparison.view === 'b' && <CompareViewB />}
                                 {comparison.view === 'c' && <CompareViewC />}
