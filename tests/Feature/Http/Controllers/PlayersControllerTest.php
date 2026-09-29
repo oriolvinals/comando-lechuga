@@ -517,6 +517,40 @@ test('shows the next 3 scheduled fixtures for a player, soonest first, with oppo
     );
 });
 
+test('rates each player\'s next fixtures with the difficulty variant matching their position', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $goalkeeper = Player::factory()->create(['status' => PlayerStatus::Ok, 'position' => PlayerPosition::Goalkeeper]);
+    $striker = Player::factory()->create(['status' => PlayerStatus::Ok, 'position' => PlayerPosition::Striker]);
+
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->addDays(3),
+        'team_local_id' => $goalkeeper->team_id,
+        'team_guest_id' => Team::factory()->create()->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+    Fixture::factory()->create([
+        'season_id' => $season->id,
+        'date' => now()->addDays(3),
+        'team_local_id' => $striker->team_id,
+        'team_guest_id' => Team::factory()->create()->id,
+        'state' => FixtureState::Scheduled,
+    ]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $players = collect($response->inertiaProps('players.data'))->keyBy('id');
+
+    // Goalkeepers and defenders face the rival's attack (Defense variant);
+    // midfielders and strikers face its defense (Attack variant).
+    expect($players[$goalkeeper->id]['next_fixtures'][0]['difficulty_variant'])->toBe('defense')
+        ->and($players[$striker->id]['next_fixtures'][0]['difficulty_variant'])->toBe('attack');
+});
+
 test('gives an out-of-league player 5 null next_fixtures on their own ficha', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),

@@ -818,10 +818,15 @@ test('rates each roster player next fixture by the rival current standings posit
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('roster.0.player.next_fixtures.0.opponent.id', $leader->id)
         ->where('roster.0.player.next_fixtures.0.rival_position', 1)
-        ->where('roster.0.player.next_fixtures.0.difficulty', fn (int|float $difficulty): bool => (float) $difficulty === -1.0)
+        // Home against the leader, whatever its table spot — team strength
+        // (not standings position) drives difficulty now, and playing at
+        // home always keeps it under the mid-point of the 0–10 scale here.
+        ->where('roster.0.player.next_fixtures.0.difficulty', fn (int|float $difficulty): bool => (float) $difficulty > 0.0 && (float) $difficulty < 5.0)
         ->where('roster.0.player.next_fixtures.1.opponent.id', $last->id)
         ->where('roster.0.player.next_fixtures.1.rival_position', 3)
-        ->where('roster.0.player.next_fixtures.1.difficulty', fn (int|float $difficulty): bool => (float) $difficulty === 1.0)
+        // Away at the last-placed side — still harder than playing at home,
+        // whatever the rival's table spot.
+        ->where('roster.0.player.next_fixtures.1.difficulty', fn (int|float $difficulty): bool => (float) $difficulty > 5.0 && (float) $difficulty < 10.0)
         ->where('roster.0.player.next_fixtures.2', null)
     );
 });

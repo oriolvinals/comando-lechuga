@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\FixtureState;
+use App\Enums\PlayerStatus;
 use App\Models\Fixture;
+use App\Models\Player;
+use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\Team;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +19,23 @@ function calendarSeason(): Season
         'end_date' => now()->addYear(),
         'total_weeks' => 38,
     ]);
+}
+
+/**
+ * A season team whose squad value on today's reference day is `$value` —
+ * MatchDifficulty's `general` variant reduces to this z-scored value (plus
+ * home/away) when no team has played a finished match yet, the same way
+ * MatchDifficultyTest's own difficultyTeam() helper builds a world.
+ */
+function calendarTeamWithValue(Season $season, string $name, int $value): Team
+{
+    $team = Team::factory()->create(['main_name' => $name]);
+    $season->teams()->attach($team->id);
+
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->toDateString(), 'value' => $value]);
+
+    return $team;
 }
 
 /**
@@ -87,10 +107,17 @@ test('lists each team\'s scheduled matches by date, with a rescheduled match in 
     calendarFixture($season, $team, $rivalB, 5, 3, FixtureState::Postponed);
     calendarFixture($season, $rivalC, $team, 4, -3, FixtureState::Finished);
 
-    $this->get(route('teams.index', ['vista' => 'calendario']))
-        ->assertOk()
+    // The team-strength difficulty (unlike the old table-position one) no
+    // longer guarantees $team lands on row 0 — locate its row by id instead.
+    $response = $this->get(route('teams.index', ['vista' => 'calendario']));
+    $response->assertOk();
+    $rowIndex = collect($response->inertiaProps('calendar'))->search(
+        fn (array $row): bool => $row['team']['id'] === $team->id,
+    );
+
+    $response
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('calendar.0', fn (Assert $row): Assert => $row
+            ->has("calendar.{$rowIndex}", fn (Assert $row): Assert => $row
                 ->where('team.id', $team->id)
                 ->has('matches', 4)
                 ->where('matches.0.week_number', 7)
@@ -127,30 +154,45 @@ test('caps each row at the next 10 matches and leaves shorter rows short', funct
         ->and($rows[$idle->id]['average'])->toBeNull();
 });
 
-test('rates rivals by current table position, averages them and sorts the easiest run first', function (): void {
+test('rates each match by team strength, averages the row and sorts the easiest run first', function (): void {
     $season = calendarSeason();
-    // Positions 1–4; difficulty (p − 2.5) / 1.5 → −1, −0.333, +0.333, +1.
-    [$first, $second, $third, $fourth] = calendarTeams($season, 4);
+    // Six teams — the same extreme-outlier shape MatchDifficultyTest uses to
+    // reach the scale's exact 0/10 clamps: a giant and a minnow, plus four
+    // equal mid teams that keep the population's mean and spread stable.
+    $giant = calendarTeamWithValue($season, 'Giant', 4_000_000_000);
+    $minnow = calendarTeamWithValue($season, 'Minnow', 1_000);
+    $easyMid = calendarTeamWithValue($season, 'Mid Easy', 2_000_000);
+    $hardMid = calendarTeamWithValue($season, 'Mid Hard', 2_000_000);
+    calendarTeamWithValue($season, 'Mid C', 2_000_000);
+    calendarTeamWithValue($season, 'Mid D', 2_000_000);
 
-    calendarFixture($season, $first, $fourth, 1, 1);
-    calendarFixture($season, $second, $third, 1, 2);
-    calendarFixture($season, $third, $first, 2, 8);
+    // Mid Easy's only match: at home to the minnow — the easiest fixture the
+    // scale allows, clamped to 0.
+    calendarFixture($season, $easyMid, $minnow, 1, 1);
+    // Mid Hard's only match: away at the giant — the hardest, clamped to 10.
+    calendarFixture($season, $giant, $hardMid, 1, 2);
 
     $response = $this->get(route('teams.index', ['vista' => 'calendario']));
 
     $response->assertOk();
-    $rows = $response->inertiaProps('calendar');
+    $rows = collect($response->inertiaProps('calendar'))->keyBy('team.id');
 
-    // first: vs 4th (+1), vs 3rd (+0.333) → +0.667 · second: vs 3rd → +0.333
-    // third: vs 2nd (−0.333), vs 1st (−1) → −0.667 · fourth: vs 1st → −1.
-    expect(array_map(fn (array $row): int => $row['team']['id'], $rows))
-        ->toBe([$first->id, $second->id, $third->id, $fourth->id])
-        ->and(array_column($rows, 'average'))->toEqual([0.667, 0.333, -0.667, -1])
-        ->and(array_column($rows, 'position'))->toBe([1, 2, 3, 4])
-        ->and($rows[0]['matches'][0]['rival_position'])->toBe(4)
-        ->and($rows[0]['matches'][0]['difficulty'])->toEqual(1)
-        ->and($rows[2]['matches'][0]['is_home'])->toBeFalse()
-        ->and($rows[2]['matches'][1]['is_home'])->toBeTrue();
+    // json_decode turns a whole-number float (0.0, 10.0) back into an int —
+    // cast before comparing, the same way the other consumer tests do.
+    expect((float) $rows[$easyMid->id]['matches'][0]['difficulty'])->toBe(0.0)
+        ->and($rows[$easyMid->id]['matches'][0]['difficulty_variant'])->toBe('general')
+        ->and($rows[$easyMid->id]['matches'][0]['rival_position'])->toBeInt()
+        ->and((float) $rows[$easyMid->id]['average'])->toBe(0.0)
+        ->and((float) $rows[$hardMid->id]['matches'][0]['difficulty'])->toBe(10.0)
+        ->and((float) $rows[$hardMid->id]['average'])->toBe(10.0);
+
+    // The board sorts ascending (easiest run first): every non-null average
+    // stays within 0–10, sorted low to high, with Mid Easy's 0 at the bottom
+    // and Mid Hard's 10 at the top of the real (non-idle) rows.
+    $averages = $rows->pluck('average')->filter(fn (int|float|null $average): bool => $average !== null)->values();
+    expect($averages->all())->toBe($averages->sort()->values()->all())
+        ->and((float) $averages->first())->toBe(0.0)
+        ->and((float) $averages->last())->toBe(10.0);
 });
 
 test('builds the calendar in a constant number of queries', function (): void {
@@ -164,6 +206,11 @@ test('builds the calendar in a constant number of queries', function (): void {
     };
 
     $countQueries = function (): int {
+        // MatchDifficulty (and TeamStrength) are bound scoped: without this,
+        // their per-request memos would carry over into the second
+        // measurement below (a test-only artifact — a real request always
+        // gets a fresh instance) and hide any real N+1.
+        app()->forgetScopedInstances();
         DB::flushQueryLog();
         DB::enableQueryLog();
         $this->get(route('teams.index', ['vista' => 'calendario']))->assertOk();
@@ -179,5 +226,6 @@ test('builds the calendar in a constant number of queries', function (): void {
         $addTeamPair($week);
     }
 
-    expect($countQueries())->toBe($withOnePair);
+    expect($withOnePair)->toBeLessThanOrEqual(40)
+        ->and($countQueries())->toBe($withOnePair);
 });
