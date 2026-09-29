@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
 import { Shield, User } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
+import { HqCompareToggle } from '@/components/compare/compare-toggle';
 import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import { HqManagerChip } from '@/components/hq-manager-chip';
@@ -23,6 +24,8 @@ interface PlayerRowLayout {
     showPosition?: boolean;
     /** Show the next fixtures + difficulty column. Off on a team's own ficha, which already shows the club's next fixtures once. */
     showNextFixtures?: boolean;
+    /** Show the "comparar" box before the photo (players list, team roster). */
+    comparable?: boolean;
 }
 
 interface PlayerRowProps extends PlayerRowLayout {
@@ -31,7 +34,8 @@ interface PlayerRowProps extends PlayerRowLayout {
 
 /**
  * Desktop columns (mock `.ptable`): photo · player · pos · estado · pertenece
- * a · próximos + dificultad · últimas 3 · valor + hoy · pts, minus the ones
+ * a · próximos + dificultad · últimas 3 · valor + hoy · pts (with the
+ * 32px "comparar" box in front when comparable), minus the ones
  * the layout turns off — so a hidden column never leaves a gap. Applied
  * through the `--player-row-columns` custom property.
  */
@@ -39,8 +43,10 @@ function rowGridStyle({
     showTeam = true,
     showPosition = true,
     showNextFixtures = true,
+    comparable = false,
 }: PlayerRowLayout): CSSProperties {
     const columns = [
+        comparable && '32px',
         '46px',
         'minmax(140px,1.4fr)',
         showPosition && '44px',
@@ -63,16 +69,23 @@ export function PlayerRowHeader({
     showTeam = true,
     showPosition = true,
     showNextFixtures = true,
+    comparable = false,
 }: PlayerRowLayout) {
     return (
         <div
             aria-hidden="true"
-            style={rowGridStyle({ showTeam, showPosition, showNextFixtures })}
+            style={rowGridStyle({
+                showTeam,
+                showPosition,
+                showNextFixtures,
+                comparable,
+            })}
             className={cn(
                 'hidden items-end gap-3 border-b border-hq-border-strong px-4 py-[9px] font-mono text-[10.5px] leading-[1.2] font-semibold tracking-[0.07em] text-hq-moss-dim uppercase lg:grid',
                 ROW_GRID,
             )}
         >
+            {comparable && <span />}
             <span />
             <span>Jugador</span>
             {showPosition && <span className="text-center">Pos.</span>}
@@ -103,6 +116,7 @@ export function PlayerRow({
     showTeam = true,
     showPosition = true,
     showNextFixtures = true,
+    comparable = false,
 }: PlayerRowProps) {
     const playerUrl = playersShow(player.id).url;
     const ownerManager = player.owner_manager;
@@ -110,12 +124,30 @@ export function PlayerRow({
     return (
         <div
             onClick={() => router.visit(playerUrl)}
-            style={rowGridStyle({ showTeam, showPosition, showNextFixtures })}
+            style={rowGridStyle({
+                showTeam,
+                showPosition,
+                showNextFixtures,
+                comparable,
+            })}
             className={cn(
-                'grid cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-2.5 border-b border-hq-border px-3.5 py-3 transition-colors hover:bg-hq-panel lg:gap-x-3 lg:px-4 lg:py-2.5',
+                'grid cursor-pointer items-center gap-x-2.5 gap-y-2.5 border-b border-hq-border px-3.5 py-3 transition-colors hover:bg-hq-panel lg:gap-x-3 lg:px-4 lg:py-2.5',
+                comparable
+                    ? 'grid-cols-[32px_40px_minmax(0,1fr)_auto]'
+                    : 'grid-cols-[40px_minmax(0,1fr)_auto]',
                 ROW_GRID,
             )}
         >
+            {comparable && (
+                <HqCompareToggle
+                    player={{
+                        id: player.id,
+                        name: player.nickname,
+                        image: player.image,
+                    }}
+                    className="self-center"
+                />
+            )}
             <EntityImage
                 src={player.image}
                 alt=""
@@ -202,7 +234,11 @@ export function PlayerRow({
             <div
                 className={cn(
                     'order-8 flex flex-col gap-[5px] lg:order-none lg:col-span-1',
-                    showNextFixtures ? 'col-span-2' : 'col-span-full',
+                    showNextFixtures
+                        ? comparable
+                            ? 'col-span-3'
+                            : 'col-span-2'
+                        : 'col-span-full',
                 )}
             >
                 <MobileCaption>Últimas 3</MobileCaption>
@@ -237,7 +273,12 @@ export function PlayerRow({
                 )}
             </div>
 
-            <div className="col-start-3 row-start-1 justify-self-end lg:col-start-auto lg:row-start-auto">
+            <div
+                className={cn(
+                    'row-start-1 justify-self-end lg:col-start-auto lg:row-start-auto',
+                    comparable ? 'col-start-4' : 'col-start-3',
+                )}
+            >
                 <HqLed tone="lime" className="text-[22px] lg:text-2xl">
                     {player.points}
                 </HqLed>

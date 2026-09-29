@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { ArrowDown, ArrowUp, Search, X } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { HqCompareTray } from '@/components/compare/tray';
 import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqMultiSelect } from '@/components/hq-multi-select';
 import { HqPageHeader } from '@/components/hq-page-header';
@@ -328,10 +329,14 @@ export default function PlayersIndex({
                         {formatNumber(players.total)} jugadores · página{' '}
                         {players.current_page} de {players.last_page}
                     </p>
-                    <PlayerRowHeader />
+                    <PlayerRowHeader comparable />
                     <div>
                         {players.data.map((player) => (
-                            <PlayerRow key={player.id} player={player} />
+                            <PlayerRow
+                                key={player.id}
+                                player={player}
+                                comparable
+                            />
                         ))}
                     </div>
                 </>
@@ -365,6 +370,8 @@ export default function PlayersIndex({
                     </span>
                 </nav>
             )}
+
+            <HqCompareTray />
         </div>
     );
 }
