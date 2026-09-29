@@ -11,9 +11,8 @@ use App\Models\Fixture;
 use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\Player;
-use App\Models\PlayerSeason;
 use App\Models\Team;
-use App\Services\DaznEstimator;
+use App\Services\DaznEstimateWriter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -157,23 +156,7 @@ trait SyncsMatchData
             return;
         }
 
-        $positionsByPlayer = PlayerSeason::query()
-            ->where('season_id', $fixture->season_id)
-            ->whereIn('player_id', $lineups->pluck('player_id'))
-            ->get()
-            ->mapWithKeys(fn (PlayerSeason $playerSeason): array => [$playerSeason->player_id => $playerSeason->position]);
-
-        $estimator = app(DaznEstimator::class);
-
-        foreach ($lineups as $lineup) {
-            $estimate = $estimator->estimate($lineup, $fixture, $positionsByPlayer->get($lineup->player_id));
-
-            $lineup->update([
-                'dazn_estimate' => $estimate?->points,
-                'dazn_estimate_version' => $estimate === null ? '' : DaznEstimator::VERSION,
-                'dazn_estimate_meta' => $estimate?->toMeta(),
-            ]);
-        }
+        app(DaznEstimateWriter::class)->write($fixture, $lineups, onlyMissing: false);
     }
 
     /**
