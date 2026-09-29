@@ -10,6 +10,7 @@ import {
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqDaznBadge } from '@/components/hq-dazn-badge';
 import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
 import { HqLed } from '@/components/hq-led';
 import { HqManagerChip } from '@/components/hq-manager-chip';
@@ -20,7 +21,7 @@ import {
 } from '@/components/match-event-icons';
 import { formatMatchDateTime } from '@/lib/format';
 import { didNotPlayMatch } from '@/lib/player-labels';
-import { daznPointsBadgeClass, matchPointsBadgeClass } from '@/lib/points';
+import { matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
 import { show as fixturesShow } from '@/routes/fixtures';
 import type {
@@ -301,7 +302,7 @@ function ScoreRow({
     const fixture = score.fixture;
     const stats = score.stats ?? {};
     const didNotPlay = didNotPlayMatch(stats, fixture.state);
-    const dazn = score.stats?.marca_points?.[1] ?? null;
+    const hasDazn = score.dazn_points !== null || score.dazn_estimate !== null;
     const panelId = `match-log-${score.id}`;
 
     return (
@@ -329,17 +330,8 @@ function ScoreRow({
                 <RoleCell score={score} />
                 <span className={CELL_DAZN}>
                     <span className="mr-1.5 hq-label md:hidden">DAZN</span>
-                    {dazn !== null && !didNotPlay ? (
-                        <HqTooltip label="Puntos DAZN">
-                            <span
-                                className={cn(
-                                    'inline-flex h-[22px] min-w-[30px] items-center justify-center px-[5px] font-mono text-xs leading-none font-bold tabular-nums',
-                                    daznPointsBadgeClass(dazn),
-                                )}
-                            >
-                                {dazn}
-                            </span>
-                        </HqTooltip>
+                    {hasDazn && !didNotPlay ? (
+                        <HqDaznBadge entry={score} size="row" />
                     ) : (
                         <span className="font-mono text-xs text-hq-moss-dim">
                             –

@@ -37,6 +37,8 @@ class FixtureLineupResource extends JsonResource
             ],
             'points' => $this->fantasy_points,
             'stats' => $this->resolved_stats,
+            'dazn_estimate' => $this->api_dazn['dazn_estimate'] ?? null,
+            'dazn_estimate_version' => $this->api_dazn['dazn_estimate_version'] ?? '',
         ];
     }
 }

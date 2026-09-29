@@ -464,6 +464,45 @@ test('the pitch defaults to the latest jornada with a synced lineup, even ahead 
     );
 });
 
+test('weeklyLineups player carries the DAZN estimate and official rating', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+        'current_week' => 3,
+    ]);
+    $team = Team::factory()->create();
+    $rival = Team::factory()->create();
+    $season->teams()->attach([$team->id, $rival->id]);
+    $fixture = Fixture::factory()->daznPublished()->create([
+        'season_id' => $season->id,
+        'week_number' => 3,
+        'team_local_id' => $team->id,
+        'team_guest_id' => $rival->id,
+        'state' => FixtureState::Finished,
+    ]);
+    $starter = Player::factory()->create([
+        'team_id' => $team->id,
+        'position' => PlayerPosition::Striker,
+    ]);
+    FixtureLineup::factory()
+        ->withDaznEstimate(points: 2)
+        ->create([
+            'fixture_id' => $fixture->id,
+            'player_id' => $starter->id,
+            'team_id' => $team->id,
+            'starter' => true,
+            'fantasy_stats' => ['marca_points' => [3, 4]],
+        ]);
+
+    $response = $this->get(route('teams.show', $team));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('weeklyLineups.0.players.0.dazn_points', 4)
+        ->where('weeklyLineups.0.players.0.dazn_estimate', 2)
+    );
+});
+
 test('the pitch positions starters by their real match line, not the fantasy position bucket', function (): void {
     // A 4-2-3-1 has 4 outfield lines (defender/DM/AM/forward) — more than
     // the fantasy position column's 3 buckets (defender/midfield/striker)

@@ -29,11 +29,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read array<int, array<string, mixed>> $stats
  * @property-read int|null $fantasy_points
  * @property-read array<string, mixed>|null $fantasy_stats
+ * @property-read int|null $dazn_estimate
+ * @property-read string $dazn_estimate_version
+ * @property-read array{source: string, minutes: int, reasons: list<string>}|null $dazn_estimate_meta
  * @property array<string, mixed>|null $resolved_stats fantasy_stats if present, else worldcup26StatsFallback(stats). Computed at query time by Api\FixturesController; not a database column.
+ * @property array{dazn_points: int|null, dazn_estimate: int|null, dazn_estimate_version: string, dazn_estimate_reasons: list<string>, dazn_estimate_source: string|null} $api_dazn DaznEstimatePresenter::present() for this lineup and its fixture. Computed at query time by Api\FixturesController; not a database column.
  */
 #[UseFactory(FixtureLineupFactory::class)]
 #[Table(name: 'fixture_lineups', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fixture_id', 'player_id', 'unresolved_name', 'wc26_id', 'team_id', 'starter', 'position', 'jersey', 'subbed_in', 'subbed_out', 'counterpart_player_id', 'sub_minute', 'stats', 'fantasy_points', 'fantasy_stats'])]
+#[Fillable(['fixture_id', 'player_id', 'unresolved_name', 'wc26_id', 'team_id', 'starter', 'position', 'jersey', 'subbed_in', 'subbed_out', 'counterpart_player_id', 'sub_minute', 'stats', 'fantasy_points', 'fantasy_stats', 'dazn_estimate', 'dazn_estimate_version', 'dazn_estimate_meta'])]
 class FixtureLineup extends Model
 {
     /** @use HasFactory<FixtureLineupFactory> */
@@ -71,6 +75,7 @@ class FixtureLineup extends Model
         'subbed_in' => false,
         'subbed_out' => false,
         'stats' => '[]',
+        'dazn_estimate_version' => '',
     ];
 
     /**
@@ -95,6 +100,9 @@ class FixtureLineup extends Model
             'stats' => 'array',
             'fantasy_points' => 'int',
             'fantasy_stats' => 'array',
+            'dazn_estimate' => 'int',
+            'dazn_estimate_version' => 'string',
+            'dazn_estimate_meta' => 'array',
         ];
     }
 }

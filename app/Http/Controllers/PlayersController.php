@@ -25,6 +25,7 @@ use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
+use App\Services\DaznEstimatePresenter;
 use App\Services\MaxBidCalculator;
 use App\Services\PlayerMarketMetrics;
 use App\Services\StartProbabilities;
@@ -186,6 +187,7 @@ class PlayersController extends Controller
                 'subbed_in' => $lineup->subbed_in,
                 'subbed_out' => $lineup->subbed_out,
                 'sub_minute' => $lineup->sub_minute,
+                ...DaznEstimatePresenter::present($lineup, $lineup->fixture),
             ]);
 
         // Which manager fielded this player in their lineup each jornada — distinct

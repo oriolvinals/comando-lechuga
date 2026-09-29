@@ -163,7 +163,7 @@ test('lineups prop is empty when no FixtureLineup rows are synced yet, with no s
 
 test('includes lineups with pitch coordinates, points and dazn', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
-    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::Finished]);
+    $fixture = Fixture::factory()->daznPublished()->create(['season_id' => $season->id, 'state' => FixtureState::Finished]);
     $home = $fixture->localTeam;
     $player = Player::factory()->create(['team_id' => $home->id, 'position' => PlayerPosition::Defender]);
 
@@ -189,6 +189,77 @@ test('includes lineups with pitch coordinates, points and dazn', function (): vo
         ->where('lineups.0.points', 4)
         ->where('lineups.0.dazn_points', 0)
         ->where('lineups.0.x', 14)
+    );
+});
+
+test('shows a provisional DAZN estimate for a live player', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::SecondHalf]);
+    $player = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
+
+    FixtureLineup::factory()
+        ->withDaznEstimate(points: 2, minutes: 60, reasons: ['60 minutos jugados', '1 gol'])
+        ->create([
+            'fixture_id' => $fixture->id,
+            'player_id' => $player->id,
+            'team_id' => $fixture->localTeam->id,
+        ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.dazn_points', null)
+        ->where('lineups.0.dazn_estimate', 2)
+        ->where('lineups.0.dazn_estimate_version', 'v1')
+        ->where('lineups.0.dazn_estimate_reasons', ['60 minutos jugados', '1 gol'])
+        ->where('lineups.0.dazn_estimate_source', 'fantasy')
+    );
+});
+
+test('shows the DAZN estimate of a live player under what used to be the 15-minute threshold', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->create(['season_id' => $season->id, 'state' => FixtureState::SecondHalf]);
+    $player = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
+
+    FixtureLineup::factory()
+        ->withDaznEstimate(points: 2, minutes: 10, reasons: ['10 minutos jugados'])
+        ->create([
+            'fixture_id' => $fixture->id,
+            'player_id' => $player->id,
+            'team_id' => $fixture->localTeam->id,
+        ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.dazn_estimate', 2)
+        ->where('lineups.0.dazn_estimate_reasons', ['10 minutos jugados'])
+    );
+});
+
+test('shows the official DAZN rating and the frozen estimate once published', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $fixture = Fixture::factory()->daznPublished()->create(['season_id' => $season->id, 'state' => FixtureState::Finished]);
+    $player = Player::factory()->create(['team_id' => $fixture->localTeam->id]);
+
+    FixtureLineup::factory()
+        ->withDaznEstimate(points: 2)
+        ->create([
+            'fixture_id' => $fixture->id,
+            'player_id' => $player->id,
+            'team_id' => $fixture->localTeam->id,
+            'fantasy_stats' => ['marca_points' => [-1, 3]],
+        ]);
+
+    $response = $this->get(route('fixtures.show', $fixture));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.dazn_points', 3)
+        ->where('lineups.0.dazn_estimate', 2)
+        ->where('lineups.0.dazn_estimate_reasons', [])
     );
 });
 

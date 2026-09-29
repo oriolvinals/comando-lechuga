@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Concerns;
 use App\Models\FixtureLineup;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
+use App\Services\DaznEstimatePresenter;
 use Illuminate\Database\Eloquent\Collection;
 
 trait AttachesLineupPlayerScores
@@ -24,7 +25,11 @@ trait AttachesLineupPlayerScores
      * `FixtureLineup` resolves, which the frontend reads as "not called up"
      * once the match has finished, or simply "not played yet" otherwise.
      * All are attached as virtual properties, the same way
-     * `attachMatchFinished` already does for `match_finished`.
+     * `attachMatchFinished` already does for `match_finished`. `dazn_points`,
+     * `dazn_estimate`, `dazn_estimate_version`, `dazn_estimate_reasons` and
+     * `dazn_estimate_source` are attached the same way, from
+     * `DaznEstimatePresenter::present()` on that same linked `FixtureLineup`
+     * (and its `fixture`) — see `ManagerLineupPlayer`'s docblock.
      *
      * This is a manual bulk lookup, not `ManagerLineupPlayer::fixtureLineup()`
      * eager-loaded via `->with()` — that relation is deliberately lazy-only
@@ -42,6 +47,7 @@ trait AttachesLineupPlayerScores
         $fixtureLineupsByKey = FixtureLineup::query()
             ->whereIn('fixture_id', $entries->pluck('fixture_id')->filter()->unique())
             ->whereIn('player_id', $entries->pluck('player_id')->filter()->unique())
+            ->with('fixture')
             ->get()
             ->keyBy(fn (FixtureLineup $lineup): string => "{$lineup->fixture_id}-{$lineup->player_id}");
 
@@ -55,6 +61,16 @@ trait AttachesLineupPlayerScores
             $entry->starter = $fixtureLineup?->starter;
             $entry->subbed_out = $fixtureLineup?->subbed_out;
             $entry->sub_minute = $fixtureLineup?->sub_minute;
+
+            $dazn = $fixtureLineup !== null
+                ? DaznEstimatePresenter::present($fixtureLineup, $fixtureLineup->fixture)
+                : ['dazn_points' => null, 'dazn_estimate' => null, 'dazn_estimate_version' => '', 'dazn_estimate_reasons' => [], 'dazn_estimate_source' => null];
+
+            $entry->dazn_points = $dazn['dazn_points'];
+            $entry->dazn_estimate = $dazn['dazn_estimate'];
+            $entry->dazn_estimate_version = $dazn['dazn_estimate_version'];
+            $entry->dazn_estimate_reasons = $dazn['dazn_estimate_reasons'];
+            $entry->dazn_estimate_source = $dazn['dazn_estimate_source'];
         });
     }
 }

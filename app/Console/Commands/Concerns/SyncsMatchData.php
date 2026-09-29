@@ -12,6 +12,7 @@ use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Team;
+use App\Services\DaznEstimateWriter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -65,6 +66,7 @@ trait SyncsMatchData
             });
 
             $this->fillFantasyScores($fixture, $fantasyConnector, $fantasyPlayerCache);
+            $this->refreshDaznEstimates($fixture);
 
             $synced++;
         }
@@ -125,6 +127,42 @@ trait SyncsMatchData
                     'fantasy_stats' => is_array($weekStats['stats'] ?? null) ? $weekStats['stats'] : null,
                 ]);
             });
+    }
+
+    /**
+     * Re-estimates every resolved player's DAZN rating until LaLiga Fantasy
+     * publishes the official ones. The first official rating (> 0) on any
+     * player flips `dazn_published` and freezes the whole fixture: the last
+     * estimates stay as they were, for the "Comando Lechuga estimó" comparison.
+     */
+    private function refreshDaznEstimates(Fixture $fixture): void
+    {
+        if ($fixture->dazn_published) {
+            return;
+        }
+
+        $lineups = FixtureLineup::query()
+            ->where('fixture_id', $fixture->id)
+            ->whereNotNull('player_id')
+            ->get();
+
+        if (DaznEstimateWriter::hasOfficialRating($lineups)) {
+            $fixture->update(['dazn_published' => true]);
+
+            return;
+        }
+
+        // Re-check right before writing: another sync run (e.g. the daily
+        // backfill and this live sync overlapping) may have just published the
+        // fixture between the query above and now. Skip rather than overwrite
+        // the estimate that's meant to stay frozen for comparison.
+        $stillUnpublished = Fixture::query()->whereKey($fixture->id)->where('dazn_published', false)->exists();
+
+        if (!$stillUnpublished) {
+            return;
+        }
+
+        app(DaznEstimateWriter::class)->write($fixture, $lineups, onlyMissing: false);
     }
 
     /**

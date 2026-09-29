@@ -152,6 +152,28 @@ test('splits the current jornada\'s lineup from the finished lineup history', fu
     $response->assertJsonPath('data.current_lineup.players.0.next_start.probability', 75);
 });
 
+test('shows the DAZN estimate for a finished lineup history player', function (): void {
+    $season = managerApiSeason(2);
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $team = Team::factory()->create();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $team->id, 'position' => PlayerPosition::Midfield]);
+    $finished = managerApiFixture($season, 1, FixtureState::Finished, $team, now()->subDays(6));
+    FixtureLineup::factory()->withDaznEstimate(points: 2)->create([
+        'fixture_id' => $finished->id,
+        'player_id' => $player->id,
+        'team_id' => $team->id,
+    ]);
+
+    $week1 = ManagerLineup::factory()->create(['season_manager_id' => $manager->id, 'week_number' => 1, 'points' => 45, 'tactical_formation' => [4, 4, 2]]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $week1->id, 'player_id' => $player->id, 'fixture_id' => $finished->id, 'position' => PlayerPosition::Midfield, 'points' => 9]);
+
+    $response = $this->getJson("/api/managers/{$manager->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.lineup_history.0.players.0.dazn_estimate', 2);
+    $response->assertJsonPath('data.lineup_history.0.players.0.dazn_estimate_version', 'v1');
+});
+
 test('shows live points and no next start for a lineup player whose match is live', function (): void {
     $season = managerApiSeason(2);
     $manager = SeasonManager::factory()->create(['season_id' => $season->id, 'live_points' => 33]);

@@ -36,4 +36,9 @@ class FixtureFactory extends Factory
             'state' => FixtureState::Scheduled,
         ];
     }
+
+    public function daznPublished(): static
+    {
+        return $this->state(fn (): array => ['dazn_published' => true]);
+    }
 }

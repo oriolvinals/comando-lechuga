@@ -73,10 +73,21 @@ html {
 
     --animate-hq-pulse: hq-pulse 1.2s ease-in-out infinite;
     --animate-hq-ticker: hq-ticker 90s linear infinite;
+    --animate-hq-est: hq-est 1.8s ease-in-out infinite;
 
     @keyframes hq-pulse {
         50% {
             opacity: 0.35;
+        }
+    }
+
+    @keyframes hq-est {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.45;
         }
     }
 

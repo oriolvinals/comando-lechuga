@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\FixtureState;
 use App\Enums\MatchPositionLine;
 use App\Enums\MatchPositionSide;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
@@ -15,6 +14,7 @@ use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Season;
+use App\Services\DaznEstimatePresenter;
 use App\Services\FixtureFantasyScoreboard;
 use App\Services\StartProbabilities;
 use Illuminate\Support\Collection;
@@ -146,11 +146,6 @@ class FixturesController extends Controller
     {
         $isLocal = $lineup->team_id === $fixture->team_local_id;
 
-        // DAZN ratings are only meaningful once the match is over.
-        $daznPoints = $fixture->state === FixtureState::Finished
-            ? ($lineup->fantasy_stats['marca_points'][1] ?? null)
-            : null;
-
         return [
             'id' => $lineup->id,
             'player' => $lineup->player,
@@ -166,7 +161,7 @@ class FixturesController extends Controller
             'counterpart_player' => $lineup->counterpartPlayer,
             'points' => $lineup->fantasy_points,
             'stats' => $lineup->fantasy_stats ?? $this->worldcup26StatsFallback($lineup->stats),
-            'dazn_points' => $daznPoints,
+            ...DaznEstimatePresenter::present($lineup, $fixture),
             'x' => $lineup->starter ? $this->pitchX($lineup, $isLocal, $fixtureLineups) : null,
             'y' => $lineup->starter ? $this->pitchY($lineup, $fixtureLineups, $isLocal) : null,
             'lineup_manager' => $lineup->player_id !== null ? $lineupManagersByPlayer->get($lineup->player_id)?->lineup?->seasonManager : null,

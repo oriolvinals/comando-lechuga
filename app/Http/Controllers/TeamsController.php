@@ -18,6 +18,7 @@ use App\Models\FixtureLineup;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
+use App\Services\DaznEstimatePresenter;
 use App\Services\FixtureCalendar;
 use App\Services\LeagueStandings;
 use App\Services\StartProbabilities;
@@ -288,6 +289,7 @@ class TeamsController extends Controller
                     'starter' => $lineup->starter,
                     'subbed_out' => $lineup->subbed_out,
                     'sub_minute' => $lineup->sub_minute,
+                    ...DaznEstimatePresenter::present($lineup, $fixture),
                 ];
 
                 if ($lineup->starter) {

@@ -1025,6 +1025,29 @@ test('player ficha scores prop is built from FixtureLineup, not PlayerScore', fu
     );
 });
 
+test('player ficha scores carry the DAZN estimate and official rating', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->daznPublished()->create(['season_id' => $season->id, 'week_number' => 1, 'state' => FixtureState::Finished]);
+    FixtureLineup::factory()
+        ->withDaznEstimate(points: 2)
+        ->create([
+            'player_id' => $player->id,
+            'fixture_id' => $fixture->id,
+            'team_id' => $player->team_id,
+            'fantasy_stats' => ['marca_points' => [3, 4]],
+        ]);
+
+    $response = $this->get(route('players.show', $player));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('scores', 1)
+        ->where('scores.0.dazn_points', 4)
+        ->where('scores.0.dazn_estimate', 2)
+    );
+});
+
 test('player ficha lineup_manager is resolved via ManagerLineupPlayer.fixture_id', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $player = Player::factory()->create();

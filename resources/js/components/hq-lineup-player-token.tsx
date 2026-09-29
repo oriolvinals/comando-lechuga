@@ -1,6 +1,7 @@
 import { User } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
+import { HqDaznBadge } from '@/components/hq-dazn-badge';
 import { HqManagerChip } from '@/components/hq-manager-chip';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqTooltip } from '@/components/hq-tooltip';
@@ -293,6 +294,11 @@ export function HqLineupPlayerToken({
                         {playerName(entry)}
                     </span>
                 </button>
+                {hasPlayed && (
+                    <span className="mt-0.5 flex empty:hidden">
+                        <HqDaznBadge entry={entry} size="xs" plate />
+                    </span>
+                )}
                 {entry.lineup_manager && (
                     <HqManagerChip
                         manager={entry.lineup_manager}
@@ -307,7 +313,7 @@ export function HqLineupPlayerToken({
         <div
             onClick={handleClick}
             className={cn(
-                'group flex items-center gap-2.5 border-b border-hq-border px-3.5 py-2 transition-colors hover:bg-hq-panel',
+                'group flex h-16 items-center gap-2.5 border-b border-hq-border px-3.5 transition-colors hover:bg-hq-panel',
                 clickable && 'cursor-pointer',
                 !hasPlayed && 'opacity-55',
             )}
@@ -351,40 +357,50 @@ export function HqLineupPlayerToken({
                         {playerName(entry)}
                     </span>
                 </button>
-                {(subMinute !== null || events.hasGood || events.hasBad) && (
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        {subMinute !== null && (
-                            <SubMinuteBadge entry={entry} minute={subMinute} />
-                        )}
-                        {subMinute !== null && entry.counterpart_player && (
-                            <HqTooltip
-                                label="Cambio (dato de la alineación)"
-                                className="font-mono text-[11px] text-hq-moss-dim"
-                            >
-                                {entry.subbed_out ? 'sale por' : 'entra por'}{' '}
-                                {entry.counterpart_player.nickname}
-                            </HqTooltip>
-                        )}
-                        {events.hasGood && (
-                            <span className="inline-flex items-center gap-1.5">
-                                {events.good}
-                            </span>
-                        )}
-                        {events.hasBad && (
-                            <span className="inline-flex items-center gap-1.5">
-                                {events.bad}
-                            </span>
-                        )}
-                    </div>
-                )}
-                {entry.lineup_manager && (
-                    <div className="mt-1">
-                        <HqManagerChip manager={entry.lineup_manager} />
-                    </div>
-                )}
+                {/* Always reserved, even when empty, so every row keeps the same height. */}
+                <div className="mt-1 flex h-4 min-w-0 items-center gap-1.5 overflow-hidden text-[11px] leading-none whitespace-nowrap">
+                    {subMinute !== null && (
+                        <SubMinuteBadge
+                            entry={entry}
+                            minute={subMinute}
+                            className="shrink-0"
+                        />
+                    )}
+                    {subMinute !== null && entry.counterpart_player && (
+                        <HqTooltip
+                            label="Cambio (dato de la alineación)"
+                            className="shrink-0 font-mono text-[11px] text-hq-moss-dim"
+                        >
+                            {entry.subbed_out ? 'sale por' : 'entra por'}{' '}
+                            {entry.counterpart_player.nickname}
+                        </HqTooltip>
+                    )}
+                    {events.hasGood && (
+                        <span className="inline-flex shrink-0 items-center gap-1.5">
+                            {events.good}
+                        </span>
+                    )}
+                    {events.hasBad && (
+                        <span className="inline-flex shrink-0 items-center gap-1.5">
+                            {events.bad}
+                        </span>
+                    )}
+                    {entry.lineup_manager && (
+                        <HqManagerChip
+                            manager={entry.lineup_manager}
+                            className="min-w-0"
+                        />
+                    )}
+                </div>
             </div>
-            {entry.player && entry.points !== null && (
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {/*
+             * A fixed-height slot for the points chip + DAZN badge stack,
+             * reserved even when a row has neither (unresolved player,
+             * unplayed sub), so every row stays the same height and both
+             * team columns keep their rows level.
+             */}
+            <div className="flex h-[54px] shrink-0 flex-col items-end justify-center gap-1.5">
+                {entry.player && entry.points !== null && (
                     <span
                         className={cn(
                             'inline-flex h-8 min-w-10 items-center justify-center px-[5px] font-mono text-base leading-none font-bold tabular-nums',
@@ -393,21 +409,11 @@ export function HqLineupPlayerToken({
                     >
                         {entry.points}
                     </span>
-                    {hasPlayed && entry.dazn_points !== null && (
-                        <HqTooltip
-                            label="Puntos DAZN"
-                            className="inline-flex items-center gap-1 font-mono text-[11px] leading-none font-semibold text-hq-moss"
-                        >
-                            <img
-                                src="/images/dazn-logo.png"
-                                alt="DAZN"
-                                className="h-3.5 w-3.5"
-                            />
-                            {entry.dazn_points}
-                        </HqTooltip>
-                    )}
-                </div>
-            )}
+                )}
+                {entry.player && hasPlayed && (
+                    <HqDaznBadge entry={entry} size="sm" />
+                )}
+            </div>
         </div>
     );
 }

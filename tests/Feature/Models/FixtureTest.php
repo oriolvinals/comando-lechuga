@@ -70,3 +70,8 @@ test('maps worldcup26 status names to fixture states', function (string $name, ?
     ['STATUS_POSTPONED', null],
     ['STATUS_END_PERIOD', null],
 ]);
+
+test('dazn_published defaults to false and casts to bool', function (): void {
+    expect(Fixture::factory()->create()->fresh()->dazn_published)->toBeFalse()
+        ->and(Fixture::factory()->daznPublished()->create()->fresh()->dazn_published)->toBeTrue();
+});

@@ -222,7 +222,7 @@ test('breaks each jornada score down with minutes, starter, substitution and DAZ
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $team = Team::factory()->create();
     $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
-    $fixture = Fixture::factory()->create([
+    $fixture = Fixture::factory()->daznPublished()->create([
         'season_id' => $season->id,
         'week_number' => 1,
         'state' => FixtureState::Finished,
@@ -271,6 +271,57 @@ test('has null minutes and DAZN points when a score has no fantasy stats', funct
     $response->assertOk();
     $response->assertJsonPath('data.scores.0.minutes', null);
     $response->assertJsonPath('data.scores.0.marca_points', null);
+});
+
+test('hides marca_points while the fixture is not yet published, even with a raw Fantasy placeholder value', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $team = Team::factory()->create();
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'state' => FixtureState::SecondHalf,
+        'team_local_id' => $team->id,
+        'dazn_published' => false,
+    ]);
+    FixtureLineup::factory()->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $team->id,
+        // Fantasy sends a 0-point placeholder for marca_points while a match is live.
+        'fantasy_stats' => ['mins_played' => [63, 2], 'marca_points' => [-1, 0]],
+    ]);
+
+    $response = $this->getJson("/api/players/{$player->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.scores.0.marca_points', null);
+});
+
+test('keeps the frozen DAZN estimate alongside the official marca_points once the fixture is published', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $team = Team::factory()->create();
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $fixture = Fixture::factory()->daznPublished()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'state' => FixtureState::Finished,
+        'team_local_id' => $team->id,
+    ]);
+    FixtureLineup::factory()->withDaznEstimate(points: 2)->create([
+        'fixture_id' => $fixture->id,
+        'player_id' => $player->id,
+        'team_id' => $team->id,
+        'fantasy_points' => 15,
+        'fantasy_stats' => ['mins_played' => [90, 2], 'goals' => [1, 4], 'marca_points' => [-1, 4]],
+    ]);
+
+    $response = $this->getJson("/api/players/{$player->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('data.scores.0.dazn_estimate', 2);
+    $response->assertJsonPath('data.scores.0.dazn_estimate_version', 'v1');
+    $response->assertJsonPath('data.scores.0.marca_points', 4);
 });
 
 test('returns next_fixtures without padding', function (): void {

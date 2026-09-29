@@ -29,6 +29,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property bool|null $starter Computed at query time by AttachesLineupPlayerScores from the linked FixtureLineup; not a database column.
  * @property bool|null $subbed_out Computed at query time by AttachesLineupPlayerScores from the linked FixtureLineup; not a database column.
  * @property int|null $sub_minute Computed at query time by AttachesLineupPlayerScores from the linked FixtureLineup; not a database column.
+ * @property int|null $dazn_points Computed at query time by AttachesLineupPlayerScores via DaznEstimatePresenter, from the linked FixtureLineup and its fixture; not a database column.
+ * @property int|null $dazn_estimate Computed at query time by AttachesLineupPlayerScores via DaznEstimatePresenter, from the linked FixtureLineup and its fixture; not a database column.
+ * @property string $dazn_estimate_version Computed at query time by AttachesLineupPlayerScores via DaznEstimatePresenter, from the linked FixtureLineup and its fixture; not a database column.
+ * @property list<string> $dazn_estimate_reasons Computed at query time by AttachesLineupPlayerScores via DaznEstimatePresenter, from the linked FixtureLineup and its fixture; not a database column.
+ * @property string|null $dazn_estimate_source Computed at query time by AttachesLineupPlayerScores via DaznEstimatePresenter, from the linked FixtureLineup and its fixture; not a database column.
  * @property Fixture|null $fixture Computed at query time by SeasonManagersController's AttachesLineupFixtures, resolved by
  *                                 player team + lineup week (like `match_finished`) rather than via `fixture_id`, which isn't
  *                                 always set — see `AttachesLineupPlayerScores`. Shadows the lazy `fixture()` relation below.

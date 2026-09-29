@@ -26,6 +26,7 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Services\ApiPlayerShapes;
+use App\Services\DaznEstimatePresenter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -272,6 +273,7 @@ class PlayersController extends Controller
                 $fixture = $lineup->fixture;
                 $isHome = $fixture->team_local_id === $lineup->team_id;
                 $seasonManager = $lineupManagersByFixture->get($fixture->id)?->lineup?->seasonManager;
+                $dazn = DaznEstimatePresenter::present($lineup, $fixture);
 
                 return [
                     'fixture_id' => $fixture->id,
@@ -281,7 +283,9 @@ class PlayersController extends Controller
                     'is_home' => $isHome,
                     'points' => $lineup->fantasy_points,
                     'minutes' => $this->statPair($lineup->fantasy_stats, 'mins_played', 0),
-                    'marca_points' => $this->statPair($lineup->fantasy_stats, 'marca_points', 1),
+                    'marca_points' => $dazn['dazn_points'],
+                    'dazn_estimate' => $dazn['dazn_estimate'],
+                    'dazn_estimate_version' => $dazn['dazn_estimate_version'],
                     'starter' => $lineup->starter,
                     'subbed_in' => $lineup->subbed_in,
                     'subbed_out' => $lineup->subbed_out,
