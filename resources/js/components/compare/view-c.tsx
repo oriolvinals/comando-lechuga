@@ -781,7 +781,9 @@ export function CompareViewC() {
                                                                 ) : metric !==
                                                                       'minutes' &&
                                                                   score.minutes >
-                                                                      0 ? (
+                                                                      0 &&
+                                                                  value ===
+                                                                      null ? (
                                                                     <span className="font-mono text-[11px] text-hq-moss-dim">
                                                                         —
                                                                     </span>
