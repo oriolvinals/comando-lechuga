@@ -195,7 +195,9 @@ export function HqStartOutcomeChip({
  * and our status badge inline, then the 10-cell bar/% — or the outcome chip
  * once confirmed. Same row the match ficha's start-probability lists use,
  * shared here for the team ficha's full non-XI roster (bench, doubts and
- * bajas) below its probable-XI pitch.
+ * bajas) below its probable-XI pitch. With `positionUnderName` the
+ * position tag moves off the photo to its own line under the name, where it
+ * reads more easily — the team ficha's substitutes list.
  */
 export function HqStartRosterRow({
     entry,
@@ -203,12 +205,14 @@ export function HqStartRosterRow({
     dim = false,
     muted = false,
     fetchedAt = null,
+    positionUnderName = false,
 }: {
     entry: StartProbabilityEntry;
     confirmed: boolean;
     dim?: boolean;
     muted?: boolean;
     fetchedAt?: string | null;
+    positionUnderName?: boolean;
 }) {
     return (
         <div
@@ -226,10 +230,12 @@ export function HqStartRosterRow({
                     className="h-9 w-9 rounded-none border border-hq-border-strong bg-hq-well object-cover"
                     style={{ objectPosition: 'center 20%' }}
                 />
-                <HqPositionTag
-                    position={entry.player.position}
-                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-hq-ink px-[3px] py-0.5 text-[8.5px]"
-                />
+                {!positionUnderName && (
+                    <HqPositionTag
+                        position={entry.player.position}
+                        className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-hq-ink px-[3px] py-0.5 text-[8.5px]"
+                    />
+                )}
             </span>
             <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-1.5">
@@ -246,6 +252,12 @@ export function HqStartRosterRow({
                         />
                     )}
                 </div>
+                {positionUnderName && (
+                    <HqPositionTag
+                        position={entry.player.position}
+                        className="mt-1"
+                    />
+                )}
             </div>
             <div className="relative z-10 flex items-center justify-end">
                 {confirmed ? (

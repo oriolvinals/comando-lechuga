@@ -132,6 +132,7 @@ export function HqProbableHalfPitch({
                             key={entry.player.id}
                             entry={entry}
                             confirmed={confirmed}
+                            positionUnderName
                             muted={probabilities.is_stale}
                             fetchedAt={probabilities.fetched_at}
                         />
