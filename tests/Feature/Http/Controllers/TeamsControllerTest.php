@@ -564,30 +564,33 @@ test('the pitch positions starters by their real match line, not the fantasy pos
         // Goalkeeper/defender/forward anchors, unaffected by how many
         // midfield lines the formation has. (JSON round-trips an integral
         // float back as a plain int.)
-        expect($entryFor('goalkeeper')['pitch_top'])->toBe(6);
-        expect($entryFor('defender_left')['pitch_top'])->toBe(28);
-        expect($entryFor('forward')['pitch_top'])->toBe(74);
+        expect($entryFor('goalkeeper')['pitch_bottom'])->toBe(6);
+        expect($entryFor('defender_left')['pitch_bottom'])->toBe(28);
+        expect($entryFor('forward')['pitch_bottom'])->toBe(74);
 
         // Two distinct midfield lines (DM, AM) split evenly between the
         // defender and forward anchors — DM sits closer to defense, AM
         // closer to attack, and both are still tagged "midfield" by the
         // fantasy position column.
-        $dmTop = $entryFor('dm_left')['pitch_top'];
-        $amTop = $entryFor('am_left')['pitch_top'];
-        expect($dmTop)->toBeGreaterThan(28)->toBeLessThan($amTop);
-        expect($amTop)->toBeLessThan(74);
-        expect($entryFor('dm_right')['pitch_top'])->toBe($dmTop);
-        expect($entryFor('am_center')['pitch_top'])->toBe($amTop);
-        expect($entryFor('am_right')['pitch_top'])->toBe($amTop);
+        $dmDepth = $entryFor('dm_left')['pitch_bottom'];
+        $amDepth = $entryFor('am_left')['pitch_bottom'];
+        expect($dmDepth)->toBeGreaterThan(28)->toBeLessThan($amDepth);
+        expect($amDepth)->toBeLessThan(74);
+        expect($entryFor('dm_right')['pitch_bottom'])->toBe($dmDepth);
+        expect($entryFor('am_center')['pitch_bottom'])->toBe($amDepth);
+        expect($entryFor('am_right')['pitch_bottom'])->toBe($amDepth);
 
-        // Sides are seen from the goalkeeper, who sits at the top of the
-        // pitch: a player's left is the screen's right.
-        expect($entryFor('defender_left')['pitch_left'])
-            ->toBeGreaterThan($entryFor('defender_center_a')['pitch_left']);
-        expect($entryFor('am_left')['pitch_left'])
-            ->toBeGreaterThan($entryFor('am_center')['pitch_left']);
-        expect($entryFor('am_center')['pitch_left'])
-            ->toBeGreaterThan($entryFor('am_right')['pitch_left']);
+        // The goalkeeper sits at the bottom and the team attacks up the
+        // screen, so a player's left is the screen's left. Each line takes
+        // an equal share of the width per player, spread edge to edge.
+        expect($entryFor('defender_left')['pitch_left'])->toBe(12.5);
+        expect($entryFor('defender_right')['pitch_left'])->toBe(87.5);
+        expect($entryFor('dm_left')['pitch_left'])->toBe(25);
+        expect($entryFor('dm_right')['pitch_left'])->toBe(75);
+        expect($entryFor('am_left')['pitch_left'])->toBeLessThan($entryFor('am_center')['pitch_left']);
+        expect($entryFor('am_center')['pitch_left'])->toBe(50);
+        expect($entryFor('am_center')['pitch_left'])->toBeLessThan($entryFor('am_right')['pitch_left']);
+        expect($entryFor('forward')['pitch_left'])->toBe(50);
 
         return $page;
     });

@@ -33,7 +33,7 @@ function SubHead({ label, count }: { label: string; count: number }) {
  * The team ficha's jornada aside before the match (variant B):
  * FútbolFantasy's probable XI — or the confirmed one — drawn on the exact
  * same portrait pitch as a played jornada's real lineup (`HqLineupPitch`:
- * same aspect, markings and row-sized tokens), goalkeeper at the top, each
+ * same aspect, markings and row-sized tokens), goalkeeper at the bottom, each
  * player by his real role when known (see `halfPitchSlots`, which lands on
  * the same rows a confirmed lineup would) and the formation tagged top-left
  * like the confirmed pitch. Below the pitch — mirroring where the confirmed
@@ -57,8 +57,8 @@ export function HqProbableHalfPitch({
     const slots = halfPitchSlots(starters);
     const lineCounts = new Map<number, number>();
 
-    slots.forEach(({ top }) => {
-        lineCounts.set(top, (lineCounts.get(top) ?? 0) + 1);
+    slots.forEach(({ bottom }) => {
+        lineCounts.set(bottom, (lineCounts.get(bottom) ?? 0) + 1);
     });
 
     return (
@@ -94,14 +94,16 @@ export function HqProbableHalfPitch({
                             {formation}
                         </span>
                     )}
-                    {slots.map(({ entry, left, top }) => (
+                    {slots.map(({ entry, left, bottom }) => (
                         <div
                             key={entry.player.id}
                             className={cn(
                                 'absolute z-[2] flex -translate-x-1/2 justify-center',
-                                tokenWidthForRowCount(lineCounts.get(top) ?? 1),
+                                tokenWidthForRowCount(
+                                    lineCounts.get(bottom) ?? 1,
+                                ),
                             )}
-                            style={{ left: `${left}%`, top: `${top}%` }}
+                            style={{ left: `${left}%`, bottom: `${bottom}%` }}
                         >
                             <HqStartPitchToken
                                 entry={entry}

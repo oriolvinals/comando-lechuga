@@ -365,9 +365,6 @@ const MIDFIELD_LINES: MatchLine[] = [
     'attacking_midfielder',
 ];
 
-/** Same per-player spacing along a line as the confirmed-lineup pitches (FixturesController / TeamsController). */
-const LINE_STEP = 76 / 3;
-
 /** Depth of the goalkeeper, the back line and the front line on a pitch; midfield lines split the gap evenly. */
 interface LineAnchors {
     goalkeeper: number;
@@ -383,15 +380,31 @@ interface RoleSpot {
 }
 
 /**
+ * Where the `index`-th of `count` players on one line stands across the
+ * pitch (0–100): the line takes the whole width from `from` to `to` and
+ * each player gets an equal share of it, standing in its middle — the same
+ * spread `HqLineupPitch` gives a fantasy manager's rows.
+ */
+function spreadAcross(
+    index: number,
+    count: number,
+    from: number,
+    to: number,
+): number {
+    return from + ((index + 0.5) / Math.max(count, 1)) * (to - from);
+}
+
+/**
  * The XI by each starter's `pitch_position`, laid out like a confirmed
  * lineup: one line per match line, midfield lines evenly between the back
- * and front lines, each line ordered by flank and spread with the same
- * step. Null unless every starter has a position — then the caller falls
- * back to the fantasy-position layout.
+ * and front lines, each line ordered by flank and spread across the pitch
+ * with `spread`. Null unless every starter has a position — then the
+ * caller falls back to the fantasy-position layout.
  */
 function roleSpots(
     starters: StartProbabilityEntry[],
     anchors: LineAnchors,
+    spread: (index: number, count: number) => number,
 ): RoleSpot[] | null {
     if (
         starters.length === 0 ||
@@ -440,16 +453,21 @@ function roleSpots(
                     byProbability(a.entry, b.entry) ||
                     a.entry.player.id - b.entry.player.id,
             );
-        const step =
-            line.length <= 1 ? 0 : Math.min(LINE_STEP, 76 / (line.length - 1));
-        const start = 50 - (step * (line.length - 1)) / 2;
 
         return line.map((mate, index) => ({
             entry: mate.entry,
             depth: depthOf(mate.line),
-            across: line.length <= 1 ? 50 : start + index * step,
+            across: spread(index, line.length),
         }));
     });
+}
+
+/**
+ * A landscape line's spot across the pitch (% of its height), kept clear of
+ * the side tags along the top edge.
+ */
+function landscapeAcross(index: number, count: number): number {
+    return spreadAcross(index, count, 6, 94);
 }
 
 /** Where the landscape pitch puts each line when the XI has real positions. */
@@ -471,7 +489,7 @@ export function landscapeSlots(
     starters: StartProbabilityEntry[],
     side: 'local' | 'guest',
 ): StartPitchSlot[] {
-    const spots = roleSpots(starters, LANDSCAPE_ANCHORS);
+    const spots = roleSpots(starters, LANDSCAPE_ANCHORS, landscapeAcross);
 
     if (spots !== null) {
         return spots.map(({ entry, depth, across }) =>
@@ -492,7 +510,7 @@ export function landscapeSlots(
                 line.length >= 4 &&
                 (index === 0 || index === line.length - 1);
             const depth = LANDSCAPE_DEPTH[position] + (wide ? 3.5 : 0);
-            const across = 9 + ((index + 1) / (line.length + 1)) * 82;
+            const across = landscapeAcross(index, line.length);
 
             return side === 'local'
                 ? { entry, left: depth, top: across }
@@ -502,11 +520,11 @@ export function landscapeSlots(
 }
 
 /**
- * Depth (% from the top) of the goalkeeper, back line and front line on the
- * team ficha's portrait pitch when a starter's real match role is known —
- * the exact same anchors the backend gives a confirmed lineup's own
- * `pitch_top` (`TeamsController::PITCH_ROW_ANCHOR`), so a probable XI lands
- * on the identical rows a confirmed one later would.
+ * Depth (% up from the bottom edge) of the goalkeeper, back line and front
+ * line on the team ficha's portrait pitch when a starter's real match role
+ * is known — the exact same anchors the backend gives a confirmed lineup's
+ * own `pitch_bottom` (`TeamsController::PITCH_ROW_ANCHOR`), so a probable
+ * XI lands on the identical rows a confirmed one later would.
  */
 const PORTRAIT_ROLE_ANCHORS: LineAnchors = {
     goalkeeper: 6,
@@ -515,11 +533,12 @@ const PORTRAIT_ROLE_ANCHORS: LineAnchors = {
 };
 
 /**
- * Fallback depth (% from the top) by fantasy position, when a starter's
- * real match role isn't known — matches `HqLineupPitch`'s own fantasy-row
- * fallback (`ROWS`) so the two pitches still land on the same lines.
+ * Fallback depth (% up from the bottom edge) by fantasy position, when a
+ * starter's real match role isn't known — matches `HqLineupPitch`'s own
+ * fantasy-row fallback (`ROWS`) so the two pitches still land on the same
+ * lines.
  */
-const PORTRAIT_POSITION_TOP: Record<PitchLine, number> = {
+const PORTRAIT_POSITION_BOTTOM: Record<PitchLine, number> = {
     goalkeeper: 5,
     defender: 27,
     midfield: 50,
@@ -527,23 +546,42 @@ const PORTRAIT_POSITION_TOP: Record<PitchLine, number> = {
 };
 
 /**
+ * The horizontal centre (% of the pitch's width) of the `index`-th of
+ * `count` players on one portrait row: each gets an equal share of the
+ * width and stands in its middle — the same spread `HqLineupPitch` gives a
+ * fantasy manager's rows and `TeamsController::pitchLeft` a confirmed XI,
+ * sized to match `tokenWidthForRowCount`.
+ */
+function portraitRowLeft(index: number, count: number): number {
+    return spreadAcross(index, count, 0, 100);
+}
+
+/** A player's spot on a portrait pitch, in % of its width (left) and % of its height up from the bottom edge. */
+export interface PortraitPitchSlot {
+    entry: StartProbabilityEntry;
+    left: number;
+    bottom: number;
+}
+
+/**
  * A probable XI's spots on the team ficha's portrait pitch (`HqLineupPitch`'s
- * own `aspect-[280/430]`), attacking down with the goalkeeper at the top —
+ * own `aspect-[280/430]`), attacking up with the goalkeeper at the bottom —
  * so, as on the team ficha's confirmed pitch, each flank is seen from the
- * goalkeeper: the player's right is the screen's left. By real role when
+ * goalkeeper: the player's left is the screen's left. By real role when
  * every starter's `pitch_position` is known (landing on the exact rows a
- * confirmed lineup would), else by fantasy position.
+ * confirmed lineup would), else by fantasy position. Either way each row is
+ * spread across the whole width (`portraitRowLeft`).
  */
 export function halfPitchSlots(
     starters: StartProbabilityEntry[],
-): StartPitchSlot[] {
-    const spots = roleSpots(starters, PORTRAIT_ROLE_ANCHORS);
+): PortraitPitchSlot[] {
+    const spots = roleSpots(starters, PORTRAIT_ROLE_ANCHORS, portraitRowLeft);
 
     if (spots !== null) {
         return spots.map(({ entry, depth, across }) => ({
             entry,
-            left: 100 - across,
-            top: depth,
+            left: across,
+            bottom: depth,
         }));
     }
 
@@ -560,8 +598,8 @@ export function halfPitchSlots(
 
             return {
                 entry,
-                left: ((index + 1) / (line.length + 1)) * 100,
-                top: PORTRAIT_POSITION_TOP[position] + (wide ? 4 : 0),
+                left: portraitRowLeft(index, line.length),
+                bottom: PORTRAIT_POSITION_BOTTOM[position] + (wide ? 4 : 0),
             };
         });
     });

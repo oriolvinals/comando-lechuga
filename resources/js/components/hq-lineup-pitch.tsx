@@ -15,19 +15,20 @@ import type {
 } from '@/types/models';
 
 /**
- * Top-to-bottom row order and vertical anchor (% of pitch height), matching
- * the official LaLiga Fantasy app: goalkeeper at the top. Each row sits in
+ * Row order and vertical anchor (% of pitch height up from the bottom edge):
+ * the lineup reads bottom to top, goalkeeper at the bottom and attackers at
+ * the top. Each row sits in
  * its logical zone — keeper inside their own box, defenders just outside it,
  * midfield around the halfway line, attackers in the final third short of
  * the opposite box — with an even ~22-23% rhythm between lines. Only used
  * for a fantasy manager's lineup — see the module doc comment below for why
  * a team ficha's real match lineup can't use this same row grouping.
  */
-const ROWS: { position: PlayerPosition; top: string }[] = [
-    { position: 'goalkeeper', top: '5%' },
-    { position: 'defender', top: '27%' },
-    { position: 'midfield', top: '50%' },
-    { position: 'striker', top: '73%' },
+const ROWS: { position: PlayerPosition; bottom: string }[] = [
+    { position: 'goalkeeper', bottom: '5%' },
+    { position: 'defender', bottom: '27%' },
+    { position: 'midfield', bottom: '50%' },
+    { position: 'striker', bottom: '73%' },
 ];
 
 /**
@@ -478,9 +479,10 @@ interface HqLineupPitchProps {
  * more than 3 outfield lines (e.g. 4-2-3-1's double pivot + advanced trio)
  * that the same 4-bucket category can't represent, and doesn't preserve
  * left-to-right order within a line either. When the backend has resolved
- * each starter's actual match role into `pitch_top`/`pitch_left` (see
- * TeamsController::pitchTop/pitchLeft), place every player at that exact
- * spot instead of forcing them into the fantasy row grouping.
+ * each starter's actual match role into `pitch_bottom`/`pitch_left` (see
+ * TeamsController::pitchBottom/pitchLeft), place every player at that exact
+ * spot instead of forcing them into the fantasy row grouping. Either way the
+ * goalkeeper stands at the bottom and the team attacks up the screen.
  */
 export function HqLineupPitch({
     players,
@@ -549,7 +551,8 @@ export function HqLineupPitch({
         players.length > 0 &&
         players.every(
             (entry) =>
-                entry.pitch_top !== undefined && entry.pitch_left !== undefined,
+                entry.pitch_bottom !== undefined &&
+                entry.pitch_left !== undefined,
         );
 
     const expectedCounts: Partial<Record<PlayerPosition, number>> = {
@@ -581,8 +584,8 @@ export function HqLineupPitch({
 
     if (useRealCoordinates) {
         players.forEach((entry) => {
-            const top = entry.pitch_top as number;
-            lineSizes.set(top, (lineSizes.get(top) ?? 0) + 1);
+            const bottom = entry.pitch_bottom as number;
+            lineSizes.set(bottom, (lineSizes.get(bottom) ?? 0) + 1);
         });
     }
 
@@ -660,12 +663,12 @@ export function HqLineupPitch({
                                   'absolute z-10 flex -translate-x-1/2 justify-center',
                                   tokenWidthForRowCount(
                                       lineSizes.get(
-                                          entry.pitch_top as number,
+                                          entry.pitch_bottom as number,
                                       ) ?? 1,
                                   ),
                               )}
                               style={{
-                                  top: `${entry.pitch_top}%`,
+                                  bottom: `${entry.pitch_bottom}%`,
                                   left: `${entry.pitch_left}%`,
                               }}
                           >
@@ -689,7 +692,7 @@ export function HqLineupPitch({
                               <div
                                   key={row.position}
                                   className="absolute right-1.5 left-1.5 z-10 flex justify-evenly"
-                                  style={{ top: row.top }}
+                                  style={{ bottom: row.bottom }}
                               >
                                   {row.entries.map((entry) => (
                                       <PlayerToken

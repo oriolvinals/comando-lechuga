@@ -44,8 +44,8 @@ class TeamsController extends Controller
 
     public function __construct(private readonly LeagueStandings $standings) {}
 
-    // Vertical anchors (top %) for the ficha's own portrait pitch, matching
-    // HqLineupPitch's ROWS constant. Unlike the fantasy `Player::position`
+    // Vertical anchors (% up from the bottom edge — the goalkeeper's end) for
+    // the ficha's own portrait pitch, matching HqLineupPitch's ROWS constant. Unlike the fantasy `Player::position`
     // column (only 4 broad buckets), a real formation can use more than one
     // midfield line (e.g. 4-2-3-1's double pivot + advanced trio) — any
     // midfield line beyond a flat single one splits evenly between the
@@ -65,10 +65,6 @@ class TeamsController extends Controller
         'midfielder',
         'attacking_midfielder',
     ];
-
-    // Same per-player horizontal spacing FixturesController's shared match
-    // pitch uses, so a line of starters here spreads the same way.
-    private const float PITCH_LINE_STEP = 76 / 3;
 
     /**
      * The standings table always ships (the header and the calendar both need
@@ -249,7 +245,7 @@ class TeamsController extends Controller
      * displayable for it on this pitch (no name/photo/position) anyway.
      *
      * @param  Collection<int, Fixture>  $fixtures  this team's fixtures for the season, with localTeam/guestTeam loaded
-     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: PlayerPosition, player: Player, match_finished: bool, starter: bool, subbed_out: bool, sub_minute: int|null, pitch_top: float, pitch_left: float}>, substitutes: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: PlayerPosition, player: Player, match_finished: bool, starter: bool, subbed_out: bool, sub_minute: int|null}>}>
+     * @return list<array{week_number: int, fixture: Fixture, players: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: PlayerPosition, player: Player, match_finished: bool, starter: bool, subbed_out: bool, sub_minute: int|null, pitch_bottom: float, pitch_left: float}>, substitutes: list<array{id: int, points: int|null, stats: array<string, mixed>|null, position: PlayerPosition, player: Player, match_finished: bool, starter: bool, subbed_out: bool, sub_minute: int|null}>}>
      */
     private function weeklyLineupsFor(Team $team, Season $season, Collection $fixtures): array
     {
@@ -304,7 +300,7 @@ class TeamsController extends Controller
                 ];
 
                 if ($lineup->starter) {
-                    $entry['pitch_top'] = $this->pitchTop($lineup, $starters);
+                    $entry['pitch_bottom'] = $this->pitchBottom($lineup, $starters);
                     $entry['pitch_left'] = $this->pitchLeft($lineup, $starters);
                     $players[] = $entry;
                 } else {
@@ -334,12 +330,13 @@ class TeamsController extends Controller
     }
 
     /**
-     * Vertical anchor (top %) for a starter based on their real match role,
-     * parsed from the raw worldcup26 position text — see PITCH_ROW_ANCHOR.
+     * Vertical anchor (% up from the bottom edge, where the goalkeeper
+     * stands) for a starter based on their real match role, parsed from the
+     * raw worldcup26 position text — see PITCH_ROW_ANCHOR.
      *
      * @param  Collection<int, FixtureLineup>  $teamStarters  this team's own starters for the fixture
      */
-    private function pitchTop(FixtureLineup $lineup, Collection $teamStarters): float
+    private function pitchBottom(FixtureLineup $lineup, Collection $teamStarters): float
     {
         $line = MatchPositionLine::fromWorldcup26Text($lineup->position);
 
@@ -369,9 +366,10 @@ class TeamsController extends Controller
     }
 
     /**
-     * Horizontal spread (left %) among starters sharing the same real match
-     * line, ordered left-to-right by side then shirt number — same spacing
-     * FixturesController's shared match pitch uses.
+     * Horizontal spot (left %) among starters sharing the same real match
+     * line, ordered left-to-right by side then shirt number. Each player
+     * gets the centre of an equal share of the pitch's width — the same
+     * spread HqLineupPitch gives a fantasy manager's rows.
      *
      * @param  Collection<int, FixtureLineup>  $teamStarters  this team's own starters for the fixture
      */
@@ -382,33 +380,15 @@ class TeamsController extends Controller
         $lineMates = $teamStarters
             ->filter(fn (FixtureLineup $mate): bool => MatchPositionLine::fromWorldcup26Text($mate->position) === $line)
             ->sortBy([
-                fn (FixtureLineup $a, FixtureLineup $b): int => $this->pitchSideOrder($a->position) <=> $this->pitchSideOrder($b->position),
+                fn (FixtureLineup $a, FixtureLineup $b): int => MatchPositionSide::fromWorldcup26Text($a->position)->leftToRight() <=> MatchPositionSide::fromWorldcup26Text($b->position)->leftToRight(),
                 fn (FixtureLineup $a, FixtureLineup $b): int => $a->jersey <=> $b->jersey,
             ])
             ->values();
 
         $index = $lineMates->search(fn (FixtureLineup $mate): bool => $mate->id === $lineup->id);
-        $count = $lineMates->count();
-
-        if ($count <= 1) {
-            return 50.0;
-        }
-
+        $count = max($lineMates->count(), 1);
         $index = $index === false ? 0 : $index;
-        $step = min(self::PITCH_LINE_STEP, 76 / ($count - 1));
-        $span = $step * ($count - 1);
-        $start = 50 - ($span / 2);
 
-        return round($start + ($index * $step), 1);
-    }
-
-    /**
-     * Screen order (left to right) of a player's side. The goalkeeper sits at
-     * the top of this pitch, so the team attacks down the screen: seen from
-     * the goalkeeper, the player's right is the screen's left.
-     */
-    private function pitchSideOrder(string $position): int
-    {
-        return 4 - MatchPositionSide::fromWorldcup26Text($position)->leftToRight();
+        return round((($index + 0.5) / $count) * 100, 1);
     }
 }
