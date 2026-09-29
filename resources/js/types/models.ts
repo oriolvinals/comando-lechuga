@@ -800,3 +800,23 @@ export interface ComparedPlayer {
     clause: ComparedPlayerClause | null;
     listing: ComparedPlayerListing | null;
 }
+
+/** One listed league player for the comparator's clouds, search and hover cards (App\Services\LeagueCloud). */
+export interface LeagueCloudRow {
+    id: number;
+    name: string;
+    image: string;
+    position: PlayerPosition;
+    team_short: string;
+    owner_id: number | null;
+    points: number;
+    average_points: number;
+    /** Points per million of value; null without a value. */
+    ppm: number | null;
+    /** Confirmed lineup as 100/0, else FútbolFantasy's %, else null. */
+    start_probability: number | null;
+    /** The 30-day value multiple (×1,25), null without 30 days of history. */
+    value_trend_30d: number | null;
+    value: number;
+    difference: number;
+}
