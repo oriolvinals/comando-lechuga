@@ -641,6 +641,34 @@ test('lineup player points/stats come from the linked FixtureLineup via fixture_
     );
 });
 
+test('lineup player carries the DAZN estimate and official rating from the linked FixtureLineup', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 1]);
+    $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create();
+    $fixture = Fixture::factory()->daznPublished()->create(['season_id' => $season->id, 'week_number' => 1, 'state' => FixtureState::Finished]);
+    FixtureLineup::factory()
+        ->withDaznEstimate(points: 2)
+        ->create([
+            'fixture_id' => $fixture->id,
+            'player_id' => $player->id,
+            'fantasy_stats' => ['marca_points' => [3, 4]],
+        ]);
+    $lineup = ManagerLineup::factory()->create(['season_manager_id' => $seasonManager->id, 'week_number' => 1]);
+    ManagerLineupPlayer::factory()->create([
+        'manager_lineup_id' => $lineup->id,
+        'player_id' => $player->id,
+        'fixture_id' => $fixture->id,
+    ]);
+
+    $response = $this->get(route('season-managers.index', ['week' => 1]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('lineups.0.players.0.dazn_points', 4)
+        ->where('lineups.0.players.0.dazn_estimate', 2)
+    );
+});
+
 test('lineup player points/stats are null when fixture_id is not yet set', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay(), 'current_week' => 1]);
     $seasonManager = SeasonManager::factory()->create(['season_id' => $season->id]);
