@@ -38,10 +38,10 @@ export interface ScoringRuleGroup {
  */
 export const SCORING_RULE_GROUPS: ScoringRuleGroup[] = [
     {
-        group: 'Básicos',
+        group: 'Minutos',
         rules: [
-            { label: 'Juega menos de 60 minutos', points: 1 },
-            { label: 'Juega 60 minutos o más', points: 2 },
+            { label: 'Juega menos de 60', points: 1 },
+            { label: 'Juega 60 o más', points: 2 },
         ],
     },
     {
@@ -65,7 +65,7 @@ export const SCORING_RULE_GROUPS: ScoringRuleGroup[] = [
         rules: [
             {
                 label: 'Portería a cero',
-                sub: 'jugando más de 60 minutos',
+                sub: 'más de 60 minutos',
                 points: {
                     goalkeeper: 4,
                     defender: 3,

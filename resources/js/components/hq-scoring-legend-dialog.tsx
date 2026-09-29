@@ -1,7 +1,6 @@
 import { X } from 'lucide-react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Fragment, useEffect, useId, useRef, useState } from 'react';
-import { HqLed } from '@/components/hq-led';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import {
     SCORING_POSITIONS,
@@ -9,7 +8,7 @@ import {
     scoringFrequencyForPosition,
     scoringPointsForPosition,
 } from '@/lib/fantasy-scoring';
-import type { ScoringPosition } from '@/lib/fantasy-scoring';
+import type { ScoringPosition, ScoringRule } from '@/lib/fantasy-scoring';
 import { POSITION_LABELS } from '@/lib/player-labels';
 import { formatSignedPoints, pointsToneClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
@@ -28,7 +27,7 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
 }
 
 /**
- * "¿Cómo se puntúa?" (mock option B): the official LaLiga Fantasy scoring
+ * "¿Cómo se puntúa?" : the official LaLiga Fantasy scoring
  * table, one position at a time behind POR/DEF/MED/DEL tabs — a centred
  * dialog on desktop, a bottom sheet on phones. Esc, the backdrop and the
  * close button all dismiss it; focus is trapped inside while open and
@@ -146,10 +145,10 @@ export function HqScoringLegendDialog({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
-                className="flex max-h-[90vh] w-full cursor-default flex-col overflow-hidden border border-hq-border-bright bg-hq-ink shadow-[0_30px_80px_rgba(0,0,0,0.6)] md:max-h-[86vh] md:max-w-[480px]"
+                className="flex max-h-[90vh] w-full cursor-default flex-col overflow-hidden border border-hq-border-bright bg-hq-ink shadow-[0_30px_80px_rgba(0,0,0,0.6)] md:max-h-[88vh] md:max-w-[440px]"
                 onClick={(event) => event.stopPropagation()}
             >
-                <div className="flex items-center justify-between gap-2.5 border-b border-hq-border py-2 pr-2.5 pl-4">
+                <div className="flex shrink-0 items-center justify-between gap-3 py-2 pr-2.5 pl-4">
                     <h2
                         id={titleId}
                         className="text-xl leading-none font-black text-hq-paper uppercase"
@@ -160,7 +159,7 @@ export function HqScoringLegendDialog({
                         type="button"
                         onClick={onClose}
                         aria-label="Cerrar"
-                        className="flex h-11 w-11 cursor-pointer items-center justify-center border border-hq-border-strong text-hq-moss hover:border-hq-border-bright hover:text-hq-paper md:h-8 md:w-8"
+                        className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center border border-hq-border-strong text-hq-moss transition-colors hover:border-hq-border-bright hover:text-hq-paper md:h-[30px] md:w-[30px]"
                     >
                         <X className="h-4 w-4" />
                     </button>
@@ -170,10 +169,11 @@ export function HqScoringLegendDialog({
                     role="tablist"
                     aria-label="Posición"
                     onKeyDown={handleTablistKeyDown}
-                    className="grid grid-cols-4 border-b border-hq-border"
+                    className="grid shrink-0 grid-cols-4 gap-px border-y border-hq-border bg-hq-border"
                 >
                     {SCORING_POSITIONS.map((tabPosition, index) => {
                         const selected = tabPosition === position;
+                        const theme = POSITION_THEME[tabPosition];
 
                         return (
                             <button
@@ -187,33 +187,32 @@ export function HqScoringLegendDialog({
                                 tabIndex={selected ? 0 : -1}
                                 onClick={() => selectTab(tabPosition, false)}
                                 className={cn(
-                                    'flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1.5 border-b-2 border-transparent py-1.5 transition-colors',
+                                    'group relative flex min-h-11 cursor-pointer items-center justify-center transition-colors focus-visible:outline-offset-[-2px] md:min-h-10',
                                     selected
-                                        ? 'bg-hq-panel'
-                                        : 'hover:bg-hq-panel/50',
-                                    selected &&
-                                        POSITION_TAB_BORDER_CLASSES[
-                                            tabPosition
-                                        ],
+                                        ? theme.tint
+                                        : 'bg-hq-ink hover:bg-hq-panel',
                                 )}
                             >
                                 <HqPositionTag
                                     position={tabPosition}
                                     className={cn(
                                         !selected &&
-                                            'border-hq-border-strong bg-transparent text-hq-moss-dim',
+                                            'border-hq-border-strong bg-transparent text-hq-moss-dim group-hover:border-hq-border-bright group-hover:text-hq-moss',
                                     )}
                                 />
-                                <small
-                                    className={cn(
-                                        'font-mono text-[9.5px] font-semibold tracking-[0.04em] uppercase',
-                                        selected
-                                            ? 'text-hq-paper'
-                                            : 'text-hq-moss-dim',
-                                    )}
-                                >
+                                <span className="sr-only">
                                     {POSITION_LABELS[tabPosition]}
-                                </small>
+                                </span>
+                                <span
+                                    aria-hidden="true"
+                                    className={cn(
+                                        'absolute inset-x-0 bottom-0 h-0.5 transition-opacity',
+                                        theme.bar,
+                                        selected
+                                            ? 'opacity-100'
+                                            : 'opacity-0 group-hover:opacity-40',
+                                    )}
+                                />
                             </button>
                         );
                     })}
@@ -224,95 +223,133 @@ export function HqScoringLegendDialog({
                     role="tabpanel"
                     aria-labelledby={`${tablistId}-${position}`}
                     tabIndex={0}
-                    className="overflow-y-auto overscroll-contain"
+                    className="[scrollbar-width:thin] [scrollbar-color:var(--color-hq-border-bright)_transparent] overflow-y-auto overscroll-contain focus-visible:outline-offset-[-2px]"
                 >
-                    <div className="grid grid-cols-1 min-[400px]:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-px bg-hq-border">
                         {SCORING_RULE_GROUPS.map((group) => (
                             <Fragment key={group.group}>
-                                <p className="col-span-full border-b border-hq-border bg-hq-well px-4 pt-3 pb-1.5 font-mono text-[10.5px] leading-none font-bold tracking-[0.1em] text-hq-moss uppercase">
+                                <h3 className="col-span-full bg-hq-well px-4 pt-[9px] pb-[7px] font-mono text-[10px] leading-none font-bold tracking-[0.12em] text-hq-moss-dim uppercase">
                                     {group.group}
-                                </p>
-                                {group.rules.map((rule) => {
-                                    const value = scoringPointsForPosition(
-                                        rule,
-                                        position,
-                                    );
-                                    const frequency =
-                                        scoringFrequencyForPosition(
-                                            rule,
-                                            position,
-                                        );
-
-                                    return (
+                                </h3>
+                                {group.rules.map((rule) => (
+                                    <ScoringRuleCell
+                                        key={rule.label}
+                                        rule={rule}
+                                        position={position}
+                                        fullWidth={group.rules.length === 1}
+                                    />
+                                ))}
+                                {group.rules.length > 1 &&
+                                    group.rules.length % 2 === 1 && (
                                         <div
-                                            key={rule.label}
-                                            className="flex items-center gap-3 border-b border-hq-border px-4 py-[9px]"
-                                        >
-                                            <span className="min-w-0 flex-1 text-[13px] leading-[1.3] font-semibold text-hq-paper">
-                                                {rule.label === 'Nota DAZN' ? (
-                                                    <img
-                                                        src="/images/dazn-logo.png"
-                                                        alt="DAZN"
-                                                        className="mr-1.5 inline-block h-3.5 w-3.5 align-text-bottom"
-                                                    />
-                                                ) : null}
-                                                {rule.label}
-                                                {rule.sub && (
-                                                    <small className="block font-mono text-[11px] leading-[1.3] font-normal text-hq-moss-dim">
-                                                        {rule.sub}
-                                                    </small>
-                                                )}
-                                            </span>
-                                            {rule.range ? (
-                                                <HqLed
-                                                    tone="lime"
-                                                    className="shrink-0 text-base whitespace-nowrap"
-                                                >
-                                                    {rule.range}
-                                                </HqLed>
-                                            ) : (
-                                                value !== undefined && (
-                                                    <span className="flex shrink-0 items-baseline gap-1 whitespace-nowrap">
-                                                        <HqLed
-                                                            className={cn(
-                                                                'text-base',
-                                                                pointsToneClass(
-                                                                    value,
-                                                                ),
-                                                            )}
-                                                        >
-                                                            {formatSignedPoints(
-                                                                value,
-                                                            )}
-                                                        </HqLed>
-                                                        {frequency !==
-                                                            undefined && (
-                                                            <span className="font-mono text-[10.5px] font-medium text-hq-moss">
-                                                                cada {frequency}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                )
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                            aria-hidden="true"
+                                            className="bg-hq-ink"
+                                        />
+                                    )}
                             </Fragment>
                         ))}
-                        <p className="col-span-full p-4 font-mono text-[11px] leading-[1.5] text-hq-moss-dim">
-                            Si el logo DAZN parpadea, la nota es nuestra
-                            estimación provisional: aún no cuenta.
-                        </p>
                     </div>
+                    <p className="flex items-start gap-2 border-t border-hq-border px-4 py-2 font-mono text-[11px] leading-snug text-hq-moss-dim">
+                        <img
+                            src="/images/dazn-logo.png"
+                            alt=""
+                            className="h-3.5 w-3.5 shrink-0 animate-hq-est motion-reduce:animate-none"
+                        />
+                        Si el logo DAZN parpadea, la nota es nuestra estimación
+                        provisional: aún no cuenta.
+                    </p>
                 </div>
             </div>
         </div>
     );
 }
 
-const POSITION_TAB_BORDER_CLASSES: Record<ScoringPosition, string> = {
-    goalkeeper: 'border-hq-por',
-    defender: 'border-hq-def',
-    midfield: 'border-hq-med',
-    striker: 'border-hq-del',
+interface ScoringRuleCellProps {
+    rule: ScoringRule;
+    position: ScoringPosition;
+    fullWidth: boolean;
+}
+
+/**
+ * One scoring rule, value first: a tinted mono readout (lime for points
+ * earned, red for points lost), then the action it pays for and, when it
+ * has one, its "cada N" frequency.
+ */
+function ScoringRuleCell({ rule, position, fullWidth }: ScoringRuleCellProps) {
+    const value = scoringPointsForPosition(rule, position);
+    const frequency = scoringFrequencyForPosition(rule, position);
+
+    return (
+        <div
+            className={cn(
+                'flex min-h-[34px] items-stretch bg-hq-ink',
+                fullWidth && 'col-span-full',
+            )}
+        >
+            <div
+                className={cn(
+                    'flex shrink-0 flex-col items-center justify-center gap-[3px] border-r border-hq-border px-1 font-mono text-[15px] leading-none font-bold whitespace-nowrap tabular-nums',
+                    rule.range ? 'min-w-[68px] text-hq-lime' : 'w-12',
+                    value !== undefined && pointsToneClass(value),
+                    valueTintClass(rule.range ? 1 : (value ?? 0)),
+                )}
+            >
+                {rule.range ??
+                    (value !== undefined && formatSignedPoints(value))}
+                {frequency !== undefined && (
+                    <span className="text-[9px] font-medium tracking-[0.02em] text-hq-moss uppercase">
+                        cada {frequency}
+                    </span>
+                )}
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 px-2.5 py-1">
+                <span className="flex flex-wrap items-baseline gap-x-1.5 text-[13px] leading-[1.25] font-semibold text-hq-paper">
+                    <span className="inline-flex items-center gap-1.5">
+                        {rule.label === 'Nota DAZN' && (
+                            <img
+                                src="/images/dazn-logo.png"
+                                alt="DAZN"
+                                className="h-3.5 w-3.5 shrink-0"
+                            />
+                        )}
+                        {rule.label}
+                    </span>
+                </span>
+                {rule.sub && (
+                    <small className="font-mono text-[10px] leading-[1.2] text-hq-moss-dim">
+                        {rule.sub}
+                    </small>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/** Background wash behind a rule's value: lime for gains, red for losses. */
+function valueTintClass(points: number): string {
+    if (points > 0) {
+        return 'bg-hq-lime/[0.07]';
+    }
+
+    return points < 0 ? 'bg-hq-live/10' : 'bg-hq-well';
+}
+
+/** Per-position accents: the active tab's underline and wash. */
+const POSITION_THEME: Record<ScoringPosition, { bar: string; tint: string }> = {
+    goalkeeper: {
+        bar: 'bg-hq-por',
+        tint: 'bg-hq-por/[0.08]',
+    },
+    defender: {
+        bar: 'bg-hq-def',
+        tint: 'bg-hq-def/[0.08]',
+    },
+    midfield: {
+        bar: 'bg-hq-med',
+        tint: 'bg-hq-med/[0.08]',
+    },
+    striker: {
+        bar: 'bg-hq-del',
+        tint: 'bg-hq-del/[0.08]',
+    },
 };
