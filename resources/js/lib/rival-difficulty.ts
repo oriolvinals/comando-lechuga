@@ -1,27 +1,37 @@
 /**
- * How hard an upcoming rival is, from the backend's `difficulty` score
- * (LeagueStandings::difficulty — −1 for the table leader, 0 mid table, +1 for
- * the last team; the same scale the max bid model weighs rivals with).
+ * How hard an upcoming match is, from the backend's 0–10 `difficulty`
+ * (MatchDifficulty — 0 = easiest, 10 = hardest; rival strength, home/away
+ * and, for the very next match, the rival's absences).
  */
 export type RivalDifficultyLevel = 'hard' | 'mid' | 'easy';
 
 export function rivalDifficultyLevel(difficulty: number): RivalDifficultyLevel {
-    if (difficulty <= -0.45) {
-        return 'hard';
+    if (difficulty < 3.5) {
+        return 'easy';
     }
 
-    return difficulty < 0.45 ? 'mid' : 'easy';
+    return difficulty < 6.5 ? 'mid' : 'hard';
 }
 
-/** 1–5 lit segments for the gauge: 5 against the leader, 1 against the last team. */
+/** 1–5 lit segments for the gauge — more bars, harder match. */
 export function rivalDifficultyBars(difficulty: number): number {
-    return Math.max(1, Math.min(5, Math.round((1 - difficulty) * 2) + 1));
+    return Math.min(5, Math.max(1, Math.round(difficulty / 2)));
+}
+
+const DIFFICULTY_FORMAT = new Intl.NumberFormat('es-ES', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+});
+
+/** "7,4" — one decimal, comma separator. */
+export function formatDifficulty(difficulty: number): string {
+    return DIFFICULTY_FORMAT.format(difficulty);
 }
 
 export const RIVAL_DIFFICULTY_LABELS: Record<RivalDifficultyLevel, string> = {
-    hard: 'alta',
+    hard: 'difícil',
     mid: 'media',
-    easy: 'baja',
+    easy: 'fácil',
 };
 
 /** Solid fill per level — hard red, mid amber, easy lime. */
@@ -31,6 +41,16 @@ export const RIVAL_DIFFICULTY_BG_CLASSES: Record<RivalDifficultyLevel, string> =
         mid: 'bg-hq-amber',
         easy: 'bg-hq-lime',
     };
+
+/** Text colour per level (same hues as the solid fill). */
+export const RIVAL_DIFFICULTY_TEXT_CLASSES: Record<
+    RivalDifficultyLevel,
+    string
+> = {
+    hard: 'text-hq-live',
+    mid: 'text-hq-amber',
+    easy: 'text-hq-lime',
+};
 
 /** Tinted box per level (same hues as the solid fill) — the Equipos calendar cells. */
 export const RIVAL_DIFFICULTY_TINT_CLASSES: Record<

@@ -1,11 +1,8 @@
-import { Home, Plane } from 'lucide-react';
-import { HqTooltip } from '@/components/hq-tooltip';
+import { Home, Plane, UserX } from 'lucide-react';
 import {
-    RIVAL_DIFFICULTY_BG_CLASSES,
-    RIVAL_DIFFICULTY_LABELS,
-    rivalDifficultyBars,
-    rivalDifficultyLevel,
-} from '@/lib/rival-difficulty';
+    HqDifficultyBars,
+    HqDifficultyTooltip,
+} from '@/components/hq-difficulty-bars';
 import { cn } from '@/lib/utils';
 import type { NextFixtureSlot } from '@/types/models';
 
@@ -37,10 +34,11 @@ const CREST_SIZE: Record<HqNextFixturesSize, string> = {
 /**
  * The next 3 upcoming (not yet started) fixtures for a player's team, soonest
  * first — a mirror of HqRecentScores looking forward: the rival's crest in a
- * ruled box, a home/away glyph on its bottom edge, and a 3px rule under it
- * coloured by how hard the rival is (red = top of the table, amber = mid,
- * lime = bottom). The tooltip spells out jornada, rival, venue, the rival's
- * position and the difficulty score.
+ * ruled box, a home/away glyph on its bottom edge, a crossed-out person when
+ * the rival's absences eased the match, and under it the 5-bar 0–10
+ * difficulty gauge with its number (more bars = harder; lime easy, amber
+ * mid, red hard). The tooltip spells out jornada, rival, difficulty, the
+ * rival's position and venue.
  */
 export function HqNextFixtures({
     fixtures,
@@ -73,36 +71,18 @@ export function HqNextFixtures({
                     );
                 }
 
-                const level = rivalDifficultyLevel(slot.difficulty);
-                const bars = rivalDifficultyBars(slot.difficulty);
                 const VenueIcon = slot.is_home ? Home : Plane;
                 const venue = slot.is_home ? 'Casa' : 'Fuera';
 
                 return (
-                    <HqTooltip
+                    <HqDifficultyTooltip
                         key={index}
+                        match={slot}
                         focusable={focusable}
                         className={cn(
                             'shrink-0 flex-col items-center',
                             SLOT_WIDTH[size],
                         )}
-                        label={
-                            <>
-                                <b className="font-bold">
-                                    J{slot.week_number} · vs{' '}
-                                    {slot.opponent.main_name}
-                                </b>
-                                <br />
-                                {venue}
-                                <br />
-                                <span className="text-hq-moss-dim">
-                                    Rival
-                                </span>{' '}
-                                {slot.rival_position}º · dificultad{' '}
-                                {slot.difficulty.toFixed(2).replace('.', ',')} (
-                                {RIVAL_DIFFICULTY_LABELS[level]})
-                            </>
-                        }
                     >
                         <span
                             className={cn(
@@ -118,6 +98,14 @@ export function HqNextFixtures({
                                     CREST_SIZE[size],
                                 )}
                             />
+                            {slot.absence_adjusted === true && (
+                                <UserX
+                                    role="img"
+                                    aria-label="Bajas del rival"
+                                    className="absolute top-px right-px size-2 text-hq-moss"
+                                    strokeWidth={2.4}
+                                />
+                            )}
                             <span className="absolute -bottom-[5px] left-1/2 flex h-[11px] w-[11px] -translate-x-1/2 items-center justify-center bg-hq-ink text-hq-moss">
                                 <VenueIcon
                                     aria-hidden="true"
@@ -126,23 +114,19 @@ export function HqNextFixtures({
                                 />
                             </span>
                         </span>
-                        <span
-                            aria-hidden="true"
-                            className="mt-[5px] flex h-[3px] w-full gap-px"
-                        >
-                            {Array.from({ length: 5 }, (_, segment) => (
-                                <span
-                                    key={segment}
-                                    className={cn(
-                                        'flex-1',
-                                        segment < bars
-                                            ? RIVAL_DIFFICULTY_BG_CLASSES[level]
-                                            : 'bg-hq-border',
-                                    )}
-                                />
-                            ))}
-                        </span>
-                    </HqTooltip>
+                        {slot.difficulty === null ? (
+                            <span
+                                aria-hidden="true"
+                                className="mt-[5px] h-[3px] w-full bg-hq-border"
+                            />
+                        ) : (
+                            <HqDifficultyBars
+                                difficulty={slot.difficulty}
+                                layout="stack"
+                                className="mt-[5px]"
+                            />
+                        )}
+                    </HqDifficultyTooltip>
                 );
             })}
         </div>
