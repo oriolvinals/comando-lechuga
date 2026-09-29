@@ -195,3 +195,41 @@ test('a strong riser keeps his momentum longer in a break', function (bool $stro
     'decelerating riser, break' => [false, 100_000.0, null, 0.9],
     'non-riser, break' => [false, -100_000.0, null, 0.9],
 ]);
+
+test('without a start probability the participation and sport score are the recent ones, as before', function (): void {
+    $inputs = formulaInputs([
+        'recentParticipation' => [['starter' => false, 'minutes' => 30], ['starter' => true, 'minutes' => 90], ['starter' => true, 'minutes' => 60]],
+        'upcomingRivals' => [formulaRival(2)],
+    ]);
+
+    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters);
+
+    // p = 0,5·(0 + 0,5·30/90) + 0,3·1 + 0,2·(0,5 + 0,5·60/90); form 0 and a neutral rival,
+    // so score = 0,5^(2/7)·0,3·(2p − 1), exactly the formula before the start probability.
+    $participation = 0.5 * (0.5 * 30 / 90) + 0.3 + 0.2 * (0.5 + 0.5 * 60 / 90);
+
+    expect($inputs->nextStartProbability)->toBeNull()
+        ->and($estimate->participation)->toEqualWithDelta($participation, 1e-12)
+        ->and($estimate->sportScore)->toEqualWithDelta(0.5 ** (2 / 7) * 0.3 * (2 * $participation - 1), 1e-12);
+});
+
+test('a start probability pulls the participation towards it by startProbabilityWeight', function (float $probability, float $weight): void {
+    $recent = [['starter' => false, 'minutes' => 30], ['starter' => true, 'minutes' => 90], ['starter' => true, 'minutes' => 60]];
+    $without = MaxBidCalculator::estimateFromInputs(formulaInputs(['recentParticipation' => $recent]), new MaxBidParameters(startProbabilityWeight: $weight));
+
+    $estimate = MaxBidCalculator::estimateFromInputs(
+        formulaInputs(['recentParticipation' => $recent, 'nextStartProbability' => $probability]),
+        new MaxBidParameters(startProbabilityWeight: $weight),
+    );
+
+    expect($estimate->participation)->toEqualWithDelta((1 - $weight) * $without->participation + $weight * $probability, 1e-12)
+        ->and($probability === 1.0 ? $estimate->participation > $without->participation : $estimate->participation < $without->participation)->toBeTrue();
+})->with([
+    'sure starter, default weight' => [1.0, 0.5],
+    'sure bench, default weight' => [0.0, 0.5],
+    'sure starter, light weight' => [1.0, 0.25],
+]);
+
+test('the start probability weight defaults to 0,5', function (): void {
+    expect((new MaxBidParameters)->startProbabilityWeight)->toBe(0.5);
+});

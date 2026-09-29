@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\DifficultyVariant;
 use App\Enums\FixtureState;
 use App\Enums\MarketTrend;
 use App\Enums\MaxBidStatus;
+use App\Enums\PlayerPosition;
 use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
+use App\Models\FixtureLineupProbability;
 use App\Models\Player;
 use App\Models\PlayerMarket;
+use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\Team;
 use Carbon\CarbonImmutable;
@@ -68,16 +72,24 @@ class MaxBidCalculator
     /** @var array<int, Team> Rival teams, shared across estimates so a backtest holds one instance per team. */
     private array $teamsById = [];
 
+    /** @var array<string, list<Fixture>> Upcoming fixtures, cached per season + team + reference moment. */
+    private array $upcomingFixturesByTeamAndDate = [];
+
     /**
-     * Upcoming rivals, cached per season + team + reference date: every
-     * player of a team shares them, so a backtest holds one copy per team-day.
+     * Upcoming rivals, cached per season + team + difficulty variant +
+     * reference moment: every player of a team facing the same variant
+     * shares them, so a backtest holds one copy per team-variant-day.
      *
      * @var array<string, list<array{team: Team, position: int, days_until: int, difficulty: float}>>
      */
     private array $upcomingRivalsByTeamAndDate = [];
 
+    /** @var array<string, PlayerPosition|null> Each player's position, cached per season + player. */
+    private array $positionsByPlayer = [];
+
     public function __construct(
         private readonly LeagueStandings $standings,
+        private readonly MatchDifficulty $matchDifficulty,
         private readonly MaxBidParameters $parameters = new MaxBidParameters,
     ) {}
 
@@ -94,10 +106,16 @@ class MaxBidCalculator
      * Market values are published some time after midnight, so the market
      * data (the player's values and the market index) comes from one
      * reference day: the latest published day up to `$at`.
+     *
+     * The upcoming rivals are rated by MatchDifficulty at the end of `$at`'s
+     * day with the variant the player's position faces; a null or today's
+     * `$at` rates them "now", the only moment its rival-absence adjustment
+     * applies.
      */
     public function gatherInputs(Player $player, Season $season, ?CarbonInterface $at = null): MaxBidInputs
     {
         $moment = CarbonImmutable::parse($at ?? now());
+        $difficultyAt = $moment->isToday() ? null : $moment->endOfDay();
         $at = $moment->endOfDay();
         $referenceDate = $this->referenceDate($season, $at);
 
@@ -134,12 +152,13 @@ class MaxBidCalculator
             lastPoints: $lastPoints,
             seasonPointsAverage: $seasonPointsAverage,
             recentParticipation: $recentParticipation,
-            upcomingRivals: $this->upcomingRivals($player, $season, $moment, $positions, $teamCount),
+            upcomingRivals: $this->upcomingRivals($player, $season, $moment, $difficultyAt, $positions, $teamCount),
             teamCount: $teamCount,
             doubtful: $player->status === PlayerStatus::Doubtful,
             recentTeamPoints: $recentTeamPoints,
             referenceDate: $referenceDate,
             strongRise: in_array(MarketTrend::fromDailyValues(array_values($values)), self::STRONG_RISE_TRENDS, true),
+            nextStartProbability: $this->nextStartProbability($player, $season, $moment),
         );
     }
 
@@ -265,12 +284,21 @@ class MaxBidCalculator
     }
 
     /**
+     * Each rival's `difficulty` is its ease, −1 (hard) … +1 (easy):
+     * MatchDifficulty's `rivalEase`, not its 0–10 difficulty.
+     *
      * @return array{score: float, form: float, participation: float, rivals_effect: float, upcoming_rivals: list<array{team: Team, position: int, days_until: int, difficulty: float, weight: float}>}
      */
     private static function sportFactors(MaxBidInputs $inputs, MaxBidParameters $parameters): array
     {
         $form = self::form($inputs);
         $participation = self::participation($inputs);
+
+        if ($inputs->nextStartProbability !== null) {
+            $participation = (1 - $parameters->startProbabilityWeight) * $participation
+                + $parameters->startProbabilityWeight * $inputs->nextStartProbability;
+        }
+
         $upcomingRivals = array_map(
             fn (array $rival): array => [...$rival, 'weight' => 0.5 ** ($rival['days_until'] / $parameters->proximityHalfLifeDays)],
             $inputs->upcomingRivals,
@@ -504,33 +532,80 @@ class MaxBidCalculator
     }
 
     /**
-     * The team's next three fixtures after `$moment` (any after its day, plus
-     * one later that same day not yet played), never a postponed one, each
-     * with the rival's standings position on that date and its difficulty
-     * (−1 leader … +1 last). A match later today is 0 days away.
+     * The team's next three fixtures after `$moment`, each with the rival's
+     * standings position on that date and its ease for the player: −1 hard …
+     * +1 easy, MatchDifficulty's `rivalEase` kept under the `difficulty` key
+     * that `sportFactors()` reads (0 when it can't rate the match). A match
+     * later today is 0 days away.
      *
+     * @param  CarbonImmutable|null  $difficultyAt  when MatchDifficulty rates the matches; null = now
      * @param  array<int, int>  $positions  team id → standings position
      * @return list<array{team: Team, position: int, days_until: int, difficulty: float}>
      */
-    private function upcomingRivals(Player $player, Season $season, CarbonImmutable $moment, array $positions, int $teamCount): array
+    private function upcomingRivals(Player $player, Season $season, CarbonImmutable $moment, ?CarbonImmutable $difficultyAt, array $positions, int $teamCount): array
     {
-        return $this->upcomingRivalsByTeamAndDate["{$season->id}:{$player->team_id}:{$moment->toDateTimeString()}"]
-            ??= $this->queryUpcomingRivals($player, $season, $moment, $positions, $teamCount);
+        $variant = DifficultyVariant::forPosition($this->position($player, $season));
+
+        return $this->upcomingRivalsByTeamAndDate["{$season->id}:{$player->team_id}:{$variant->value}:{$moment->toDateTimeString()}"]
+            ??= $this->rateUpcomingRivals($player, $season, $moment, $difficultyAt, $variant, $positions, $teamCount);
     }
 
     /**
      * @param  array<int, int>  $positions  team id → standings position
      * @return list<array{team: Team, position: int, days_until: int, difficulty: float}>
      */
-    private function queryUpcomingRivals(Player $player, Season $season, CarbonImmutable $moment, array $positions, int $teamCount): array
+    private function rateUpcomingRivals(Player $player, Season $season, CarbonImmutable $moment, ?CarbonImmutable $difficultyAt, DifficultyVariant $variant, array $positions, int $teamCount): array
     {
-        $endOfDay = $moment->endOfDay();
+        $fixtures = $this->upcomingFixtures($player, $season, $moment);
 
-        $fixtures = Fixture::query()
+        if ($fixtures === []) {
+            return [];
+        }
+
+        $rivalId = fn (Fixture $fixture): int => $fixture->team_local_id === $player->team_id ? $fixture->team_guest_id : $fixture->team_local_id;
+        $missingIds = array_diff(array_unique(array_map($rivalId, $fixtures)), array_keys($this->teamsById));
+
+        if ($missingIds !== []) {
+            foreach (Team::query()->findMany($missingIds) as $team) {
+                $this->teamsById[$team->id] = $team;
+            }
+        }
+
+        $difficulties = $this->matchDifficulty->forMany(
+            array_map(fn (Fixture $fixture): array => [$fixture, $player->team_id, $variant], $fixtures),
+            $difficultyAt,
+        );
+
+        $rivals = [];
+
+        foreach ($fixtures as $index => $fixture) {
+            $rival = $this->teamsById[$rivalId($fixture)] ?? throw new RuntimeException("Fixture {$fixture->id} is missing its rival team.");
+
+            $rivals[] = [
+                'team' => $rival,
+                'position' => $positions[$rival->id] ?? intdiv($teamCount + 1, 2),
+                'days_until' => (int) $moment->startOfDay()->diffInDays($fixture->date->startOfDay()),
+                'difficulty' => $difficulties[$index]->rivalEase ?? 0.0,
+            ];
+        }
+
+        return $rivals;
+    }
+
+    /**
+     * The team's next three fixtures after `$moment` (any after its day, plus
+     * one later that same day not yet played), soonest first, never a
+     * postponed one. Cached per season + team + moment.
+     *
+     * @return list<Fixture>
+     */
+    private function upcomingFixtures(Player $player, Season $season, CarbonImmutable $moment): array
+    {
+        return $this->upcomingFixturesByTeamAndDate["{$season->id}:{$player->team_id}:{$moment->toDateTimeString()}"] ??= array_values(Fixture::query()
             ->where('season_id', $season->id)
             ->where('state', '!=', FixtureState::Postponed)
             ->where(fn ($query) => $query
-                ->where('date', '>', $endOfDay)
+                ->where('date', '>', $moment->endOfDay())
                 ->orWhere(fn ($query) => $query
                     ->where('date', '>', $moment)
                     ->whereNotIn('state', [FixtureState::Finished, FixtureState::Postponed])))
@@ -539,31 +614,52 @@ class MaxBidCalculator
                 ->orWhere('team_guest_id', $player->team_id))
             ->orderBy('date')
             ->limit(self::UPCOMING_RIVALS)
-            ->get(['id', 'date', 'team_local_id', 'team_guest_id']);
+            ->get(['id', 'season_id', 'date', 'team_local_id', 'team_guest_id'])
+            ->all());
+    }
 
-        $rivalId = fn (Fixture $fixture): int => $fixture->team_local_id === $player->team_id ? $fixture->team_guest_id : $fixture->team_local_id;
-        $missingIds = array_diff($fixtures->map($rivalId)->unique()->all(), array_keys($this->teamsById));
+    /**
+     * FútbolFantasy's chance that the player starts his team's next match:
+     * the latest row for that match fetched up to `$moment`, as
+     * `probability / 100`, or 1 / 0 once it confirms him as a starter /
+     * substitute. Null without an upcoming match, a row or a figure.
+     */
+    private function nextStartProbability(Player $player, Season $season, CarbonImmutable $moment): ?float
+    {
+        $nextFixture = $this->upcomingFixtures($player, $season, $moment)[0] ?? null;
 
-        if ($missingIds !== []) {
-            foreach (Team::query()->findMany($missingIds) as $team) {
-                $this->teamsById[$team->id] = $team;
-            }
+        if ($nextFixture === null) {
+            return null;
         }
 
-        $rivals = [];
+        $row = FixtureLineupProbability::query()
+            ->where('player_id', $player->id)
+            ->where('fixture_id', $nextFixture->id)
+            ->where('fetched_at', '<=', $moment)
+            ->orderByDesc('fetched_at')
+            ->first(['probability', 'confirmed_starter']);
 
-        foreach ($fixtures as $fixture) {
-            $rival = $this->teamsById[$rivalId($fixture)] ?? throw new RuntimeException("Fixture {$fixture->id} is missing its rival team.");
-            $position = $positions[$rival->id] ?? intdiv($teamCount + 1, 2);
+        return match (true) {
+            $row === null => null,
+            $row->confirmed_starter !== null => $row->confirmed_starter ? 1.0 : 0.0,
+            $row->probability !== null => $row->probability / 100,
+            default => null,
+        };
+    }
 
-            $rivals[] = [
-                'team' => $rival,
-                'position' => $position,
-                'days_until' => (int) $moment->startOfDay()->diffInDays($fixture->date->startOfDay()),
-                'difficulty' => LeagueStandings::difficulty($position, $teamCount),
-            ];
+    /** The player's position in `$season`, null without a season row. */
+    private function position(Player $player, Season $season): ?PlayerPosition
+    {
+        $key = "{$season->id}:{$player->id}";
+
+        if (!array_key_exists($key, $this->positionsByPlayer)) {
+            $this->positionsByPlayer[$key] = PlayerSeason::query()
+                ->where('player_id', $player->id)
+                ->where('season_id', $season->id)
+                ->first(['position'])
+                ?->position;
         }
 
-        return $rivals;
+        return $this->positionsByPlayer[$key];
     }
 }

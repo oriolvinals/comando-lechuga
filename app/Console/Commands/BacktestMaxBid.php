@@ -51,6 +51,12 @@ class BacktestMaxBid extends Command
     /** @var list<float> */
     private const array GRID_PROXIMITY_HALF_LIVES = [4.0, 7.0, 10.0];
 
+    /** @var list<float> */
+    private const array GRID_RIVALS_WEIGHTS = [0.15, 0.3, 0.45];
+
+    /** @var list<float> Pass 2: weight of the next match's start probability in the participation. */
+    private const array GRID_START_PROBABILITY_WEIGHTS = [0.0, 0.25, 0.5, 0.75];
+
     /** @var list<int> */
     private const array GRID_BENCHES_BEFORE_UNPROFITABLE = [0, 1, 2];
 
@@ -399,20 +405,23 @@ class BacktestMaxBid extends Command
             foreach (self::GRID_DECAYS as $decayMatchweek) {
                 foreach (self::GRID_SPORT_DAILY_RATES as $sportDailyRate) {
                     foreach (self::GRID_PROXIMITY_HALF_LIVES as $halfLife) {
-                        $parameters = new MaxBidParameters(
-                            incrementDecayBreak: $decayBreak,
-                            incrementDecayMatchweek: $decayMatchweek,
-                            sportDailyRate: $sportDailyRate,
-                            proximityHalfLifeDays: $halfLife,
-                        );
-                        $firstPass[] = ['parameters' => $parameters, 'metrics' => $this->metrics($this->replay($records, $parameters, false)['Total'])];
+                        foreach (self::GRID_RIVALS_WEIGHTS as $rivalsWeight) {
+                            $parameters = new MaxBidParameters(
+                                incrementDecayBreak: $decayBreak,
+                                incrementDecayMatchweek: $decayMatchweek,
+                                sportDailyRate: $sportDailyRate,
+                                rivalsWeight: $rivalsWeight,
+                                proximityHalfLifeDays: $halfLife,
+                            );
+                            $firstPass[] = ['parameters' => $parameters, 'metrics' => $this->metrics($this->replay($records, $parameters, false)['Total'])];
+                        }
                     }
                 }
             }
         }
 
         $firstRanking = $this->rank($firstPass, $minimumProfitable);
-        $this->printPass('Pasada 1: decay parón × decay jornada × ritmo deportivo × vida media (reglas por defecto)', $firstPass, $firstRanking, $defaults, $defaultsMetrics, $minimumProfitable);
+        $this->printPass('Pasada 1: decay parón × decay jornada × ritmo deportivo × vida media × peso rivales (reglas por defecto)', $firstPass, $firstRanking, $defaults, $defaultsMetrics, $minimumProfitable);
         $best = $firstRanking[0]['parameters'] ?? $defaults;
 
         $secondPass = [];
@@ -420,22 +429,26 @@ class BacktestMaxBid extends Command
         foreach (self::GRID_BENCHES_BEFORE_UNPROFITABLE as $benches) {
             foreach (self::GRID_BENCH_INCREMENT_FACTORS as $benchFactor) {
                 foreach (BadScoreRule::cases() as $badScoreRule) {
-                    $parameters = new MaxBidParameters(
-                        incrementDecayBreak: $best->incrementDecayBreak,
-                        incrementDecayMatchweek: $best->incrementDecayMatchweek,
-                        sportDailyRate: $best->sportDailyRate,
-                        proximityHalfLifeDays: $best->proximityHalfLifeDays,
-                        benchIncrementFactor: $benchFactor,
-                        benchesBeforeUnprofitable: $benches,
-                        badScoreRule: $badScoreRule,
-                    );
-                    $secondPass[] = ['parameters' => $parameters, 'metrics' => $this->metrics($this->replay($records, $parameters, false)['Total'])];
+                    foreach (self::GRID_START_PROBABILITY_WEIGHTS as $startProbabilityWeight) {
+                        $parameters = new MaxBidParameters(
+                            incrementDecayBreak: $best->incrementDecayBreak,
+                            incrementDecayMatchweek: $best->incrementDecayMatchweek,
+                            sportDailyRate: $best->sportDailyRate,
+                            rivalsWeight: $best->rivalsWeight,
+                            proximityHalfLifeDays: $best->proximityHalfLifeDays,
+                            benchIncrementFactor: $benchFactor,
+                            benchesBeforeUnprofitable: $benches,
+                            badScoreRule: $badScoreRule,
+                            startProbabilityWeight: $startProbabilityWeight,
+                        );
+                        $secondPass[] = ['parameters' => $parameters, 'metrics' => $this->metrics($this->replay($records, $parameters, false)['Total'])];
+                    }
                 }
             }
         }
 
         $secondRanking = $this->rank($secondPass, $minimumProfitable);
-        $this->printPass('Pasada 2: con los valores continuos de la mejor de la pasada 1, banquillos antes de no rentable × factor banquillo × mala nota', $secondPass, $secondRanking, $defaults, $defaultsMetrics, $minimumProfitable);
+        $this->printPass('Pasada 2: con los valores continuos de la mejor de la pasada 1, banquillos antes de no rentable × factor banquillo × mala nota × peso titularidad', $secondPass, $secondRanking, $defaults, $defaultsMetrics, $minimumProfitable);
 
         return $secondRanking;
     }
@@ -594,7 +607,7 @@ class BacktestMaxBid extends Command
         $rows[] = $this->gridRow('defaults', $defaults, $defaultsMetrics);
 
         $this->table(
-            ['#', 'Decay parón', 'Decay jornada', 'Ritmo dep.', 'Vida media', 'Factor banq.', 'Banq. para no rent.', 'Mala nota', 'Racha', 'Rentables', 'Prob. real media', '|Δ 75 %|', 'Sin rentab.', 'Falsos neg.', 'Error mediana'],
+            ['#', 'Decay parón', 'Decay jornada', 'Ritmo dep.', 'Vida media', 'Peso rivales', 'Peso titular.', 'Factor banq.', 'Banq. para no rent.', 'Mala nota', 'Racha', 'Rentables', 'Prob. real media', '|Δ 75 %|', 'Sin rentab.', 'Falsos neg.', 'Error mediana'],
             $rows,
         );
     }
@@ -613,6 +626,8 @@ class BacktestMaxBid extends Command
             $number($parameters->incrementDecayMatchweek, 2),
             $number($parameters->sportDailyRate, 3),
             $number($parameters->proximityHalfLifeDays, 0).' d',
+            $number($parameters->rivalsWeight, 2),
+            $number($parameters->startProbabilityWeight, 2),
             $number($parameters->benchIncrementFactor, 2),
             $parameters->benchesBeforeUnprofitable === 0 ? 'nunca' : (string) $parameters->benchesBeforeUnprofitable,
             $parameters->badScoreRule->label(),
