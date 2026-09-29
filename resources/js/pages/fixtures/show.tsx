@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { LayoutGrid, List, Shield } from 'lucide-react';
+import { CircleHelp, LayoutGrid, List, Shield } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { EntityImage } from '@/components/entity-image';
@@ -15,6 +15,7 @@ import { HqLed } from '@/components/hq-led';
 import { HqMatchPitch } from '@/components/hq-match-pitch';
 import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
 import type { HqPlayerStatsEntry } from '@/components/hq-player-stats-modal';
+import { HqScoringLegendDialog } from '@/components/hq-scoring-legend-dialog';
 import { HqScrollRow } from '@/components/hq-scroll-row';
 import { HqChannelHeader, HqSection } from '@/components/hq-section';
 import { HqStartProbabilitiesSection } from '@/components/hq-start-probabilities-section';
@@ -342,6 +343,24 @@ function ViewModeToggle({
     );
 }
 
+/**
+ * Opens the scoring legend dialog — sits on the opposite side of the
+ * lineups header from {@link ViewModeToggle}, in the same visual style.
+ */
+function ScoringLegendButton({ onClick }: { onClick: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label="Cómo se puntúa"
+            aria-haspopup="dialog"
+            className="relative z-[3] inline-flex h-[30px] cursor-pointer items-center justify-center border border-hq-border-strong bg-hq-ink px-2.5 text-hq-moss transition-colors hover:text-hq-paper lg:absolute lg:top-2.5 lg:left-2.5"
+        >
+            <CircleHelp aria-hidden="true" className="h-[13px] w-[13px]" />
+        </button>
+    );
+}
+
 export default function FixtureShow({
     fixture,
     weekFixtures,
@@ -365,6 +384,7 @@ export default function FixtureShow({
     // fresh points/stats whenever `lineups` refreshes while it's open — see
     // useLiveFixtureRefresh below.
     const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
+    const [isScoringLegendOpen, setIsScoringLegendOpen] = useState(false);
     const selectedEntry =
         lineups.find((entry) => entry.id === selectedEntryId) ?? null;
     const {
@@ -422,23 +442,25 @@ export default function FixtureShow({
                     )}
                 >
                     {(isLive || hasLineups || showsStartProbabilities) && (
-                        <div
-                            className={cn(
-                                'relative z-[3] justify-end gap-1.5 px-2.5 pt-2.5 lg:absolute lg:top-2.5 lg:right-2.5 lg:p-0',
-                                isLive ? 'flex' : 'hidden lg:flex',
-                            )}
-                        >
-                            {isLive && (
-                                <HqFixtureRefreshButton
-                                    only={LIVE_REFRESH_PROPS}
-                                />
-                            )}
+                        <div className="relative z-[3] flex items-center gap-1.5 px-2.5 pt-2.5 lg:contents">
                             {(hasLineups || showsStartProbabilities) && (
-                                <ViewModeToggle
-                                    viewMode={viewMode}
-                                    onChange={setViewMode}
+                                <ScoringLegendButton
+                                    onClick={() => setIsScoringLegendOpen(true)}
                                 />
                             )}
+                            <div className="relative z-[3] ml-auto flex items-center gap-1.5 lg:absolute lg:top-2.5 lg:right-2.5 lg:ml-0">
+                                {isLive && (
+                                    <HqFixtureRefreshButton
+                                        only={LIVE_REFRESH_PROPS}
+                                    />
+                                )}
+                                {(hasLineups || showsStartProbabilities) && (
+                                    <ViewModeToggle
+                                        viewMode={viewMode}
+                                        onChange={setViewMode}
+                                    />
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -702,6 +724,10 @@ export default function FixtureShow({
                         : null
                 }
                 onClose={() => setSelectedEntryId(null)}
+            />
+            <HqScoringLegendDialog
+                open={isScoringLegendOpen}
+                onClose={() => setIsScoringLegendOpen(false)}
             />
         </>
     );
