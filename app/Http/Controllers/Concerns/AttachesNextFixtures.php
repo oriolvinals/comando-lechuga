@@ -42,11 +42,13 @@ trait AttachesNextFixtures
      * for them — nobody needs their next match. Each remaining player's
      * fixtures are rated by MatchDifficulty using the variant their position
      * faces (DifficultyVariant::forPosition), in a single forMany() call for
-     * every player on the page.
+     * every player on the page. With `$fromWeek`, only fixtures of that
+     * jornada or a later one count (the comparator leaves a pending match of
+     * a live jornada in its past columns).
      *
      * @param  Collection<int, Player>  $players
      */
-    private function attachNextFixtures(Collection $players, Season $season, int $count = 3): void
+    private function attachNextFixtures(Collection $players, Season $season, int $count = 3, ?int $fromWeek = null): void
     {
         $eligiblePlayers = $players->filter(
             fn (Player $player): bool => $player->status !== PlayerStatus::OutOfLeague,
@@ -59,6 +61,7 @@ trait AttachesNextFixtures
         Fixture::query()
             ->where('season_id', $season->id)
             ->where('state', FixtureState::Scheduled)
+            ->when($fromWeek !== null, fn ($query) => $query->where('week_number', '>=', $fromWeek))
             ->where(fn ($query) => $query
                 ->whereIn('team_local_id', $teamIds)
                 ->orWhereIn('team_guest_id', $teamIds))

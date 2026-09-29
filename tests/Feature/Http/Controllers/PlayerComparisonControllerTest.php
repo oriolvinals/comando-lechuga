@@ -119,6 +119,15 @@ test('currentWeek is the current jornada before it kicks off and the next one on
         ->assertInertia(fn (Assert $page): Assert => $page->where('currentWeek', 6));
 });
 
+test('currentWeek never goes past the jornada after the last one, and totalWeeks is sent', function (): void {
+    comparisonSeason(['current_week' => 40, 'total_weeks' => 38]);
+
+    $this->get(route('players.compare'))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('currentWeek', 39)
+            ->where('totalWeeks', 38));
+});
+
 test('sends the compared players in the order of ids', function (): void {
     comparisonSeason();
     $first = Player::factory()->create(['status' => PlayerStatus::Ok]);

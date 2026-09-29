@@ -794,7 +794,11 @@ export interface ComparedPlayer {
     average_points: number;
     points_per_million: PlayerPointsPerMillion | null;
     scores: ComparedPlayerScore[];
+    /** Upcoming slots from the comparison week on (`currentWeek`), soonest first, null-padded to 3. */
     next_fixtures: (NextFixtureSlot | null)[];
+    /** Jornadas before `currentWeek` whose match is still scheduled or in play (a live jornada's Monday game, a rescheduled one). */
+    pending_weeks: number[];
+    /** Start for the `currentWeek` match only; null otherwise. */
     next_start: PlayerNextStart | null;
     owner: CompareManager | null;
     clause: ComparedPlayerClause | null;

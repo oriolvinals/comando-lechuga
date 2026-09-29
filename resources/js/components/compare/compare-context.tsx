@@ -11,7 +11,10 @@ export interface CompareContextValue {
     derived: DerivedPlayer[];
     league: LeagueCloudRow[];
     managersById: Map<number, CompareManager>;
+    /** The first upcoming jornada (a live one counts as past). */
     currentWeek: number;
+    /** The season's last jornada: no upcoming column goes past it. */
+    totalWeeks: number;
     now: number;
     /** Adds a player; `focusSelector` is focused once the new props arrive. */
     add: (id: number, focusSelector?: string) => void;

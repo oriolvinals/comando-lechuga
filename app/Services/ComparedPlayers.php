@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\FixtureState;
 use App\Enums\PlayerStatus;
 use App\Enums\SeasonActivityType;
 use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Http\Controllers\Concerns\AttachesNextFixtures;
 use App\Http\Controllers\Concerns\AttachesOwnerManager;
 use App\Models\Activity;
+use App\Models\Fixture;
 use App\Models\FixtureLineup;
 use App\Models\ManagerPlayer;
 use App\Models\MarketPlayer;
@@ -29,8 +31,9 @@ use Illuminate\Support\Collection as SupportCollection;
  *
  * @phpstan-import-type PlayerNextStart from StartProbabilities
  *
+ * @phpstan-type ComparedNextFixture array{week_number: int, opponent: Team, is_home: bool, date: string, difficulty: float|null, difficulty_variant: string|null, difficulty_components: array{rival_strength: float, home: float, absences: float}|array{}, absence_adjusted: bool|null, rival_position: int|null}
  * @phpstan-type ComparedPlayerScore array{fixture_id: int, week_number: int, fixture_state: string, opponent: Team|null, is_home: bool, points: int|null, minutes: int, starter: bool, dazn_points: int|null, dazn_estimate: int|null, dazn_estimate_version: string, dazn_estimate_reasons: list<string>, dazn_estimate_source: string|null}
- * @phpstan-type ComparedPlayerShape array{id: int, name: string, image: string, position: string|null, status: string, team: Team|null, value: int, difference: int, trend: string|null, value_trend_30d: array{multiple: float, value: int, date: string}|null, market_history: list<array{0: string, 1: int}>, points: int, average_points: float, points_per_million: array{value: float, rank: int|null, ranked: int}|null, scores: list<ComparedPlayerScore>, next_fixtures: array<int, mixed>, next_start: PlayerNextStart|null, owner: array{id: int, name: string, logo: string, color: string|null}|null, clause: array{amount: int, locked_until: string, is_locked: bool, shielded: bool, shielded_until: string|null, purchase: array{amount: int, type: string, occurred_at: string}|null}|null, listing: array{sale_price: int, bids: int, expires_at: string, seller: string}|null}
+ * @phpstan-type ComparedPlayerShape array{id: int, name: string, image: string, position: string, status: string, team: Team, value: int, difference: int, trend: string|null, value_trend_30d: array{multiple: float, value: int, date: string}|null, market_history: list<array{0: string, 1: int}>, points: int, average_points: float, points_per_million: array{value: float, rank: int|null, ranked: int}|null, scores: list<ComparedPlayerScore>, next_fixtures: list<ComparedNextFixture|null>, pending_weeks: list<int>, next_start: PlayerNextStart|null, owner: array{id: int, name: string, logo: string, color: string|null}|null, clause: array{amount: int, locked_until: string, is_locked: bool, shielded: bool, shielded_until: string|null, purchase: array{amount: int, type: string, occurred_at: string}|null}|null, listing: array{sale_price: int, bids: int, expires_at: string, seller: string}|null}
  */
 final class ComparedPlayers
 {
@@ -41,16 +44,25 @@ final class ComparedPlayers
     /** Snapshots sent for the value chart: today and the 30 days before. */
     public const int MARKET_HISTORY_DAYS = 31;
 
+    /** Upcoming slots per player. */
+    public const int NEXT_FIXTURES = 3;
+
     public function __construct(
         private readonly PlayerMarketMetrics $marketMetrics,
         private readonly StartProbabilities $startProbabilities,
     ) {}
 
     /**
-     * @param  list<int>  $ids  validated ids, in display order
+     * `$fromWeek` is the comparator's first upcoming jornada: the upcoming
+     * slots and the start probability begin there, and a match of an earlier
+     * jornada that hasn't finished yet (a live jornada's Monday game, a
+     * rescheduled postponement) is listed in `pending_weeks` instead, so
+     * every "J{$fromWeek}" label describes that jornada.
+     *
+     * @param  list<int>  $ids  validated ids (league players of the season, so they have a team and a position), in display order
      * @return list<ComparedPlayerShape>
      */
-    public function forIds(array $ids, Season $season): array
+    public function forIds(array $ids, Season $season, int $fromWeek): array
     {
         if ($ids === []) {
             return [];
@@ -66,9 +78,10 @@ final class ComparedPlayers
 
         $this->attachCurrentSeason($players, $season->id);
         $this->attachOwnerManager($players, $season->id);
-        $this->attachNextFixtures($players, $season);
+        $this->attachNextFixtures($players, $season, self::NEXT_FIXTURES, $fromWeek);
 
-        $nextStarts = $this->startProbabilities->forPlayersNextFixture($players, $season);
+        $nextStarts = $this->startProbabilities->forPlayersNextFixture($players, $season, $fromWeek);
+        $pendingWeeksByTeam = $this->pendingWeeksByTeam($players, $season, $fromWeek);
         $pointsPerMillion = $this->marketMetrics->pointsPerMillionForPlayers(
             $players->filter(fn (Player $player): bool => $player->status !== PlayerStatus::OutOfLeague),
             $season,
@@ -105,7 +118,7 @@ final class ComparedPlayers
             ->groupBy('player_id');
 
         return array_values($players
-            ->map(function (Player $player) use ($nextStarts, $pointsPerMillion, $historyByPlayer, $clauses, $purchasesByPlayer, $listings, $lineupsByPlayer): array {
+            ->map(function (Player $player) use ($fromWeek, $nextStarts, $pendingWeeksByTeam, $pointsPerMillion, $historyByPlayer, $clauses, $purchasesByPlayer, $listings, $lineupsByPlayer): array {
                 /** @var Collection<int, PlayerMarket> $history */
                 $history = $historyByPlayer->get($player->id) ?? new Collection;
                 $clause = $clauses->get($player->id);
@@ -119,7 +132,7 @@ final class ComparedPlayers
                     'id' => $player->id,
                     'name' => $player->nickname,
                     'image' => $player->image !== '' ? asset('storage/'.$player->image) : '',
-                    'position' => $player->position?->value,
+                    'position' => $player->position->value ?? '',
                     'status' => $player->status->value,
                     'team' => $player->team,
                     'value' => $player->market_value,
@@ -134,8 +147,9 @@ final class ComparedPlayers
                     'average_points' => (float) $player->average_points,
                     'points_per_million' => $pointsPerMillion[$player->id] ?? null,
                     'scores' => $this->scores($lineupsByPlayer->get($player->id) ?? new Collection),
-                    'next_fixtures' => $player->next_fixtures,
-                    'next_start' => $nextStarts[$player->id] ?? null,
+                    'next_fixtures' => array_values($player->next_fixtures),
+                    'pending_weeks' => $pendingWeeksByTeam[$player->team_id] ?? [],
+                    'next_start' => $this->startFor($nextStarts[$player->id] ?? null, $fromWeek),
                     'owner' => $owner === null ? null : [
                         'id' => $owner['id'],
                         'name' => $owner['name'],
@@ -155,6 +169,51 @@ final class ComparedPlayers
                 ];
             })
             ->all());
+    }
+
+    /**
+     * The start only when it is for `$fromWeek` itself: every view labels
+     * it "Titularidad J{$fromWeek}", so a team without a match that jornada
+     * (postponed) gets none rather than a later jornada's figure.
+     *
+     * @param  PlayerNextStart|null  $start
+     * @return PlayerNextStart|null
+     */
+    private function startFor(?array $start, int $fromWeek): ?array
+    {
+        return $start !== null && $start['week_number'] === $fromWeek ? $start : null;
+    }
+
+    /**
+     * The jornadas before `$fromWeek` in which each team still has a match
+     * to finish (scheduled or in play), ascending, keyed by team id.
+     *
+     * @param  Collection<int, Player>  $players
+     * @return array<int, list<int>>
+     */
+    private function pendingWeeksByTeam(Collection $players, Season $season, int $fromWeek): array
+    {
+        $teamIds = $players->pluck('team_id')->unique()->values()->all();
+        $weeks = [];
+
+        Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('week_number', '<', $fromWeek)
+            ->whereNotIn('state', [FixtureState::Finished, FixtureState::Postponed])
+            ->where(fn ($query) => $query
+                ->whereIn('team_local_id', $teamIds)
+                ->orWhereIn('team_guest_id', $teamIds))
+            ->orderBy('week_number')
+            ->get(['week_number', 'team_local_id', 'team_guest_id'])
+            ->each(function (Fixture $fixture) use ($teamIds, &$weeks): void {
+                foreach ([$fixture->team_local_id, $fixture->team_guest_id] as $teamId) {
+                    if (in_array($teamId, $teamIds, true) && !in_array($fixture->week_number, $weeks[$teamId] ?? [], true)) {
+                        $weeks[$teamId][] = $fixture->week_number;
+                    }
+                }
+            });
+
+        return $weeks;
     }
 
     /**

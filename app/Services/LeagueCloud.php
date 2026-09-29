@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Cache;
  * clouds of the comparator's "Pistas", the picker's search and the hover
  * cards. Ranks, medians and "supera al X %" are computed on the client over
  * these rows. Loading the whole league's value trend is expensive, so the
- * rows are cached for 15 minutes.
+ * rows are cached for 15 minutes. `start_probability` is for the comparator's first
+ * upcoming jornada (`$fromWeek`), like the compared players' own figure.
  *
  * @phpstan-type LeagueCloudRow array{id: int, name: string, image: string, position: string|null, team_short: string, owner_id: int|null, points: int, average_points: float, ppm: float|null, start_probability: int|null, value_trend_30d: float|null, value: int, difference: int}
  */
@@ -39,19 +40,19 @@ final class LeagueCloud
     /**
      * @return list<LeagueCloudRow>
      */
-    public function rows(Season $season): array
+    public function rows(Season $season, int $fromWeek): array
     {
         /** @var list<LeagueCloudRow> */
         return Cache::remember(
-            $this->cacheKey($season),
+            $this->cacheKey($season, $fromWeek),
             now()->addMinutes(self::CACHE_MINUTES),
-            fn (): array => $this->build($season),
+            fn (): array => $this->build($season, $fromWeek),
         );
     }
 
-    public function cacheKey(Season $season): string
+    public function cacheKey(Season $season, int $fromWeek): string
     {
-        return sprintf('league-cloud:%d:%s', $season->id, now()->format('Y-m-d-H'));
+        return sprintf('league-cloud:%d:%s:j%d', $season->id, now()->format('Y-m-d-H'), $fromWeek);
     }
 
     /**
@@ -76,7 +77,7 @@ final class LeagueCloud
     /**
      * @return list<LeagueCloudRow>
      */
-    private function build(Season $season): array
+    private function build(Season $season, int $fromWeek): array
     {
         /** @var Collection<int, Player> $players */
         $players = Player::query()
@@ -97,7 +98,7 @@ final class LeagueCloud
             ->pluck('season_manager_id', 'player_id');
 
         $pointsPerMillion = $this->marketMetrics->pointsPerMillionForPlayers($players, $season);
-        $starts = $this->startProbabilities->forPlayersNextFixture($players, $season);
+        $starts = $this->startProbabilities->forPlayersNextFixture($players, $season, $fromWeek);
 
         $historyByPlayer = PlayerMarket::query()
             ->whereIn('player_id', $ids)
@@ -117,7 +118,7 @@ final class LeagueCloud
                 'points' => $player->points,
                 'average_points' => (float) $player->average_points,
                 'ppm' => $pointsPerMillion[$player->id]['value'] ?? null,
-                'start_probability' => self::startValue($starts[$player->id] ?? null),
+                'start_probability' => ($starts[$player->id]['week_number'] ?? null) === $fromWeek ? self::startValue($starts[$player->id]) : null,
                 'value_trend_30d' => $this->marketMetrics->valueTrend(
                     $player->market_value,
                     $historyByPlayer->get($player->id) ?? new Collection,

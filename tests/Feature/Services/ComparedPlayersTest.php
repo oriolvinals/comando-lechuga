@@ -8,6 +8,7 @@ use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
+use App\Models\FixtureLineupProbability;
 use App\Models\ManagerPlayer;
 use App\Models\MarketPlayer;
 use App\Models\Player;
@@ -28,7 +29,7 @@ test('returns the players in the requested order with identity, market and perfo
     $first = Player::factory()->create(['status' => PlayerStatus::Ok, 'points' => 80, 'average_points' => 6.15, 'market_value' => 20_000_000]);
     $second = Player::factory()->create(['status' => PlayerStatus::Injured, 'points' => 40, 'market_value' => 10_000_000]);
 
-    $players = app(ComparedPlayers::class)->forIds([$second->id, $first->id], $season);
+    $players = app(ComparedPlayers::class)->forIds([$second->id, $first->id], $season, 1);
 
     expect($players)->toHaveCount(2)
         ->and($players[0]['id'])->toBe($second->id)
@@ -52,7 +53,7 @@ test('the market history is the last 31 snapshots as date-value pairs, and the 3
         ]);
     }
 
-    $compared = app(ComparedPlayers::class)->forIds([$player->id], $season)[0];
+    $compared = app(ComparedPlayers::class)->forIds([$player->id], $season, 1)[0];
     $history = PlayerMarket::query()->where('player_id', $player->id)->orderBy('date')->get();
 
     expect($compared['market_history'])->toHaveCount(31)
@@ -65,7 +66,7 @@ test('a player without history, fixtures or start data gets empty and null figur
     $season = comparedSeason();
     $player = Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value' => 0, 'points' => 0]);
 
-    $compared = app(ComparedPlayers::class)->forIds([$player->id], $season)[0];
+    $compared = app(ComparedPlayers::class)->forIds([$player->id], $season, 1)[0];
 
     expect($compared['market_history'])->toBe([])
         ->and($compared['value_trend_30d'])->toBeNull()
@@ -73,6 +74,7 @@ test('a player without history, fixtures or start data gets empty and null figur
         ->and($compared['scores'])->toBe([])
         ->and($compared['next_fixtures'])->toBe([null, null, null])
         ->and($compared['next_start'])->toBeNull()
+        ->and($compared['pending_weeks'])->toBe([])
         ->and($compared['owner'])->toBeNull()
         ->and($compared['clause'])->toBeNull()
         ->and($compared['listing'])->toBeNull();
@@ -101,7 +103,7 @@ test('scores cover the season in jornada order, with minutes, rival side and DAZ
     ]);
     FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $otherSeason->id]);
 
-    $scores = app(ComparedPlayers::class)->forIds([$player->id], $season)[0]['scores'];
+    $scores = app(ComparedPlayers::class)->forIds([$player->id], $season, 1)[0]['scores'];
 
     expect($scores)->toHaveCount(2)
         ->and($scores[0]['week_number'])->toBe(2)
@@ -139,7 +141,7 @@ test('an owned player carries the owner, the clause and the owner purchase; a li
     ]);
     MarketPlayer::factory()->create(['player_id' => $listed->id, 'sale_price' => 5_000_000, 'bids' => 2]);
 
-    [$ownedShape, $listedShape] = app(ComparedPlayers::class)->forIds([$owned->id, $listed->id], $season);
+    [$ownedShape, $listedShape] = app(ComparedPlayers::class)->forIds([$owned->id, $listed->id], $season, 1);
 
     expect($ownedShape['owner'])->toMatchArray(['id' => $manager->id, 'name' => $manager->name, 'color' => '#00ff00'])
         ->and($ownedShape['clause']['amount'])->toBe(15_000_000)
@@ -158,7 +160,7 @@ test('the next fixtures carry the 0-10 difficulty with the variant of the player
         'state' => FixtureState::Scheduled, 'team_local_id' => $player->team_id,
     ]);
 
-    $slot = app(ComparedPlayers::class)->forIds([$player->id], $season)[0]['next_fixtures'][0];
+    $slot = app(ComparedPlayers::class)->forIds([$player->id], $season, 1)[0]['next_fixtures'][0];
 
     expect($slot['week_number'])->toBe(2)
         ->and($slot['is_home'])->toBeTrue()
@@ -178,11 +180,53 @@ test('runs the same number of queries for one player as for three', function ():
     $service = app(ComparedPlayers::class);
 
     DB::enableQueryLog();
-    $service->forIds([$players[0]->id], $season);
+    $service->forIds([$players[0]->id], $season, 1);
     $single = count(DB::getQueryLog());
     DB::flushQueryLog();
-    $service->forIds($players->pluck('id')->all(), $season);
+    $service->forIds($players->pluck('id')->all(), $season, 1);
     $triple = count(DB::getQueryLog());
 
     expect($triple)->toBe($single);
+});
+
+test('during a live jornada the upcoming slots and the start begin at the comparison week, and unplayed past matches are pending', function (): void {
+    $season = comparedSeason();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    $fixtureFor = fn (int $week, int $days, FixtureState $state = FixtureState::Scheduled): Fixture => Fixture::factory()->create([
+        'season_id' => $season->id, 'week_number' => $week, 'date' => now()->addDays($days),
+        'state' => $state, 'team_local_id' => $player->team_id,
+    ]);
+    $played = $fixtureFor(4, -7, FixtureState::Finished);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $played->id, 'team_id' => $player->team_id]);
+    $fixtureFor(1, -30, FixtureState::Postponed);
+    $fixtureFor(2, 0, FixtureState::SecondHalf);
+    $fixtureFor(3, 2);
+    $monday = $fixtureFor(5, 1);
+    $next = $fixtureFor(6, 5);
+    $fixtureFor(7, 12);
+    $fixtureFor(8, 19);
+    FixtureLineupProbability::factory()->create(['player_id' => $player->id, 'fixture_id' => $monday->id, 'probability' => 90]);
+    FixtureLineupProbability::factory()->create(['player_id' => $player->id, 'fixture_id' => $next->id, 'probability' => 60]);
+
+    $compared = app(ComparedPlayers::class)->forIds([$player->id], $season, 6)[0];
+
+    expect(array_column($compared['next_fixtures'], 'week_number'))->toBe([6, 7, 8])
+        ->and($compared['next_start']['week_number'])->toBe(6)
+        ->and($compared['next_start']['probability'])->toBe(60)
+        ->and($compared['pending_weeks'])->toBe([2, 3, 5]);
+});
+
+test('a team without a match in the comparison week has no start for it, and its first slot is its own later jornada', function (): void {
+    $season = comparedSeason();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    $later = Fixture::factory()->create([
+        'season_id' => $season->id, 'week_number' => 7, 'date' => now()->addDays(12),
+        'state' => FixtureState::Scheduled, 'team_local_id' => $player->team_id,
+    ]);
+    FixtureLineupProbability::factory()->create(['player_id' => $player->id, 'fixture_id' => $later->id, 'probability' => 80]);
+
+    $compared = app(ComparedPlayers::class)->forIds([$player->id], $season, 6)[0];
+
+    expect($compared['next_fixtures'][0]['week_number'])->toBe(7)
+        ->and($compared['next_start'])->toBeNull();
 });

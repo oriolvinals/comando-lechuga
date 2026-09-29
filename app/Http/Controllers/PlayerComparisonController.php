@@ -30,13 +30,15 @@ class PlayerComparisonController extends Controller
     {
         $season = Season::current();
         $ids = $this->comparableIds($this->requestedIds($request->query('ids')), $season);
+        $week = $this->comparisonWeek($season, $clock);
 
         return Inertia::render('players/compare', [
-            'currentWeek' => $this->comparisonWeek($season, $clock),
+            'currentWeek' => $week,
+            'totalWeeks' => $season->total_weeks,
             'view' => $this->requestedView($request->query('vista')),
             'ids' => $ids,
-            'players' => fn (): array => $comparedPlayers->forIds($ids, $season),
-            'league' => fn (): array => $leagueCloud->rows($season),
+            'players' => fn (): array => $comparedPlayers->forIds($ids, $season, $week),
+            'league' => fn (): array => $leagueCloud->rows($season, $week),
             'managers' => fn (): array => $this->managers($season),
         ]);
     }
@@ -102,12 +104,16 @@ class PlayerComparisonController extends Controller
      * The first jornada that hasn't kicked off: past columns are 1…N−1
      * (a live jornada counts as past, so its scores and DAZN estimates show)
      * and the upcoming ones start at N — the "Titularidad J{N}" of the mock.
+     * Never past total_weeks + 1: once the last jornada has kicked off every
+     * jornada is a past column and there is no upcoming one.
      */
     private function comparisonWeek(Season $season, SeasonClock $clock): int
     {
-        return $clock->weekState($season, $season->current_week) === SeasonClock::NOT_STARTED
+        $week = $clock->weekState($season, $season->current_week) === SeasonClock::NOT_STARTED
             ? $season->current_week
             : $season->current_week + 1;
+
+        return max(1, min($week, $season->total_weeks + 1));
     }
 
     /**

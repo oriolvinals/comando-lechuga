@@ -88,7 +88,8 @@ function headerDay(iso: string): string {
  * ←/→ jornada, ↑/↓ lane, Inicio/Fin.
  */
 export function CompareViewC() {
-    const { players, derived, currentWeek, remove, openPicker } = useCompare();
+    const { players, derived, currentWeek, totalWeeks, remove, openPicker } =
+        useCompare();
     const { show, hide } = useChartTooltip();
     const { rootProps, bind } = useSlotHighlight();
     const [metric, setMetric] = useState<LaneMetric>('points');
@@ -103,7 +104,15 @@ export function CompareViewC() {
         { length: Math.max(0, currentWeek - 1) },
         (_, index) => index + 1,
     );
-    const lastColumn = pastWeeks.length + 3;
+    // Keyed by jornada, never by slot: a team may skip one (postponed), and nothing past the last jornada.
+    const futureWeeks = [0, 1, 2]
+        .map((offset) => currentWeek + offset)
+        .filter((week) => week <= totalWeeks);
+    const fixtureIn = (lane: number, week: number) =>
+        players[lane].next_fixtures.find(
+            (slot) => slot !== null && slot.week_number === week,
+        ) ?? null;
+    const lastColumn = pastWeeks.length + futureWeeks.length;
     const focusLane = Math.min(focus.lane, players.length - 1);
     const focusColumn = Math.min(focus.column, lastColumn);
 
@@ -160,9 +169,12 @@ export function CompareViewC() {
         return metric === 'minutes' ? `${value}'` : String(value);
     };
 
-    const weekText = (score: ComparedPlayerScore | null): string => {
+    const weekText = (
+        score: ComparedPlayerScore | null,
+        pending = false,
+    ): string => {
         if (!score) {
-            return 'NC';
+            return pending ? 'pendiente' : 'NC';
         }
 
         const value = cellValue(score, metric);
@@ -192,7 +204,7 @@ export function CompareViewC() {
         return metric === 'dazn' ? `${value} DAZN` : `${value} pts`;
     };
 
-    /** Tooltip content and accessible name of a cell (mock `cInfo`). Columns: past weeks, then 3 future, then the summary. */
+    /** Tooltip content and accessible name of a cell (mock `cInfo`). Columns: past weeks, then the future ones, then the summary. */
     const cellInfo = (
         lane: number,
         column: number,
@@ -253,7 +265,7 @@ export function CompareViewC() {
 
         if (column < pastWeeks.length) {
             const week = column + 1;
-            const score = derived[lane].weeks[column].score;
+            const { score, pending } = derived[lane].weeks[column];
             const top = tops[column] === lane;
             const more = score
                 ? [
@@ -287,7 +299,9 @@ export function CompareViewC() {
                         <span className="mt-[3px] text-hq-moss-dim">
                             {score
                                 ? `${score.is_home ? 'vs ' : '@ '}${score.opponent.short_name} · ${score.is_home ? 'en casa' : 'fuera'}`
-                                : 'No convocado'}
+                                : pending
+                                  ? 'Partido pendiente de jugar'
+                                  : 'No convocado'}
                         </span>
                         <span
                             className={cn(
@@ -295,7 +309,7 @@ export function CompareViewC() {
                                 top ? 'text-hq-lime' : 'text-hq-paper',
                             )}
                         >
-                            {weekText(score)}
+                            {weekText(score, pending)}
                         </span>
                         {more && (
                             <span className="mt-[3px] text-hq-moss-dim">
@@ -308,17 +322,19 @@ export function CompareViewC() {
                             </span>
                         )}
                         {rows((index) =>
-                            weekText(derived[index].weeks[column].score),
+                            weekText(
+                                derived[index].weeks[column].score,
+                                derived[index].weeks[column].pending,
+                            ),
                         )}
                     </>
                 ),
-                text: `Jornada ${week}, ${player.name}: ${score ? `${weekText(score)}, ${score.is_home ? 'en casa contra ' : 'fuera contra '}${score.opponent.name}, ${more}` : 'no convocado'}${top ? ', mejor de la jornada' : ''}`,
+                text: `Jornada ${week}, ${player.name}: ${score ? `${weekText(score)}, ${score.is_home ? 'en casa contra ' : 'fuera contra '}${score.opponent.name}, ${more}` : pending ? 'partido pendiente de jugar' : 'no convocado'}${top ? ', mejor de la jornada' : ''}`,
             };
         }
 
-        const offset = column - pastWeeks.length;
-        const fixture = player.next_fixtures[offset] ?? null;
-        const week = currentWeek + offset;
+        const week = futureWeeks[column - pastWeeks.length];
+        const fixture = fixtureIn(lane, week);
 
         if (!fixture) {
             return {
@@ -343,7 +359,7 @@ export function CompareViewC() {
                 : `, dificultad ${formatDifficulty(difficulty)} de 10 (${RIVAL_DIFFICULTY_LABELS[rivalDifficultyLevel(difficulty)]})`;
         const item = derived[lane];
         const start =
-            offset === 0
+            week === currentWeek
                 ? item.startTone === 'out'
                     ? STATUS_LABELS[player.status]
                     : item.startProbability === null
@@ -375,14 +391,14 @@ export function CompareViewC() {
                     )}
                     {rows(
                         (index) => {
-                            const other = players[index].next_fixtures[offset];
+                            const other = fixtureIn(index, week);
 
                             return other
                                 ? `${other.is_home ? 'vs ' : '@ '}${other.opponent.short_name}`
                                 : '—';
                         },
                         (index) => {
-                            const other = players[index].next_fixtures[offset];
+                            const other = fixtureIn(index, week);
 
                             return other?.difficulty != null
                                 ? formatDifficulty(other.difficulty)
@@ -489,7 +505,15 @@ export function CompareViewC() {
         litWeek === week
             ? 'bg-[color-mix(in_srgb,var(--color-hq-paper)_7%,transparent)]'
             : '';
-    const columns = `var(--id-col) repeat(${pastWeeks.length}, 44px) 28px repeat(3, 58px) 78px`;
+    const columns = [
+        'var(--id-col)',
+        pastWeeks.length > 0 ? `repeat(${pastWeeks.length}, 44px)` : '',
+        '28px',
+        futureWeeks.length > 0 ? `repeat(${futureWeeks.length}, 58px)` : '',
+        '78px',
+    ]
+        .filter(Boolean)
+        .join(' ');
 
     return (
         <div {...rootProps}>
@@ -525,7 +549,7 @@ export function CompareViewC() {
                 <div className="flex items-center justify-between border-b border-hq-border-strong bg-hq-panel px-3.5 py-2.5 sm:px-4">
                     <h2 className="hq-label">Temporada, jornada a jornada</h2>
                     <span className="font-mono text-[11px] text-hq-moss-dim">
-                        J1 → J{currentWeek + 2}
+                        J1 → J{futureWeeks.at(-1) ?? currentWeek - 1}
                     </span>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 px-3.5 py-2 font-mono text-[11px] text-hq-moss-dim sm:px-4">
@@ -608,22 +632,23 @@ export function CompareViewC() {
                             >
                                 HOY
                             </div>
-                            {[0, 1, 2].map((offset) => {
-                                const sample =
-                                    players[0]?.next_fixtures[offset];
+                            {futureWeeks.map((week) => {
+                                const sample = players
+                                    .map((_, lane) => fixtureIn(lane, week))
+                                    .find((slot) => slot !== null);
 
                                 return (
                                     <div
-                                        key={offset}
+                                        key={week}
                                         role="columnheader"
                                         className={cn(
                                             'py-2 text-center font-mono text-[11px] text-hq-khaki',
-                                            lit(currentWeek + offset),
-                                            litWeek === currentWeek + offset &&
+                                            lit(week),
+                                            litWeek === week &&
                                                 'shadow-[inset_0_-2px_0_var(--color-hq-lime)]',
                                         )}
                                     >
-                                        J{currentWeek + offset}
+                                        J{week}
                                         {sample && (
                                             <small className="block text-[10px] text-hq-moss-dim">
                                                 {headerDay(sample.date)}
@@ -725,7 +750,7 @@ export function CompareViewC() {
                                     </div>
 
                                     {item.weeks.map(
-                                        ({ week, score }, column) => {
+                                        ({ week, score, pending }, column) => {
                                             const value = cellValue(
                                                 score,
                                                 metric,
@@ -761,9 +786,16 @@ export function CompareViewC() {
                                                     {!score ? (
                                                         <span
                                                             aria-hidden="true"
-                                                            className="font-mono text-[10px] text-hq-led-off"
+                                                            className={cn(
+                                                                'font-mono text-[10px]',
+                                                                pending
+                                                                    ? 'text-hq-moss'
+                                                                    : 'text-hq-led-off',
+                                                            )}
                                                         >
-                                                            NC
+                                                            {pending
+                                                                ? 'PEND'
+                                                                : 'NC'}
                                                         </span>
                                                     ) : (
                                                         <>
@@ -858,24 +890,22 @@ export function CompareViewC() {
                                         className="border-t border-r border-l border-dashed border-hq-border-strong"
                                     />
 
-                                    {[0, 1, 2].map((offset) => {
-                                        const fixture =
-                                            player.next_fixtures[offset] ??
-                                            null;
+                                    {futureWeeks.map((week, offset) => {
+                                        const fixture = fixtureIn(lane, week);
                                         const column =
                                             pastWeeks.length + offset;
 
                                         return (
                                             <div
-                                                key={offset}
+                                                key={week}
                                                 {...cellProps(
                                                     lane,
                                                     column,
-                                                    currentWeek + offset,
+                                                    week,
                                                 )}
                                                 className={cn(
                                                     'relative flex cursor-default flex-col items-center justify-center gap-1 border-t border-hq-border px-1.5 py-1.5 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-hq-lime',
-                                                    lit(currentWeek + offset),
+                                                    lit(week),
                                                 )}
                                             >
                                                 {!fixture ? (
@@ -938,7 +968,8 @@ export function CompareViewC() {
                                                                 layout="inline"
                                                             />
                                                         )}
-                                                        {offset === 0 && (
+                                                        {week ===
+                                                            currentWeek && (
                                                             <span
                                                                 aria-hidden="true"
                                                                 className={cn(
@@ -996,7 +1027,7 @@ export function CompareViewC() {
                                             {metric === 'points'
                                                 ? `media ${formatAverage(player.average_points)}`
                                                 : metric === 'minutes'
-                                                  ? `${item.starts}/${pastWeeks.length} titular`
+                                                  ? `${item.starts}/${item.settledWeeks.length} titular`
                                                   : 'oficial'}
                                         </small>
                                     </div>

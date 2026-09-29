@@ -16,8 +16,10 @@ import type {
 
 export interface WeekCell {
     week: number;
-    /** Null = no lineup row that jornada ("NC"). */
+    /** Null = no lineup row that jornada ("NC"), unless `pending`. */
     score: ComparedPlayerScore | null;
+    /** No lineup row yet and his team's match that jornada is still scheduled or in play: not NC, and left out of the form, the averages and the winners. */
+    pending: boolean;
 }
 
 export type AcquireKind =
@@ -34,6 +36,9 @@ export interface Acquire {
 export interface DerivedPlayer {
     /** J1 … J(currentWeek − 1), oldest first. */
     weeks: WeekCell[];
+    /** The past jornadas without the pending ones. */
+    settledWeeks: WeekCell[];
+    /** The last three settled jornadas. */
     last3: WeekCell[];
     last3Points: number;
     last3Minutes: number;
@@ -45,6 +50,8 @@ export interface DerivedPlayer {
     daznAverage: number | null;
     clauseState: ClauseStatus | null;
     upcoming: NextFixtureSlot[];
+    /** His match of jornada currentWeek (the "Rival J{N}" rows); null when his team doesn't play it. */
+    nextSlot: NextFixtureSlot | null;
     /** Mean 0–10 difficulty of the next fixtures that have one (lower = easier). */
     nextAverageDifficulty: number | null;
     nextAverageRivalPosition: number | null;
@@ -118,19 +125,27 @@ export function derivePlayer(
     const byWeek = new Map(
         player.scores.map((score) => [score.week_number, score]),
     );
+    const pendingWeeks = new Set(player.pending_weeks);
     const weeks: WeekCell[] = [];
 
     for (let week = 1; week < currentWeek; week++) {
-        weeks.push({ week, score: byWeek.get(week) ?? null });
+        const score = byWeek.get(week) ?? null;
+
+        weeks.push({
+            week,
+            score,
+            pending: score === null && pendingWeeks.has(week),
+        });
     }
 
-    const last3 = weeks.slice(-3);
+    const settled = weeks.filter((cell) => !cell.pending);
+    const last3 = settled.slice(-3);
     const played = player.scores.filter((score) => score.minutes > 0);
     const minutes = player.scores.reduce(
         (sum, score) => sum + score.minutes,
         0,
     );
-    const possibleMinutes = (currentWeek - 1) * 90;
+    const possibleMinutes = settled.length * 90;
     const upcoming = player.next_fixtures.filter(
         (slot): slot is NextFixtureSlot => slot !== null,
     );
@@ -151,6 +166,7 @@ export function derivePlayer(
 
     return {
         weeks,
+        settledWeeks: settled,
         last3,
         last3Points: last3.reduce(
             (sum, cell) => sum + (cell.score?.points ?? 0),
@@ -175,6 +191,8 @@ export function derivePlayer(
         ),
         clauseState,
         upcoming,
+        nextSlot:
+            upcoming.find((slot) => slot.week_number === currentWeek) ?? null,
         nextAverageDifficulty: mean(difficulties),
         nextAverageRivalPosition: mean(
             upcoming
@@ -837,8 +855,8 @@ function startLens(
     derived: DerivedPlayer[],
     currentWeek: number,
 ): ScoredLens {
-    const rivalValues = players.map(
-        (player) => player.next_fixtures[0]?.difficulty ?? null,
+    const rivalValues = derived.map(
+        (item) => item.nextSlot?.difficulty ?? null,
     );
     const start = normalizeAmong(
         derived.map((item) =>
@@ -863,7 +881,7 @@ function startLens(
         out: derived.map((item) => item.startTone === 'out'),
         reasons: players.map((player, index) => {
             const item = derived[index];
-            const next = player.next_fixtures[0];
+            const next = item.nextSlot;
 
             if (item.startTone === 'out') {
                 return { lead: STATUS_LABELS[player.status], rest: 'no juega' };
@@ -891,8 +909,8 @@ function startLens(
             {
                 label: `Rival J${currentWeek}`,
                 hint: 'dificultad 0–10',
-                texts: players.map((player) => {
-                    const next = player.next_fixtures[0];
+                texts: derived.map((item) => {
+                    const next = item.nextSlot;
 
                     if (!next) {
                         return '—';

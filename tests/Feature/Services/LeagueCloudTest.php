@@ -29,7 +29,7 @@ test('one row per listed league player of the season, sorted by points', functio
     $noSeason = Player::factory()->create(['status' => PlayerStatus::Ok]);
     PlayerSeason::query()->where('player_id', $noSeason->id)->delete();
 
-    $rows = app(LeagueCloud::class)->rows($season);
+    $rows = app(LeagueCloud::class)->rows($season, 1);
 
     expect(array_column($rows, 'id'))->toBe([$high->id, $low->id]);
 });
@@ -45,12 +45,12 @@ test('a row carries the figures the tracks, search and hover card need', functio
     PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(30)->toDateString(), 'value' => 20_000_000]);
     PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->toDateString(), 'value' => 25_000_000]);
     $fixture = Fixture::factory()->create([
-        'season_id' => $season->id, 'state' => FixtureState::Scheduled, 'date' => now()->addDay(),
+        'season_id' => $season->id, 'week_number' => 1, 'state' => FixtureState::Scheduled, 'date' => now()->addDay(),
         'team_local_id' => $player->team_id,
     ]);
     FixtureLineupProbability::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixture->id, 'probability' => 75]);
 
-    $row = app(LeagueCloud::class)->rows($season)[0];
+    $row = app(LeagueCloud::class)->rows($season, 1)[0];
 
     expect($row)->toMatchArray([
         'id' => $player->id,
@@ -72,7 +72,7 @@ test('a free player without value, history or start data has null metrics', func
     $season = cloudSeason();
     Player::factory()->create(['status' => PlayerStatus::Ok, 'market_value' => 0, 'points' => 0]);
 
-    $row = app(LeagueCloud::class)->rows($season)[0];
+    $row = app(LeagueCloud::class)->rows($season, 1)[0];
 
     expect($row['owner_id'])->toBeNull()
         ->and($row['ppm'])->toBeNull()
@@ -92,13 +92,26 @@ test('the rows are cached for fifteen minutes', function (): void {
     Player::factory()->create(['status' => PlayerStatus::Ok]);
     $cloud = app(LeagueCloud::class);
 
-    expect($cloud->rows($season))->toHaveCount(1);
+    expect($cloud->rows($season, 1))->toHaveCount(1);
 
     Player::factory()->create(['status' => PlayerStatus::Ok]);
     DB::enableQueryLog();
-    expect($cloud->rows($season))->toHaveCount(1);
+    expect($cloud->rows($season, 1))->toHaveCount(1);
     expect(DB::getQueryLog())->toBe([]);
 
     $this->travel(16)->minutes();
-    expect($cloud->rows($season))->toHaveCount(2);
+    expect($cloud->rows($season, 1))->toHaveCount(2);
+});
+
+test('the start probability is the one for the comparison week, not a pending match of the live jornada', function (): void {
+    $season = cloudSeason();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    $fixtureFor = fn (int $week, int $days): Fixture => Fixture::factory()->create([
+        'season_id' => $season->id, 'state' => FixtureState::Scheduled, 'week_number' => $week,
+        'date' => now()->addDays($days), 'team_local_id' => $player->team_id,
+    ]);
+    FixtureLineupProbability::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixtureFor(5, 1)->id, 'probability' => 90]);
+    FixtureLineupProbability::factory()->create(['player_id' => $player->id, 'fixture_id' => $fixtureFor(6, 5)->id, 'probability' => 30]);
+
+    expect(app(LeagueCloud::class)->rows($season, 6)[0]['start_probability'])->toBe(30);
 });

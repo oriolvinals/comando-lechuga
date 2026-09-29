@@ -474,12 +474,12 @@ function sections(
                     label: 'Últimas jornadas',
                     hint: 'puntos por jornada',
                     cells: derived.map((item) => {
-                        if (item.weeks.length === 0) {
+                        if (item.settledWeeks.length === 0) {
                             return DASH;
                         }
 
                         const last = (count: number) =>
-                            item.weeks.slice(-count);
+                            item.settledWeeks.slice(-count);
 
                         return (
                             <>
@@ -510,9 +510,9 @@ function sections(
                         );
                     }),
                     values: derived.map((item) =>
-                        item.weeks.length === 0
+                        item.settledWeeks.length === 0
                             ? null
-                            : item.weeks
+                            : item.settledWeeks
                                   .slice(-5)
                                   .reduce(
                                       (sum, cell) =>

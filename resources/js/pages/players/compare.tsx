@@ -26,6 +26,7 @@ import type {
 
 interface PlayersCompareProps {
     currentWeek: number;
+    totalWeeks: number;
     view: CompareView;
     ids: number[];
     players: ComparedPlayer[];
@@ -43,6 +44,7 @@ type CopyState = 'idle' | 'done' | 'failed';
 
 export default function PlayersCompare({
     currentWeek,
+    totalWeeks,
     view,
     ids,
     players,
@@ -82,6 +84,7 @@ export default function PlayersCompare({
         league,
         managersById,
         currentWeek,
+        totalWeeks,
         now,
         add: comparison.add,
         remove: comparison.remove,
