@@ -109,11 +109,11 @@ export function ComparePlayerStrip() {
                     <span className="hq-label">
                         {players.length} de {COMPARE_MAX} jugadores
                     </span>
-                    <span className="hq-label tracking-normal text-hq-led-off normal-case group-data-stuck:hidden">
-                        {hasRoom
-                            ? 'pulsa / para añadir'
-                            : 'máx. 3 · cambia o quita uno'}
-                    </span>
+                    {hasRoom && (
+                        <span className="hq-label tracking-normal text-hq-led-off normal-case group-data-stuck:hidden">
+                            pulsa / para añadir
+                        </span>
+                    )}
                 </div>
                 {players.map((player, index) => {
                     const cue = ACQUIRE_CUES[derived[index].acquire.kind];
