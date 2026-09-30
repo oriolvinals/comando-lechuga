@@ -8,7 +8,7 @@ use App\Models\Season;
 use App\Services\Prizes\Concerns\ListsSeasonManagers;
 
 /** How many finished jornadas each manager ended first in. */
-final class ReyDelDomingo implements PrizeCalculator
+final class SundayKing implements PrizeCalculator
 {
     use ListsSeasonManagers;
 

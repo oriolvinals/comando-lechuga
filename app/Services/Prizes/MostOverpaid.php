@@ -16,7 +16,7 @@ use App\Services\Prizes\Concerns\ListsSeasonManagers;
  * market value that day, or the last one before; an operation with no
  * earlier value does not count.
  */
-final class ElCriminal implements PrizeCalculator
+final class MostOverpaid implements PrizeCalculator
 {
     use ListsSeasonManagers;
 

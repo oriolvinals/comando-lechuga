@@ -19,7 +19,7 @@ use App\Services\SeasonClock;
  *
  * @phpstan-type TopMiss array{fixture_lineup_id: int, fixture_id: int, player_id: int, week_number: int, points: int}
  */
-final class BanquilloDeOro implements PrizeCalculator
+final class BenchPoints implements PrizeCalculator
 {
     use ListsSeasonManagers;
 

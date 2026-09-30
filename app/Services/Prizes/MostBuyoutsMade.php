@@ -8,7 +8,7 @@ use App\Models\Season;
 use App\Services\Prizes\Concerns\ListsSeasonManagers;
 
 /** Clauses each manager paid (buyout source), with the manager he robbed most. */
-final class ElAtracador implements PrizeCalculator
+final class MostBuyoutsMade implements PrizeCalculator
 {
     use ListsSeasonManagers;
 

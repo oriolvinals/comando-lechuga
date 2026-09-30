@@ -13,7 +13,7 @@ use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
-use App\Services\Prizes\BanquilloDeOro;
+use App\Services\Prizes\BenchPoints;
 use App\Services\Prizes\PrizeRow;
 
 test('adds the points of squad players left out of each finished lineup', function (): void {
@@ -35,7 +35,7 @@ test('adds the points of squad players left out of each finished lineup', functi
     FixtureLineup::factory()->create(['fixture_id' => $finished->id, 'player_id' => $alsoBenched->id, 'fantasy_points' => null]);
     FixtureLineup::factory()->create(['fixture_id' => $live->id, 'player_id' => $benched->id, 'fantasy_points' => 30]);
 
-    $row = collect(app(BanquilloDeOro::class)->rows($season))->first(fn (PrizeRow $row): bool => $row->seasonManagerId === $manager->id);
+    $row = collect(app(BenchPoints::class)->rows($season))->first(fn (PrizeRow $row): bool => $row->seasonManagerId === $manager->id);
 
     expect($row->value)->toBe(14)
         ->and($row->context)->toBe(['top_miss' => [
@@ -70,7 +70,7 @@ test('uses the squad at each lineup lock and skips jornadas without a lineup', f
     FixtureLineup::factory()->create(['fixture_id' => $first->id, 'player_id' => $lateJoinersPlayer->id, 'fantasy_points' => 9]);
     $weekTwoMiss = FixtureLineup::factory()->create(['fixture_id' => $second->id, 'player_id' => $signedForWeekTwo->id, 'fantasy_points' => 7]);
 
-    $rows = collect(app(BanquilloDeOro::class)->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
+    $rows = collect(app(BenchPoints::class)->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
 
     expect($rows[$manager->id]->value)->toBe(12)
         ->and($rows[$manager->id]->context['top_miss'])->toBe([

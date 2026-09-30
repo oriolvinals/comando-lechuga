@@ -7,10 +7,10 @@ use App\Models\Fixture;
 use App\Models\ManagerLineup;
 use App\Models\Season;
 use App\Models\SeasonManager;
-use App\Services\Prizes\ElPupas;
-use App\Services\Prizes\NocheMagica;
+use App\Services\Prizes\BestNight;
 use App\Services\Prizes\PrizeRow;
-use App\Services\Prizes\ReyDelDomingo;
+use App\Services\Prizes\SundayKing;
+use App\Services\Prizes\WorstWeeks;
 
 /**
  * A season on jornada 3 (in play): jornadas 1 and 2 are finished.
@@ -41,10 +41,10 @@ function byManager(array $rows): array
     return collect($rows)->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId)->all();
 }
 
-test('noche magica keeps the best finished jornada and ignores the one in play', function (): void {
+test('best night keeps the best finished jornada and ignores the one in play', function (): void {
     [$season, $a, $b, $late] = lineupPrizeSeason();
 
-    $rows = byManager(app(NocheMagica::class)->rows($season));
+    $rows = byManager(app(BestNight::class)->rows($season));
 
     expect($rows[$a->id]->value)->toBe(60)
         ->and($rows[$a->id]->context)->toBe(['week_number' => 1])
@@ -55,7 +55,7 @@ test('noche magica keeps the best finished jornada and ignores the one in play',
 test('a jornada tied on top counts for every tied manager', function (): void {
     [$season, $a, $b] = lineupPrizeSeason();
 
-    $rows = byManager(app(ReyDelDomingo::class)->rows($season));
+    $rows = byManager(app(SundayKing::class)->rows($season));
 
     expect($rows[$a->id]->value)->toBe(2)
         ->and($rows[$a->id]->context)->toBe(['weeks' => [1, 2]])
@@ -66,7 +66,7 @@ test('a jornada tied on top counts for every tied manager', function (): void {
 test('a manager without a lineup in a jornada is never last in it', function (): void {
     [$season, $a, $b, $late] = lineupPrizeSeason();
 
-    $rows = byManager(app(ElPupas::class)->rows($season));
+    $rows = byManager(app(WorstWeeks::class)->rows($season));
 
     expect($rows[$b->id]->value)->toBe(1)
         ->and($rows[$b->id]->context)->toBe(['weeks' => [1]])

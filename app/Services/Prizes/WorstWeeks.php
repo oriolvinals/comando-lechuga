@@ -8,7 +8,7 @@ use App\Models\Season;
 use App\Services\Prizes\Concerns\ListsSeasonManagers;
 
 /** How many finished jornadas each manager ended last in. */
-final class ElPupas implements PrizeCalculator
+final class WorstWeeks implements PrizeCalculator
 {
     use ListsSeasonManagers;
 

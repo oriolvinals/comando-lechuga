@@ -6,8 +6,8 @@ use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\Season;
 use App\Models\SeasonManager;
-use App\Services\Prizes\ElAtracador;
-use App\Services\Prizes\LaVictima;
+use App\Services\Prizes\MostBuyoutsMade;
+use App\Services\Prizes\MostBuyoutsSuffered;
 use App\Services\Prizes\PrizeRow;
 
 function buyout(Season $season, SeasonManager $payer, SeasonManager $victim): void
@@ -30,8 +30,8 @@ test('counts clauses paid and received with the favourite victim and the nemesis
     buyout($season, $cid, $duke);
     Activity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Signing, 'source_season_manager_id' => $duke->id]);
 
-    $paid = collect(app(ElAtracador::class)->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
-    $received = collect(app(LaVictima::class)->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
+    $paid = collect(app(MostBuyoutsMade::class)->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
+    $received = collect(app(MostBuyoutsSuffered::class)->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
 
     expect($paid[$duke->id]->value)->toBe(3)
         ->and($paid[$duke->id]->context)->toBe(['favourite' => ['season_manager_id' => $dubi->id, 'count' => 2]])
@@ -50,7 +50,7 @@ test('the most repeated counterpart wins, the first seen on a tie, and missing c
     buyout($season, $duke, $dubi);
     Activity::factory()->create(['season_id' => $season->id, 'type' => SeasonActivityType::Buyout, 'source_season_manager_id' => $duke->id, 'target_season_manager_id' => null]);
 
-    $paid = collect(app(ElAtracador::class)->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
+    $paid = collect(app(MostBuyoutsMade::class)->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
 
     expect($paid[$duke->id]->value)->toBe(3)
         ->and($paid[$duke->id]->context)->toBe(['favourite' => ['season_manager_id' => $cid->id, 'count' => 1]]);

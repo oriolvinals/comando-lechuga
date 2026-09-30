@@ -27,10 +27,10 @@ test('nobody leads while the best value is zero', function (): void {
 });
 
 test('a prize is split evenly between tied leaders', function (): void {
-    expect(PrizeRanking::shares(SeasonPrize::ElPupas, [7, 9]))->toBe([7 => 2.5, 9 => 2.5])
-        ->and(PrizeRanking::shares(SeasonPrize::ElPupas, []))->toBe([]);
+    expect(PrizeRanking::shares(SeasonPrize::WorstWeeks, [7, 9]))->toBe([7 => 2.5, 9 => 2.5])
+        ->and(PrizeRanking::shares(SeasonPrize::WorstWeeks, []))->toBe([]);
 });
 
 test('a prize with a single leader is paid in full as a float', function (): void {
-    expect(PrizeRanking::shares(SeasonPrize::ElPupas, [7]))->toBe([7 => 5.0]);
+    expect(PrizeRanking::shares(SeasonPrize::WorstWeeks, [7]))->toBe([7 => 5.0]);
 });

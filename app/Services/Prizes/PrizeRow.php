@@ -6,7 +6,7 @@ namespace App\Services\Prizes;
 
 /**
  * One manager's standing in one prize. `value` is null when the prize does
- * not apply to him (e.g. he never owned the Fichaje del Pueblo player);
+ * not apply to him (e.g. he never owned the MostOwnedPlayer player);
  * `context` carries the prize-specific detail (a jornada, a player id…).
  */
 final readonly class PrizeRow

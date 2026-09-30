@@ -8,7 +8,7 @@ use App\Models\Season;
 use App\Services\Prizes\Concerns\ListsSeasonManagers;
 
 /** Clauses paid against each manager (buyout target), with who paid most. */
-final class LaVictima implements PrizeCalculator
+final class MostBuyoutsSuffered implements PrizeCalculator
 {
     use ListsSeasonManagers;
 

@@ -14,16 +14,16 @@ use App\Services\SeasonClock;
  * whoever held him the most finished jornadas, a jornada being held by the
  * owner at its lineup lock (first kickoff). Several players can tie.
  *
- * @phpstan-type PuebloCandidate array{player_id: int, chain: list<int>, owners: list<int>, transfers: int, on_market: bool, weeks_held: array<int, int>, winners: list<int>}
+ * @phpstan-type OwnedPlayerCandidate array{player_id: int, chain: list<int>, owners: list<int>, transfers: int, on_market: bool, weeks_held: array<int, int>, winners: list<int>}
  */
-final class FichajeDelPueblo implements PrizeCalculator
+final class MostOwnedPlayer implements PrizeCalculator
 {
     use ListsSeasonManagers;
 
     public function __construct(private readonly SeasonClock $clock) {}
 
     /**
-     * @return list<PuebloCandidate>
+     * @return list<OwnedPlayerCandidate>
      */
     public function candidates(Season $season): array
     {

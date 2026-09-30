@@ -9,7 +9,7 @@ use App\Models\Fixture;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
-use App\Services\Prizes\FichajeDelPueblo;
+use App\Services\Prizes\MostOwnedPlayer;
 use App\Services\Prizes\PrizeRow;
 
 test('picks the player with most distinct owners and counts the jornadas each one held him', function (): void {
@@ -35,8 +35,8 @@ test('picks the player with most distinct owners and counts the jornadas each on
     $move($vlachodimos, SeasonActivityType::Signing, $cid, null, '2026-09-01 20:00:00');
     $move($boring, SeasonActivityType::Signing, $gau, null, '2026-08-11 20:00:00');
 
-    $pueblo = app(FichajeDelPueblo::class);
-    $candidates = $pueblo->candidates($season);
+    $mostOwned = app(MostOwnedPlayer::class);
+    $candidates = $mostOwned->candidates($season);
 
     expect($candidates)->toHaveCount(1)
         ->and($candidates[0]['player_id'])->toBe($vlachodimos->id)
@@ -47,7 +47,7 @@ test('picks the player with most distinct owners and counts the jornadas each on
         ->and($candidates[0]['weeks_held'])->toBe([$dubi->id => 0, $cid->id => 3, $cruza->id => 0])
         ->and($candidates[0]['winners'])->toBe([$cid->id]);
 
-    $rows = collect($pueblo->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
+    $rows = collect($mostOwned->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
 
     expect($rows[$cid->id]->value)->toBe(3)
         ->and($rows[$cid->id]->context)->toBe(['player_id' => $vlachodimos->id])
@@ -74,8 +74,8 @@ test('keeps every player tied on owners, each with its own winner', function ():
     $move($second, SeasonActivityType::Signing, $gau, '2026-08-12 20:00:00');
     $move($second, SeasonActivityType::Sale, $gau, '2026-08-20 10:00:00');
 
-    $pueblo = app(FichajeDelPueblo::class);
-    $candidates = collect($pueblo->candidates($season))->keyBy('player_id');
+    $mostOwned = app(MostOwnedPlayer::class);
+    $candidates = collect($mostOwned->candidates($season))->keyBy('player_id');
 
     expect($candidates)->toHaveCount(2)
         ->and($candidates[$first->id]['winners'])->toBe([$cid->id])
@@ -83,7 +83,7 @@ test('keeps every player tied on owners, each with its own winner', function ():
         ->and($candidates[$second->id]['on_market'])->toBeTrue()
         ->and($candidates[$second->id]['transfers'])->toBe(2);
 
-    $rows = collect($pueblo->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
+    $rows = collect($mostOwned->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
 
     expect($rows[$cid->id]->value)->toBe(1)
         ->and($rows[$cid->id]->context)->toBe(['player_id' => $first->id])

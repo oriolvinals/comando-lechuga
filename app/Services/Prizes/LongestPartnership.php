@@ -14,7 +14,7 @@ use App\Services\SeasonClock;
  * player in his lineup; the latest run on a tie. `alive` when it reaches
  * the last finished jornada.
  */
-final class Matrimonio implements PrizeCalculator
+final class LongestPartnership implements PrizeCalculator
 {
     use ListsSeasonManagers;
 

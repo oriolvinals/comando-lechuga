@@ -10,7 +10,7 @@ use App\Services\Prizes\Concerns\ListsSeasonManagers;
 use App\Services\SeasonClock;
 
 /** The best single finished jornada of each manager; the earlier one on a tie. */
-final class NocheMagica implements PrizeCalculator
+final class BestNight implements PrizeCalculator
 {
     use ListsSeasonManagers;
 
