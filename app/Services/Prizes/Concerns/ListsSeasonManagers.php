@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Prizes\Concerns;
 
+use App\Enums\SeasonActivityType;
+use App\Models\Activity;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use Illuminate\Database\Eloquent\Collection;
 
 trait ListsSeasonManagers
 {
@@ -40,5 +43,19 @@ trait ListsSeasonManagers
         $id = array_key_first($counts);
 
         return ['season_manager_id' => (int) $id, 'count' => $counts[$id]];
+    }
+
+    /**
+     * The season's clause payments (buyouts), oldest first.
+     *
+     * @return Collection<int, Activity>
+     */
+    private function buyouts(Season $season): Collection
+    {
+        return Activity::query()
+            ->where('season_id', $season->id)
+            ->where('type', SeasonActivityType::Buyout)
+            ->orderBy('id')
+            ->get(['source_season_manager_id', 'target_season_manager_id']);
     }
 }
