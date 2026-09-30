@@ -11,11 +11,11 @@ use App\Services\Prizes\Concerns\ListsSeasonManagers;
 use App\Services\SeasonClock;
 
 /**
- * Per finished jornada: the manager's squad at the lineup lock minus the
- * players he lined up; their fantasy points that jornada (null = 0) add
- * up. A jornada without the manager's lineup is skipped. `top_miss` is the
- * single biggest score left out, with its fixture so the jornada sheet can
- * open that match.
+ * Per finished jornada: the manager's squad at the lineup lock
+ * (SeasonClock::lineupLock) minus the players he lined up; their fantasy
+ * points that jornada (null = 0) add up. A jornada without the manager's
+ * lineup is skipped. `top_miss` is the single biggest score left out, with
+ * its fixture so the jornada sheet can open that match.
  *
  * @phpstan-type TopMiss array{fixture_lineup_id: int, fixture_id: int, player_id: int, week_number: int, points: int}
  */
@@ -35,7 +35,7 @@ final class BenchPoints implements PrizeCalculator
         $topMisses = array_fill_keys($managerIds, null);
 
         foreach ($this->clock->finishedWeekNumbers($season) as $week) {
-            $lock = $this->clock->firstKickoff($season, $week);
+            $lock = $this->clock->lineupLock($season, $week);
 
             if ($lock === null) {
                 continue;

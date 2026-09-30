@@ -44,8 +44,18 @@ class SeasonClock
     /** @var array<string, 'not_started'|'live'|'finished'> */
     private array $weekStates = [];
 
+    /**
+     * Two kickoffs of one jornada further apart than this belong to separate
+     * blocks (see lineupLock). A regular jornada runs Friday to Monday or
+     * Tuesday to Thursday, with no gap between matches longer than two days.
+     */
+    public const int LINEUP_BLOCK_GAP_DAYS = 3;
+
     /** @var array<string, CarbonImmutable|null> */
     private array $firstKickoffs = [];
+
+    /** @var array<string, CarbonImmutable|null> */
+    private array $lineupLocks = [];
 
     /**
      * 'not_started' until one of the jornada's non-postponed matches kicks
@@ -98,6 +108,55 @@ class SeasonClock
         }
 
         return $this->firstKickoffs[$key];
+    }
+
+    /**
+     * When the jornada's lineups really lock: the first kickoff of its main
+     * block. Non-postponed kickoffs are split into blocks wherever two in a
+     * row are more than LINEUP_BLOCK_GAP_DAYS apart; the block with most
+     * matches (the earliest on a tie) is the main one. A match brought
+     * forward before an earlier jornada, or rescheduled weeks later, forms a
+     * block of its own and is ignored. Null when the jornada has no match.
+     */
+    public function lineupLock(Season $season, int $weekNumber): ?CarbonImmutable
+    {
+        $key = $this->weekKey($season, $weekNumber);
+
+        if (array_key_exists($key, $this->lineupLocks)) {
+            return $this->lineupLocks[$key];
+        }
+
+        /** @var list<CarbonImmutable> $kickoffs */
+        $kickoffs = Fixture::query()
+            ->where('season_id', $season->id)
+            ->where('week_number', $weekNumber)
+            ->where('state', '!=', FixtureState::Postponed)
+            ->orderBy('date')
+            ->pluck('date')
+            ->all();
+
+        $mainStart = null;
+        $mainSize = 0;
+        $blockStart = null;
+        $blockSize = 0;
+        $previous = null;
+
+        foreach ($kickoffs as $kickoff) {
+            if ($previous === null || $previous->diffInDays($kickoff) > self::LINEUP_BLOCK_GAP_DAYS) {
+                $blockStart = $kickoff;
+                $blockSize = 0;
+            }
+
+            $blockSize++;
+            $previous = $kickoff;
+
+            if ($blockSize > $mainSize) {
+                $mainStart = $blockStart;
+                $mainSize = $blockSize;
+            }
+        }
+
+        return $this->lineupLocks[$key] = $mainStart;
     }
 
     private function weekKey(Season $season, int $weekNumber): string

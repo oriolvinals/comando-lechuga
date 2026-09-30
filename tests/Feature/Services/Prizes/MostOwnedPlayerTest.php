@@ -91,3 +91,25 @@ test('keeps every player tied on owners, each with its own winner', function ():
         ->and($rows[$gau->id]->context)->toBe(['player_id' => $second->id])
         ->and($rows[$dubi->id]->value)->toBe(0);
 });
+
+test('credits a jornada to the owner at its main block, not at a match played early', function (): void {
+    $season = Season::factory()->create(['current_week' => 3, 'total_weeks' => 38]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => '2026-08-15 19:00:00', 'state' => FixtureState::Finished]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => '2026-08-12 21:00:00', 'state' => FixtureState::Finished]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => '2026-08-22 19:00:00', 'state' => FixtureState::Finished]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => '2026-08-23 19:00:00', 'state' => FixtureState::Finished]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'date' => '2026-08-29 19:00:00', 'state' => FixtureState::Scheduled]);
+    [$planuky, $cid] = SeasonManager::factory()->count(2)->sequence(fn ($sequence) => ['season_id' => $season->id, 'position' => $sequence->index + 1])->create()->all();
+    $turrientes = Player::factory()->create();
+
+    Activity::factory()->create([
+        'season_id' => $season->id, 'type' => SeasonActivityType::Buyout, 'player_id' => $turrientes->id,
+        'source_season_manager_id' => $cid->id, 'target_season_manager_id' => $planuky->id, 'occurred_at' => '2026-08-16 23:35:00',
+    ]);
+
+    $candidates = app(MostOwnedPlayer::class)->candidates($season);
+
+    expect($candidates)->toHaveCount(1)
+        ->and($candidates[0]['weeks_held'])->toBe([$planuky->id => 1, $cid->id => 1])
+        ->and($candidates[0]['winners'])->toBe([$planuky->id, $cid->id]);
+});

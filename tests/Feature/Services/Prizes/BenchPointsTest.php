@@ -79,3 +79,31 @@ test('uses the squad at each lineup lock and skips jornadas without a lineup', f
         ->and($rows[$lateJoiner->id]->value)->toBe(0)
         ->and($rows[$lateJoiner->id]->context)->toBe(['top_miss' => null]);
 });
+
+test('reads the squad at the jornada\'s main block, not at a match played early', function (): void {
+    $season = Season::factory()->create(['current_week' => 3, 'total_weeks' => 38]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => '2026-08-15 19:00:00', 'state' => FixtureState::Finished]);
+    $early = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => '2026-08-12 21:00:00', 'state' => FixtureState::Finished]);
+    $main = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => '2026-08-22 19:00:00', 'state' => FixtureState::Finished]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'date' => '2026-08-23 19:00:00', 'state' => FixtureState::Finished]);
+    Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 3, 'date' => '2026-08-29 19:00:00', 'state' => FixtureState::Scheduled]);
+    [$planuky, $cid] = SeasonManager::factory()->count(2)->sequence(fn ($sequence) => ['season_id' => $season->id, 'position' => $sequence->index + 1])->create()->all();
+    $turrientes = Player::factory()->create();
+
+    Activity::factory()->create([
+        'season_id' => $season->id, 'type' => SeasonActivityType::Buyout, 'player_id' => $turrientes->id,
+        'source_season_manager_id' => $cid->id, 'target_season_manager_id' => $planuky->id, 'occurred_at' => '2026-08-16 23:35:00',
+    ]);
+
+    ManagerLineup::factory()->create(['season_manager_id' => $planuky->id, 'week_number' => 2]);
+    $cidLineup = ManagerLineup::factory()->create(['season_manager_id' => $cid->id, 'week_number' => 2]);
+    ManagerLineupPlayer::factory()->create(['manager_lineup_id' => $cidLineup->id, 'player_id' => $turrientes->id]);
+
+    FixtureLineup::factory()->create(['fixture_id' => $main->id, 'player_id' => $turrientes->id, 'fantasy_points' => 11]);
+    FixtureLineup::factory()->create(['fixture_id' => $early->id, 'player_id' => Player::factory()->create()->id, 'fantasy_points' => 3]);
+
+    $rows = collect(app(BenchPoints::class)->rows($season))->keyBy(fn (PrizeRow $row): int => $row->seasonManagerId);
+
+    expect($rows[$planuky->id]->value)->toBe(0)
+        ->and($rows[$cid->id]->value)->toBe(0);
+});

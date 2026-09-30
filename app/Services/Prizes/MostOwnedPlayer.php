@@ -12,7 +12,8 @@ use App\Services\SeasonClock;
  * The player who went through most hands (distinct owners, the initial one
  * included; a same-day spell counts). Among his owners, the prize goes to
  * whoever held him the most finished jornadas, a jornada being held by the
- * owner at its lineup lock (first kickoff). Several players can tie.
+ * owner at its lineup lock (SeasonClock::lineupLock, the start of the
+ * jornada's main block). Several players can tie.
  *
  * @phpstan-type OwnedPlayerCandidate array{player_id: int, chain: list<int>, owners: list<int>, transfers: int, on_market: bool, weeks_held: array<int, int>, winners: list<int>}
  */
@@ -43,7 +44,7 @@ final class MostOwnedPlayer implements PrizeCalculator
         $locks = [];
 
         foreach ($this->clock->finishedWeekNumbers($season) as $week) {
-            $lock = $this->clock->firstKickoff($season, $week);
+            $lock = $this->clock->lineupLock($season, $week);
 
             if ($lock !== null) {
                 $locks[] = $lock;
