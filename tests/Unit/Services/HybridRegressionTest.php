@@ -38,6 +38,30 @@ test('an all-zero column is solvable with ridge and gets a zero coefficient', fu
     expect($regression->solve()[2])->toBe(0.0);
 });
 
+test('solving leaves the accumulated rows untouched, so more rows can follow', function (): void {
+    $regression = new HybridRegression(2, 1e-4);
+    $fresh = new HybridRegression(2, 1e-4);
+    $first = [[[1.0, -1.0], -0.5], [[1.0, 0.5], 1.2], [[1.0, 2.0], 2.9]];
+    $second = [[[1.0, 3.0], 4.1], [[1.0, -2.0], -2.2]];
+
+    foreach ($first as [$x, $y]) {
+        $regression->add($x, $y);
+        $fresh->add($x, $y);
+    }
+
+    $before = $regression->solve();
+
+    expect($regression->solve())->toBe($before);
+
+    foreach ($second as [$x, $y]) {
+        $regression->add($x, $y);
+        $fresh->add($x, $y);
+    }
+
+    expect($regression->count())->toBe(5)
+        ->and($regression->solve())->toBe($fresh->solve());
+});
+
 test('fails on a wrong vector size and on an empty fit', function (): void {
     $regression = new HybridRegression(2, 1e-4);
 

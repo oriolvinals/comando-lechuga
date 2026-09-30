@@ -5,6 +5,7 @@ use App\Models\Season;
 use App\Models\ValueForecast;
 use App\Models\ValueForecastFit;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 
 test('a forecast casts its dates, amounts and reasons', function (): void {
     $forecast = ValueForecast::factory()->create([
@@ -35,7 +36,16 @@ test('one forecast per season, player and target date', function (): void {
 });
 
 test('a fit keeps its hash as an empty string by default and casts its json', function (): void {
-    $fit = ValueForecastFit::factory()->create(['coefficients' => [0.1, -0.2], 'inputs_hash' => ''])->fresh();
+    $season = Season::factory()->create();
+    DB::table('value_forecast_fits')->insert([
+        'season_id' => $season->id,
+        'reference_date' => '2026-09-29',
+        'coefficients' => '[0.1,-0.2]',
+        'quantiles' => '{}',
+        'metrics' => '{}',
+    ]);
+
+    $fit = ValueForecastFit::query()->sole();
 
     expect($fit->inputs_hash)->toBe('')
         ->and($fit->coefficients)->toBe([0.1, -0.2]);

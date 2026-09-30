@@ -21,6 +21,9 @@ use Illuminate\Console\Command;
 #[Description('Store today\'s status, next-match start probability, next rival difficulty and market listing of every league player')]
 class SnapshotPlayerSignals extends Command
 {
+    /** Rows per upsert statement, well under MySQL's placeholder limit. */
+    private const int UPSERT_CHUNK = 500;
+
     public function handle(StartProbabilities $startProbabilities, MatchDifficulty $matchDifficulty): int
     {
         $season = Season::current();
@@ -76,11 +79,13 @@ class SnapshotPlayerSignals extends Command
             'updated_at' => $now,
         ])->all();
 
-        PlayerDailySignal::query()->upsert(
-            $rows,
-            ['player_id', 'date'],
-            ['season_id', 'status', 'next_fixture_id', 'start_probability', 'predicted_starter', 'confirmed_starter', 'next_difficulty', 'listed', 'updated_at'],
-        );
+        foreach (array_chunk($rows, self::UPSERT_CHUNK) as $chunk) {
+            PlayerDailySignal::query()->upsert(
+                $chunk,
+                ['player_id', 'date'],
+                ['season_id', 'status', 'next_fixture_id', 'start_probability', 'predicted_starter', 'confirmed_starter', 'next_difficulty', 'listed', 'updated_at'],
+            );
+        }
 
         $this->info(count($rows).' jugadores guardados para el '.$today.'.');
 
