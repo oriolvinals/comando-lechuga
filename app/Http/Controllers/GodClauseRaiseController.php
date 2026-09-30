@@ -6,10 +6,12 @@ namespace App\Http\Controllers;
 
 use App\Enums\ClauseSnapshotSource;
 use App\Models\ManagerPlayerClauseSnapshot;
+use App\Models\Season;
 use App\Services\ManualClauseRaise;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -45,8 +47,11 @@ class GodClauseRaiseController extends Controller
     }
 
     /**
-     * Validates the entry (exactly one of the new clause or the amount paid)
-     * and derives the row to store from it.
+     * Validates the entry (exactly one of the new clause or the amount paid,
+     * for a manager of the current season) and derives the row to store.
+     * A manual row has no real lock to record: `buyout_clause_locked_until`
+     * is the raise moment (a raise happens with the clause open) and
+     * `market_value` is 0, as neither is read from manual rows.
      *
      * @return array{season_manager_id: int, player_id: int, buyout_clause: int, buyout_clause_locked_until: CarbonImmutable, market_value: int, captured_at: CarbonImmutable, source: ClauseSnapshotSource, raise_amount: int, note: string}
      */
@@ -54,7 +59,7 @@ class GodClauseRaiseController extends Controller
     {
         /** @var array{season_manager_id: int|string, player_id: int|string, captured_at: string, new_clause?: int|string|null, paid?: int|string|null, note?: string|null} $validated */
         $validated = $request->validate([
-            'season_manager_id' => ['required', 'integer', 'exists:season_managers,id'],
+            'season_manager_id' => ['required', 'integer', Rule::exists('season_managers', 'id')->where('season_id', Season::current()->id)],
             'player_id' => ['required', 'integer', 'exists:players,id'],
             'captured_at' => ['required', 'date'],
             'new_clause' => ['nullable', 'integer', 'min:1', 'required_without:paid', 'prohibits:paid'],

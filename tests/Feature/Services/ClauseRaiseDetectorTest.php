@@ -206,3 +206,42 @@ test('a manual raise is authoritative: it replaces the inference and a matching 
     // Inference and the sync jump would both say 15.500.152; the user's own figure wins, once.
     expect(detect($this))->toBe([$this->manager->id => ['sure' => 15_000_000, 'possible' => 0]]);
 });
+
+function manualRaise(object $test, SeasonManager $manager, int $raise, int $clause, string $at): void
+{
+    ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $manager->id, 'player_id' => $test->player->id, 'source' => ClauseSnapshotSource::Manual,
+        'buyout_clause' => $clause, 'market_value' => 0, 'raise_amount' => $raise, 'captured_at' => $at,
+    ]);
+}
+
+test('a manual raise counts even when its holding ended in a market sale', function (): void {
+    acquire($this, $this->manager, 5_000_000, '2026-09-01 12:00');
+    valueOn($this, '2026-09-01', 4_000_000);
+    manualRaise($this, $this->manager, 2_000_000, 7_000_000, '2026-09-15 13:00');
+    acquire($this, $this->manager, 6_000_000, '2026-09-20 12:00', SeasonActivityType::Sale);
+
+    expect(detect($this))->toBe([$this->manager->id => ['sure' => 2_000_000, 'possible' => 0]]);
+});
+
+test('a manual raise counts even for a holding skipped for lacking market history', function (): void {
+    ownNow($this, $this->manager, 20_000_000);
+    manualRaise($this, $this->manager, 3_000_000, 20_000_000, '2026-09-20 12:00');
+
+    expect(detect($this))->toBe([$this->manager->id => ['sure' => 3_000_000, 'possible' => 0]]);
+});
+
+test('a manual raise that differs from the sync jump near it still replaces it', function (): void {
+    acquire($this, $this->manager, 13_765_656, '2026-09-10 20:00');
+    valueOn($this, '2026-09-24', 18_769_376);
+    ownNow($this, $this->manager, 34_269_528);
+    foreach ([['2026-09-24 19:00', 18_769_376], ['2026-09-24 21:00', 34_269_528]] as [$at, $clause]) {
+        ManagerPlayerClauseSnapshot::factory()->create([
+            'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+            'buyout_clause' => $clause, 'market_value' => 18_769_376, 'captured_at' => $at,
+        ]);
+    }
+    manualRaise($this, $this->manager, 15_000_000, 33_769_376, '2026-09-24 20:30');
+
+    expect(detect($this))->toBe([$this->manager->id => ['sure' => 15_000_000, 'possible' => 0]]);
+});

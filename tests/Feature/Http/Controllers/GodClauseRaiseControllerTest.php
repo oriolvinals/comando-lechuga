@@ -1,10 +1,16 @@
 <?php
 
 use App\Enums\ClauseSnapshotSource;
+use App\Enums\SeasonActivityType;
+use App\Models\Activity;
+use App\Models\ManagerPlayer;
 use App\Models\ManagerPlayerClauseSnapshot;
 use App\Models\Player;
+use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Services\ManagerBalances;
+use Carbon\CarbonImmutable;
 
 beforeEach(function (): void {
     $this->season = Season::factory()->create(['start_date' => now()->subMonth(), 'end_date' => now()->addMonths(9)]);
@@ -92,4 +98,71 @@ test('editing and deleting are god only too', function (): void {
     $this->delete(route('god.clause-raises.destroy', $manual))->assertNotFound();
 
     expect($manual->refresh()->raise_amount)->toBe(2_376_837);
+});
+
+test('a raise entered by hand replaces the sync jump in the balances, even with a different figure', function (string $field, int $amount, string $time, int $sureRaises): void {
+    $player = Player::factory()->create();
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Signing, 'source_season_manager_id' => $this->manager->id,
+        'player_id' => $player->id, 'amount' => 13_765_656, 'occurred_at' => now()->subDays(20),
+    ]);
+    $day = CarbonImmutable::now()->subDays(5)->startOfDay();
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => $day->toDateString(), 'value' => 18_769_376]);
+    ManagerPlayer::factory()->create([
+        'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
+        'buyout_clause' => 34_269_528, 'buyout_clause_locked_until' => now()->subDays(6),
+    ]);
+    foreach ([['19:00', 18_769_376], ['21:00', 34_269_528]] as [$at, $clause]) {
+        ManagerPlayerClauseSnapshot::factory()->create([
+            'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
+            'buyout_clause' => $clause, 'market_value' => 18_769_376, 'captured_at' => $day->setTimeFromTimeString($at),
+        ]);
+    }
+
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
+            'captured_at' => $day->setTimeFromTimeString($time)->toDateTimeString(), $field => $amount,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $balances = app(ManagerBalances::class)->forSeason($this->season, CarbonImmutable::now());
+    expect($balances[$this->manager->id]->sureRaises)->toBe($sureRaises);
+})->with([
+    'paid, a figure other than the sync jump' => ['paid', 7_500_000, '20:30', 15_000_000],
+    'new clause, entered after the sync already saw it' => ['new_clause', 34_269_528, '21:30', 15_500_152],
+]);
+
+test('the previous clause belongs to the current holding, not one before a sell-and-rebuy', function (): void {
+    $player = Player::factory()->create();
+    foreach ([[SeasonActivityType::Signing, 5_000_000, 30], [SeasonActivityType::Sale, 6_000_000, 20], [SeasonActivityType::Signing, 8_000_000, 10]] as [$type, $amount, $daysAgo]) {
+        Activity::factory()->create([
+            'season_id' => $this->season->id, 'type' => $type, 'source_season_manager_id' => $this->manager->id,
+            'player_id' => $player->id, 'amount' => $amount, 'occurred_at' => now()->subDays($daysAgo),
+        ]);
+    }
+    ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
+        'buyout_clause' => 40_000_000, 'captured_at' => now()->subDays(25),
+    ]);
+
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
+            'captured_at' => now()->subDays(2)->toDateTimeString(), 'new_clause' => 10_000_000,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->sole()->raise_amount)->toBe(2_000_000);
+});
+
+test('the manager must belong to the current season', function (): void {
+    $oldSeason = Season::factory()->create(['start_date' => now()->subYears(2), 'end_date' => now()->subYear()]);
+
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => SeasonManager::factory()->create(['season_id' => $oldSeason->id])->id, 'player_id' => $this->player->id,
+            'captured_at' => now()->subDay()->toDateTimeString(), 'paid' => 1_000_000,
+        ])
+        ->assertSessionHasErrors('season_manager_id');
 });

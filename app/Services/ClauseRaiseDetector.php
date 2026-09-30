@@ -22,8 +22,9 @@ use Illuminate\Support\Collection;
  * shield expires, by a round amount, so a round excess at one of those
  * anchors is a certain raise and anything else a possible one. Buyouts
  * inside the victim's lock or for a round total are accepted offers, not
- * clause payments. Raises the user entered by hand are authoritative for
- * their holding. PRIVATE: never exposed through /api.
+ * clause payments. Raises the user entered by hand always count, and replace
+ * what the history or the inference would say for their holding.
+ * PRIVATE: never exposed through /api.
  *
  * @phpstan-type Raises array{sure: int, possible: int}
  */
@@ -92,6 +93,11 @@ final class ClauseRaiseDetector
             ->get()
             ->groupBy(fn (ManagerPlayerClauseSnapshot $snapshot): string => "{$snapshot->season_manager_id}:{$snapshot->player_id}")
             ->all();
+
+        foreach ($this->history as $rows) {
+            $rows->where('source', ClauseSnapshotSource::Manual)
+                ->each(fn (ManagerPlayerClauseSnapshot $entry) => $this->add($entry->season_manager_id, 'sure', $entry->raise_amount));
+        }
 
         /** @var array<int, array{manager_id: int, base: int, since: CarbonImmutable}> $holdings */
         $holdings = [];
@@ -165,10 +171,9 @@ final class ClauseRaiseDetector
     }
 
     /**
-     * The user's manual raises when the holding has any (authoritative: no
-     * inference, and a sync jump they already explain is not counted again);
-     * otherwise exact raises from the sync history when there is one, and the
-     * inference before it.
+     * Exact raises from the sync history when there is one, and the inference
+     * before it. A holding with manual raises (already counted, whatever the
+     * holding) skips the inference and every sync jump they explain.
      */
     private function holdingRaises(int $managerId, int $playerId, int $base, CarbonImmutable $since, int $clause, CarbonImmutable $at): void
     {
@@ -177,7 +182,6 @@ final class ClauseRaiseDetector
         $snapshots = $history->filter(fn (ManagerPlayerClauseSnapshot $snapshot): bool => $snapshot->source === ClauseSnapshotSource::Sync)->values();
 
         if ($manual->isNotEmpty()) {
-            $manual->each(fn (ManagerPlayerClauseSnapshot $entry) => $this->add($managerId, 'sure', $entry->raise_amount));
             $this->syncJumps($managerId, $snapshots, $manual);
 
             return;
@@ -195,26 +199,48 @@ final class ClauseRaiseDetector
     }
 
     /**
-     * Each jump between consecutive sync rows is an exact raise, unless a
-     * manual entry within 24 h reaches the same clause (already counted).
+     * Each jump between consecutive sync rows is an exact raise, except the
+     * ones a manual entry explains: for each manual entry, the nearest jump
+     * within 24 h, whatever its amount (the user's figure already counts).
      *
      * @param  Collection<int, ManagerPlayerClauseSnapshot>  $snapshots
      * @param  Collection<int, ManagerPlayerClauseSnapshot>  $manual
      */
     private function syncJumps(int $managerId, Collection $snapshots, Collection $manual): void
     {
-        $snapshots->sliding(2)->each(function (Collection $pair) use ($managerId, $manual): void {
+        /** @var array<int, array{at: CarbonImmutable, jump: int}> $jumps */
+        $jumps = [];
+
+        foreach ($snapshots->sliding(2) as $pair) {
             /** @var array{0: ManagerPlayerClauseSnapshot, 1: ManagerPlayerClauseSnapshot} $rows */
             $rows = $pair->values()->all();
             [$previous, $current] = $rows;
             $jump = $current->buyout_clause - max($previous->buyout_clause, $current->market_value);
-            $explainedByManual = $manual->contains(fn (ManagerPlayerClauseSnapshot $entry): bool => $entry->buyout_clause === $current->buyout_clause
-                && abs($entry->captured_at->diffInHours($current->captured_at)) <= 24);
 
-            if ($jump > $current->buyout_clause * self::NOISE_RATIO && !$explainedByManual) {
-                $this->add($managerId, 'sure', $jump);
+            if ($jump > $current->buyout_clause * self::NOISE_RATIO) {
+                $jumps[] = ['at' => $current->captured_at, 'jump' => $jump];
             }
-        });
+        }
+
+        foreach ($manual as $entry) {
+            $nearest = null;
+
+            foreach ($jumps as $index => $candidate) {
+                $hours = abs($entry->captured_at->diffInHours($candidate['at']));
+
+                if ($hours <= 24 && ($nearest === null || $hours < $nearest['hours'])) {
+                    $nearest = ['index' => $index, 'hours' => $hours];
+                }
+            }
+
+            if ($nearest !== null) {
+                unset($jumps[$nearest['index']]);
+            }
+        }
+
+        foreach ($jumps as $candidate) {
+            $this->add($managerId, 'sure', $candidate['jump']);
+        }
     }
 
     /**
