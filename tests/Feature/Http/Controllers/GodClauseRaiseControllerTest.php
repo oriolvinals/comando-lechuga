@@ -16,6 +16,7 @@ beforeEach(function (): void {
     $this->season = Season::factory()->create(['start_date' => now()->subMonth(), 'end_date' => now()->addMonths(9)]);
     $this->manager = SeasonManager::factory()->create(['season_id' => $this->season->id]);
     $this->player = Player::factory()->create();
+    ManagerPlayer::factory()->create(['season_manager_id' => $this->manager->id, 'player_id' => $this->player->id, 'buyout_clause' => 17_623_163]);
     ManagerPlayerClauseSnapshot::factory()->create([
         'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
         'buyout_clause' => 17_623_163, 'captured_at' => now()->subDays(3),
@@ -166,3 +167,68 @@ test('the manager must belong to the current season', function (): void {
         ])
         ->assertSessionHasErrors('season_manager_id');
 });
+
+test('the previous clause is at least the highest value since the purchase, not only the value that day', function (): void {
+    $player = Player::factory()->create();
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Signing, 'source_season_manager_id' => $this->manager->id,
+        'player_id' => $player->id, 'amount' => 5_000_000, 'occurred_at' => now()->subDays(10),
+    ]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $this->manager->id, 'player_id' => $player->id, 'buyout_clause' => 10_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(12)->toDateString(), 'value' => 12_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(8)->toDateString(), 'value' => 9_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(3)->toDateString(), 'value' => 7_000_000]);
+
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
+            'captured_at' => now()->subDays(2)->toDateTimeString(), 'new_clause' => 10_000_000,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->sole()->raise_amount)->toBe(1_000_000);
+});
+
+test('an initial-squad player\'s previous clause is at least 5/3 of his value on the joining day', function (): void {
+    $player = Player::factory()->create();
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::JoinedLeague, 'source_season_manager_id' => $this->manager->id,
+        'player_id' => null, 'amount' => null, 'occurred_at' => now()->subDays(20),
+    ]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $this->manager->id, 'player_id' => $player->id, 'buyout_clause' => 6_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(20)->toDateString(), 'value' => 3_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(3)->toDateString(), 'value' => 4_000_000]);
+
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
+            'captured_at' => now()->subDays(2)->toDateTimeString(), 'new_clause' => 6_000_000,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->sole()->raise_amount)->toBe(1_000_000);
+});
+
+test('a raise dated when the manager did not own the player is rejected, so it can never be counted twice', function (string $when): void {
+    $player = Player::factory()->create();
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Signing, 'source_season_manager_id' => $this->manager->id,
+        'player_id' => $player->id, 'amount' => 5_000_000, 'occurred_at' => now()->subDays(10),
+    ]);
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Sale, 'source_season_manager_id' => $this->manager->id,
+        'player_id' => $player->id, 'amount' => 5_500_000, 'occurred_at' => now()->subDays(4),
+    ]);
+
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
+            'captured_at' => now()->subDays((int) $when)->toDateTimeString(), 'paid' => 1_000_000,
+        ])
+        ->assertSessionHasErrors('captured_at');
+
+    expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->count())->toBe(0);
+})->with([
+    'before the purchase' => ['11'],
+    'after the sale' => ['2'],
+]);

@@ -48,7 +48,8 @@ class GodClauseRaiseController extends Controller
 
     /**
      * Validates the entry (exactly one of the new clause or the amount paid,
-     * for a manager of the current season) and derives the row to store.
+     * for a manager of the current season who owned the player at that
+     * moment) and derives the row to store.
      * A manual row has no real lock to record: `buyout_clause_locked_until`
      * is the raise moment (a raise happens with the clause open) and
      * `market_value` is 0, as neither is read from manual rows.
@@ -72,6 +73,13 @@ class GodClauseRaiseController extends Controller
         $at = CarbonImmutable::parse($validated['captured_at']);
         $newClause = isset($validated['new_clause']) ? (int) $validated['new_clause'] : null;
         $paid = isset($validated['paid']) ? (int) $validated['paid'] : null;
+
+        if (!$manualClauseRaise->ownedAt($managerId, $playerId, $at)) {
+            throw ValidationException::withMessages([
+                'captured_at' => 'En ese momento el jugador no era de este mánager.',
+            ]);
+        }
+
         $derived = $manualClauseRaise->derive($managerId, $playerId, $at, $newClause, $paid, $ignoreId);
 
         if ($derived['raise'] <= 0) {

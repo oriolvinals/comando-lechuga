@@ -138,7 +138,9 @@ añada.»
   pagado**. Lo otro se deriva:
   - `subida = nueva − anterior`, o `subida = pagado × 2`;
   - `coste = subida/2`;
-  - «anterior» es la última fila del historial antes de ese momento o, si no hay, `máx(1 M, valor ese día)`.
+  - «anterior» es la última fila del historial antes de ese momento, nunca por debajo de `máx(1 M, precio pagado,
+    valor máximo desde la compra)` (en la plantilla inicial, también 5/3 × el valor el día de alta);
+  - la fecha tiene que caer cuando el mánager tenía al jugador; si no, se rechaza (así nunca se cuenta dos veces).
 - **Mandan sobre lo demás.** En una titularidad con entrada manual:
   - la subida manual cuenta como segura;
   - no se infiere nada;
