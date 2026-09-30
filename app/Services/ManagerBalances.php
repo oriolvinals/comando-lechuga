@@ -36,12 +36,11 @@ final class ManagerBalances
         $activity = $this->activitySums($season);
         $raises = $this->raiseDetector->forSeason($season, $now);
         $squad = $this->squadValues($season);
-        $snapshots = ManagerBalanceSnapshot::query()
-            ->whereIn('season_manager_id', $managers->pluck('id'))
+        $connectedId = $this->connectedManagerId($season);
+        $connectedSnapshot = $connectedId === null ? null : ManagerBalanceSnapshot::query()
+            ->where('season_manager_id', $connectedId)
             ->orderByDesc('captured_at')
-            ->get()
-            ->unique('season_manager_id')
-            ->keyBy('season_manager_id');
+            ->first();
         $joinedAt = Activity::query()
             ->where('season_id', $season->id)
             ->where('type', SeasonActivityType::JoinedLeague)
@@ -57,7 +56,7 @@ final class ManagerBalances
         foreach ($managers as $manager) {
             $since = ($joinedAt->get($manager->id) ?? $season->start_date)->setTimezone($timezone);
             $days[$manager->id] = (int) $since->startOfDay()->diffInDays($now->startOfDay()) + 1;
-            $snapshot = $snapshots->get($manager->id);
+            $snapshot = $manager->id === $connectedId ? $connectedSnapshot : null;
             $real = $snapshot instanceof ManagerBalanceSnapshot
                 ? $snapshot->money + ($this->activitySums($season, $snapshot->captured_at)[$manager->id] ?? 0)
                 : null;
@@ -72,8 +71,6 @@ final class ManagerBalances
                 squadValue: (int) ($squad[$manager->id] ?? 0),
             );
         }
-
-        $connectedId = $this->connectedManagerId($season);
 
         if ($connectedId !== null && isset($balances[$connectedId]) && $balances[$connectedId]->real !== null) {
             $connected = $balances[$connectedId];

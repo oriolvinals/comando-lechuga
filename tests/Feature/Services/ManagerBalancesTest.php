@@ -93,6 +93,21 @@ test('the connected account uses its latest snapshot plus later moves, and its r
         ->and($service->connectedManagerId($this->season))->toBe($this->manager->id);
 });
 
+test('only the connected account has real cash, even when an older snapshot belongs to a rival', function (): void {
+    ManagerBalanceSnapshot::factory()->create([
+        'season_manager_id' => $this->rival->id, 'money' => 50_000_000, 'captured_at' => '2026-09-20 10:00',
+    ]);
+    ManagerBalanceSnapshot::factory()->create([
+        'season_manager_id' => $this->manager->id, 'money' => 103_500_000, 'captured_at' => '2026-09-25 11:30',
+    ]);
+
+    $balances = app(ManagerBalances::class)->forSeason($this->season, $this->now);
+
+    expect($balances[$this->manager->id]->real)->toBe(103_500_000)
+        ->and($balances[$this->rival->id]->real)->toBeNull()
+        ->and($balances[$this->rival->id]->calibration)->not->toBe(0);
+});
+
 test('without a snapshot there is no calibration', function (): void {
     $balances = app(ManagerBalances::class)->forSeason($this->season, $this->now);
 
