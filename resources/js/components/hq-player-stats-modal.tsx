@@ -1,14 +1,12 @@
 import { Link } from '@inertiajs/react';
 import { ArrowUpRight, Shield, User, X } from 'lucide-react';
 import { useEffect, useId, useRef } from 'react';
-import { HqCompareButton } from '@/components/compare/compare-button';
 import { EntityImage } from '@/components/entity-image';
 import { HqDaznBadge } from '@/components/hq-dazn-badge';
 import { HqFixtureCard } from '@/components/hq-fixture-card';
 import { HqJornadaStatsGrid } from '@/components/hq-jornada-stats-grid';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { MatchEventIcons } from '@/components/match-event-icons';
-import { toCompareEntry } from '@/lib/compare-selection';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
@@ -244,11 +242,7 @@ export function HqPlayerStatsModal({
                     <HqJornadaStatsGrid stats={stats} showEmptyStats={false} />
                 </div>
 
-                <div className="flex items-center justify-between gap-2 border-t border-hq-border px-3 py-2 sm:px-4">
-                    <HqCompareButton
-                        player={toCompareEntry(player)}
-                        onWaiting={onClose}
-                    />
+                <div className="flex items-center justify-end border-t border-hq-border px-3 py-2 sm:px-4">
                     <Link
                         href={playersShow(player.id).url}
                         className="inline-flex h-11 cursor-pointer items-center justify-center gap-1.5 px-3 font-mono text-xs font-bold tracking-[0.06em] text-hq-lime uppercase hover:bg-hq-panel sm:h-9"
