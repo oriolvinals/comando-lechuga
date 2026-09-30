@@ -39,6 +39,7 @@ function detailLine(
 
     switch (prize.key) {
         case 'best_night':
+        case 'worst_night':
             return context.week_number ? `en la J${context.week_number}` : '';
         case 'sunday_king':
         case 'worst_weeks':
@@ -249,110 +250,99 @@ export function PrizeDetailDialog({
                     </div>
                 )}
 
-                {!prize.decided ? (
-                    <p className="px-4 py-4 font-mono text-xs text-hq-moss">
-                        Premio de 5 € sin categoría. Cuando la propongáis y se
-                        apruebe, se calcula como los demás.
-                    </p>
-                ) : (
-                    <ol className="py-1.5">
-                        {prize.rows.map((row) => {
-                            const manager = managers.get(row.season_manager_id);
+                <ol className="py-1.5">
+                    {prize.rows.map((row) => {
+                        const manager = managers.get(row.season_manager_id);
 
-                            if (!manager) {
-                                return null;
-                            }
+                        if (!manager) {
+                            return null;
+                        }
 
-                            const isLeader = prize.leaders.includes(
-                                row.season_manager_id,
-                            );
-                            const line = detailLine(
-                                prize,
-                                row,
-                                managers,
-                                players,
-                            );
-                            const miss = row.context.top_miss;
-                            const missPlayer = miss
-                                ? players[miss.player_id]
-                                : undefined;
-                            const value = restValue(prize, row);
+                        const isLeader = prize.leaders.includes(
+                            row.season_manager_id,
+                        );
+                        const line = detailLine(prize, row, managers, players);
+                        const miss = row.context.top_miss;
+                        const missPlayer = miss
+                            ? players[miss.player_id]
+                            : undefined;
+                        const value = restValue(prize, row);
 
-                            return (
-                                <li
-                                    key={row.season_manager_id}
+                        return (
+                            <li
+                                key={row.season_manager_id}
+                                className={cn(
+                                    'grid min-h-10 grid-cols-[18px_22px_minmax(0,1fr)_auto] items-center gap-[9px] px-4 py-[5px] [&+&]:border-t [&+&]:border-hq-border',
+                                    isLeader && 'bg-hq-lime/[0.07]',
+                                    row.season_manager_id === viewer &&
+                                        'shadow-[inset_2px_0_0_var(--color-hq-paper)]',
+                                )}
+                            >
+                                <HqLed
+                                    tone={isLeader ? 'lime' : 'off'}
+                                    className="text-right text-[15px]"
+                                >
+                                    {row.place ?? '–'}
+                                </HqLed>
+                                <ManagerCrest
+                                    manager={manager}
                                     className={cn(
-                                        'grid min-h-10 grid-cols-[18px_22px_minmax(0,1fr)_auto] items-center gap-[9px] px-4 py-[5px] [&+&]:border-t [&+&]:border-hq-border',
-                                        isLeader && 'bg-hq-lime/[0.07]',
-                                        row.season_manager_id === viewer &&
-                                            'shadow-[inset_2px_0_0_var(--color-hq-paper)]',
+                                        'size-[22px]',
+                                        row.value === null && 'opacity-45',
+                                    )}
+                                />
+                                <span className="min-w-0 font-mono text-[12.5px] font-semibold">
+                                    <span className="flex min-w-0 items-center">
+                                        <span className="min-w-0 truncate">
+                                            {manager.name}
+                                        </span>
+                                        {row.season_manager_id === viewer && (
+                                            <You />
+                                        )}
+                                    </span>
+                                    {line && (
+                                        <small className="mt-[3px] block text-[11px] font-normal text-hq-moss">
+                                            {line}
+                                        </small>
+                                    )}
+                                    {miss && missPlayer && (
+                                        <button
+                                            type="button"
+                                            aria-busy={
+                                                sheet?.isLoading(
+                                                    miss.player_id,
+                                                    miss.fixture_id,
+                                                ) || undefined
+                                            }
+                                            disabled={sheet === null}
+                                            onClick={() =>
+                                                sheet?.openMatch(
+                                                    miss.player_id,
+                                                    miss.fixture_id,
+                                                )
+                                            }
+                                            className="mt-[3px] block cursor-pointer text-left text-[11px] font-normal text-hq-moss underline decoration-hq-border-bright underline-offset-2 transition-colors hover:text-hq-lime aria-busy:animate-hq-pulse"
+                                        >
+                                            El que más dejó:{' '}
+                                            {missPlayer.nickname} · J
+                                            {miss.week_number} · {miss.points}{' '}
+                                            pts
+                                        </button>
+                                    )}
+                                </span>
+                                <span
+                                    className={cn(
+                                        'font-mono text-[13px] font-semibold whitespace-nowrap tabular-nums',
+                                        isLeader && 'text-hq-lime',
+                                        value.muted && 'text-hq-led-off',
                                     )}
                                 >
-                                    <HqLed
-                                        tone={isLeader ? 'lime' : 'off'}
-                                        className="text-right text-[15px]"
-                                    >
-                                        {row.place ?? '–'}
-                                    </HqLed>
-                                    <ManagerCrest
-                                        manager={manager}
-                                        className={cn(
-                                            'size-[22px]',
-                                            row.value === null && 'opacity-45',
-                                        )}
-                                    />
-                                    <span className="min-w-0 font-mono text-[12.5px] font-semibold">
-                                        <span className="flex min-w-0 items-center">
-                                            <span className="min-w-0 truncate">
-                                                {manager.name}
-                                            </span>
-                                            {row.season_manager_id ===
-                                                viewer && <You />}
-                                        </span>
-                                        {line && (
-                                            <small className="mt-[3px] block text-[11px] font-normal text-hq-moss">
-                                                {line}
-                                            </small>
-                                        )}
-                                        {miss && missPlayer && (
-                                            <button
-                                                type="button"
-                                                aria-busy={
-                                                    sheet?.isLoading(
-                                                        miss.player_id,
-                                                        miss.fixture_id,
-                                                    ) || undefined
-                                                }
-                                                disabled={sheet === null}
-                                                onClick={() =>
-                                                    sheet?.openMatch(
-                                                        miss.player_id,
-                                                        miss.fixture_id,
-                                                    )
-                                                }
-                                                className="mt-[3px] block cursor-pointer text-left text-[11px] font-normal text-hq-moss underline decoration-hq-border-bright underline-offset-2 transition-colors hover:text-hq-lime aria-busy:animate-hq-pulse"
-                                            >
-                                                El que más dejó:{' '}
-                                                {missPlayer.nickname} · J
-                                                {miss.week_number} ·{' '}
-                                                {miss.points} pts
-                                            </button>
-                                        )}
-                                    </span>
-                                    <span
-                                        className={cn(
-                                            'font-mono text-[13px] font-semibold whitespace-nowrap tabular-nums',
-                                            isLeader && 'text-hq-lime',
-                                            value.muted && 'text-hq-led-off',
-                                        )}
-                                    >
-                                        {value.text}
-                                    </span>
-                                </li>
-                            );
-                        })}
-                    </ol>
-                )}
+                                    {value.text}
+                                </span>
+                            </li>
+                        );
+                    })}
+                </ol>
 
                 {ownerOrders.length > 0 && (
                     <div className="border-t border-hq-border px-4 pt-2.5 pb-3.5 font-mono text-[11.5px] leading-relaxed text-hq-moss">

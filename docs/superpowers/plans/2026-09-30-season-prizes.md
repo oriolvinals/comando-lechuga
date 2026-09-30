@@ -243,7 +243,7 @@ enum SeasonPrize: string
     public function rule(): string
     {
         return match ($this) {
-            self::NocheMagica => 'La mejor puntuación en una sola jornada de todo el año.',
+            self::NocheMagica => 'La mejor puntuación en una sola jornada de toda la temporada.',
             self::ElAtracador => 'El que más cláusulas paga.',
             self::ReyDelDomingo => 'El que más veces queda primero de la jornada.',
             self::BanquilloDeOro => 'El que más puntos deja sin alinear.',

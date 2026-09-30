@@ -21,6 +21,7 @@ use App\Services\Prizes\PrizeRanking;
 use App\Services\Prizes\PrizeRow;
 use App\Services\Prizes\SquadHistory;
 use App\Services\Prizes\SundayKing;
+use App\Services\Prizes\WorstNight;
 use App\Services\Prizes\WorstWeeks;
 use Illuminate\Support\Facades\Cache;
 
@@ -33,7 +34,7 @@ use Illuminate\Support\Facades\Cache;
  * @phpstan-import-type OwnedPlayerCandidate from MostOwnedPlayer
  *
  * @phpstan-type PrizeStandingRow array{season_manager_id: int, place: int|null, value: int|float|null, context: array<string, mixed>}
- * @phpstan-type PrizeStanding array{key: string, name: string, amount: int, rule: string, decided: bool, leaders: list<int>, shares: array<int, float>, rows: list<PrizeStandingRow>, candidates: list<OwnedPlayerCandidate>}
+ * @phpstan-type PrizeStanding array{key: string, name: string, amount: int, rule: string, leaders: list<int>, shares: array<int, float>, rows: list<PrizeStandingRow>, candidates: list<OwnedPlayerCandidate>}
  * @phpstan-type PrizePlayer array{id: int, nickname: string, image: string}
  */
 final class SeasonPrizeStandings
@@ -70,10 +71,7 @@ final class SeasonPrizeStandings
             $calculator = $this->calculator($prize);
             $candidates = [];
 
-            if ($calculator === null) {
-                $ranked = [];
-                $leaders = [];
-            } elseif ($calculator instanceof MostOwnedPlayer) {
+            if ($calculator instanceof MostOwnedPlayer) {
                 $candidates = $calculator->candidates($season, $history);
                 $winners = array_values(array_unique(array_merge([], ...array_column($candidates, 'winners'))));
                 $ranked = $this->rankAfterWinners($calculator->rowsFor($season, $candidates), $winners, $positions);
@@ -83,8 +81,8 @@ final class SeasonPrizeStandings
                 ));
             } else {
                 $rows = $calculator instanceof BenchPoints ? $calculator->rows($season, $history) : $calculator->rows($season);
-                $ranked = PrizeRanking::rank($rows, $positions);
-                $leaders = PrizeRanking::leaders($ranked);
+                $ranked = PrizeRanking::rank($rows, $positions, $prize->ranksLowestFirst());
+                $leaders = PrizeRanking::leaders($ranked, $prize->ranksLowestFirst());
             }
 
             $prizes[] = [
@@ -92,7 +90,6 @@ final class SeasonPrizeStandings
                 'name' => $prize->label(),
                 'amount' => $prize->amount(),
                 'rule' => $prize->rule(),
-                'decided' => $prize->isDecided(),
                 'leaders' => $leaders,
                 'shares' => PrizeRanking::shares($prize, $leaders),
                 'rows' => array_map(fn (array $entry): array => [
@@ -132,7 +129,7 @@ final class SeasonPrizeStandings
         ];
     }
 
-    private function calculator(SeasonPrize $prize): ?PrizeCalculator
+    private function calculator(SeasonPrize $prize): PrizeCalculator
     {
         $class = match ($prize) {
             SeasonPrize::BestNight => BestNight::class,
@@ -144,10 +141,10 @@ final class SeasonPrizeStandings
             SeasonPrize::WorstWeeks => WorstWeeks::class,
             SeasonPrize::LongestPartnership => LongestPartnership::class,
             SeasonPrize::MostOwnedPlayer => MostOwnedPlayer::class,
-            SeasonPrize::OpenSlot => null,
+            SeasonPrize::WorstNight => WorstNight::class,
         };
 
-        return $class === null ? null : app($class);
+        return app($class);
     }
 
     /**

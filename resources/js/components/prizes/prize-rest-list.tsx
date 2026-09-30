@@ -17,14 +17,6 @@ export function PrizeRestList({
     players: Record<string, PrizePlayer>;
     viewer: number | null;
 }) {
-    if (!prize.decided) {
-        return (
-            <p className="flex h-full items-center px-3.5 py-2 font-mono text-xs text-hq-moss-dim">
-                Cuando se apruebe, sale aquí con los 7 ordenados.
-            </p>
-        );
-    }
-
     const tiedPlayers =
         prize.key === 'most_owned_player' && prize.candidates.length > 1;
     const rows = prize.rows.filter(
