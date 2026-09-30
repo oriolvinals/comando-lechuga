@@ -128,3 +128,23 @@ export function formatRelativeTime(isoDate: string): string {
 
     return formatter.format(Math.round(diffMs / 1000), 'second');
 }
+
+/** Time left to unlock: "2 d 14 h 03 min", "5 h 07 min", and with seconds in the last hour: "42 min 07 s". */
+export function formatUnlockCountdown(ms: number): string {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = (value: number) => String(value).padStart(2, '0');
+
+    if (days > 0) {
+        return `${days} d ${pad(hours)} h ${pad(minutes)} min`;
+    }
+
+    if (hours > 0) {
+        return `${hours} h ${pad(minutes)} min`;
+    }
+
+    return `${minutes} min ${pad(seconds)} s`;
+}

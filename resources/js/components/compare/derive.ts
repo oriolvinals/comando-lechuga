@@ -308,7 +308,8 @@ export function percentSeries(history: [string, number][]): number[] {
         : history.map(() => 0);
 }
 
-function fold(text: string): string {
+/** Lower-cased and accent-stripped, for accent-insensitive matching. */
+export function fold(text: string): string {
     return text
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')

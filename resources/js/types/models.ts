@@ -837,3 +837,90 @@ export interface LeagueCloudRow {
     value: number;
     difference: number;
 }
+
+/** God-mode radar (PRIVATE: web only, never in /api). */
+export type ClauseState = 'open' | 'locked' | 'shielded' | 'listed';
+export type PayerLevel = 'sure' | 'maybe' | 'no';
+
+export interface RadarRange {
+    low: number;
+    high: number;
+    mid: number;
+}
+
+export interface RadarManager {
+    id: number;
+    name: string;
+    logo: string;
+    primary_color: string | null;
+    shields: ManagerShieldCount;
+    cash: RadarRange & { is_real: boolean };
+    squad_value: number;
+    total: RadarRange;
+}
+
+export interface RadarPlayer {
+    id: number;
+    nickname: string;
+    image: string;
+    position: PlayerPosition;
+    team_short_name: string;
+    points: number;
+    average_points: number;
+    status: PlayerStatus;
+    market_value: number;
+    market_value_difference: number;
+    market_trend: MarketTrend | null;
+}
+
+/** A live market listing with who can pay its price; `seller_id` null = the league sells it. */
+export interface RadarMarketListing {
+    player: RadarPlayer;
+    listing_id: number;
+    seller_id: number | null;
+    price: number;
+    value: number;
+    bids: number;
+    expires_at: string;
+    payers: { manager_id: number; level: PayerLevel }[];
+}
+
+export interface RadarClause {
+    player: RadarPlayer;
+    owner_id: number;
+    amount: number;
+    locked_until: string;
+    shielded_until: string | null;
+    state: ClauseState;
+    opportunity: number;
+    payers: { manager_id: number; level: PayerLevel }[];
+}
+
+/** A player card in the manual raise picker (god-only). */
+export interface RadarPickerPlayer {
+    id: number;
+    nickname: string;
+    image: string;
+    position: PlayerPosition | null;
+    team_short_name: string;
+    team_logo: string;
+}
+
+/** A clause raise the user entered by hand (god-only). */
+export interface RadarManualRaise {
+    id: number;
+    player: RadarPickerPlayer;
+    manager_id: number;
+    captured_at: string;
+    clause: number;
+    raise: number;
+    cost: number;
+    note: string;
+}
+
+/** A player a manager owned this season, offered by the manual raise picker (god-only). */
+export interface RadarRaiseCandidate {
+    manager_id: number;
+    player: RadarPickerPlayer;
+    current: boolean;
+}

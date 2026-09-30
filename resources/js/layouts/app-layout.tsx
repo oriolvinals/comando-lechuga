@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Search } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
 import { JornadaSheetProvider } from '@/components/hq-jornada-sheet';
@@ -9,20 +9,36 @@ import { MainNav, MobileBottomNav } from '@/components/main-nav';
 import { openPlayerSearch } from '@/lib/player-search';
 import { useShellShortcuts } from '@/lib/use-shell-shortcuts';
 import { cn } from '@/lib/utils';
+import { radar } from '@/routes/god';
 
 function GodChip({ compact = false }: { compact?: boolean }) {
+    const { url } = usePage();
+    const isActive = url.split('?')[0] === radar().url;
+
     return (
-        <span
+        <Link
+            href={radar().url}
+            aria-current={isActive ? 'page' : undefined}
+            title="Radar"
             className={cn(
-                'flex items-center gap-1.5 font-mono leading-none font-bold tracking-[0.1em] text-hq-amber hq-hazard',
+                'flex cursor-pointer items-center gap-1.5 font-mono leading-none font-bold tracking-[0.1em]',
+                isActive
+                    ? 'bg-hq-amber text-hq-ink'
+                    : 'text-hq-amber hq-hazard hover:bg-hq-amber/10',
                 compact
-                    ? 'h-6 border border-hq-amber/50 px-[7px] text-[10px]'
+                    ? 'h-6 border border-hq-amber/50 px-[7px] text-[11px]'
                     : 'h-full border-l border-hq-border px-3 text-[11px]',
             )}
         >
-            <i aria-hidden="true" className="block size-[7px] bg-hq-amber" />
+            <i
+                aria-hidden="true"
+                className={cn(
+                    'block size-[7px]',
+                    isActive ? 'bg-hq-ink' : 'bg-hq-amber',
+                )}
+            />
             GOD
-        </span>
+        </Link>
     );
 }
 
