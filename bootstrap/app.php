@@ -55,6 +55,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
+        $schedule->command('season:snapshot-player-signals')
+            ->hourly()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->command('season:sync-match-data-backfill')
             ->dailyAt('00:00')
             ->runInBackground()
