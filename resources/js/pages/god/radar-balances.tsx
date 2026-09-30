@@ -150,16 +150,27 @@ function SharedAxis({
                     </button>
                 );
             })}
-            {reference !== null && (
-                <p className="mt-1.5 flex items-center gap-1.5 font-mono text-[11px] text-hq-moss-dim">
-                    <s
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 font-mono text-[11px] text-hq-moss-dim">
+                {reference !== null && (
+                    <span className="inline-flex items-center gap-1.5">
+                        <s
+                            aria-hidden="true"
+                            className="inline-block h-3 border-l border-dashed border-hq-azure"
+                        />
+                        {axis === 'total' ? 'tu total' : 'tu caja'}{' '}
+                        {formatM(reference)} M€
+                    </span>
+                )}
+                <span className="inline-flex items-center gap-1.5">
+                    <i
                         aria-hidden="true"
-                        className="inline-block h-3 border-l border-dashed border-hq-azure"
+                        className="inline-block h-2 w-4 border border-hq-khaki/75 bg-hq-khaki/30"
                     />
-                    {axis === 'total' ? 'tu total' : 'tu caja'}{' '}
-                    {formatM(reference)} M€
-                </p>
-            )}
+                    {axis === 'total'
+                        ? 'caja (pesimista–optimista) + plantilla'
+                        : 'caja pesimista–optimista'}
+                </span>
+            </p>
         </div>
     );
 }
@@ -195,10 +206,9 @@ export function RadarBalances({
                     const openOthers = clauses.filter(
                         (c) => c.owner_id !== manager.id && c.state === 'open',
                     );
+                    /** Mirrors ClauseRadar::payerLevel's "sure" rule (low >= amount) — keep them in sync. */
                     const paysSure = openOthers.filter(
-                        (c) =>
-                            (isReal ? manager.cash.mid : manager.cash.low) >=
-                            c.amount,
+                        (c) => manager.cash.low >= c.amount,
                     ).length;
 
                     return (
@@ -289,7 +299,10 @@ export function RadarBalances({
                                     />
                                     {paysSure}/{openOthers.length}
                                 </span>
-                                <HqShieldCount used={manager.shields.used} />
+                                <HqShieldCount
+                                    used={manager.shields.used}
+                                    focusable={false}
+                                />
                             </span>
                         </button>
                     );
