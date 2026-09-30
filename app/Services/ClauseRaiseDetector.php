@@ -22,7 +22,7 @@ use Illuminate\Support\Collection;
  * up and never goes down. Owners raise when the clause opens (unlock) or when
  * a shield expires, by a round amount, so a round excess at one of those
  * anchors is a certain raise and anything else a possible one. Only a buyout
- * inside the victim's lock is an accepted offer; after it, the amount paid is
+ * inside the victim's lock (short of its last hour) is an accepted offer; after it, the amount paid is
  * the clause, whatever its shape (owners raise to round totals too). Raises
  * the user entered by hand always count, and replace what the history or the
  * inference would say for their holding.
@@ -35,6 +35,9 @@ final class ClauseRaiseDetector
     public const int MIN_CLAUSE = 1_000_000;
 
     public const int LOCK_DAYS = 14;
+
+    /** A buyout this close before the computed unlock is a clause payment: the real unlock can come earlier than purchase + 14 d. */
+    public const int LOCK_BOUNDARY_TOLERANCE_MINUTES = 60;
 
     public const int ROUND_STEP = 100_000;
 
@@ -184,10 +187,13 @@ final class ClauseRaiseDetector
         return ['base' => max(self::MIN_CLAUSE, $base), 'since' => $since];
     }
 
-    /** An accepted offer between managers: only a buyout inside the victim's lock. */
+    /**
+     * An accepted offer between managers: only a buyout inside the victim's
+     * lock, short of its last hour (the computed unlock may run late).
+     */
     private function isOffer(CarbonImmutable $since, CarbonImmutable $at): bool
     {
-        return $at->lessThan($since->addDays(self::LOCK_DAYS));
+        return $at->lessThan($since->addDays(self::LOCK_DAYS)->subMinutes(self::LOCK_BOUNDARY_TOLERANCE_MINUTES));
     }
 
     /**
@@ -347,7 +353,8 @@ final class ClauseRaiseDetector
 
     /**
      * The certain raises of the last forSeason() run that happened after a
-     * moment: they are not in a cash snapshot captured then.
+     * moment: they are not in a cash snapshot captured then. Call forSeason()
+     * first; before it this is always 0.
      */
     public function sureRaisedAfter(int $managerId, CarbonImmutable $moment): int
     {

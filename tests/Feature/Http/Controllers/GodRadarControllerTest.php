@@ -2,6 +2,8 @@
 
 use App\Enums\ClauseSnapshotSource;
 use App\Enums\PlayerPosition;
+use App\Enums\SeasonActivityType;
+use App\Models\Activity;
 use App\Models\ManagerBalanceSnapshot;
 use App\Models\ManagerPlayer;
 use App\Models\ManagerPlayerClauseSnapshot;
@@ -110,4 +112,41 @@ test('the radar lists the players on the market', function (): void {
             ->where('market.0.seller_id', null)
             ->where('market.0.price', 10_000_000)
             ->has('market.0.payers', 2));
+});
+
+test('the manual raise picker offers every player each manager owned this season, current or past', function (): void {
+    [$first, $second] = [$this->managers[0], $this->managers[1]];
+    $sold = Player::factory()->create(['nickname' => 'Vendido']);
+    $boughtOut = Player::factory()->create(['nickname' => 'Ibañez']);
+    $kept = Player::factory()->create(['nickname' => 'Titular']);
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Signing, 'source_season_manager_id' => $first->id,
+        'player_id' => $sold->id, 'amount' => 5_000_000, 'occurred_at' => now()->subDays(10),
+    ]);
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Sale, 'source_season_manager_id' => $first->id,
+        'player_id' => $sold->id, 'amount' => 5_500_000, 'occurred_at' => now()->subDays(4),
+    ]);
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Signing, 'source_season_manager_id' => $first->id,
+        'player_id' => $boughtOut->id, 'amount' => 9_000_000, 'occurred_at' => now()->subDays(20),
+    ]);
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Buyout, 'source_season_manager_id' => $second->id,
+        'target_season_manager_id' => $first->id, 'player_id' => $boughtOut->id, 'amount' => 17_000_000, 'occurred_at' => now()->subDays(2),
+    ]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $first->id, 'player_id' => $kept->id]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $second->id, 'player_id' => $boughtOut->id]);
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('god.radar'))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('raiseCandidates', fn ($candidates): bool => collect($candidates)
+                ->map(fn (array $candidate): string => "{$candidate['manager_id']}:{$candidate['player']['nickname']}:".($candidate['current'] ? 'now' : 'past'))
+                ->sort()->values()->all() === collect([
+                    "{$first->id}:Ibañez:past",
+                    "{$first->id}:Titular:now",
+                    "{$first->id}:Vendido:past",
+                    "{$second->id}:Ibañez:now",
+                ])->sort()->values()->all()));
 });

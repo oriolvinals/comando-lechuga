@@ -232,3 +232,30 @@ test('a raise dated when the manager did not own the player is rejected, so it c
     'before the purchase' => ['11'],
     'after the sale' => ['2'],
 ]);
+
+test('a raise dated in the future is rejected, so it can never be counted twice', function (): void {
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+            'captured_at' => now()->addHour()->toDateTimeString(), 'new_clause' => 59_623_163,
+        ])
+        ->assertSessionHasErrors('captured_at');
+
+    expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->count())->toBe(0);
+});
+
+test('an initial-squad raise dated before the manager joined the league is rejected', function (): void {
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::JoinedLeague, 'source_season_manager_id' => $this->manager->id,
+        'player_id' => null, 'amount' => null, 'occurred_at' => now()->subDays(5),
+    ]);
+
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+            'captured_at' => now()->subDays(6)->toDateTimeString(), 'new_clause' => 59_623_163,
+        ])
+        ->assertSessionHasErrors('captured_at');
+
+    expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->count())->toBe(0);
+});

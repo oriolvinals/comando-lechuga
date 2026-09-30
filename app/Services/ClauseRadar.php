@@ -64,7 +64,7 @@ final class ClauseRadar
      */
     public function forSeason(Season $season, array $balances, ?int $connectedManagerId, CarbonImmutable $now): array
     {
-        $listed = array_flip(MarketPlayer::query()->pluck('player_id')->all());
+        $listed = array_flip(MarketPlayer::query()->where('expires_at', '>', $now)->pluck('player_id')->all());
         $rows = [];
 
         $entries = ManagerPlayer::query()

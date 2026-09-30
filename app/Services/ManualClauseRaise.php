@@ -33,6 +33,8 @@ final class ManualClauseRaise
      * skipping sync rows within 24 h that may already include this raise),
      * never below max(1 M, price paid, highest value since the purchase). An
      * initial-squad holding starts at 5/3 of the value on the joining day.
+     * (The detector's feed-gap holdings, based on the value alone, never get
+     * here: ownedAt() rejects a moment after someone else moved the player.)
      *
      * @return array{previous: int, clause: int, raise: int}
      */

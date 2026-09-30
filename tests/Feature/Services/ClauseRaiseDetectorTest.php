@@ -102,8 +102,8 @@ test('a clause paid after the lock above the reference is a raise the victim pai
 test('a buyout inside the victim\'s lock is an accepted offer, not a raise, even for a round total', function (): void {
     acquire($this, $this->manager, 5_000_000, '2026-09-01 12:00');
     acquire($this, $this->rival, 9_734_512, '2026-09-04 12:00', SeasonActivityType::Buyout, $this->manager);
-    // Ibañez: 15 minutes before the unlock.
-    acquire($this, $this->manager, 17_000_000, '2026-09-18 11:45', SeasonActivityType::Buyout, $this->rival);
+    // Two hours before the unlock: still inside the lock.
+    acquire($this, $this->manager, 17_000_000, '2026-09-18 10:00', SeasonActivityType::Buyout, $this->rival);
 
     expect(detect($this))->toBe([]);
 });
@@ -300,13 +300,40 @@ test('it tells how much of the sure raises happened after a moment', function ()
         ->and($detector->sureRaisedAfter($this->rival->id, CarbonImmutable::parse('2026-09-01 00:00')))->toBe(0);
 });
 
-test('Ibañez: the 17 M paid 15 minutes before the owner\'s unlock is an accepted offer, not a raise', function (): void {
+test('Ibañez: the 17 M paid 15 minutes before the computed unlock is the clause, so the owner may have raised it', function (): void {
     acquire($this, $this->manager, 9_659_760, '2026-09-12 14:03:56', SeasonActivityType::Buyout, $this->rival);
     valueOn($this, '2026-09-12', 9_659_760);
     valueOn($this, '2026-09-26', 13_934_560);
     acquire($this, $this->rival, 17_000_000, '2026-09-26 13:48:21', SeasonActivityType::Buyout, $this->manager);
 
-    expect(detect($this))->not->toHaveKey($this->manager->id);
+    // Inside the last hour before purchase + 14 d: 17 M over the 13.934.560 value that day.
+    expect(detect($this))->toBe([$this->manager->id => ['sure' => 0, 'possible' => 3_065_440]]);
+});
+
+test('a buyout in the last hour of the computed lock is a clause payment; one earlier is an offer', function (string $at, array $expected): void {
+    acquire($this, $this->manager, 5_000_000, '2026-09-01 12:00');
+    acquire($this, $this->rival, 7_000_000, $at, SeasonActivityType::Buyout, $this->manager);
+
+    expect(detect($this))->toBe($expected === [] ? [] : [$this->manager->id => $expected]);
+})->with([
+    '61 minutes before the unlock: offer' => ['2026-09-15 10:59', []],
+    '59 minutes before the unlock: clause' => ['2026-09-15 11:01', ['sure' => 2_000_000, 'possible' => 0]],
+]);
+
+test('a round raise at a shield moment is certain', function (): void {
+    acquire($this, $this->manager, 5_000_000, '2026-09-01 12:00');
+    valueOn($this, '2026-09-10', 5_432_100);
+    valueOn($this, '2026-09-20', 6_000_000);
+    valueOn($this, '2026-09-26', 6_543_210);
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Shield,
+        'source_season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+        'amount' => null, 'occurred_at' => '2026-09-20 21:00',
+    ]);
+    ownNow($this, $this->manager, 9_000_000);
+
+    // Not round over the unlock clause (5.432.100) nor today's, but 3 M over the 6 M clause at the shield.
+    expect(detect($this))->toBe([$this->manager->id => ['sure' => 3_000_000, 'possible' => 0]]);
 });
 
 test('Olasagasti: a round 10,5 M paid after the lock is the clause the owner raised, never an offer', function (): void {

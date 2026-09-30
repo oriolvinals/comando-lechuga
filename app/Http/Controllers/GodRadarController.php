@@ -12,6 +12,7 @@ use App\Models\SeasonManager;
 use App\Services\ClauseRadar;
 use App\Services\ManagerBalances;
 use App\Services\ManagerShields;
+use App\Services\Prizes\SquadHistory;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Inertia\Inertia;
@@ -49,8 +50,36 @@ class GodRadarController extends Controller
             'clauses' => $clauseRadar->forSeason($season, $balances, $connectedManagerId, $now),
             'market' => $clauseRadar->marketRows($season, $balances, $connectedManagerId, $now),
             'manualRaises' => $this->manualRaises($season),
+            'raiseCandidates' => $this->raiseCandidates($season),
             'now' => $now->toIso8601String(),
         ]);
+    }
+
+    /**
+     * Every player each manager owned at some point this season, for the
+     * manual raise picker: a raise can belong to a holding that already
+     * ended. `current` marks the players he still owns.
+     *
+     * @return list<array{manager_id: int, player: array{id: int, nickname: string}, current: bool}>
+     */
+    private function raiseCandidates(Season $season): array
+    {
+        $history = SquadHistory::forSeason($season);
+        $nicknames = Player::query()->whereKey($history->playerIds())->pluck('nickname', 'id');
+        $candidates = [];
+
+        foreach ($history->playerIds() as $playerId) {
+            foreach ($history->spells($playerId) as $spell) {
+                $key = "{$spell['season_manager_id']}:{$playerId}";
+                $candidates[$key] = [
+                    'manager_id' => $spell['season_manager_id'],
+                    'player' => ['id' => $playerId, 'nickname' => (string) ($nicknames[$playerId] ?? '')],
+                    'current' => ($candidates[$key]['current'] ?? false) || $spell['to'] === null,
+                ];
+            }
+        }
+
+        return array_values($candidates);
     }
 
     /**

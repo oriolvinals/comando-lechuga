@@ -62,7 +62,7 @@ class GodClauseRaiseController extends Controller
         $validated = $request->validate([
             'season_manager_id' => ['required', 'integer', Rule::exists('season_managers', 'id')->where('season_id', Season::current()->id)],
             'player_id' => ['required', 'integer', 'exists:players,id'],
-            'captured_at' => ['required', 'date'],
+            'captured_at' => ['required', 'date', 'before_or_equal:now'],
             'new_clause' => ['nullable', 'integer', 'min:1', 'required_without:paid', 'prohibits:paid'],
             'paid' => ['nullable', 'integer', 'min:1', 'required_without:new_clause'],
             'note' => ['nullable', 'string', 'max:255'],

@@ -136,3 +136,24 @@ test('an empty market has no rows', function (): void {
 
     expect(app(ClauseRadar::class)->marketRows($season, [], null, CarbonImmutable::now()))->toBe([]);
 });
+
+test('only a live market listing makes a clause listed, not an expired one', function (): void {
+    $now = CarbonImmutable::parse('2026-09-29 12:00');
+    $this->travelTo($now);
+    $season = Season::factory()->create(['start_date' => '2026-07-01', 'end_date' => '2027-06-30']);
+    $owner = SeasonManager::factory()->create(['season_id' => $season->id]);
+    [$expired, $live] = Player::factory()->count(2)->sequence(['nickname' => 'Caducado'], ['nickname' => 'Vivo'])->create()->all();
+    foreach ([$expired, $live] as $player) {
+        ManagerPlayer::factory()->create([
+            'season_manager_id' => $owner->id, 'player_id' => $player->id, 'shielded' => false, 'buyout_clause_locked_until' => $now->subDay(),
+        ]);
+    }
+    MarketPlayer::factory()->create(['player_id' => $expired->id, 'expires_at' => $now->subHour()]);
+    MarketPlayer::factory()->create(['player_id' => $live->id, 'expires_at' => $now->addHour()]);
+
+    $states = collect(app(ClauseRadar::class)->forSeason($season, [$owner->id => balanceOf($owner->id, 1, 1)], null, $now))
+        ->mapWithKeys(fn (array $row): array => [$row['player']['nickname'] => $row['state']])
+        ->all();
+
+    expect($states)->toBe(['Caducado' => 'open', 'Vivo' => 'listed']);
+});

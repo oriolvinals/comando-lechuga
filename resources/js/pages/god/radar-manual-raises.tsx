@@ -11,10 +11,57 @@ import { cn } from '@/lib/utils';
 import { ManagerSquare, Segmented } from '@/pages/god/radar-helpers';
 import { destroy, store, update } from '@/routes/god/clause-raises';
 import type {
-    RadarClause,
     RadarManager,
     RadarManualRaise,
+    RadarRaiseCandidate,
 } from '@/types/models';
+
+type PickerPlayer = RadarRaiseCandidate['player'];
+
+/**
+ * The player picker's options: the players the manager owned this season
+ * (every manager's when none is picked), split into the ones still in a
+ * squad and the ones gone. The row being edited always stays listed.
+ */
+function pickerGroups(
+    candidates: RadarRaiseCandidate[],
+    managerId: number,
+    editingPlayer: PickerPlayer | undefined,
+): { label: string; players: PickerPlayer[] }[] {
+    const current = new Map<number, PickerPlayer>();
+    const past = new Map<number, PickerPlayer>();
+
+    for (const candidate of candidates) {
+        if (managerId && candidate.manager_id !== managerId) {
+            continue;
+        }
+
+        if (candidate.current) {
+            current.set(candidate.player.id, candidate.player);
+            past.delete(candidate.player.id);
+        } else if (!current.has(candidate.player.id)) {
+            past.set(candidate.player.id, candidate.player);
+        }
+    }
+
+    if (
+        editingPlayer &&
+        !current.has(editingPlayer.id) &&
+        !past.has(editingPlayer.id)
+    ) {
+        past.set(editingPlayer.id, editingPlayer);
+    }
+
+    const sorted = (players: Map<number, PickerPlayer>): PickerPlayer[] =>
+        [...players.values()].sort((a, b) =>
+            a.nickname.localeCompare(b.nickname, 'es'),
+        );
+
+    return [
+        { label: 'En plantilla', players: sorted(current) },
+        { label: 'Antes', players: sorted(past) },
+    ];
+}
 
 type AmountMode = 'new_clause' | 'paid';
 
@@ -65,11 +112,11 @@ function Field({
 export function RadarManualRaises({
     entries,
     managers,
-    clauses,
+    candidates,
 }: {
     entries: RadarManualRaise[];
     managers: RadarManager[];
-    clauses: RadarClause[];
+    candidates: RadarRaiseCandidate[];
 }) {
     const managersById = new Map(
         managers.map((manager) => [manager.id, manager]),
@@ -86,22 +133,32 @@ export function RadarManualRaises({
         amountMode === 'new_clause' ? form.data.new_clause : form.data.paid;
     const selectedManagerId = Number(form.data.season_manager_id);
 
-    const ownedPlayers = clauses
-        .filter(
-            (clause) =>
-                !selectedManagerId || clause.owner_id === selectedManagerId,
-        )
-        .map((clause) => clause.player);
-    const playerOptions = [
-        ...ownedPlayers,
-        ...(editing &&
-        !ownedPlayers.some((player) => player.id === editing.player.id)
-            ? [editing.player]
-            : []),
-    ].sort((a, b) => a.nickname.localeCompare(b.nickname, 'es'));
+    const playerGroups = pickerGroups(
+        candidates,
+        selectedManagerId,
+        editing?.player,
+    );
 
-    const ownerOf = (playerId: number): number | undefined =>
-        clauses.find((clause) => clause.player.id === playerId)?.owner_id;
+    /** The manager to fill in for a player: his current owner, else his only past one. */
+    const ownerOf = (playerId: number): number | undefined => {
+        const owners = candidates.filter(
+            (candidate) => candidate.player.id === playerId,
+        );
+        const current = owners.find((candidate) => candidate.current);
+
+        if (current) {
+            return current.manager_id;
+        }
+
+        return owners.length === 1 ? owners[0].manager_id : undefined;
+    };
+
+    const hasOwned = (managerId: number, playerId: number): boolean =>
+        candidates.some(
+            (candidate) =>
+                candidate.manager_id === managerId &&
+                candidate.player.id === playerId,
+        );
 
     const changeManager = (managerId: string) => {
         form.setData((data) => ({
@@ -110,7 +167,7 @@ export function RadarManualRaises({
             player_id:
                 managerId &&
                 data.player_id &&
-                ownerOf(Number(data.player_id)) !== Number(managerId)
+                !hasOwned(Number(managerId), Number(data.player_id))
                     ? ''
                     : data.player_id,
         }));
@@ -254,11 +311,24 @@ export function RadarManualRaises({
                         onChange={(event) => changePlayer(event.target.value)}
                     >
                         <option value="">—</option>
-                        {playerOptions.map((player) => (
-                            <option key={player.id} value={player.id}>
-                                {player.nickname}
-                            </option>
-                        ))}
+                        {playerGroups.map(
+                            (group) =>
+                                group.players.length > 0 && (
+                                    <optgroup
+                                        key={group.label}
+                                        label={group.label}
+                                    >
+                                        {group.players.map((player) => (
+                                            <option
+                                                key={player.id}
+                                                value={player.id}
+                                            >
+                                                {player.nickname}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                ),
+                        )}
                     </select>
                 </Field>
                 <Field

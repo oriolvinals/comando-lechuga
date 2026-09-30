@@ -119,6 +119,10 @@ subida.
   la víctima** es una **oferta aceptada entre mánagers**, no un pago de cláusula, y se descarta. Fuera del bloqueo el
   importe pagado *es* la cláusula, aunque sea un total redondo: los mánagers suben las cláusulas a cifras redondas
   (Zubeldia 14 M, Fran García 35.999.999, Dituro 19 M).
+  - **Tolerancia de 60 minutos** (`ClauseRaiseDetector::LOCK_BOUNDARY_TOLERANCE_MINUTES`): un `buyout` en la última
+    hora antes del desbloqueo calculado (compra + 14 días) cuenta como pago de cláusula, no como oferta. El desbloqueo
+    real puede llegar antes que el calculado: Ibañez se pagó a 17 M 15 minutos antes y era la cláusula que DUBI había
+    subido.
 - **Casos de validación**:
   - **Koski** (Gauchitos): comprado el 10-09 a 13.765.656; desbloqueo el 24-09; cláusula al desbloquear 18.769.376;
     ahora 34.269.528. Da **+15.500.152** (coste 7,75 M).
@@ -177,25 +181,22 @@ medio     = (pesimista + optimista)/2
   mánager y hora.
 - **Usos**: el saldo real de la cuenta conectada y su residuo.
 
-### Aproximación de hoy (30-09-2026)
+### Aproximación de hoy (01-10-2026, base de datos local)
 
-Datos frescos (plantillas y cláusulas sincronizadas), con premio diario reclamado, subidas el día del desbloqueo a X/2
-y calibración de +89.000 €/día (M€):
+Modelo actual: 0,67 × premio diario, subida inicial de las plantillas de salida a 5/3 del valor, oferta solo dentro del
+bloqueo (con la tolerancia de 60 minutos), subidas a X/2 y **sin calibración**. Sin subidas manuales (M€):
 
-| Mánager | Caja (rango · ~medio) | Plantilla | Total ~ |
-|---|---|---:|---:|
-| DUBI F.C | **210,0 real** | 156,4 | **366,4** |
-| DukeBlack9 | 208,6–217,6 · ~213,1 | 166,3 | ~379,4 |
-| Gauchitos F.C | 103,1–141,8 · ~122,5 | 235,6 | ~358,1 |
-| Cruza FC | 227,0–245,5 · ~236,3 | 119,8 | ~356,1 |
-| Ariobretxa | 199,8–209,1 · ~204,5 | 91,3 | ~295,8 |
-| CID F.C | 71,9–82,4 · ~77,2 | 216,0 | ~293,2 |
-| planuky | 113,6–118,1 · ~115,9 | 162,6 | ~278,5 |
+| Mánager | Subidas seguras · posibles | Caja (rango · ~medio) | Plantilla | Total ~ |
+|---|---|---|---:|---:|
+| DUBI F.C | 0 · 27,3 | **210,4 real** | 156,4 | **366,8** |
+| Gauchitos F.C | 77,8 · 60,2 | 103,8–133,9 · ~118,8 | 235,6 | ~354,5 |
+| DukeBlack9 | 45,2 · 0 | 236,0 | 129,0 | ~365,0 |
+| Cruza FC | 16,0 · 5,0 | 234,3–236,8 · ~235,5 | 119,8 | ~355,3 |
+| Ariobretxa | 4,0 · 0 | 202,2 | 91,3 | ~293,5 |
+| planuky | 30,8 · 0 | 70,0 | 200,0 | ~269,9 |
+| CID F.C | 68,0 · 20,9 | 39,2–49,6 · ~44,4 | 216,0 | ~260,4 |
 
-**Ojo:** en local el registro de actividad llegaba solo hasta el 29-09 a las 21:30, mientras que las plantillas son de
-hoy. Faltan las compras de hoy: DUBI pasó de 255,2 a 210 M y CID ganó +25 M de plantilla, así que la caja de quien fichó
-hoy está sobrestimada. Hay que ejecutar `herd php artisan season:sync-activity`. La calibración usa el par coherente de
-ayer (real 255,2 con el feed completo).
+Son salidas del modelo sobre los datos locales, no cifras comprobadas.
 
 ## Radar de cláusulas
 
@@ -281,7 +282,11 @@ suma de la plantilla. El radar usa la suma, que es la misma cifra.
 
 ## Dudas abiertas (con el valor por defecto que se aplica)
 
-- **Subidas de DUBI**: dice «no subo mucho». El detector le encuentra 0 seguras y 4 posibles (10,1 M, solo en el extremo pesimista). Si alguna es real, puede meterla a mano.
-- **Los +5,5 M sin explicar de DUBI**: se guardan como residuo interno y no se aplican a los rivales.
+- **Subidas de DUBI**: el detector le encuentra 0 seguras y 27,3 M posibles (solo en el extremo pesimista), entre ellas
+  Ibañez en agosto (+3,14 M), Ibañez el 26-09 (+3,07 M: los 17 M se pagaron 15 minutos antes del desbloqueo calculado y
+  cuentan como cláusula) y Olasagasti (+6,12 M). DUBI sabe que subió Ibañez +1 M hasta 16 M y Olasagasti hasta 10,5 M:
+  puede meterlas a mano, y el selector ofrece también los jugadores que ya no tiene.
+- **La parte del saldo real de DUBI que el modelo no explica**: se guarda como residuo interno y no se aplica a los
+  rivales.
 - **Colores casi idénticos**: DUBI (#2f5fd8) y CID (#3d7dfd) en azul, DukeBlack9 (#7a2fd6) y planuky (#5c1f8a) en
   morado. Por defecto, **la inicial del mánager dentro del cuadrado** allí donde se ven juntos (pueden pagar, eje común).

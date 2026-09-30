@@ -907,3 +907,10 @@ export interface RadarManualRaise {
     cost: number;
     note: string;
 }
+
+/** A player a manager owned this season, offered by the manual raise picker (god-only). */
+export interface RadarRaiseCandidate {
+    manager_id: number;
+    player: { id: number; nickname: string };
+    current: boolean;
+}
