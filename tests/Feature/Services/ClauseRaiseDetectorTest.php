@@ -299,3 +299,40 @@ test('it tells how much of the sure raises happened after a moment', function ()
         ->and($detector->sureRaisedAfter($this->manager->id, CarbonImmutable::parse('2026-09-28 22:11')))->toBe(1_000_000)
         ->and($detector->sureRaisedAfter($this->rival->id, CarbonImmutable::parse('2026-09-01 00:00')))->toBe(0);
 });
+
+test('Ibañez: the 17 M paid 15 minutes before the owner\'s unlock is an accepted offer, not a raise', function (): void {
+    acquire($this, $this->manager, 9_659_760, '2026-09-12 14:03:56', SeasonActivityType::Buyout, $this->rival);
+    valueOn($this, '2026-09-12', 9_659_760);
+    valueOn($this, '2026-09-26', 13_934_560);
+    acquire($this, $this->rival, 17_000_000, '2026-09-26 13:48:21', SeasonActivityType::Buyout, $this->manager);
+
+    expect(detect($this))->not->toHaveKey($this->manager->id);
+});
+
+test('Olasagasti: a round 10,5 M paid after the lock is the clause the owner raised, never an offer', function (): void {
+    acquire($this, $this->manager, 3_840_476, '2026-08-09 20:00:26');
+    foreach (['2026-08-09' => 3_840_476, '2026-08-16' => 4_382_766, '2026-08-23' => 3_955_739, '2026-09-02' => 4_777_195, '2026-09-09' => 7_339_780, '2026-09-14' => 8_959_646] as $date => $value) {
+        valueOn($this, $date, $value);
+    }
+    foreach (['2026-09-02 21:07:40', '2026-09-09 21:00:30'] as $shieldedAt) {
+        Activity::factory()->create([
+            'season_id' => $this->season->id, 'type' => SeasonActivityType::Shield,
+            'source_season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+            'amount' => null, 'occurred_at' => $shieldedAt,
+        ]);
+    }
+    acquire($this, $this->rival, 10_500_000, '2026-09-14 07:26:00', SeasonActivityType::Buyout, $this->manager);
+
+    // No anchor gives a round excess, so it is possible: 10,5 M over the clause at unlock (4.382.766).
+    expect(detect($this))->toBe([$this->manager->id => ['sure' => 0, 'possible' => 6_117_234]]);
+});
+
+test('Marc Roca: 24.314.010 over the 17.614.010 value at unlock is a certain 6,7 M raise', function (): void {
+    acquire($this, $this->manager, 12_680_723, '2026-09-12 20:03:18', SeasonActivityType::Buyout, $this->rival);
+    valueOn($this, '2026-09-12', 11_680_919);
+    valueOn($this, '2026-09-26', 17_614_010);
+    valueOn($this, '2026-09-28', 18_900_000);
+    ownNow($this, $this->manager, 24_314_010);
+
+    expect(detect($this))->toBe([$this->manager->id => ['sure' => 6_700_000, 'possible' => 0]]);
+});
