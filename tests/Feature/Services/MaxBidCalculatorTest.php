@@ -612,3 +612,15 @@ test('an unavailable player never reads the forecast', function (): void {
 
     expect(app(MaxBidCalculator::class)->gatherInputs($player, $this->season)->dayOneForecast)->toBeNull();
 });
+
+test('gatherInputs can leave the stored forecast unread', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    ValueForecast::factory()->create([
+        'season_id' => $this->season->id,
+        'player_id' => $player->id,
+        'reference_date' => '2026-09-26',
+        'target_date' => '2026-09-27',
+    ]);
+
+    expect(app(MaxBidCalculator::class)->gatherInputs($player, $this->season, readStoredForecast: false)->dayOneForecast)->toBeNull();
+});

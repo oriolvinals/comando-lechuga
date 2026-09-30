@@ -115,8 +115,11 @@ class MaxBidCalculator
      * day with the variant the player's position faces; a null or today's
      * `$at` rates them "now", the only moment its rival-absence adjustment
      * applies.
+     *
+     * `$readStoredForecast` false leaves `dayOneForecast` null without
+     * querying: the backtest injects its own walk-forward forecast.
      */
-    public function gatherInputs(Player $player, Season $season, ?CarbonInterface $at = null): MaxBidInputs
+    public function gatherInputs(Player $player, Season $season, ?CarbonInterface $at = null, bool $readStoredForecast = true): MaxBidInputs
     {
         $moment = CarbonImmutable::parse($at ?? now());
         $difficultyAt = $moment->isToday() ? null : $moment->endOfDay();
@@ -163,7 +166,7 @@ class MaxBidCalculator
             referenceDate: $referenceDate,
             strongRise: in_array(MarketTrend::fromDailyValues(array_values($values)), self::STRONG_RISE_TRENDS, true),
             nextStartProbability: $this->nextStartProbability($player, $season, $moment),
-            dayOneForecast: $this->dayOneForecast($player, $season, $referenceDate),
+            dayOneForecast: $readStoredForecast ? $this->dayOneForecast($player, $season, $referenceDate) : null,
         );
     }
 

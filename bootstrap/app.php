@@ -85,8 +85,9 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
+        // Also chained after every market sync; offset from it, as a safety net.
         $schedule->command('season:forecast-values')
-            ->everyFifteenMinutes()
+            ->cron('5,20,35,50 * * * *')
             ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();

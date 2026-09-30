@@ -14,6 +14,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * The reference date is the latest published market day (a DATE column,
@@ -25,12 +26,38 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
  * minutes as a safety net. The input fingerprint only covers the reference
  * day's values, so a correction of an earlier day's value does not trigger
  * a refit on its own: run it with `--force`.
+ *
+ * Runs never overlap (a chained run and a scheduled one would upsert the
+ * same rows): a run that finds another one in progress skips quietly.
  */
 #[Signature('season:forecast-values {--force : Refit even if the inputs did not change}')]
 #[Description('Forecast tomorrow\'s value of every league player (god mode only) when the published values or the finished matches changed')]
 class ForecastValues extends Command
 {
+    /** Cache lock held while a run is in progress. */
+    public const string LOCK = 'forecast-values';
+
+    /** Seconds after which a crashed run's lock expires. */
+    private const int LOCK_SECONDS = 600;
+
     public function handle(ValueForecastWalkForward $walkForward, ValueForecastWriter $writer, ValueForecastFingerprint $fingerprint): int
+    {
+        $lock = Cache::lock(self::LOCK, self::LOCK_SECONDS);
+
+        if (!$lock->get()) {
+            $this->info('Otra previsión en curso.');
+
+            return self::SUCCESS;
+        }
+
+        try {
+            return $this->forecast($walkForward, $writer, $fingerprint);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function forecast(ValueForecastWalkForward $walkForward, ValueForecastWriter $writer, ValueForecastFingerprint $fingerprint): int
     {
         try {
             $season = Season::current();

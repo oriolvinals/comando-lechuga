@@ -183,6 +183,8 @@ class BacktestMaxBid extends Command
         $playerRows = [];
         $estimates = 0;
         $withForecast = 0;
+        $dayOneErrorEuros = 0;
+        $dayOneErrorShare = 0.0;
 
         /** @var list<float> $bidErrors |bid − ideal bid| / value of each profitable estimate */
         $bidErrors = [];
@@ -205,6 +207,9 @@ class BacktestMaxBid extends Command
 
                 $estimates++;
                 $withForecast += $inputs->dayOneForecast !== null ? 1 : 0;
+                $dayOneError = abs(($estimate->projection[1] ?? 0) - $actual[1]);
+                $dayOneErrorEuros += $dayOneError;
+                $dayOneErrorShare += $dayOneError / max($estimate->value, 1);
 
                 if ($estimate->bid !== null) {
                     $bidErrors[] = abs($estimate->bid - MaxBidCalculator::solveBid($actual, $estimate->confidence)) / max($estimate->value, 1);
@@ -242,6 +247,13 @@ class BacktestMaxBid extends Command
         $this->info($dayOneForecasts === null
             ? 'Previsión día 1: desactivada.'
             : "Previsión día 1: {$withForecast} de {$estimates} estimaciones.");
+        $this->info($estimates === 0
+            ? 'Error del día 1: sin estimaciones.'
+            : sprintf(
+                'Error del día 1: media %s € (%s del valor).',
+                number_format($dayOneErrorEuros / $estimates, 0, ',', '.'),
+                $this->percent($dayOneErrorShare / $estimates, 2),
+            ));
         $this->info($bidErrors === []
             ? 'Error de la puja frente a la ideal: sin pujas.'
             : sprintf(
@@ -676,13 +688,13 @@ class BacktestMaxBid extends Command
     /**
      * One player-day's inputs with the walk-forward forecast of its reference
      * date as day 1 — or none with --without-forecast. A forecast stored in
-     * the database is always replaced, so a replay never sees the future.
+     * the database is never read, so a replay never sees the future.
      *
      * @param  array<int, array<string, int>>|null  $dayOneForecasts  player id → reference date → predicted value
      */
     private function inputs(MaxBidCalculator $calculator, Player $player, Season $season, CarbonImmutable $day, ?array $dayOneForecasts): MaxBidInputs
     {
-        $inputs = $calculator->gatherInputs($player, $season, $day);
+        $inputs = $calculator->gatherInputs($player, $season, $day, readStoredForecast: false);
 
         return $inputs->withDayOneForecast(
             $dayOneForecasts === null || $inputs->referenceDate === null ? null : ($dayOneForecasts[$player->id][$inputs->referenceDate] ?? null),
@@ -821,9 +833,9 @@ class BacktestMaxBid extends Command
         return $values[intdiv(count($values), 2)];
     }
 
-    private function percent(?float $value): string
+    private function percent(?float $value, int $decimals = 1): string
     {
-        return $value === null ? '—' : number_format($value * 100, 1, ',', '.').' %';
+        return $value === null ? '—' : number_format($value * 100, $decimals, ',', '.').' %';
     }
 
     /**

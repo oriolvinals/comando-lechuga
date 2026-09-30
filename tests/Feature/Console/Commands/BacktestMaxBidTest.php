@@ -251,6 +251,7 @@ test('uses the walk-forward forecast as day 1 unless told not to, and reports th
 
     $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-10', '--to' => '2026-09-10'])
         ->expectsOutputToContain('Previsión día 1: 2 de 2 estimaciones')
+        ->expectsOutputToContain('Error del día 1: media')
         ->expectsOutputToContain('Error de la puja frente a la ideal')
         ->assertSuccessful();
 

@@ -10,6 +10,7 @@ use App\Models\Team;
 use App\Models\ValueForecast;
 use App\Models\ValueForecastFit;
 use App\Services\ValueForecast\ValueForecastParameters;
+use Illuminate\Support\Facades\Cache;
 
 beforeEach(function (): void {
     $this->travelTo('2026-09-20 12:00:00');
@@ -114,4 +115,21 @@ test('says so and writes nothing outside a season', function (): void {
     $this->artisan(ForecastValues::class)->expectsOutputToContain('No hay temporada activa')->assertSuccessful();
 
     expect(ValueForecast::query()->count())->toBe(0);
+});
+
+test('skips quietly while another run holds the lock', function (): void {
+    $lock = Cache::lock(ForecastValues::LOCK, 60);
+    $lock->get();
+
+    $this->artisan(ForecastValues::class)
+        ->expectsOutput('Otra previsión en curso.')
+        ->assertSuccessful();
+
+    expect(ValueForecast::query()->exists())->toBeFalse();
+
+    $lock->release();
+
+    $this->artisan(ForecastValues::class)->assertSuccessful();
+
+    expect(ValueForecast::query()->exists())->toBeTrue();
 });
