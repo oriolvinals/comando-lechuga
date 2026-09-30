@@ -7,6 +7,7 @@ namespace App\Services\ValueForecast;
 use App\Enums\FixtureState;
 use App\Models\Season;
 use Carbon\CarbonImmutable;
+use Generator;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -29,32 +30,49 @@ final class ValueForecastFeatures
     public function __construct(private readonly ValueForecastParameters $parameters = new ValueForecastParameters) {}
 
     /**
-     * @return list<ValueForecastRow>
+     * @return list<ValueForecastRow> by reference date, then player id
      */
     public function rows(Season $season, string $lastReferenceDate): array
+    {
+        $rows = [];
+
+        foreach ($this->rowsByDay($season, $lastReferenceDate) as $dayRows) {
+            array_push($rows, ...$dayRows);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The rows one reference date at a time, oldest first (every date from
+     * the first one, possibly with no rows), so a caller only has to keep
+     * the days it still needs.
+     *
+     * @return Generator<string, list<ValueForecastRow>> reference date → its rows by player id
+     */
+    public function rowsByDay(Season $season, string $lastReferenceDate): Generator
     {
         $firstReference = $season->start_date->addDays($this->parameters->warmupDays)->toDateString();
 
         if ($firstReference > $lastReferenceDate) {
-            return [];
+            return;
         }
 
         $values = $this->values($this->shift($firstReference, -self::LOOKBACK_DAYS), $this->shift($lastReferenceDate, 1));
+        ksort($values);
         $teams = DB::table('players')->pluck('team_id', 'id')->all();
         [$matchDates, $finishedDates] = $this->teamMatches($season);
         [$lineups, $playedPoints] = $this->lineups($season);
         $marketChanges = $this->marketChanges($values);
-        $rows = [];
 
-        foreach ($values as $playerId => $byDate) {
-            $teamId = isset($teams[$playerId]) ? (int) $teams[$playerId] : null;
+        for ($date = $firstReference; $date <= $lastReferenceDate; $date = $this->shift($date, 1)) {
+            $rows = [];
 
-            if ($teamId === null) {
-                continue;
-            }
+            foreach ($values as $playerId => $byDate) {
+                $value = $byDate[$date] ?? null;
+                $teamId = isset($teams[$playerId]) ? (int) $teams[$playerId] : null;
 
-            foreach ($byDate as $date => $value) {
-                if ($date < $firstReference || $date > $lastReferenceDate) {
+                if ($value === null || $teamId === null) {
                     continue;
                 }
 
@@ -86,11 +104,9 @@ final class ValueForecastFeatures
                     nextValue: $next !== null && $next > 0 ? $next : null,
                 );
             }
+
+            yield $date => $rows;
         }
-
-        usort($rows, fn (ValueForecastRow $a, ValueForecastRow $b): int => [$a->referenceDate, $a->playerId] <=> [$b->referenceDate, $b->playerId]);
-
-        return $rows;
     }
 
     /**
