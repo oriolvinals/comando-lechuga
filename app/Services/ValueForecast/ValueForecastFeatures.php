@@ -199,7 +199,7 @@ final class ValueForecastFeatures
     }
 
     /** Minutes played, from the provider's `fantasy_stats.mins_played[0]` (0 when absent). */
-    private static function minutes(mixed $fantasyStats): int
+    public static function minutes(mixed $fantasyStats): int
     {
         $stats = is_string($fantasyStats) ? json_decode($fantasyStats, true) : null;
         $minutes = is_array($stats) && is_array($stats['mins_played'] ?? null) ? ($stats['mins_played'][0] ?? 0) : 0;

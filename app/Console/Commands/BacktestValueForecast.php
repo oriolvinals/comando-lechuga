@@ -13,6 +13,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 #[Signature('season:backtest-value-forecast {--from= : First target date (Y-m-d)} {--to= : Last target date (Y-m-d)}')]
 #[Description('Replay the value forecast walk-forward over the market history and compare it with persistence and the max bid momentum (writes nothing)')]
@@ -23,7 +24,14 @@ class BacktestValueForecast extends Command
 
     public function handle(ValueForecastWalkForward $walkForward, ValueForecastParameters $parameters): int
     {
-        $season = Season::current();
+        try {
+            $season = Season::current();
+        } catch (ModelNotFoundException) {
+            $this->error('No hay temporada activa.');
+
+            return self::FAILURE;
+        }
+
         $latest = PlayerMarket::query()->max('date');
 
         if ($latest === null) {

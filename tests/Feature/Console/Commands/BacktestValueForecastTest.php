@@ -25,6 +25,14 @@ test('replays the forecast day by day and reports each predictor, read-only', fu
         ->and(PlayerMarket::query()->count())->toBe(80);
 });
 
+test('fails clearly without an active season', function (): void {
+    $this->travelTo('2026-09-30 12:00:00');
+
+    $this->artisan(BacktestValueForecast::class)
+        ->expectsOutputToContain('No hay temporada activa')
+        ->assertFailed();
+});
+
 test('fails clearly without market history', function (): void {
     $this->travelTo('2026-09-30 12:00:00');
     Season::factory()->create(['start_date' => '2026-08-01', 'end_date' => '2027-05-31']);

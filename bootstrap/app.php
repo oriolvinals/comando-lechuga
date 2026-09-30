@@ -85,6 +85,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
+        $schedule->command('season:forecast-values')
+            ->everyFifteenMinutes()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->command('season:sync-manager-lineups')
             ->everyMinute()
             ->withoutOverlapping()
