@@ -63,24 +63,10 @@ interface SectionSpec {
     rows: (RowSpec | CustomRow)[];
 }
 
-/** The sections the header's links jump to, in page order. */
-export const COMPARE_SECTIONS = [
-    { id: 's-mercado', title: 'Mercado' },
-    { id: 's-rendimiento', title: 'Rendimiento' },
-    { id: 's-liga', title: 'En la liga' },
-    { id: 's-forma', title: 'Forma' },
-    { id: 's-calendario', title: 'Calendario' },
-    { id: 's-propiedad', title: 'Propiedad' },
-] as const;
-
 const DASH = <span className="font-mono text-sm text-hq-moss-dim">—</span>;
 
 function isCustom(row: RowSpec | CustomRow): row is CustomRow {
     return 'node' in row;
-}
-
-function lastName(name: string): string {
-    return name.split(' ').slice(-1)[0];
 }
 
 /** "133.º de 439" under a Rendimiento figure: his place on that "En la liga" track (the whole league). */
@@ -482,7 +468,7 @@ function sections(
 /**
  * Mercado, Rendimiento, En la liga, Forma, Calendario and Propiedad, on the
  * strip's columns: the best value of each row gets a lime underline (no
- * winner on a tie) and each section header counts the rows each player won.
+ * winner on a tie).
  */
 export function CompareBody() {
     const { players, derived, league, currentWeek } = useCompare();
@@ -503,7 +489,6 @@ export function CompareBody() {
     const specs = sections(players, derived, currentWeek, rankTrack);
 
     const renderSection = (section: SectionSpec) => {
-        const tally = players.map(() => 0);
         const rows = section.rows.map((row, rowIndex) => {
             if (isCustom(row)) {
                 return <Fragment key={row.key}>{row.node}</Fragment>;
@@ -512,10 +497,6 @@ export function CompareBody() {
             const best = row.values
                 ? winner(row.values, row.lowerIsBetter)
                 : null;
-
-            if (best !== null) {
-                tally[best]++;
-            }
 
             return (
                 <div
@@ -556,41 +537,9 @@ export function CompareBody() {
             );
         });
 
-        const winnable = section.rows.some(
-            (row) => !isCustom(row) && row.values,
-        );
-        const top = Math.max(...tally);
-
         return (
             <section key={section.id} aria-labelledby={`${section.id}-title`}>
-                <CompareSectionHeader id={section.id} title={section.title}>
-                    {winnable && players.length > 1 && (
-                        <span className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-hq-moss">
-                            {players.map((player, index) => (
-                                <span key={player.id} data-slot={index}>
-                                    {index > 0 && (
-                                        <i
-                                            aria-hidden="true"
-                                            className="mr-1.5 text-hq-led-off not-italic"
-                                        >
-                                            ·
-                                        </i>
-                                    )}
-                                    {lastName(player.name)}{' '}
-                                    <b
-                                        className={
-                                            tally[index] === top && top > 0
-                                                ? 'text-hq-lime'
-                                                : 'text-hq-paper'
-                                        }
-                                    >
-                                        {tally[index]}
-                                    </b>
-                                </span>
-                            ))}
-                        </span>
-                    )}
-                </CompareSectionHeader>
+                <CompareSectionHeader id={section.id} title={section.title} />
                 {rows}
             </section>
         );

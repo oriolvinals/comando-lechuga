@@ -1,15 +1,12 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Check, Link2, Plus } from 'lucide-react';
-import type { CSSProperties, MouseEvent, ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     HqChartTooltip,
     useSlotHighlight,
 } from '@/components/compare/chart-tooltip';
-import {
-    COMPARE_SECTIONS,
-    CompareBody,
-} from '@/components/compare/compare-body';
+import { CompareBody } from '@/components/compare/compare-body';
 import { CompareContext } from '@/components/compare/compare-context';
 import type { CompareContextValue } from '@/components/compare/compare-context';
 import { derivePlayer } from '@/components/compare/derive';
@@ -113,16 +110,6 @@ export default function PlayersCompare({
         bindSlot: highlight.bind,
     };
 
-    const jumpTo = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
-        event.preventDefault();
-        document.getElementById(id)?.scrollIntoView({
-            behavior: window.matchMedia('(prefers-reduced-motion: reduce)')
-                .matches
-                ? 'auto'
-                : 'smooth',
-        });
-    };
-
     // "/" opens the picker here (the shell's player search would leave the page).
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -219,25 +206,6 @@ export default function PlayersCompare({
                             <h1 className="font-display text-[26px] leading-[0.95] text-hq-paper uppercase sm:text-[34px]">
                                 Comparador
                             </h1>
-                            {players.length >= 2 && (
-                                <nav
-                                    aria-label="Secciones"
-                                    className="mt-2.5 hidden flex-wrap gap-x-3.5 gap-y-1 font-mono text-[11px] text-hq-moss-dim sm:flex"
-                                >
-                                    {COMPARE_SECTIONS.map((section) => (
-                                        <a
-                                            key={section.id}
-                                            href={`#${section.id}`}
-                                            onClick={(event) =>
-                                                jumpTo(event, section.id)
-                                            }
-                                            className="cursor-pointer hover:text-hq-lime"
-                                        >
-                                            {section.title}
-                                        </a>
-                                    ))}
-                                </nav>
-                            )}
                         </div>
                         <button
                             type="button"

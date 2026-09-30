@@ -46,7 +46,7 @@ export function RowLabel({
     );
 }
 
-/** A section's title bar, with an optional right side (tally, toggle), and the jump target of the header's links. */
+/** A section's title bar, with an optional right side (tally, toggle). */
 export function CompareSectionHeader({
     id,
     title,
@@ -59,7 +59,7 @@ export function CompareSectionHeader({
     return (
         <div
             id={id}
-            className="flex scroll-mt-[calc(var(--hq-header-h)+90px)] flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-hq-border-strong bg-linear-to-r from-hq-panel to-transparent to-70% px-3.5 py-2.5 sm:px-4"
+            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-hq-border-strong bg-linear-to-r from-hq-panel to-transparent to-70% px-3.5 py-2.5 sm:px-4"
         >
             <h2 id={`${id}-title`} className="hq-label text-hq-paper">
                 {title}
