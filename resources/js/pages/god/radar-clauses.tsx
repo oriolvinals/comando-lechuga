@@ -1,5 +1,4 @@
 import { router } from '@inertiajs/react';
-import type { LucideIcon } from 'lucide-react';
 import {
     ArrowDownWideNarrow,
     ChevronDown,
@@ -22,7 +21,7 @@ import { formatAverage, formatMillions } from '@/lib/format';
 import { POSITION_ABBREVIATIONS } from '@/lib/player-labels';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
-import { ManagerSquare } from '@/pages/god/radar-helpers';
+import { ManagerSquare, Segmented } from '@/pages/god/radar-helpers';
 import { ClauseStateBadge } from '@/pages/god/radar-unlocks';
 import { show as playersShow } from '@/routes/players';
 import type { PlayerPosition, RadarClause, RadarManager } from '@/types/models';
@@ -66,56 +65,6 @@ interface RadarClausesProps {
     connectedManagerId: number | null;
     payerId: number | null;
     onPayerChange: (managerId: number | null) => void;
-}
-
-interface SegmentedOption<T extends string> {
-    value: T;
-    label: string;
-    icon?: LucideIcon;
-    title?: string;
-}
-
-function Segmented<T extends string>({
-    label,
-    value,
-    options,
-    onChange,
-}: {
-    label: string;
-    value: T;
-    options: SegmentedOption<T>[];
-    onChange: (value: T) => void;
-}) {
-    return (
-        <div
-            role="group"
-            aria-label={label}
-            className="flex border border-hq-border-strong"
-        >
-            {options.map((option) => {
-                const Icon = option.icon;
-
-                return (
-                    <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={value === option.value}
-                        title={option.title}
-                        onClick={() => onChange(option.value)}
-                        className={cn(
-                            'inline-flex min-h-8 flex-1 cursor-pointer items-center justify-center gap-1 border-r border-hq-border-strong px-2 font-mono text-[11px] font-bold tracking-[0.04em] uppercase last:border-r-0',
-                            value === option.value
-                                ? 'bg-hq-lime text-hq-ink'
-                                : 'text-hq-moss hover:bg-hq-panel hover:text-hq-paper',
-                        )}
-                    >
-                        {Icon && <Icon aria-hidden="true" className="size-3" />}
-                        {option.label}
-                    </button>
-                );
-            })}
-        </div>
-    );
 }
 
 const SELECT_CLASS =

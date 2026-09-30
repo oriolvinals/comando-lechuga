@@ -16,13 +16,20 @@ import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { RadarBalances } from '@/pages/god/radar-balances';
 import { RadarClauses } from '@/pages/god/radar-clauses';
+import { RadarManualRaises } from '@/pages/god/radar-manual-raises';
 import { RadarUnlocks } from '@/pages/god/radar-unlocks';
-import type { ClauseState, RadarClause, RadarManager } from '@/types/models';
+import type {
+    ClauseState,
+    RadarClause,
+    RadarManager,
+    RadarManualRaise,
+} from '@/types/models';
 
 interface GodRadarProps {
     connectedManagerId: number | null;
     managers: RadarManager[];
     clauses: RadarClause[];
+    manualRaises: RadarManualRaise[];
     now: string;
 }
 
@@ -63,6 +70,7 @@ export default function GodRadar({
     connectedManagerId,
     managers,
     clauses,
+    manualRaises,
 }: GodRadarProps) {
     const [payerId, setPayerId] = useState<number | null>(null);
 
@@ -109,7 +117,7 @@ export default function GodRadar({
                     <ul className="mt-2 grid gap-1 text-[12.5px]">
                         <li>
                             Qué subidas de cláusula son reales: se infieren
-                            (coste = subida/2), no se registran.
+                            (coste = subida/2), salvo las subidas conocidas.
                         </li>
                         <li>
                             Si todos reclaman el premio diario: se da por
@@ -135,13 +143,20 @@ export default function GodRadar({
                 />
             )}
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
-                <RadarClauses
-                    clauses={clauses}
-                    managers={managers}
-                    connectedManagerId={connectedManagerId}
-                    payerId={payerId}
-                    onPayerChange={setPayerId}
-                />
+                <div className="min-w-0">
+                    <RadarClauses
+                        clauses={clauses}
+                        managers={managers}
+                        connectedManagerId={connectedManagerId}
+                        payerId={payerId}
+                        onPayerChange={setPayerId}
+                    />
+                    <RadarManualRaises
+                        entries={manualRaises}
+                        managers={managers}
+                        clauses={clauses}
+                    />
+                </div>
                 <RadarUnlocks clauses={clauses} managers={managers} />
             </div>
         </>

@@ -880,3 +880,15 @@ export interface RadarClause {
     opportunity: number;
     payers: { manager_id: number; level: PayerLevel }[];
 }
+
+/** A clause raise the user entered by hand (god-only). */
+export interface RadarManualRaise {
+    id: number;
+    player: { id: number; nickname: string };
+    manager_id: number;
+    captured_at: string;
+    clause: number;
+    raise: number;
+    cost: number;
+    note: string;
+}
