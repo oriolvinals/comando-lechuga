@@ -20,7 +20,7 @@ test('renders the prizes page with every prize and the bench miss match', functi
     $fixture = Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 1, 'date' => now()->subWeek(), 'state' => FixtureState::Finished]);
     Fixture::factory()->create(['season_id' => $season->id, 'week_number' => 2, 'state' => FixtureState::Scheduled]);
     $manager = SeasonManager::factory()->create(['season_id' => $season->id, 'position' => 1]);
-    $benched = Player::factory()->create();
+    $benched = Player::factory()->create(['image' => 'images/player/3011.png']);
     ManagerPlayer::factory()->create(['season_manager_id' => $manager->id, 'player_id' => $benched->id]);
     ManagerLineup::factory()->create(['season_manager_id' => $manager->id, 'week_number' => 1, 'points' => 40]);
     $miss = FixtureLineup::factory()->create(['fixture_id' => $fixture->id, 'player_id' => $benched->id, 'fantasy_points' => 12, 'fantasy_stats' => ['goals' => 1]]);
@@ -39,6 +39,7 @@ test('renders the prizes page with every prize and the bench miss match', functi
             ->where('prizes.3.rows.0.context.top_miss.player_id', $benched->id)
             ->where('prizes.3.rows.0.context.top_miss.week_number', 1)
             ->where("players.{$benched->id}.nickname", $benched->nickname)
+            ->where("players.{$benched->id}.image", asset('storage/images/player/3011.png'))
             ->missing('benchMisses'));
 });
 
