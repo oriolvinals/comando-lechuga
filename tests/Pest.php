@@ -114,3 +114,19 @@ function forecastPlayer(Season $season, array $values, string $lastDate, array $
 
     return $player;
 }
+
+/**
+ * Max bid calibration knots (50…95 %) shifted up by `$shift`, capped at 0,99.
+ *
+ * @return array<int, float>
+ */
+function calibrationKnots(float $shift): array
+{
+    $knots = [];
+
+    foreach (range(50, 95, 5) as $percent) {
+        $knots[$percent] = round(min(0.99, $percent / 100 + $shift), 4);
+    }
+
+    return $knots;
+}

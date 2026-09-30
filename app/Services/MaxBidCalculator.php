@@ -201,7 +201,7 @@ class MaxBidCalculator
             $inputs->isBreak() => $parameters->incrementDecayBreak,
             default => $parameters->incrementDecayMatchweek,
         };
-        $projection = self::project($value, $increment, $decay);
+        $projection = self::project($value, $increment * $parameters->incrementShrink, $decay);
         $dayOneOffset = null;
 
         if ($inputs->dayOneForecast !== null) {
@@ -217,7 +217,7 @@ class MaxBidCalculator
             value: $value,
             confidence: $confidence,
             lockDays: self::LOCK_DAYS,
-            bid: $profitable ? self::solveBid($projection, $confidence) : null,
+            bid: $profitable ? self::solveBid($projection, $parameters->effectiveConfidence($confidence)) : null,
             projection: $projection,
             momentumIncrement: $inputs->momentum,
             marketAdjustment: $marketAdjustment,

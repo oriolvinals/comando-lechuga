@@ -61,11 +61,67 @@ final readonly class MaxBidParameters
          * one, the recent participation alone when there isn't.
          */
         public float $startProbabilityWeight = 0.5,
+        /**
+         * Chosen confidence (whole percent, one knot every 5 from 50 to 95) →
+         * the confidence the bid is solved at, so the confidence the user picks
+         * is the real chance that an offer beats the bid (value forecast spec
+         * §4.2; fitted with `season:backtest-max-bid --calibrate`). Empty =
+         * identity.
+         *
+         * @var array<int, float>
+         */
+        public array $confidenceCalibration = [],
+        /**
+         * Factor on the daily increment before projecting (0 < f ≤ 1): shrinks
+         * an optimistic path without touching the profitability, which only
+         * depends on the increment's sign. 1 = off.
+         */
+        public float $incrementShrink = 1.0,
     ) {
         $maximumBenches = count(MaxBidCalculator::RECENCY_WEIGHTS);
 
         if ($this->benchesBeforeUnprofitable < 0 || $this->benchesBeforeUnprofitable > $maximumBenches) {
             throw new InvalidArgumentException("benchesBeforeUnprofitable must be between 0 and {$maximumBenches}: only the team's last {$maximumBenches} matches are gathered.");
         }
+
+        if ($this->incrementShrink <= 0 || $this->incrementShrink > 1) {
+            throw new InvalidArgumentException('incrementShrink must be in (0, 1].');
+        }
+
+        if ($this->confidenceCalibration !== []) {
+            $knots = array_keys($this->confidenceCalibration);
+            sort($knots);
+
+            if ($knots !== range(50, 95, 5)) {
+                throw new InvalidArgumentException('confidenceCalibration needs exactly one knot every 5 % from 50 to 95.');
+            }
+
+            $previous = 0.0;
+
+            foreach (range(50, 95, 5) as $percent) {
+                $value = $this->confidenceCalibration[$percent];
+
+                if ($value <= 0 || $value >= 1 || $value < $previous) {
+                    throw new InvalidArgumentException('confidenceCalibration values must be in (0, 1) and never decrease.');
+                }
+
+                $previous = $value;
+            }
+        }
+    }
+
+    /** The confidence the bid is solved at for a chosen one (0–1). */
+    public function effectiveConfidence(float $confidence): float
+    {
+        if ($this->confidenceCalibration === []) {
+            return $confidence;
+        }
+
+        $percent = max(50.0, min(95.0, $confidence * 100));
+        $lower = min(90, (int) (floor($percent / 5) * 5));
+        $share = ($percent - $lower) / 5;
+        $from = $this->confidenceCalibration[$lower];
+
+        return $from + $share * ($this->confidenceCalibration[$lower + 5] - $from);
     }
 }

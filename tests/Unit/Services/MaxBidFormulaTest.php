@@ -295,3 +295,20 @@ test('withDayOneForecast keeps every other input', function (): void {
         ->and($copy->value)->toBe($inputs->value)
         ->and($inputs->dayOneForecast)->toBeNull();
 });
+
+test('a shrink scales the projected increments but not the reported factors nor the profitability', function (): void {
+    $parameters = new MaxBidParameters(incrementShrink: 0.5);
+    $estimate = MaxBidCalculator::estimateFromInputs(formulaInputs(), $parameters);
+
+    expect($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, 50_000.0, $parameters->incrementDecayBreak))
+        ->and($estimate->dailyIncrement)->toEqual(100_000.0)
+        ->and($estimate->status)->toBe(MaxBidStatus::Profitable);
+});
+
+test('the bid is solved at the calibrated confidence while the estimate keeps the chosen one', function (): void {
+    $calibrated = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(confidenceCalibration: calibrationKnots(0.15)), 0.75);
+    $plainAt90 = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters, 0.9);
+
+    expect($calibrated->confidence)->toBe(0.75)
+        ->and($calibrated->bid)->toBe($plainAt90->bid);
+});
