@@ -20,9 +20,13 @@ use Illuminate\Support\Collection;
  * held, the giver got him in the initial allocation: he held him since he
  * joined the league (`joined_league`), or since the previous spell ended if
  * that is later. A late joiner can be allocated players released to the
- * market before he joined. A player of `manager_players` with no activity
- * at all belongs to that manager since he joined. Spells are [from, to):
- * `from` null = since the season started, `to` exclusive, null = still open.
+ * market before he joined. A `manager_players` row whose player the replay
+ * leaves unheld (no activity at all, or released before a late joiner got
+ * him) is an allocation too, open until now. If the replay already leaves
+ * him held, the replay wins: it knows when he moved, `manager_players` does
+ * not, and any disagreement is a data gap the squad check surfaces.
+ * Spells are [from, to): `from` null = since the season started, `to`
+ * exclusive, null = still open.
  *
  * @phpstan-type Spell array{season_manager_id: int, from: CarbonImmutable|null, to: CarbonImmutable|null}
  */
@@ -63,11 +67,19 @@ final class SquadHistory
             ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
             ->get(['season_manager_id', 'player_id'])
             ->each(function (ManagerPlayer $owned) use (&$spellsByPlayer, $joinedAt): void {
-                $spellsByPlayer[$owned->player_id] ??= [[
+                $spells = $spellsByPlayer[$owned->player_id] ?? [];
+                $last = $spells === [] ? null : $spells[array_key_last($spells)];
+
+                if ($last !== null && $last['to'] === null) {
+                    return;
+                }
+
+                $spells[] = [
                     'season_manager_id' => $owned->season_manager_id,
-                    'from' => $joinedAt[$owned->season_manager_id] ?? null,
+                    'from' => self::allocatedAt($joinedAt[$owned->season_manager_id] ?? null, $last['to'] ?? null),
                     'to' => null,
-                ]];
+                ];
+                $spellsByPlayer[$owned->player_id] = $spells;
             });
 
         return new self($spellsByPlayer);
@@ -93,7 +105,7 @@ final class SquadHistory
 
             if ($open === null && $giver !== null) {
                 $releasedAt = $spells === [] ? null : $spells[array_key_last($spells)]['to'];
-                $open = ['season_manager_id' => $giver, 'from' => self::allocatedAt($joinedAt[$giver] ?? null, $releasedAt), 'to' => null];
+                $open = ['season_manager_id' => $giver, 'from' => self::allocatedAt($joinedAt[$giver] ?? null, $releasedAt, $move->occurred_at), 'to' => null];
             }
 
             if ($open !== null && ($giver !== null || $taker !== null)) {
@@ -116,15 +128,13 @@ final class SquadHistory
 
     /**
      * When an allocated player reached his manager: at joining, but never
-     * before the previous owner let him go.
+     * before the previous owner let him go nor after he gave him up.
      */
-    private static function allocatedAt(?CarbonImmutable $joinedAt, ?CarbonImmutable $releasedAt): ?CarbonImmutable
+    private static function allocatedAt(?CarbonImmutable $joinedAt, ?CarbonImmutable $releasedAt, ?CarbonImmutable $givenUpAt = null): ?CarbonImmutable
     {
-        if ($releasedAt === null) {
-            return $joinedAt;
-        }
+        $from = $releasedAt !== null && ($joinedAt === null || $joinedAt < $releasedAt) ? $releasedAt : $joinedAt;
 
-        return $joinedAt === null || $joinedAt < $releasedAt ? $releasedAt : $joinedAt;
+        return $givenUpAt !== null && $from !== null && $givenUpAt < $from ? $givenUpAt : $from;
     }
 
     /**
