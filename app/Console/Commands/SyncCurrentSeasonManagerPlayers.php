@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
+use App\Models\ManagerBalanceSnapshot;
 use App\Models\ManagerPlayer;
 use App\Models\Player;
 use App\Models\Season;
@@ -46,6 +47,8 @@ class SyncCurrentSeasonManagerPlayers extends Command
             $managerData = $fantasyConnector
                 ->getLeagueTeamWithLogin($loginConnector, $season->fantasy_id, $seasonManager->fantasy_id)
                 ->json();
+
+            $this->snapshotTeamMoney($seasonManager, $managerData['teamMoney'] ?? null);
 
             $players = $managerData['players'] ?? [];
 
@@ -105,5 +108,32 @@ class SyncCurrentSeasonManagerPlayers extends Command
         $this->info($managersSynchronized.' season manager squads synchronized.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Keeps the connected account's real cash, at most once per manager and
+     * hour (the command runs every minute). Rivals come back with a null
+     * `teamMoney` and are skipped.
+     */
+    private function snapshotTeamMoney(SeasonManager $seasonManager, mixed $teamMoney): void
+    {
+        if (!is_numeric($teamMoney)) {
+            return;
+        }
+
+        $hasRecentSnapshot = ManagerBalanceSnapshot::query()
+            ->where('season_manager_id', $seasonManager->id)
+            ->where('captured_at', '>', now()->subHour())
+            ->exists();
+
+        if ($hasRecentSnapshot) {
+            return;
+        }
+
+        ManagerBalanceSnapshot::query()->create([
+            'season_manager_id' => $seasonManager->id,
+            'money' => (int) $teamMoney,
+            'captured_at' => now(),
+        ]);
     }
 }
