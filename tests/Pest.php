@@ -2,7 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\PlayerStatus;
+use App\Models\Player;
+use App\Models\PlayerMarket;
+use App\Models\Season;
+use App\Models\Team;
 use App\Services\ValueForecast\ValueForecastRow;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Saloon\Config;
 use Tests\TestCase;
@@ -83,4 +89,28 @@ function forecastRow(array $overrides = []): ValueForecastRow
         'nextValue' => 10_300_000,
         ...$overrides,
     ]);
+}
+
+/**
+ * A season player with one market value per day ending on `$lastDate`.
+ *
+ * @param  list<int>  $values  oldest first
+ * @param  array<string, mixed>  $attributes
+ */
+function forecastPlayer(Season $season, array $values, string $lastDate, array $attributes = []): Player
+{
+    $team = isset($attributes['team_id']) ? Team::query()->findOrFail($attributes['team_id']) : Team::factory()->create();
+    $season->teams()->syncWithoutDetaching([$team->id]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, ...$attributes]);
+    $last = CarbonImmutable::parse($lastDate);
+
+    foreach (array_values($values) as $index => $value) {
+        PlayerMarket::factory()->create([
+            'player_id' => $player->id,
+            'date' => $last->subDays(count($values) - 1 - $index)->toDateString(),
+            'value' => $value,
+        ]);
+    }
+
+    return $player;
 }
