@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Enums\ClauseSnapshotSource;
 use App\Models\ManagerBalanceSnapshot;
+use App\Models\ManagerPlayerClauseSnapshot;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use Tests\Feature\Http\Controllers\Api\ApiWorld;
@@ -45,6 +47,15 @@ test('no api response ever carries private god-mode money or radar data', functi
         'money' => $privateMoney,
         'captured_at' => now()->subMinutes(5),
     ]);
+    $privateClauseValues = ['876543219', '765432198', '654321987', 'nota-privada-subida'];
+    ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $world->managerId, 'player_id' => $world->ownedPlayerId,
+        'buyout_clause' => 876_543_219, 'captured_at' => now()->subDays(2),
+    ]);
+    ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $world->managerId, 'player_id' => $world->ownedPlayerId, 'source' => ClauseSnapshotSource::Manual,
+        'buyout_clause' => 765_432_198, 'raise_amount' => 654_321_987, 'note' => 'nota-privada-subida', 'captured_at' => now()->subDay(),
+    ]);
     $sampleIds = [
         'seasonManager' => $world->managerId,
         'fixture' => $world->finishedFixtureId,
@@ -70,6 +81,10 @@ test('no api response ever carries private god-mode money or radar data', functi
             ->toBe([], "{$url} exposes a private god-mode field")
             ->and($response->getContent())
             ->not->toContain((string) $privateMoney, "{$url} leaks the real teamMoney");
+
+        foreach ($privateClauseValues as $privateClauseValue) {
+            expect($response->getContent())->not->toContain($privateClauseValue, "{$url} leaks the clause history");
+        }
     }
 });
 

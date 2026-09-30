@@ -52,6 +52,12 @@ class ManagerPlayerClauseSnapshot extends Model
         return $this->belongsTo(SeasonManager::class);
     }
 
+    /** @return BelongsTo<Player, $this> */
+    public function player(): BelongsTo
+    {
+        return $this->belongsTo(Player::class);
+    }
+
     /**
      * @return array<string, string>
      */

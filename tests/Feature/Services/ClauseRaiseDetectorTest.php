@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ClauseSnapshotSource;
 use App\Enums\SeasonActivityType;
 use App\Models\Activity;
 use App\Models\ManagerPlayer;
@@ -188,4 +189,20 @@ test('an initial-squad holding without market history is skipped, not read as a 
     ownNow($this, $this->manager, 20_000_000);
 
     expect(detect($this))->toBe([]);
+});
+
+test('a manual raise is authoritative: it replaces the inference and a matching sync jump is not counted twice', function (): void {
+    acquire($this, $this->manager, 13_765_656, '2026-09-10 20:00');
+    valueOn($this, '2026-09-24', 18_769_376);
+    ownNow($this, $this->manager, 34_269_528);
+    foreach ([['2026-09-24 19:00', 18_769_376, ClauseSnapshotSource::Sync, 0], ['2026-09-24 21:00', 34_269_528, ClauseSnapshotSource::Sync, 0], ['2026-09-24 20:30', 34_269_528, ClauseSnapshotSource::Manual, 15_000_000]] as [$at, $clause, $source, $raise]) {
+        ManagerPlayerClauseSnapshot::factory()->create([
+            'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+            'buyout_clause' => $clause, 'market_value' => 18_769_376, 'captured_at' => $at,
+            'source' => $source, 'raise_amount' => $raise,
+        ]);
+    }
+
+    // Inference and the sync jump would both say 15.500.152; the user's own figure wins, once.
+    expect(detect($this))->toBe([$this->manager->id => ['sure' => 15_000_000, 'possible' => 0]]);
 });

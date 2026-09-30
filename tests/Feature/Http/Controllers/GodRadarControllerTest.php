@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\ClauseSnapshotSource;
 use App\Models\ManagerBalanceSnapshot;
 use App\Models\ManagerPlayer;
+use App\Models\ManagerPlayerClauseSnapshot;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
@@ -62,4 +64,33 @@ test('without a snapshot every rival of the owner can be a payer', function (): 
             ->where('clauses.0.owner_id', $this->managers[0]->id)
             ->where('clauses.0.payers', fn ($payers): bool => collect($payers)->pluck('manager_id')->sort()->values()->all()
                 === [$this->managers[1]->id, $third->id]));
+});
+
+test('the radar lists this season\'s manual clause raises with their cost', function (): void {
+    $player = Player::factory()->create(['nickname' => 'Otto']);
+    $manual = ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $this->managers[0]->id, 'player_id' => $player->id, 'source' => ClauseSnapshotSource::Manual,
+        'buyout_clause' => 59_623_163, 'raise_amount' => 42_000_000, 'note' => 'hasta los 59 M', 'captured_at' => now()->subDay(),
+    ]);
+    ManagerPlayerClauseSnapshot::factory()->create(['season_manager_id' => $this->managers[0]->id, 'player_id' => $player->id]);
+    $oldSeason = Season::factory()->create(['start_date' => now()->subYears(2), 'end_date' => now()->subYear()]);
+    ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => SeasonManager::factory()->create(['season_id' => $oldSeason->id])->id,
+        'source' => ClauseSnapshotSource::Manual, 'raise_amount' => 2_000_000,
+    ]);
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('god.radar'))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('manualRaises', 1)
+            ->where('manualRaises.0', [
+                'id' => $manual->id,
+                'player' => ['id' => $player->id, 'nickname' => 'Otto'],
+                'manager_id' => $this->managers[0]->id,
+                'captured_at' => $manual->captured_at->toIso8601String(),
+                'clause' => 59_623_163,
+                'raise' => 42_000_000,
+                'cost' => 21_000_000,
+                'note' => 'hasta los 59 M',
+            ]));
 });

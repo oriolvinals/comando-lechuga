@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\SyncCurrentSeasonManagerPlayers;
+use App\Enums\ClauseSnapshotSource;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest;
@@ -260,4 +261,21 @@ test('stores a clause snapshot only when the clause or its lock changes', functi
     fakeLeagueTeamWithClause(9_123_456, '2026-10-01T20:00:00+02:00', 4_500_000);
     $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
     expect(ManagerPlayerClauseSnapshot::query()->count())->toBe(3);
+});
+
+test('manual clause raises never affect the sync\'s clause change detection', function (): void {
+    $seasonManager = currentSeasonWithManager();
+    $player = Player::factory()->create(['fantasy_id' => 988]);
+
+    fakeLeagueTeamWithClause(5_000_000, '2026-09-15T20:00:00+02:00', 4_000_000);
+    $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
+    ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $seasonManager->id, 'player_id' => $player->id, 'source' => ClauseSnapshotSource::Manual,
+        'buyout_clause' => 60_000_000, 'raise_amount' => 55_000_000, 'captured_at' => now()->addMinute(),
+    ]);
+
+    $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
+
+    expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Sync)->count())->toBe(1)
+        ->and(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->sole()->buyout_clause)->toBe(60_000_000);
 });
