@@ -10,14 +10,13 @@ import {
     useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import type { SlotHighlightBinding } from '@/components/compare/compare-context';
 
 export interface TipAnchor {
     left: number;
     right: number;
     top: number;
     bottom: number;
-    /** Beside the anchor instead of above it (view C cells, on screens wider than 560 px). */
-    side?: boolean;
 }
 
 interface TipState {
@@ -38,7 +37,7 @@ interface ChartTooltipApi {
 const ChartTooltipContext = createContext<ChartTooltipApi | null>(null);
 
 /**
- * One interactive tooltip for the three views (mock `.cmptip`): fixed
+ * One interactive tooltip for the comparator (mock `.cmptip`): fixed
  * position, clamped to the viewport, following hover, keyboard focus and
  * touch — a tap shows it and the next tap elsewhere hides it.
  */
@@ -65,7 +64,7 @@ export function HqChartTooltip({ children }: { children: ReactNode }) {
 
         const width = bubble.offsetWidth;
         const height = bubble.offsetHeight;
-        let x = Math.max(
+        const x = Math.max(
             8,
             Math.min(
                 window.innerWidth - width - 8,
@@ -76,20 +75,6 @@ export function HqChartTooltip({ children }: { children: ReactNode }) {
 
         if (y < 8) {
             y = Math.min(window.innerHeight - height - 8, rect.bottom + 10);
-        }
-
-        if (rect.side && window.innerWidth > 560) {
-            x =
-                rect.right + 10 + width > window.innerWidth - 8
-                    ? rect.left - width - 10
-                    : rect.right + 10;
-            y = Math.max(
-                8,
-                Math.min(
-                    window.innerHeight - height - 8,
-                    (rect.top + rect.bottom) / 2 - height / 2,
-                ),
-            );
         }
 
         bubble.style.left = `${Math.round(x)}px`;
@@ -183,11 +168,11 @@ export function useChartTooltip(): ChartTooltipApi {
     return api;
 }
 
-/** `data-hl` on the view root dims every other player's `[data-slot]` to 30 % (rules in app.css). */
+/** `data-hl` on the page root dims every other player's `[data-slot]` to 30 % (rules in app.css). */
 export function useSlotHighlight() {
     const [highlighted, setHighlighted] = useState<number | null>(null);
 
-    const bind = (slot: number) => ({
+    const bind = (slot: number): SlotHighlightBinding => ({
         'data-hl-slot': slot,
         onPointerEnter: () => setHighlighted(slot),
         onPointerLeave: () => setHighlighted(null),

@@ -19,14 +19,13 @@ interface CompareValueChartProps {
     series: ValueChartSeries[];
     width: number;
     height: number;
-    padRight?: number;
     label: string;
-    /** View A: the series nearest the pointer highlights its player in the whole view. */
+    /** The series nearest the pointer highlights its player on the whole page. */
     onHighlight?: (slot: number | null) => void;
-    showAxis?: boolean;
 }
 
 const PAD_LEFT = 4;
+const PAD_RIGHT = 8;
 const PAD_TOP = 10;
 const PAD_BOTTOM = 6;
 /** How close (in CSS px) the pointer must be to a line to highlight its player. */
@@ -48,10 +47,8 @@ export function CompareValueChart({
     series,
     width,
     height,
-    padRight = 8,
     label,
     onHighlight,
-    showAxis = true,
 }: CompareValueChartProps) {
     const { announce } = useCompare();
     const { show, hide } = useChartTooltip();
@@ -83,7 +80,7 @@ export function CompareValueChart({
     const flat = values.flat();
     const min = Math.min(0, ...flat);
     const span = Math.max(0, ...flat) - min || 1;
-    const plotWidth = width - PAD_LEFT - padRight;
+    const plotWidth = width - PAD_LEFT - PAD_RIGHT;
     const plotHeight = height - PAD_TOP - PAD_BOTTOM;
     const x = (index: number) => PAD_LEFT + (index * plotWidth) / (length - 1);
     const y = (value: number) =>
@@ -267,7 +264,7 @@ export function CompareValueChart({
                             <line
                                 key={fraction}
                                 x1={PAD_LEFT}
-                                x2={width - padRight}
+                                x2={width - PAD_RIGHT}
                                 y1={lineY}
                                 y2={lineY}
                                 stroke="var(--color-hq-border)"
@@ -277,7 +274,7 @@ export function CompareValueChart({
                     })}
                     <line
                         x1={PAD_LEFT}
-                        x2={width - padRight}
+                        x2={width - PAD_RIGHT}
                         y1={y(0)}
                         y2={y(0)}
                         stroke="var(--color-hq-border-strong)"
@@ -330,15 +327,13 @@ export function CompareValueChart({
                     </>
                 )}
             </div>
-            {showAxis && (
-                <div
-                    aria-hidden="true"
-                    className="mt-1 flex justify-between font-mono text-[10px] leading-none text-hq-moss-dim"
-                >
-                    <span>{dayMonth(dates[0])}</span>
-                    <span>hoy</span>
-                </div>
-            )}
+            <div
+                aria-hidden="true"
+                className="mt-1 flex justify-between font-mono text-[10px] leading-none text-hq-moss-dim"
+            >
+                <span>{dayMonth(dates[0])}</span>
+                <span>hoy</span>
+            </div>
         </div>
     );
 }

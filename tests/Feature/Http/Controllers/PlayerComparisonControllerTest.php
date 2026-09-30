@@ -30,7 +30,7 @@ test('the comparator route does not collide with the player ficha route', functi
         ->assertInertia(fn (Assert $page): Assert => $page->component('players/compare'));
 });
 
-test('without ids it renders the empty comparator on view a', function (): void {
+test('without ids it renders the empty comparator', function (): void {
     comparisonSeason();
 
     $this->get(route('players.compare'))
@@ -38,7 +38,6 @@ test('without ids it renders the empty comparator on view a', function (): void 
         ->assertInertia(fn (Assert $page): Assert => $page
             ->component('players/compare')
             ->where('ids', [])
-            ->where('view', 'a')
             ->where('players', []));
 });
 
@@ -74,18 +73,16 @@ test('takes at most three players, the first three valid ones', function (): voi
         ->assertInertia(fn (Assert $page): Assert => $page->where('ids', $players->take(3)->pluck('id')->all()));
 });
 
-test('honours vista b and c and falls back to a for anything else', function (string $vista, string $expected): void {
+test('accepts an old link with vista and ignores it', function (): void {
     comparisonSeason();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
 
-    $this->get(route('players.compare', ['vista' => $vista]))
-        ->assertInertia(fn (Assert $page): Assert => $page->where('view', $expected));
-})->with([
-    ['b', 'b'],
-    ['c', 'c'],
-    ['a', 'a'],
-    ['z', 'a'],
-    ['B', 'a'],
-]);
+    $this->get(route('players.compare', ['ids' => (string) $player->id, 'vista' => 'b']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('ids', [$player->id])
+            ->missing('view'));
+});
 
 test('lists the active season managers with their colour', function (): void {
     $season = comparisonSeason();

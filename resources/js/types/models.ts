@@ -732,8 +732,6 @@ export interface LineupPlayerStart {
     fetched_at: string | null;
 }
 
-export type CompareView = 'a' | 'b' | 'c';
-
 /** A fantasy manager as the comparator shows it (owner chip, league cloud colours). */
 export interface CompareManager {
     id: number;

@@ -1,7 +1,6 @@
 import { router } from '@inertiajs/react';
 import { useSyncExternalStore } from 'react';
 import { compare as playersCompare } from '@/routes/players';
-import type { CompareView } from '@/types/models';
 
 /** Most players the comparator takes at once. */
 export const COMPARE_MAX = 3;
@@ -14,7 +13,6 @@ export const COMPARE_SLOT_COLORS = [
 ] as const;
 
 const SELECTION_KEY = 'cmp-ids';
-const VIEW_KEY = 'cmp-vista';
 const CHANGE_EVENT = 'cmp-selection-change';
 
 /** What the tray needs to draw a chosen player without asking the server. */
@@ -169,23 +167,8 @@ export function replaceCompare(entries: CompareEntry[]): void {
     }
 }
 
-export function rememberedCompareView(): CompareView | null {
-    const view = readStorage(VIEW_KEY);
-
-    return view === 'a' || view === 'b' || view === 'c' ? view : null;
-}
-
-export function rememberCompareView(view: CompareView): void {
-    writeStorage(VIEW_KEY, view);
-}
-
-export function compareUrl(ids: number[], view?: CompareView): string {
-    return playersCompare.url({
-        query: {
-            ids: ids.join(','),
-            vista: view ?? rememberedCompareView() ?? undefined,
-        },
-    });
+export function compareUrl(ids: number[]): string {
+    return playersCompare.url({ query: { ids: ids.join(',') } });
 }
 
 /**

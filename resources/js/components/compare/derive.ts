@@ -206,6 +206,29 @@ export function derivePlayer(
     };
 }
 
+/** The figure the "Jornada a jornada" row shows in each week. */
+export type WeekMetric = 'points' | 'dazn' | 'minutes';
+
+/** A jornada's figure: null = didn't play (minutes still count 0'), and DAZN counts official ratings only. */
+export function weekValue(
+    score: ComparedPlayerScore | null,
+    metric: WeekMetric,
+): number | null {
+    if (!score) {
+        return null;
+    }
+
+    if (metric === 'minutes') {
+        return score.minutes;
+    }
+
+    if (score.minutes === 0) {
+        return null;
+    }
+
+    return metric === 'dazn' ? score.dazn_points : score.points;
+}
+
 /** Index of the unique best value — null on a tie or with fewer than two values (kit.js `winner`). */
 export function winner(
     values: (number | null)[],
@@ -337,7 +360,7 @@ export function suggestPlayers(
 export type TrackScale = 'linear' | 'sqrt' | 'log';
 export type TrackScope = 'all' | 'position';
 
-/** One strip of view B. `league` returns null for a row outside the "toda la liga" population. */
+/** One "En la liga" track. `league` returns null for a row outside the "toda la liga" population. */
 export interface TrackMetric {
     key: 'points' | 'average' | 'ppm' | 'start' | 'rise' | 'value';
     label: string;
@@ -493,6 +516,103 @@ export function jitter(id: number, salt: number): number {
     return x - Math.floor(x);
 }
 
+/** One league player in a track's dot cloud. */
+export interface TrackDot {
+    row: LeagueCloudRow;
+    value: number;
+    /** 0–100 along the track. */
+    x: number;
+    /** 0–26 inside the cloud. */
+    y: number;
+}
+
+export interface LeagueTrack {
+    metric: TrackMetric;
+    /** The population: the league without the compared players, plus their live values. */
+    values: number[];
+    domain: [number, number];
+    median: number | null;
+    dots: TrackDot[];
+    playerValues: (number | null)[];
+    best: number | null;
+}
+
+/**
+ * Every "En la liga" track. The league rows are cached for minutes, so the
+ * compared players are dropped from them and count with their live figures
+ * instead (in the population, the rank, the median and the domain).
+ */
+export function leagueTracks(
+    league: LeagueCloudRow[],
+    players: ComparedPlayer[],
+    derived: DerivedPlayer[],
+    currentWeek: number,
+    scope: TrackScope,
+): LeagueTrack[] {
+    const positions = players.map((player) => player.position);
+    const comparedIds = new Set(players.map((player) => player.id));
+    const others = league.filter((row) => !comparedIds.has(row.id));
+
+    return trackMetrics(currentWeek).map((metric, trackIndex) => {
+        const playerValues = players.map((player, index) =>
+            metric.player(player, derived[index]),
+        );
+        const live = playerValues.filter(
+            (value): value is number => value !== null,
+        );
+        const values = [
+            ...trackValues(others, metric, scope, positions),
+            ...live,
+        ];
+        const domain: [number, number] =
+            metric.fixed ??
+            (values.length === 0
+                ? [0, 1]
+                : [Math.min(...values), Math.max(...values)]);
+        const dots: TrackDot[] = [];
+
+        for (const row of others) {
+            const value = metric.league(row);
+
+            if (
+                value === null ||
+                (scope === 'position' && !positions.includes(row.position))
+            ) {
+                continue;
+            }
+
+            dots.push({
+                row,
+                value,
+                x: trackPosition(value, domain, metric.scale),
+                y: 3 + jitter(row.id, trackIndex) * 17,
+            });
+        }
+
+        return {
+            metric,
+            values,
+            domain,
+            median: medianOf(values),
+            dots,
+            playerValues,
+            best: metric.noBest ? null : winner(playerValues),
+        };
+    });
+}
+
+/** A compared player's place on a track: "N.º de M", null without a value. */
+export function trackRank(
+    track: LeagueTrack | undefined,
+    playerIndex: number,
+): { rank: number; of: number } | null {
+    const value = track?.playerValues[playerIndex] ?? null;
+
+    return track && value !== null
+        ? { rank: rankIn(track.values, value), of: track.values.length }
+        : null;
+}
+
 export type VerdictLens = 'buy' | 'sell' | 'start';
 
 export interface VerdictReason {
@@ -501,14 +621,19 @@ export interface VerdictReason {
     rest: string;
 }
 
+/** The coloured square of a text evidence ("Cómo conseguirlo", "Propiedad"): go, locked, not possible, or a warning. */
+export type VerdictTone = 'ok' | 'lock' | 'no' | 'warn';
+
 export interface VerdictEvidenceRow {
     label: string;
     hint: string | null;
     texts: string[];
     values: (number | null)[] | null;
     lowerIsBetter: boolean;
-    /** Fichar/Alinear underline the best; Vender marks the worst signal (the lowest value) in red. */
+    /** Fichar/Alinear mark the best; Vender marks the worst signal (the lowest value) in red. */
     mark: 'best' | 'worst' | null;
+    /** Text evidence only: a status square per player. */
+    tones?: VerdictTone[];
 }
 
 export interface Verdict {
@@ -593,6 +718,23 @@ function acquireText(
     }
 }
 
+/** Fichar: can he be bought now? Vender: is he exposed (listed, open clause) or safe (locked, shielded)? */
+function acquireTone(kind: AcquireKind, lens: 'buy' | 'sell'): VerdictTone {
+    if (lens === 'buy') {
+        if (kind === 'market' || kind === 'clause') {
+            return 'ok';
+        }
+
+        return kind === 'locked' || kind === 'shielded' ? 'lock' : 'no';
+    }
+
+    if (kind === 'market' || kind === 'clause') {
+        return 'warn';
+    }
+
+    return kind === 'locked' || kind === 'shielded' ? 'ok' : 'no';
+}
+
 function isFalling(player: ComparedPlayer): boolean {
     return player.trend !== null && !describeMarketTrend(player.trend).rising;
 }
@@ -671,6 +813,9 @@ function buyLens(
                 values: null,
                 lowerIsBetter: false,
                 mark: null,
+                tones: derived.map((item) =>
+                    acquireTone(item.acquire.kind, 'buy'),
+                ),
             },
             {
                 label: 'Pts / M€',
@@ -834,6 +979,9 @@ function sellLens(
                 values: null,
                 lowerIsBetter: false,
                 mark: null,
+                tones: derived.map((item) =>
+                    acquireTone(item.acquire.kind, 'sell'),
+                ),
             },
         ],
     };

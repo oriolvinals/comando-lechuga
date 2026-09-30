@@ -15,16 +15,13 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The player comparator (`/jugadores/comparar?ids=…&vista=a|b|c`). Every
- * heavy prop is a closure, so switching view or changing the selection is a
- * partial reload (`only`) that never recomputes what it doesn't need.
+ * The player comparator (`/jugadores/comparar?ids=…`). Every heavy prop is a
+ * closure, so changing the selection is a partial reload (`only`) that never
+ * recomputes what it doesn't need. An old link's `vista` is ignored.
  */
 class PlayerComparisonController extends Controller
 {
     public const int MAX_PLAYERS = 3;
-
-    /** @var list<string> */
-    public const array VIEWS = ['a', 'b', 'c'];
 
     public function show(Request $request, SeasonClock $clock, ComparedPlayers $comparedPlayers, LeagueCloud $leagueCloud): Response
     {
@@ -35,7 +32,6 @@ class PlayerComparisonController extends Controller
         return Inertia::render('players/compare', [
             'currentWeek' => $week,
             'totalWeeks' => $season->total_weeks,
-            'view' => $this->requestedView($request->query('vista')),
             'ids' => $ids,
             'players' => fn (): array => $comparedPlayers->forIds($ids, $season, $week),
             'league' => fn (): array => $leagueCloud->rows($season, $week),
@@ -93,11 +89,6 @@ class PlayerComparisonController extends Controller
         $valid = array_values(array_filter($ids, fn (int $id): bool => in_array($id, $existing, true)));
 
         return array_slice($valid, 0, self::MAX_PLAYERS);
-    }
-
-    private function requestedView(mixed $raw): string
-    {
-        return is_string($raw) && in_array($raw, self::VIEWS, true) ? $raw : 'a';
     }
 
     /**

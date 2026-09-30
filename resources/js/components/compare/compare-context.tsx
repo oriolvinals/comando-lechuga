@@ -22,6 +22,19 @@ export interface CompareContextValue {
     /** Opens the picker to add (null) or to replace the player in that slot. */
     openPicker: (replaceIndex: number | null) => void;
     announce: (text: string) => void;
+    /** The player lit on the whole page (hover or focus on anything of his), null for none. */
+    highlighted: number | null;
+    setHighlighted: (slot: number | null) => void;
+    /** Pointer and focus handlers that light that player while over his element. */
+    bindSlot: (slot: number) => SlotHighlightBinding;
+}
+
+export interface SlotHighlightBinding {
+    'data-hl-slot': number;
+    onPointerEnter: () => void;
+    onPointerLeave: () => void;
+    onFocus: () => void;
+    onBlur: () => void;
 }
 
 export const CompareContext = createContext<CompareContextValue | null>(null);

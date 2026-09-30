@@ -1,18 +1,22 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Check, Link2, Plus } from 'lucide-react';
-import type { ReactElement } from 'react';
+import type { CSSProperties, MouseEvent, ReactElement } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { HqChartTooltip } from '@/components/compare/chart-tooltip';
+import {
+    HqChartTooltip,
+    useSlotHighlight,
+} from '@/components/compare/chart-tooltip';
+import {
+    COMPARE_SECTIONS,
+    CompareBody,
+} from '@/components/compare/compare-body';
 import { CompareContext } from '@/components/compare/compare-context';
 import type { CompareContextValue } from '@/components/compare/compare-context';
 import { derivePlayer } from '@/components/compare/derive';
 import { ComparePickerDialog } from '@/components/compare/picker-dialog';
+import { ComparePlayerStrip } from '@/components/compare/player-strip';
 import { useComparison } from '@/components/compare/use-comparison';
 import { CompareVerdict } from '@/components/compare/verdict';
-import { CompareViewA } from '@/components/compare/view-a';
-import { CompareViewB } from '@/components/compare/view-b';
-import { CompareViewC } from '@/components/compare/view-c';
-import { CompareViewSwitch } from '@/components/compare/view-switch';
 import AppLayout from '@/layouts/app-layout';
 import { COMPARE_MAX } from '@/lib/compare-selection';
 import { useNow } from '@/lib/use-now';
@@ -20,7 +24,6 @@ import { cn } from '@/lib/utils';
 import { index as playersIndex } from '@/routes/players';
 import type {
     CompareManager,
-    CompareView,
     ComparedPlayer,
     LeagueCloudRow,
 } from '@/types/models';
@@ -28,7 +31,6 @@ import type {
 interface PlayersCompareProps {
     currentWeek: number;
     totalWeeks: number;
-    view: CompareView;
     ids: number[];
     players: ComparedPlayer[];
     league: LeagueCloudRow[];
@@ -46,7 +48,6 @@ type CopyState = 'idle' | 'done' | 'failed';
 export default function PlayersCompare({
     currentWeek,
     totalWeeks,
-    view,
     ids,
     players,
     league,
@@ -54,7 +55,11 @@ export default function PlayersCompare({
 }: PlayersCompareProps) {
     const { godMode } = usePage().props;
     const now = useNow(60_000);
-    const comparison = useComparison({ ids, view, players });
+    const comparison = useComparison({ ids, players });
+    const highlight = useSlotHighlight();
+    /** One column per player, plus the "Añadir" slot while there's room. */
+    const columns =
+        players.length < COMPARE_MAX ? players.length + 1 : COMPARE_MAX;
     const [picker, setPicker] = useState<PickerTarget | null>(null);
     const [announcement, setAnnouncement] = useState('');
     const [copyState, setCopyState] = useState<CopyState>('idle');
@@ -103,6 +108,19 @@ export default function PlayersCompare({
         remove: comparison.remove,
         openPicker,
         announce: setAnnouncement,
+        highlighted: highlight.highlighted,
+        setHighlighted: highlight.setHighlighted,
+        bindSlot: highlight.bind,
+    };
+
+    const jumpTo = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
+        event.preventDefault();
+        document.getElementById(id)?.scrollIntoView({
+            behavior: window.matchMedia('(prefers-reduced-motion: reduce)')
+                .matches
+                ? 'auto'
+                : 'smooth',
+        });
     };
 
     // "/" opens the picker here (the shell's player search would leave the page).
@@ -186,7 +204,7 @@ export default function PlayersCompare({
                         {announcement}
                     </p>
 
-                    <div className="flex flex-wrap items-end gap-x-6 gap-y-3.5 border-b border-hq-border-strong px-3.5 pt-4 pb-3 sm:px-5 sm:pt-[22px] sm:pb-4">
+                    <div className="flex flex-wrap items-start gap-x-6 gap-y-3.5 border-b border-hq-border-strong px-3.5 pt-4 pb-3 sm:items-end sm:px-5 sm:pt-[22px] sm:pb-4">
                         <div className="min-w-0">
                             <Link
                                 href={playersIndex().url}
@@ -201,83 +219,90 @@ export default function PlayersCompare({
                             <h1 className="font-display text-[26px] leading-[0.95] text-hq-paper uppercase sm:text-[34px]">
                                 Comparador
                             </h1>
+                            {players.length >= 2 && (
+                                <nav
+                                    aria-label="Secciones"
+                                    className="mt-2.5 hidden flex-wrap gap-x-3.5 gap-y-1 font-mono text-[11px] text-hq-moss-dim sm:flex"
+                                >
+                                    {COMPARE_SECTIONS.map((section) => (
+                                        <a
+                                            key={section.id}
+                                            href={`#${section.id}`}
+                                            onClick={(event) =>
+                                                jumpTo(event, section.id)
+                                            }
+                                            className="cursor-pointer hover:text-hq-lime"
+                                        >
+                                            {section.title}
+                                        </a>
+                                    ))}
+                                </nav>
+                            )}
                         </div>
-                        <div className="ml-auto flex w-full items-end gap-2.5 sm:w-auto">
-                            <CompareViewSwitch
-                                view={comparison.view}
-                                onChange={comparison.setView}
-                            />
-                            <button
-                                type="button"
-                                onClick={copyLink}
-                                aria-label={copyLabel}
-                                className={cn(
-                                    'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-[7px] border border-hq-border-strong px-3 font-mono text-[11px] font-bold tracking-[0.06em] whitespace-nowrap text-hq-moss uppercase transition-colors hover:border-hq-lime hover:text-hq-lime max-sm:w-11 max-sm:px-0',
-                                    copyState === 'done' &&
-                                        'border-hq-lime text-hq-lime',
-                                )}
-                            >
-                                {copyState === 'done' ? (
-                                    <Check
-                                        aria-hidden="true"
-                                        className="size-3.5"
-                                    />
-                                ) : (
-                                    <Link2
-                                        aria-hidden="true"
-                                        className="size-3.5"
-                                    />
-                                )}
-                                <span className="max-sm:sr-only">
-                                    {copyLabel}
-                                </span>
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={copyLink}
+                            aria-label={copyLabel}
+                            className={cn(
+                                'ml-auto inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-[7px] self-end border border-hq-border-strong px-3 font-mono text-[11px] font-bold tracking-[0.06em] whitespace-nowrap text-hq-moss uppercase transition-colors hover:border-hq-lime hover:text-hq-lime max-sm:h-11 max-sm:w-11 max-sm:px-0',
+                                copyState === 'done' &&
+                                    'border-hq-lime text-hq-lime',
+                            )}
+                        >
+                            {copyState === 'done' ? (
+                                <Check
+                                    aria-hidden="true"
+                                    className="size-3.5"
+                                />
+                            ) : (
+                                <Link2
+                                    aria-hidden="true"
+                                    className="size-3.5"
+                                />
+                            )}
+                            <span className="max-sm:sr-only">{copyLabel}</span>
+                        </button>
                     </div>
 
-                    <div
-                        id="cmp-panel"
-                        role="tabpanel"
-                        aria-labelledby={`cmp-tab-${comparison.view}`}
-                    >
-                        {players.length < 2 ? (
-                            <div className="flex flex-col items-start gap-3.5 px-4 pt-9 pb-12 font-mono text-[13px] leading-normal text-hq-moss">
-                                <p className="m-0">
-                                    {players.length === 0
-                                        ? 'No hay jugadores en el comparador. Elige 2 o 3 en la lista.'
-                                        : `Solo está ${players[0].name}. Añade otro jugador para comparar.`}
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {players.length === 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => openPicker(null)}
-                                            className="inline-flex h-11 cursor-pointer items-center gap-2 bg-hq-lime px-3.5 font-mono text-[11.5px] font-bold tracking-[0.06em] text-hq-ink uppercase sm:h-9"
-                                        >
-                                            <Plus
-                                                aria-hidden="true"
-                                                className="size-3.5"
-                                            />
-                                            Añadir jugador
-                                        </button>
-                                    )}
-                                    <Link
-                                        href={playersIndex().url}
-                                        className="inline-flex h-11 cursor-pointer items-center border border-hq-border-strong px-3.5 font-mono text-[11.5px] font-bold tracking-[0.06em] text-hq-moss uppercase hover:border-hq-lime hover:text-hq-lime sm:h-9"
+                    {players.length < 2 ? (
+                        <div className="flex flex-col items-start gap-3.5 px-4 pt-9 pb-12 font-mono text-[13px] leading-normal text-hq-moss">
+                            <p className="m-0">
+                                {players.length === 0
+                                    ? 'No hay jugadores en el comparador. Elige 2 o 3 en la lista.'
+                                    : `Solo está ${players[0].name}. Añade otro jugador para comparar.`}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {players.length === 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => openPicker(null)}
+                                        className="inline-flex h-11 cursor-pointer items-center gap-2 bg-hq-lime px-3.5 font-mono text-[11.5px] font-bold tracking-[0.06em] text-hq-ink uppercase sm:h-9"
                                     >
-                                        Elegir en la lista
-                                    </Link>
-                                </div>
+                                        <Plus
+                                            aria-hidden="true"
+                                            className="size-3.5"
+                                        />
+                                        Añadir jugador
+                                    </button>
+                                )}
+                                <Link
+                                    href={playersIndex().url}
+                                    className="inline-flex h-11 cursor-pointer items-center border border-hq-border-strong px-3.5 font-mono text-[11.5px] font-bold tracking-[0.06em] text-hq-moss uppercase hover:border-hq-lime hover:text-hq-lime sm:h-9"
+                                >
+                                    Elegir en la lista
+                                </Link>
                             </div>
-                        ) : (
-                            <>
-                                {godMode && <CompareVerdict />}
-                                {comparison.view === 'a' && <CompareViewA />}
-                                {comparison.view === 'b' && <CompareViewB />}
-                                {comparison.view === 'c' && <CompareViewC />}
-                            </>
-                        )}
-                    </div>
+                        </div>
+                    ) : (
+                        <div
+                            {...highlight.rootProps}
+                            style={{ '--cols': columns } as CSSProperties}
+                        >
+                            <ComparePlayerStrip />
+                            {godMode && <CompareVerdict />}
+                            <CompareBody />
+                        </div>
+                    )}
 
                     {picker && (
                         <ComparePickerDialog
