@@ -48,22 +48,22 @@ final class PrizeDataFingerprint
                 ->all(),
             'managers' => $this->summary(
                 SeasonManager::query()->where('season_id', $season->id),
-                ['sum(id * position)'],
+                ['sum(cast(id as signed) * position)'],
             ),
             'activities' => $this->summary(
                 Activity::query()->where('season_id', $season->id),
                 [
                     'max(occurred_at)',
                     'sum(coalesce(amount, 0))',
-                    'sum(id * length(type))',
-                    'sum(id * coalesce(player_id, 0))',
-                    'sum(id * coalesce(source_season_manager_id, 0))',
-                    'sum(id * coalesce(target_season_manager_id, 0))',
+                    'sum(cast(id as signed) * length(type))',
+                    'sum(cast(id as signed) * coalesce(player_id, 0))',
+                    'sum(cast(id as signed) * coalesce(source_season_manager_id, 0))',
+                    'sum(cast(id as signed) * coalesce(target_season_manager_id, 0))',
                 ],
             ),
             'lineups' => $this->summary(
                 ManagerLineup::query()->whereIn('id', $finishedLineupIds),
-                ['sum(id * coalesce(points, 0))', 'sum(id * week_number)'],
+                ['sum(cast(id as signed) * coalesce(points, 0))', 'sum(cast(id as signed) * week_number)'],
             ),
             'lineup_players' => $this->summary(
                 ManagerLineupPlayer::query()->whereIn('manager_lineup_id', $finishedLineupIds),
@@ -71,7 +71,7 @@ final class PrizeDataFingerprint
             ),
             'fixture_points' => $this->summary(
                 FixtureLineup::query()->whereIn('fixture_id', $finishedFixtureIds)->whereNotNull('player_id'),
-                ['sum(player_id)', 'sum(coalesce(fantasy_points, 0))', 'sum(id * coalesce(fantasy_points, 0))'],
+                ['sum(player_id)', 'sum(coalesce(fantasy_points, 0))', 'sum(cast(id as signed) * coalesce(fantasy_points, 0))'],
             ),
             'market_values' => $this->summary(
                 PlayerMarket::query(),
@@ -79,7 +79,7 @@ final class PrizeDataFingerprint
             ),
             'squads' => $this->summary(
                 ManagerPlayer::query()->whereIn('season_manager_id', $managerIds),
-                ['sum(player_id)', 'sum(season_manager_id * player_id)'],
+                ['sum(player_id)', 'sum(cast(season_manager_id as signed) * cast(player_id as signed))'],
             ),
         ];
 
