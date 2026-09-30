@@ -223,6 +223,17 @@ html {
     );
 }
 
+/* Frame around every god-mode block: thin muted amber/black hazard tape. */
+@utility hq-god-frame {
+    border: 3px solid transparent;
+    border-image: repeating-linear-gradient(
+            135deg,
+            rgba(255, 181, 71, 0.55) 0 7px,
+            var(--color-hq-ink) 7px 14px
+        )
+        3;
+}
+
 @utility hq-no-scrollbar {
     scrollbar-width: none;
 

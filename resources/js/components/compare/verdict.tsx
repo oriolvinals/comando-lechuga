@@ -53,7 +53,7 @@ export function CompareVerdict() {
     return (
         <section
             aria-labelledby="cmp-verdict-title"
-            className="border-b border-hq-border-strong bg-hq-panel"
+            className="bg-hq-panel hq-god-frame"
         >
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hq-border px-3.5 py-2.5 sm:px-4">
                 <h2 id="cmp-verdict-title" className="hq-label text-hq-lime">
@@ -220,11 +220,6 @@ export function CompareVerdict() {
                     );
                 })}
             </div>
-            <p className="m-0 px-3.5 py-2.5 font-mono text-[11px] text-hq-moss-dim sm:px-4">
-                Lectura rápida con los datos de las fichas, no una
-                recomendación. DAZN oficial · Titularidad FútbolFantasy ·
-                Dificultad 0–10.
-            </p>
         </section>
     );
 }

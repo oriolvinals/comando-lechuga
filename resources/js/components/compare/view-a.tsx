@@ -995,14 +995,6 @@ export function CompareViewA() {
                 )}
             </div>
             {renderedSections}
-            <p className="m-0 px-3.5 py-4 font-mono text-[11px] leading-normal text-hq-moss-dim sm:px-4">
-                Gana cada fila el mejor valor, sin empate. Valor y cláusula no
-                tienen ganador: depende de si compras o vendes. Calendario:
-                dificultad 0–10 según la fuerza del rival y si se juega en casa
-                (y sus bajas en el próximo partido); gana la media más baja de
-                los 3 próximos. Probabilidades: FútbolFantasy · DAZN: puntuación
-                oficial.
-            </p>
         </div>
     );
 }
