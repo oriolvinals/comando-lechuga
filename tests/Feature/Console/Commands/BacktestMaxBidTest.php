@@ -259,3 +259,45 @@ test('uses the walk-forward forecast as day 1 unless told not to, and reports th
         ->expectsOutputToContain('Previsión día 1: desactivada')
         ->assertSuccessful();
 });
+
+test('fits a confidence calibration on the first half, validates it on the second and writes nothing', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+
+    foreach ([150_000, 200_000, 250_000] as $pace) {
+        $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+
+        foreach (range(0, 24) as $day) {
+            PlayerMarket::factory()->create([
+                'player_id' => $player->id,
+                'date' => CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString(),
+                'value' => 10_000_000 + $day * $pace,
+            ]);
+        }
+    }
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-09-10', '--calibrate' => true, '--without-forecast' => true])
+        ->expectsOutputToContain('Calibración de la confianza')
+        ->expectsOutputToContain('P real 75 %')
+        ->assertSuccessful();
+
+    expect(PlayerMarket::query()->count())->toBe(75);
+});
+
+test('needs at least two reference days to calibrate', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+
+    foreach (range(0, 24) as $day) {
+        PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString(), 'value' => 10_000_000 + $day * 100_000]);
+    }
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-10', '--to' => '2026-09-10', '--calibrate' => true, '--without-forecast' => true])
+        ->expectsOutputToContain('al menos dos días')
+        ->assertFailed();
+});
