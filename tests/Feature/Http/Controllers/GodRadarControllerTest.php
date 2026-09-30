@@ -52,8 +52,9 @@ test('the radar url is a clean /radar', function (): void {
     expect(route('god.radar', absolute: false))->toBe('/radar');
 });
 
-test('without a snapshot every rival of the owner can be a payer', function (): void {
-    $third = SeasonManager::factory()->create(['season_id' => $this->season->id, 'position' => 3]);
+test('without a snapshot every rival of the owner can be a payer, in ranking order', function (): void {
+    $this->managers[1]->update(['position' => 4, 'fantasy_id' => 100_000_001]);
+    $third = SeasonManager::factory()->create(['season_id' => $this->season->id, 'position' => 3, 'fantasy_id' => 100_000_002]);
     ManagerPlayer::factory()->create(['season_manager_id' => $this->managers[0]->id, 'player_id' => Player::factory()->create()->id]);
 
     $this->withCookie('god_mode', '1')
@@ -62,8 +63,8 @@ test('without a snapshot every rival of the owner can be a payer', function (): 
             ->where('connectedManagerId', null)
             ->has('clauses', 1)
             ->where('clauses.0.owner_id', $this->managers[0]->id)
-            ->where('clauses.0.payers', fn ($payers): bool => collect($payers)->pluck('manager_id')->sort()->values()->all()
-                === [$this->managers[1]->id, $third->id]));
+            ->where('clauses.0.payers', fn ($payers): bool => collect($payers)->pluck('manager_id')->all()
+                === [$third->id, $this->managers[1]->id]));
 });
 
 test('the radar lists this season\'s manual clause raises with their cost', function (): void {

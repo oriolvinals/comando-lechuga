@@ -26,13 +26,13 @@ final class ManagerBalances
     ) {}
 
     /**
-     * @return array<int, ManagerBalance> season manager id => balance
+     * @return array<int, ManagerBalance> season manager id => balance, in ranking order
      */
     public function forSeason(Season $season, CarbonImmutable $now): array
     {
         $timezone = (string) config('app.timezone');
         $now = $now->setTimezone($timezone);
-        $managers = SeasonManager::query()->where('season_id', $season->id)->get();
+        $managers = SeasonManager::query()->where('season_id', $season->id)->orderBy('position')->orderBy('id')->get();
         $activity = $this->activitySums($season);
         $raises = $this->raiseDetector->forSeason($season, $now);
         $squad = $this->squadValues($season);
