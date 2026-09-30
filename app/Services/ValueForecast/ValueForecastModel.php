@@ -70,6 +70,12 @@ final class ValueForecastModel
         return $model;
     }
 
+    /** Whether any residual backs the interval and P(up); without them a forecast has neither. */
+    public function hasResiduals(): bool
+    {
+        return $this->residuals[0] !== [] || $this->residuals[1] !== [];
+    }
+
     public function predict(ValueForecastRow $row): ValueForecastPrediction
     {
         $x = Vector::of($row);
@@ -78,7 +84,7 @@ final class ValueForecastModel
         $pool = $this->pool($row);
 
         if ($pool === []) {
-            [$low, $high, $upProbability] = [$change, $change, $change > 0 ? 1.0 : 0.0];
+            [$low, $high, $upProbability] = [$change, $change, 0.5];
         } else {
             $low = max($this->parameters->floor, $change + self::quantile($pool, $this->parameters->lowQuantile));
             $high = $change + self::quantile($pool, $this->parameters->highQuantile);
@@ -189,10 +195,10 @@ final class ValueForecastModel
         $impacts = array_filter($impacts, fn (float $impact): bool => abs($impact) >= $this->parameters->minimumReasonImpact);
         uasort($impacts, fn (float $a, float $b): int => abs($b) <=> abs($a));
 
-        $reasons = [self::reason('inertia', $row->changeToday, $row)];
+        $reasons = [$this->reason('inertia', $row->changeToday, $row)];
 
         foreach (array_slice($impacts, 0, $this->parameters->maximumReasons, true) as $kind => $impact) {
-            $reasons[] = self::reason($kind, $impact, $row);
+            $reasons[] = $this->reason($kind, $impact, $row);
         }
 
         return $reasons;
@@ -201,12 +207,12 @@ final class ValueForecastModel
     /**
      * @return array{kind: string, label: string, impact_pct: float}
      */
-    private static function reason(string $kind, float $impact, ValueForecastRow $row): array
+    private function reason(string $kind, float $impact, ValueForecastRow $row): array
     {
-        return ['kind' => $kind, 'label' => self::label($kind, $impact, $row), 'impact_pct' => round($impact * 100, 2)];
+        return ['kind' => $kind, 'label' => $this->label($kind, $impact, $row), 'impact_pct' => round($impact * 100, 2)];
     }
 
-    private static function label(string $kind, float $impact, ValueForecastRow $row): string
+    private function label(string $kind, float $impact, ValueForecastRow $row): string
     {
         $day = fn (int $offset): string => CarbonImmutable::parse($row->referenceDate)->addDays($offset)->format('d/m');
 
@@ -223,7 +229,7 @@ final class ValueForecastModel
                 default => "Próximo partido en {$row->daysToNextMatch} días",
             },
             'baseline' => 'Nivel de valor',
-            'floor' => 'Suelo diario −3,46 %',
+            'floor' => 'Suelo diario '.str_replace('-', '−', number_format($this->parameters->floor * 100, 2, ',', '.')).' %',
             default => throw new LogicException("Unknown value forecast reason {$kind}."),
         };
     }

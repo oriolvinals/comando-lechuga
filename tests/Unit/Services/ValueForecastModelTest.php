@@ -36,6 +36,22 @@ test('never forecasts below the daily floor and says so', function (): void {
         ->and(array_column($prediction->reasons, 'kind'))->toContain('floor');
 });
 
+test('names the floor it was held at', function (): void {
+    $model = new ValueForecastModel([-0.05, ...array_fill(0, Vector::SIZE - 1, 0.0)], new ValueForecastParameters(floor: -0.025));
+    $reasons = $model->predict(forecastRow(['changeToday' => -0.02]))->reasons;
+
+    expect($reasons[array_search('floor', array_column($reasons, 'kind'), true)]['label'])->toBe('Suelo diario −2,50 %');
+});
+
+test('without residuals the interval is the forecast itself and P(up) is a coin toss', function (): void {
+    $model = forecastModel();
+    $prediction = $model->predict(forecastRow(['changeToday' => 0.02]));
+
+    expect($model->hasResiduals())->toBeFalse()
+        ->and($model->withResiduals([forecastRow(['nextValue' => 10_100_000])])->hasResiduals())->toBeTrue()
+        ->and([$prediction->lowChange, $prediction->highChange, $prediction->upProbability])->toBe([0.02, 0.02, 0.5]);
+});
+
 test('adds a great match yesterday as the top reason with its date and points', function (): void {
     $row = forecastRow([
         'referenceDate' => '2026-09-29',
