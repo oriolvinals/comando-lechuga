@@ -10,6 +10,8 @@ interface HqPageHeaderProps {
     /** Lime mono code above the title, e.g. "BASE DE DATOS". */
     code?: string;
     title: ReactNode;
+    /** One line of text under the title (e.g. the prizes page's summary). */
+    lede?: ReactNode;
     /** Right-aligned label/value pairs (wraps under the title on phones). */
     meta?: HqPageHeaderMetaItem[];
     className?: string;
@@ -19,6 +21,7 @@ interface HqPageHeaderProps {
 export function HqPageHeader({
     code,
     title,
+    lede,
     meta = [],
     className,
 }: HqPageHeaderProps) {
@@ -38,6 +41,11 @@ export function HqPageHeader({
                 <h1 className="font-display text-[26px] leading-[0.95] text-hq-paper uppercase sm:text-[34px]">
                     {title}
                 </h1>
+                {lede && (
+                    <p className="mt-2 max-w-[56ch] text-[13px] leading-snug text-hq-moss">
+                        {lede}
+                    </p>
+                )}
             </div>
             {meta.length > 0 && (
                 <dl className="flex w-full flex-wrap items-end justify-between gap-x-[18px] gap-y-2 font-mono text-xs leading-tight text-hq-moss sm:ml-auto sm:w-auto sm:justify-end">
