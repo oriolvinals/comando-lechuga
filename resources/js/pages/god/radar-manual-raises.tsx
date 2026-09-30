@@ -78,6 +78,8 @@ export function RadarManualRaises({
     const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(
         null,
     );
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
     const [amountMode, setAmountMode] = useState<AmountMode>('new_clause');
     const form = useForm(EMPTY_FORM);
     const amount =
@@ -172,8 +174,17 @@ export function RadarManualRaises({
     };
 
     const remove = (entry: RadarManualRaise) => {
+        const fail = () => {
+            setFailedDeleteId(entry.id);
+
+            return false;
+        };
+
+        setFailedDeleteId(null);
         router.delete(destroy(entry.id).url, {
             preserveScroll: true,
+            onStart: () => setDeletingId(entry.id),
+            onFinish: () => setDeletingId(null),
             onSuccess: () => {
                 setConfirmingDeleteId(null);
 
@@ -181,6 +192,11 @@ export function RadarManualRaises({
                     stopEditing();
                 }
             },
+            onError: () => {
+                fail();
+            },
+            onHttpException: fail,
+            onNetworkError: fail,
         });
     };
 
@@ -274,28 +290,29 @@ export function RadarManualRaises({
                         }
                     />
                 </Field>
-                <Field
-                    label={
-                        amountMode === 'new_clause'
-                            ? 'Nueva cláusula €'
-                            : 'Pagado €'
-                    }
-                    error={form.errors.new_clause ?? form.errors.paid}
-                    className="col-span-2 sm:col-span-3"
-                >
-                    <span className="flex gap-2">
-                        <input
-                            required
-                            inputMode="numeric"
-                            className={cn(FIELD_CLASS, 'tabular-nums')}
-                            value={amount ? formatNumber(Number(amount)) : ''}
-                            onChange={(event) =>
-                                form.setData(
-                                    amountMode,
-                                    event.target.value.replace(/\D/g, ''),
-                                )
-                            }
-                        />
+                <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-3">
+                    <span className="flex items-end gap-2">
+                        <label className="flex min-w-0 flex-1 flex-col gap-1">
+                            <span className="hq-label">
+                                {amountMode === 'new_clause'
+                                    ? 'Nueva cláusula €'
+                                    : 'Pagado €'}
+                            </span>
+                            <input
+                                required
+                                inputMode="numeric"
+                                className={cn(FIELD_CLASS, 'tabular-nums')}
+                                value={
+                                    amount ? formatNumber(Number(amount)) : ''
+                                }
+                                onChange={(event) =>
+                                    form.setData(
+                                        amountMode,
+                                        event.target.value.replace(/\D/g, ''),
+                                    )
+                                }
+                            />
+                        </label>
                         <span className="shrink-0">
                             <Segmented<AmountMode>
                                 label="Qué importe"
@@ -308,7 +325,15 @@ export function RadarManualRaises({
                             />
                         </span>
                     </span>
-                </Field>
+                    {(form.errors.new_clause ?? form.errors.paid) && (
+                        <span
+                            role="alert"
+                            className="font-mono text-[11px] text-hq-neg"
+                        >
+                            {form.errors.new_clause ?? form.errors.paid}
+                        </span>
+                    )}
+                </div>
                 <div className="col-span-2 flex gap-2 sm:order-last sm:col-span-1 sm:pt-[18px]">
                     <button
                         type="submit"
@@ -364,6 +389,14 @@ export function RadarManualRaises({
                                     {entry.note && ` · ${entry.note}`}
                                 </span>
                             </small>
+                            {failedDeleteId === entry.id && (
+                                <span
+                                    role="alert"
+                                    className="block font-mono text-[11px] text-hq-neg"
+                                >
+                                    No se ha podido borrar. Vuelve a probar.
+                                </span>
+                            )}
                         </span>
                         <span className="col-start-1 row-start-2 flex flex-wrap gap-x-3 font-mono text-xs tabular-nums sm:col-start-2 sm:row-start-1 sm:flex-col sm:items-end">
                             <span className="text-hq-paper">
@@ -380,7 +413,8 @@ export function RadarManualRaises({
                                     <button
                                         type="button"
                                         onClick={() => remove(entry)}
-                                        className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 border border-hq-neg px-2 font-mono text-[11px] font-bold text-hq-neg uppercase hover:bg-hq-neg hover:text-hq-ink"
+                                        disabled={deletingId === entry.id}
+                                        className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 border border-hq-neg px-2 font-mono text-[11px] font-bold text-hq-neg uppercase hover:bg-hq-neg hover:text-hq-ink disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <Trash2
                                             aria-hidden="true"
@@ -390,9 +424,10 @@ export function RadarManualRaises({
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() =>
-                                            setConfirmingDeleteId(null)
-                                        }
+                                        onClick={() => {
+                                            setConfirmingDeleteId(null);
+                                            setFailedDeleteId(null);
+                                        }}
                                         aria-label="No borrar"
                                         title="No borrar"
                                         className={cn(

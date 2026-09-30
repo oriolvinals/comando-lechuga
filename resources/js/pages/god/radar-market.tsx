@@ -182,9 +182,19 @@ export function RadarMarket({
                             </td>
                             <td className="px-2 text-right max-[860px]:p-0 max-[860px]:text-left">
                                 <span className="flex flex-col items-end gap-0.5 max-[860px]:items-start">
-                                    <b className="font-mono text-[13px] whitespace-nowrap tabular-nums">
-                                        {formatMillions(listing.price)}
-                                    </b>
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <b className="font-mono text-[13px] whitespace-nowrap tabular-nums">
+                                            {formatMillions(listing.price)}
+                                        </b>
+                                        {listing.bids > 0 && (
+                                            <span className="inline-flex shrink-0 items-center border border-hq-ember bg-hq-ember/10 px-[5px] py-[2px] font-mono text-[11px] leading-none font-bold tracking-[0.04em] whitespace-nowrap text-hq-ember">
+                                                {listing.bids}{' '}
+                                                {listing.bids === 1
+                                                    ? 'PUJA'
+                                                    : 'PUJAS'}
+                                            </span>
+                                        )}
+                                    </span>
                                     <OverValue
                                         overValue={
                                             listing.price - listing.value

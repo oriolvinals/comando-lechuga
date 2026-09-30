@@ -356,10 +356,7 @@ function UnlockRow({
                 </span>
                 <span className="flex min-w-0 flex-col gap-1 px-[7px] py-[5px]">
                     <em className={FIGURE_LABEL_CLASS}>Diferencia</em>
-                    <OverValue
-                        overValue={overValue}
-                        className="whitespace-normal"
-                    />
+                    <OverValue overValue={overValue} compact />
                     {overPercent > 0 && (
                         <span className="font-mono text-[11px] text-hq-moss-dim tabular-nums">
                             +{overPercent} %

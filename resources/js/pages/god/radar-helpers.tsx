@@ -15,23 +15,33 @@ export const PAYER_LEVEL_LABELS = {
 /** Under `formatMillions`' 0,01 M€ precision the difference would print as "0 M€". */
 const SAME_AS_VALUE_BELOW = 5_000;
 
-/** "+5,35 M€ sobre valor", "−1,2 M€ bajo valor" or "igual al valor". */
-function describeOverValue(overValue: number): string {
+/** "+5,35 M€ sobre valor", "−1,2 M€ bajo valor" or "igual al valor"; compact: "+5,35 M€", "−1,2 M€" or "= valor". */
+function describeOverValue(overValue: number, compact: boolean): string {
     if (Math.abs(overValue) < SAME_AS_VALUE_BELOW) {
-        return 'igual al valor';
+        return compact ? '= valor' : 'igual al valor';
     }
 
-    return overValue > 0
-        ? `+${formatMillions(overValue)} sobre valor`
-        : `−${formatMillions(-overValue)} bajo valor`;
+    const amount =
+        overValue > 0
+            ? `+${formatMillions(overValue)}`
+            : `−${formatMillions(-overValue)}`;
+
+    if (compact) {
+        return amount;
+    }
+
+    return overValue > 0 ? `${amount} sobre valor` : `${amount} bajo valor`;
 }
 
 /** An amount (clause or sale price) against the value: muted above it, lime at or below it. */
 export function OverValue({
     overValue,
+    compact = false,
     className,
 }: {
     overValue: number;
+    /** Only the amount, for narrow cells already labelled «Diferencia». */
+    compact?: boolean;
     className?: string;
 }) {
     return (
@@ -44,7 +54,7 @@ export function OverValue({
                 className,
             )}
         >
-            {describeOverValue(overValue)}
+            {describeOverValue(overValue, compact)}
         </span>
     );
 }
