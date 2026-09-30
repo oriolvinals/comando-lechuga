@@ -15,8 +15,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Turns a user-entered clause raise into (previous clause, new clause, raise).
- * Raising a clause by X costs X/2, so "paid" doubles into the raise.
+ * Turns a user-entered new clause into (previous clause, new clause, raise).
  * PRIVATE: never used by /api.
  */
 final class ManualClauseRaise
@@ -38,7 +37,7 @@ final class ManualClauseRaise
      *
      * @return array{previous: int, clause: int, raise: int}
      */
-    public function derive(int $managerId, int $playerId, CarbonImmutable $at, ?int $newClause, ?int $paid, ?int $ignoreId = null): array
+    public function derive(int $managerId, int $playerId, CarbonImmutable $at, int $newClause, ?int $ignoreId = null): array
     {
         $acquisition = Activity::query()
             ->where('source_season_manager_id', $managerId)
@@ -79,9 +78,7 @@ final class ManualClauseRaise
 
         $previous = max(ClauseRaiseDetector::MIN_CLAUSE, (int) $latestRow, (int) $acquisition?->amount, $maxValue, $initialClause);
 
-        $raise = $newClause !== null ? $newClause - $previous : (int) $paid * 2;
-
-        return ['previous' => $previous, 'clause' => $previous + $raise, 'raise' => $raise];
+        return ['previous' => $previous, 'clause' => $newClause, 'raise' => $newClause - $previous];
     }
 
     /**

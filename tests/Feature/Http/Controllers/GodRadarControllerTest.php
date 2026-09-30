@@ -90,7 +90,10 @@ test('the radar lists this season\'s manual clause raises with their cost', func
             ->has('manualRaises', 1)
             ->where('manualRaises.0', [
                 'id' => $manual->id,
-                'player' => ['id' => $player->id, 'nickname' => 'Otto'],
+                'player' => [
+                    'id' => $player->id, 'nickname' => 'Otto', 'image' => '', 'position' => $player->seasons()->sole()->position->value,
+                    'team_short_name' => $player->team->short_name, 'team_logo' => '',
+                ],
                 'manager_id' => $this->managers[0]->id,
                 'captured_at' => $manual->captured_at->toIso8601String(),
                 'clause' => 59_623_163,
@@ -148,5 +151,7 @@ test('the manual raise picker offers every player each manager owned this season
                     "{$first->id}:Titular:now",
                     "{$first->id}:Vendido:past",
                     "{$second->id}:Ibañez:now",
-                ])->sort()->values()->all()));
+                ])->sort()->values()->all())
+            ->where('raiseCandidates.0.player', fn ($player): bool => collect($player)->keys()->sort()->values()->all()
+                === ['id', 'image', 'nickname', 'position', 'team_logo', 'team_short_name']));
 });

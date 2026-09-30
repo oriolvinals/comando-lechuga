@@ -896,10 +896,20 @@ export interface RadarClause {
     payers: { manager_id: number; level: PayerLevel }[];
 }
 
+/** A player card in the manual raise picker (god-only). */
+export interface RadarPickerPlayer {
+    id: number;
+    nickname: string;
+    image: string;
+    position: PlayerPosition | null;
+    team_short_name: string;
+    team_logo: string;
+}
+
 /** A clause raise the user entered by hand (god-only). */
 export interface RadarManualRaise {
     id: number;
-    player: { id: number; nickname: string };
+    player: RadarPickerPlayer;
     manager_id: number;
     captured_at: string;
     clause: number;
@@ -911,6 +921,6 @@ export interface RadarManualRaise {
 /** A player a manager owned this season, offered by the manual raise picker (god-only). */
 export interface RadarRaiseCandidate {
     manager_id: number;
-    player: { id: number; nickname: string };
+    player: RadarPickerPlayer;
     current: boolean;
 }

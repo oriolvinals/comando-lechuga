@@ -47,8 +47,7 @@ class GodClauseRaiseController extends Controller
     }
 
     /**
-     * Validates the entry (exactly one of the new clause or the amount paid,
-     * for a manager of the current season who owned the player at that
+     * Validates the entry (the new clause, for a manager of the current season who owned the player at that
      * moment) and derives the row to store.
      * A manual row has no real lock to record: `buyout_clause_locked_until`
      * is the raise moment (a raise happens with the clause open) and
@@ -58,21 +57,19 @@ class GodClauseRaiseController extends Controller
      */
     private function attributes(Request $request, ManualClauseRaise $manualClauseRaise, ?int $ignoreId = null): array
     {
-        /** @var array{season_manager_id: int|string, player_id: int|string, captured_at: string, new_clause?: int|string|null, paid?: int|string|null, note?: string|null} $validated */
+        /** @var array{season_manager_id: int|string, player_id: int|string, captured_at: string, new_clause: int|string, note?: string|null} $validated */
         $validated = $request->validate([
             'season_manager_id' => ['required', 'integer', Rule::exists('season_managers', 'id')->where('season_id', Season::current()->id)],
             'player_id' => ['required', 'integer', 'exists:players,id'],
             'captured_at' => ['required', 'date', 'before_or_equal:now'],
-            'new_clause' => ['nullable', 'integer', 'min:1', 'required_without:paid', 'prohibits:paid'],
-            'paid' => ['nullable', 'integer', 'min:1', 'required_without:new_clause'],
+            'new_clause' => ['required', 'integer', 'min:1'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
         $managerId = (int) $validated['season_manager_id'];
         $playerId = (int) $validated['player_id'];
         $at = CarbonImmutable::parse($validated['captured_at']);
-        $newClause = isset($validated['new_clause']) ? (int) $validated['new_clause'] : null;
-        $paid = isset($validated['paid']) ? (int) $validated['paid'] : null;
+        $newClause = (int) $validated['new_clause'];
 
         if (!$manualClauseRaise->ownedAt($managerId, $playerId, $at)) {
             throw ValidationException::withMessages([
@@ -80,7 +77,7 @@ class GodClauseRaiseController extends Controller
             ]);
         }
 
-        $derived = $manualClauseRaise->derive($managerId, $playerId, $at, $newClause, $paid, $ignoreId);
+        $derived = $manualClauseRaise->derive($managerId, $playerId, $at, $newClause, $ignoreId);
 
         if ($derived['raise'] <= 0) {
             throw ValidationException::withMessages([

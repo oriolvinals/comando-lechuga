@@ -1,14 +1,26 @@
 import { router, useForm } from '@inertiajs/react';
-import { Check, NotebookPen, Pencil, Plus, Trash2, X } from 'lucide-react';
-import type { FormEvent, ReactNode } from 'react';
+import {
+    Check,
+    NotebookPen,
+    Pencil,
+    Plus,
+    Shield,
+    Trash2,
+    User,
+    X,
+} from 'lucide-react';
+import type { FormEvent, KeyboardEvent, ReactNode } from 'react';
 import { useState } from 'react';
+import { fold } from '@/components/compare/derive';
+import { EntityImage } from '@/components/entity-image';
+import { HqPositionTag } from '@/components/hq-position-tag';
 import {
     formatMatchDateTime,
     formatMillions,
     formatNumber,
 } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { ManagerSquare, Segmented } from '@/pages/god/radar-helpers';
+import { ManagerSquare } from '@/pages/god/radar-helpers';
 import { destroy, store, update } from '@/routes/god/clause-raises';
 import type {
     RadarManager,
@@ -63,8 +75,6 @@ function pickerGroups(
     ];
 }
 
-type AmountMode = 'new_clause' | 'paid';
-
 const FIELD_CLASS =
     'min-h-8 w-full min-w-0 border border-hq-border-strong bg-hq-panel px-2 font-mono text-xs text-hq-paper hover:border-hq-border-bright';
 
@@ -76,9 +86,191 @@ const EMPTY_FORM = {
     player_id: '',
     captured_at: '',
     new_clause: '',
-    paid: '',
     note: '',
 };
+
+function PlayerPhoto({ player }: { player: PickerPlayer }) {
+    return (
+        <EntityImage
+            src={player.image}
+            alt=""
+            fallback={User}
+            shape="square"
+            className="size-6 shrink-0 rounded-none border border-hq-border-strong bg-hq-panel-alt object-cover object-top text-hq-moss-dim"
+        />
+    );
+}
+
+function TeamCrest({ player }: { player: PickerPlayer }) {
+    return (
+        <EntityImage
+            src={player.team_logo}
+            alt=""
+            fallback={Shield}
+            shape="square"
+            className="size-4 shrink-0 rounded-none bg-transparent"
+        />
+    );
+}
+
+/** Text-filterable (accent-insensitive) player picker keeping the groups; arrows move, Enter picks, Escape closes. */
+function PlayerPicker({
+    groups,
+    value,
+    onChange,
+    error,
+    className,
+}: {
+    groups: { label: string; players: PickerPlayer[] }[];
+    value: string;
+    onChange: (playerId: string) => void;
+    error?: string;
+    className?: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const [active, setActive] = useState(0);
+    const needle = fold(query.trim());
+    const filtered = groups
+        .map((group) => ({
+            ...group,
+            players: group.players.filter((player) =>
+                fold(player.nickname).includes(needle),
+            ),
+        }))
+        .filter((group) => group.players.length > 0);
+    const options = filtered.flatMap((group) => group.players);
+    const selected = groups
+        .flatMap((group) => group.players)
+        .find((player) => String(player.id) === value);
+
+    const pick = (player: PickerPlayer) => {
+        onChange(String(player.id));
+        setOpen(false);
+    };
+
+    const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            setOpen(true);
+            setActive((index) =>
+                options.length === 0
+                    ? 0
+                    : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) %
+                      options.length,
+            );
+        } else if (event.key === 'Enter' && open && options[active]) {
+            event.preventDefault();
+            pick(options[active]);
+        } else if (event.key === 'Escape') {
+            setOpen(false);
+        }
+    };
+
+    return (
+        <div className={cn('relative flex min-w-0 flex-col gap-1', className)}>
+            <label className="flex min-w-0 flex-col gap-1">
+                <span className="hq-label">Jugador</span>
+                <span className="relative flex min-w-0 items-center">
+                    {selected && !open && (
+                        <span className="pointer-events-none absolute left-1 flex items-center">
+                            <PlayerPhoto player={selected} />
+                        </span>
+                    )}
+                    {selected && !open && (
+                        <span className="pointer-events-none absolute right-2 flex items-center gap-1 font-mono text-[11px] text-hq-moss-dim">
+                            <TeamCrest player={selected} />
+                            {selected.team_short_name}
+                        </span>
+                    )}
+                <input
+                    role="combobox"
+                    aria-expanded={open}
+                    aria-controls="radar-player-options"
+                    aria-autocomplete="list"
+                    autoComplete="off"
+                    placeholder="Buscar jugador"
+                    className={cn(
+                        FIELD_CLASS,
+                        'cursor-text',
+                        selected && !open && 'pr-16 pl-9',
+                    )}
+                    value={open ? query : (selected?.nickname ?? '')}
+                    onFocus={() => {
+                        setQuery('');
+                        setActive(0);
+                        setOpen(true);
+                    }}
+                    onBlur={() => setOpen(false)}
+                    onChange={(event) => {
+                        setQuery(event.target.value);
+                        setActive(0);
+                        setOpen(true);
+                    }}
+                    onKeyDown={onKeyDown}
+                />
+                </span>
+            </label>
+            {open && (
+                <div
+                    id="radar-player-options"
+                    role="listbox"
+                    className="absolute top-full right-0 left-0 z-20 max-h-60 overflow-y-auto border border-hq-border-bright bg-hq-panel"
+                >
+                    {options.length === 0 && (
+                        <span className="block px-2 py-2 font-mono text-xs text-hq-moss-dim">
+                            Sin resultados
+                        </span>
+                    )}
+                    {filtered.map((group) => (
+                        <div key={group.label} role="group" aria-label={group.label}>
+                            <span className="hq-label block px-2 pt-1.5 pb-0.5">
+                                {group.label}
+                            </span>
+                            {group.players.map((player) => (
+                                <div
+                                    key={player.id}
+                                    role="option"
+                                    aria-selected={String(player.id) === value}
+                                    onMouseDown={(event) => {
+                                        event.preventDefault();
+                                        pick(player);
+                                    }}
+                                    className={cn(
+                                        'cursor-pointer px-2 py-2 font-mono text-xs text-hq-paper hover:bg-hq-border',
+                                        options[active]?.id === player.id &&
+                                            'bg-hq-border',
+                                    )}
+                                >
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <PlayerPhoto player={player} />
+                                        <span className="min-w-0 flex-1 truncate font-sans text-[13px] font-bold">
+                                            {player.nickname}
+                                        </span>
+                                        {player.position && (
+                                            <HqPositionTag
+                                                position={player.position}
+                                            />
+                                        )}
+                                        <span className="flex shrink-0 items-center gap-1 text-[11px] text-hq-moss-dim">
+                                            <TeamCrest player={player} />
+                                            {player.team_short_name}
+                                        </span>
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            )}
+            {error && (
+                <span role="alert" className="font-mono text-[11px] text-hq-neg">
+                    {error}
+                </span>
+            )}
+        </div>
+    );
+}
 
 /** A labelled form field with its validation error under it. */
 function Field({
@@ -127,10 +319,7 @@ export function RadarManualRaises({
     );
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
-    const [amountMode, setAmountMode] = useState<AmountMode>('new_clause');
     const form = useForm(EMPTY_FORM);
-    const amount =
-        amountMode === 'new_clause' ? form.data.new_clause : form.data.paid;
     const selectedManagerId = Number(form.data.season_manager_id);
 
     const playerGroups = pickerGroups(
@@ -188,7 +377,6 @@ export function RadarManualRaises({
 
     const stopEditing = () => {
         setEditing(null);
-        setAmountMode('new_clause');
         form.setData(EMPTY_FORM);
         form.clearErrors();
     };
@@ -196,25 +384,18 @@ export function RadarManualRaises({
     const startEditing = (entry: RadarManualRaise) => {
         setEditing(entry);
         setConfirmingDeleteId(null);
-        setAmountMode('new_clause');
         form.clearErrors();
         form.setData({
             season_manager_id: String(entry.manager_id),
             player_id: String(entry.player.id),
             captured_at: entry.captured_at.slice(0, 16),
             new_clause: String(entry.clause),
-            paid: '',
             note: entry.note,
         });
     };
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        form.transform((data) => ({
-            ...data,
-            new_clause: amountMode === 'new_clause' ? data.new_clause : null,
-            paid: amountMode === 'paid' ? data.paid : null,
-        }));
 
         const options = {
             preserveScroll: true,
@@ -299,38 +480,13 @@ export function RadarManualRaises({
                         ))}
                     </select>
                 </Field>
-                <Field
-                    label="Jugador"
+                <PlayerPicker
+                    groups={playerGroups}
+                    value={form.data.player_id}
+                    onChange={changePlayer}
                     error={form.errors.player_id}
                     className="sm:col-span-2"
-                >
-                    <select
-                        required
-                        className={cn(FIELD_CLASS, 'cursor-pointer')}
-                        value={form.data.player_id}
-                        onChange={(event) => changePlayer(event.target.value)}
-                    >
-                        <option value="">—</option>
-                        {playerGroups.map(
-                            (group) =>
-                                group.players.length > 0 && (
-                                    <optgroup
-                                        key={group.label}
-                                        label={group.label}
-                                    >
-                                        {group.players.map((player) => (
-                                            <option
-                                                key={player.id}
-                                                value={player.id}
-                                            >
-                                                {player.nickname}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                ),
-                        )}
-                    </select>
-                </Field>
+                />
                 <Field
                     label="Cuándo"
                     error={form.errors.captured_at}
@@ -360,50 +516,28 @@ export function RadarManualRaises({
                         }
                     />
                 </Field>
-                <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-3">
-                    <span className="flex items-end gap-2">
-                        <label className="flex min-w-0 flex-1 flex-col gap-1">
-                            <span className="hq-label">
-                                {amountMode === 'new_clause'
-                                    ? 'Nueva cláusula €'
-                                    : 'Pagado €'}
-                            </span>
-                            <input
-                                required
-                                inputMode="numeric"
-                                className={cn(FIELD_CLASS, 'tabular-nums')}
-                                value={
-                                    amount ? formatNumber(Number(amount)) : ''
-                                }
-                                onChange={(event) =>
-                                    form.setData(
-                                        amountMode,
-                                        event.target.value.replace(/\D/g, ''),
-                                    )
-                                }
-                            />
-                        </label>
-                        <span className="shrink-0">
-                            <Segmented<AmountMode>
-                                label="Qué importe"
-                                value={amountMode}
-                                onChange={setAmountMode}
-                                options={[
-                                    { value: 'new_clause', label: 'Cláusula' },
-                                    { value: 'paid', label: 'Pagado' },
-                                ]}
-                            />
-                        </span>
-                    </span>
-                    {(form.errors.new_clause ?? form.errors.paid) && (
-                        <span
-                            role="alert"
-                            className="font-mono text-[11px] text-hq-neg"
-                        >
-                            {form.errors.new_clause ?? form.errors.paid}
-                        </span>
-                    )}
-                </div>
+                <Field
+                    label="Nueva cláusula €"
+                    error={form.errors.new_clause}
+                    className="col-span-2 sm:col-span-3"
+                >
+                    <input
+                        required
+                        inputMode="numeric"
+                        className={cn(FIELD_CLASS, 'tabular-nums')}
+                        value={
+                            form.data.new_clause
+                                ? formatNumber(Number(form.data.new_clause))
+                                : ''
+                        }
+                        onChange={(event) =>
+                            form.setData(
+                                'new_clause',
+                                event.target.value.replace(/\D/g, ''),
+                            )
+                        }
+                    />
+                </Field>
                 <div className="col-span-2 flex gap-2 sm:order-last sm:col-span-1 sm:pt-[18px]">
                     <button
                         type="submit"

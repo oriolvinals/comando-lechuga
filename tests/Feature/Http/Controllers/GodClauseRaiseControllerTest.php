@@ -41,19 +41,7 @@ test('storing a new clause derives the raise and its cost', function (): void {
         ->and($manual->note)->toBe('Otto, «hasta los 59 M»');
 });
 
-test('storing the amount paid derives the raise (×2) and the new clause', function (): void {
-    $this->withCookie('god_mode', '1')
-        ->post(route('god.clause-raises.store'), [
-            'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
-            'captured_at' => now()->subDay()->toDateTimeString(), 'paid' => 21_000_000,
-        ]);
-
-    $manual = ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->sole();
-    expect($manual->raise_amount)->toBe(42_000_000)
-        ->and($manual->buyout_clause)->toBe(59_623_163);
-});
-
-test('validation needs exactly one of new clause or paid, and a raise above the previous clause', function (array $payload, string $error): void {
+test('validation needs a new clause above the previous one; the amount paid is not an input', function (array $payload, string $error): void {
     $this->withCookie('god_mode', '1')
         ->post(route('god.clause-raises.store'), [
             'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
@@ -61,10 +49,10 @@ test('validation needs exactly one of new clause or paid, and a raise above the 
         ])
         ->assertSessionHasErrors($error);
 })->with([
-    'neither' => [[], 'new_clause'],
-    'both' => [['new_clause' => 60_000_000, 'paid' => 1_000_000], 'new_clause'],
+    'missing' => [[], 'new_clause'],
+    'only the amount paid' => [['paid' => 1_000_000], 'new_clause'],
     'not above the previous clause' => [['new_clause' => 17_000_000], 'new_clause'],
-    'negative paid' => [['paid' => -5], 'paid'],
+    'negative' => [['new_clause' => -5], 'new_clause'],
 ]);
 
 test('only manual rows can be edited or deleted', function (): void {
@@ -80,10 +68,11 @@ test('only manual rows can be edited or deleted', function (): void {
     $this->withCookie('god_mode', '1')
         ->put(route('god.clause-raises.update', $manual), [
             'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
-            'captured_at' => now()->subDay()->toDateTimeString(), 'paid' => 1_000_000, 'note' => 'corregido',
+            'captured_at' => now()->subDay()->toDateTimeString(), 'new_clause' => 20_000_000, 'note' => 'corregido',
         ])
         ->assertRedirect(route('god.radar'));
-    expect($manual->refresh()->raise_amount)->toBe(2_000_000);
+    expect($manual->refresh()->raise_amount)->toBe(2_376_837)
+        ->and($manual->note)->toBe('corregido');
 
     $this->withCookie('god_mode', '1')->delete(route('god.clause-raises.destroy', $manual))->assertRedirect(route('god.radar'));
     expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->count())->toBe(0);
@@ -95,13 +84,13 @@ test('editing and deleting are god only too', function (): void {
         'source' => ClauseSnapshotSource::Manual, 'buyout_clause' => 20_000_000, 'raise_amount' => 2_376_837,
     ]);
 
-    $this->put(route('god.clause-raises.update', $manual), ['paid' => 1_000_000])->assertNotFound();
+    $this->put(route('god.clause-raises.update', $manual), ['new_clause' => 20_000_000])->assertNotFound();
     $this->delete(route('god.clause-raises.destroy', $manual))->assertNotFound();
 
     expect($manual->refresh()->raise_amount)->toBe(2_376_837);
 });
 
-test('a raise entered by hand replaces the sync jump in the balances, even with a different figure', function (string $field, int $amount, string $time, int $sureRaises): void {
+test('a raise entered by hand replaces the sync jump in the balances, even with a different figure', function (int $amount, string $time, int $sureRaises): void {
     $player = Player::factory()->create();
     Activity::factory()->create([
         'season_id' => $this->season->id, 'type' => SeasonActivityType::Signing, 'source_season_manager_id' => $this->manager->id,
@@ -123,15 +112,15 @@ test('a raise entered by hand replaces the sync jump in the balances, even with 
     $this->withCookie('god_mode', '1')
         ->post(route('god.clause-raises.store'), [
             'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
-            'captured_at' => $day->setTimeFromTimeString($time)->toDateTimeString(), $field => $amount,
+            'captured_at' => $day->setTimeFromTimeString($time)->toDateTimeString(), 'new_clause' => $amount,
         ])
         ->assertSessionHasNoErrors();
 
     $balances = app(ManagerBalances::class)->forSeason($this->season, CarbonImmutable::now());
     expect($balances[$this->manager->id]->sureRaises)->toBe($sureRaises);
 })->with([
-    'paid, a figure other than the sync jump' => ['paid', 7_500_000, '20:30', 15_000_000],
-    'new clause, entered after the sync already saw it' => ['new_clause', 34_269_528, '21:30', 15_500_152],
+    'a figure other than the sync jump' => [33_769_376, '20:30', 15_000_000],
+    'entered after the sync already saw it' => [34_269_528, '21:30', 15_500_152],
 ]);
 
 test('the previous clause belongs to the current holding, not one before a sell-and-rebuy', function (): void {
@@ -163,7 +152,7 @@ test('the manager must belong to the current season', function (): void {
     $this->withCookie('god_mode', '1')
         ->post(route('god.clause-raises.store'), [
             'season_manager_id' => SeasonManager::factory()->create(['season_id' => $oldSeason->id])->id, 'player_id' => $this->player->id,
-            'captured_at' => now()->subDay()->toDateTimeString(), 'paid' => 1_000_000,
+            'captured_at' => now()->subDay()->toDateTimeString(), 'new_clause' => 20_000_000,
         ])
         ->assertSessionHasErrors('season_manager_id');
 });
@@ -223,7 +212,7 @@ test('a raise dated when the manager did not own the player is rejected, so it c
     $this->withCookie('god_mode', '1')
         ->post(route('god.clause-raises.store'), [
             'season_manager_id' => $this->manager->id, 'player_id' => $player->id,
-            'captured_at' => now()->subDays((int) $when)->toDateTimeString(), 'paid' => 1_000_000,
+            'captured_at' => now()->subDays((int) $when)->toDateTimeString(), 'new_clause' => 20_000_000,
         ])
         ->assertSessionHasErrors('captured_at');
 

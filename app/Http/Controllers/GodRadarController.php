@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\ClauseSnapshotSource;
 use App\Models\ManagerPlayerClauseSnapshot;
 use App\Models\Player;
+use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Services\ClauseRadar;
@@ -18,7 +19,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Inertia\Inertia;
 use Inertia\Response;
 
-/** The god-mode radar: cash ranges, squad values, totals and buyout clauses. PRIVATE: never mirrored in /api. */
+/**
+ * The god-mode radar: cash ranges, squad values, totals and buyout clauses. PRIVATE: never mirrored in /api.
+ *
+ * @phpstan-type PickerPlayer array{id: int, nickname: string, image: string, position: string|null, team_short_name: string, team_logo: string}
+ */
 class GodRadarController extends Controller
 {
     public function show(ManagerBalances $managerBalances, ClauseRadar $clauseRadar, ManagerShields $managerShields): Response
@@ -60,12 +65,12 @@ class GodRadarController extends Controller
      * manual raise picker: a raise can belong to a holding that already
      * ended. `current` marks the players he still owns.
      *
-     * @return list<array{manager_id: int, player: array{id: int, nickname: string}, current: bool}>
+     * @return list<array{manager_id: int, player: PickerPlayer, current: bool}>
      */
     private function raiseCandidates(Season $season): array
     {
         $history = SquadHistory::forSeason($season);
-        $nicknames = Player::query()->whereKey($history->playerIds())->pluck('nickname', 'id');
+        $players = $this->pickerPlayers($season, $history->playerIds());
         $candidates = [];
 
         foreach ($history->playerIds() as $playerId) {
@@ -73,7 +78,7 @@ class GodRadarController extends Controller
                 $key = "{$spell['season_manager_id']}:{$playerId}";
                 $candidates[$key] = [
                     'manager_id' => $spell['season_manager_id'],
-                    'player' => ['id' => $playerId, 'nickname' => (string) ($nicknames[$playerId] ?? '')],
+                    'player' => $players[$playerId],
                     'current' => ($candidates[$key]['current'] ?? false) || $spell['to'] === null,
                 ];
             }
@@ -83,22 +88,53 @@ class GodRadarController extends Controller
     }
 
     /**
+     * The picker's card of each player: name, photo, club and position.
+     *
+     * @param  array<int, int>  $playerIds
+     * @return array<int, PickerPlayer>
+     */
+    private function pickerPlayers(Season $season, array $playerIds): array
+    {
+        $positions = PlayerSeason::query()
+            ->where('season_id', $season->id)
+            ->whereIn('player_id', $playerIds)
+            ->get()
+            ->mapWithKeys(fn (PlayerSeason $playerSeason): array => [$playerSeason->player_id => $playerSeason->position->value]);
+        $players = [];
+
+        foreach (Player::query()->with('team')->whereKey($playerIds)->get() as $player) {
+            $players[$player->id] = [
+                'id' => $player->id,
+                'nickname' => $player->nickname,
+                'image' => $player->image ? asset('storage/'.$player->image) : '',
+                'position' => $positions[$player->id] ?? null,
+                'team_short_name' => $player->team->short_name,
+                'team_logo' => $player->team->logo ? asset('storage/'.$player->team->logo) : '',
+            ];
+        }
+
+        return $players;
+    }
+
+    /**
      * The clause raises the user entered by hand this season, newest first.
      *
-     * @return list<array{id: int, player: array{id: int, nickname: string}, manager_id: int, captured_at: string, clause: int, raise: int, cost: int, note: string}>
+     * @return list<array{id: int, player: PickerPlayer, manager_id: int, captured_at: string, clause: int, raise: int, cost: int, note: string}>
      */
     private function manualRaises(Season $season): array
     {
-        return array_values(ManagerPlayerClauseSnapshot::query()
+        $entries = ManagerPlayerClauseSnapshot::query()
             ->where('source', ClauseSnapshotSource::Manual)
             ->whereHas('seasonManager', fn (Builder $query): Builder => $query->where('season_id', $season->id))
-            ->with('player:id,nickname')
             ->orderByDesc('captured_at')
             ->orderByDesc('id')
-            ->get()
+            ->get();
+        $players = $this->pickerPlayers($season, $entries->map(fn (ManagerPlayerClauseSnapshot $entry): int => $entry->player_id)->unique()->values()->all());
+
+        return array_values($entries
             ->map(fn (ManagerPlayerClauseSnapshot $entry): array => [
                 'id' => $entry->id,
-                'player' => ['id' => $entry->player_id, 'nickname' => $entry->player instanceof Player ? $entry->player->nickname : ''],
+                'player' => $players[$entry->player_id],
                 'manager_id' => $entry->season_manager_id,
                 'captured_at' => $entry->captured_at->toIso8601String(),
                 'clause' => $entry->buyout_clause,
