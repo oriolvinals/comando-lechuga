@@ -36,3 +36,22 @@ test('sums what purchases and clauses paid above the market value of that day or
     expect($row->value)->toBe(23_100_000)
         ->and($row->context)->toBe(['worst' => ['player_id' => $camello->id, 'overpaid' => 23_100_000]]);
 });
+
+test('an operation on a day with a market value uses that day\'s value', function (): void {
+    $season = Season::factory()->create();
+    $manager = SeasonManager::factory()->create(['season_id' => $season->id]);
+    $player = Player::factory()->create();
+
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => '2026-08-14', 'value' => 10_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => '2026-08-15', 'value' => 20_000_000]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => '2026-08-16', 'value' => 40_000_000]);
+
+    Activity::factory()->create([
+        'season_id' => $season->id, 'type' => SeasonActivityType::Signing, 'source_season_manager_id' => $manager->id,
+        'target_season_manager_id' => null, 'player_id' => $player->id, 'amount' => 25_000_000, 'occurred_at' => '2026-08-15 23:30:00',
+    ]);
+
+    $row = collect(app(MostOverpaid::class)->rows($season))->first(fn (PrizeRow $row): bool => $row->seasonManagerId === $manager->id);
+
+    expect($row->value)->toBe(5_000_000);
+});

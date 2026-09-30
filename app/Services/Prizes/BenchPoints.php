@@ -25,9 +25,12 @@ final class BenchPoints implements PrizeCalculator
 
     public function __construct(private readonly SeasonClock $clock) {}
 
-    public function rows(Season $season): array
+    /**
+     * @param  SquadHistory|null  $history  the season's, when the caller already built it
+     */
+    public function rows(Season $season, ?SquadHistory $history = null): array
     {
-        $history = SquadHistory::forSeason($season);
+        $history ??= SquadHistory::forSeason($season);
         $managerIds = $this->managerIds($season);
         $totals = array_fill_keys($managerIds, 0);
 

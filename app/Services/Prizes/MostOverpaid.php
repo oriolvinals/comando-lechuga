@@ -14,7 +14,8 @@ use App\Services\Prizes\Concerns\ListsSeasonManagers;
  * What each manager paid above market value: purchases (`signing`, won
  * bids included) and clauses (`buyout`) only. The value is the player's
  * market value that day, or the last one before; an operation with no
- * earlier value does not count.
+ * earlier value does not count. Operations and values are both walked in
+ * date order, so each player's value history is read once.
  */
 final class MostOverpaid implements PrizeCalculator
 {
@@ -30,32 +31,49 @@ final class MostOverpaid implements PrizeCalculator
             ->orderBy('occurred_at')
             ->get(['source_season_manager_id', 'player_id', 'amount', 'occurred_at']);
 
-        $valuesByPlayer = PlayerMarket::query()
+        /** @var array<int, list<array{day: string, value: int}>> $historyByPlayer */
+        $historyByPlayer = [];
+
+        PlayerMarket::query()
+            ->toBase()
             ->whereIn('player_id', $operations->pluck('player_id')->unique())
+            ->orderBy('player_id')
             ->orderBy('date')
             ->get(['player_id', 'date', 'value'])
-            ->groupBy('player_id');
+            ->each(function (object $market) use (&$historyByPlayer): void {
+                $historyByPlayer[(int) $market->player_id][] = ['day' => substr((string) $market->date, 0, 10), 'value' => (int) $market->value];
+            });
+
+        /** @var array<int, array{next: int, value: int|null}> $cursors per player: his next unread value and the last one read */
+        $cursors = [];
 
         /** @var array<int, array{total: int, worst: array{player_id: int, overpaid: int}|null}> $totals */
         $totals = [];
 
         foreach ($operations as $operation) {
+            $playerId = (int) $operation->player_id;
             $day = $operation->occurred_at->toDateString();
-            $value = $valuesByPlayer->get($operation->player_id)
-                ?->filter(fn (PlayerMarket $market): bool => $market->date->toDateString() <= $day)
-                ->last()?->value;
+            $history = $historyByPlayer[$playerId] ?? [];
+            $cursor = $cursors[$playerId] ?? ['next' => 0, 'value' => null];
 
-            if ($value === null) {
+            while (isset($history[$cursor['next']]) && $history[$cursor['next']]['day'] <= $day) {
+                $cursor['value'] = $history[$cursor['next']]['value'];
+                $cursor['next']++;
+            }
+
+            $cursors[$playerId] = $cursor;
+
+            if ($cursor['value'] === null) {
                 continue;
             }
 
-            $overpaid = max(0, (int) $operation->amount - (int) $value);
+            $overpaid = max(0, (int) $operation->amount - $cursor['value']);
             $managerId = $operation->source_season_manager_id;
             $current = $totals[$managerId] ?? ['total' => 0, 'worst' => null];
             $current['total'] += $overpaid;
 
             if ($overpaid > 0 && ($current['worst'] === null || $overpaid > $current['worst']['overpaid'])) {
-                $current['worst'] = ['player_id' => (int) $operation->player_id, 'overpaid' => $overpaid];
+                $current['worst'] = ['player_id' => $playerId, 'overpaid' => $overpaid];
             }
 
             $totals[$managerId] = $current;

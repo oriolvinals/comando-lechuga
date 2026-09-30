@@ -16,15 +16,19 @@ use App\Services\Prizes\MostBuyoutsSuffered;
 use App\Services\Prizes\MostOverpaid;
 use App\Services\Prizes\MostOwnedPlayer;
 use App\Services\Prizes\PrizeCalculator;
+use App\Services\Prizes\PrizeDataFingerprint;
 use App\Services\Prizes\PrizeRanking;
 use App\Services\Prizes\PrizeRow;
+use App\Services\Prizes\SquadHistory;
 use App\Services\Prizes\SundayKing;
 use App\Services\Prizes\WorstWeeks;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * The current standing of every season-end prize, cached for 10 minutes
- * and forgotten after the syncs that change it (ForgetSeasonPrizeStandings).
+ * The current standing of every season-end prize, cached under a
+ * fingerprint of the data the prizes read (PrizeDataFingerprint): any change
+ * to it misses the cache. The TTL is only a safety net for what the
+ * fingerprint leaves out (player names and photos).
  *
  * @phpstan-import-type OwnedPlayerCandidate from MostOwnedPlayer
  *
@@ -34,7 +38,9 @@ use Illuminate\Support\Facades\Cache;
  */
 final class SeasonPrizeStandings
 {
-    public const int CACHE_MINUTES = 10;
+    public const int CACHE_MINUTES = 60;
+
+    public function __construct(private readonly PrizeDataFingerprint $fingerprint) {}
 
     /**
      * @return array{prizes: list<PrizeStanding>, players: array<int, PrizePlayer>}
@@ -42,17 +48,12 @@ final class SeasonPrizeStandings
     public function forSeason(Season $season): array
     {
         /** @var array{prizes: list<PrizeStanding>, players: array<int, PrizePlayer>} */
-        return Cache::remember(self::cacheKey($season), now()->addMinutes(self::CACHE_MINUTES), fn (): array => $this->build($season));
+        return Cache::remember($this->cacheKey($season), now()->addMinutes(self::CACHE_MINUTES), fn (): array => $this->build($season));
     }
 
-    public static function cacheKey(Season $season): string
+    public function cacheKey(Season $season): string
     {
-        return "season-prizes:{$season->id}";
-    }
-
-    public static function forget(Season $season): void
-    {
-        Cache::forget(self::cacheKey($season));
+        return "season-prizes:{$season->id}:{$this->fingerprint->forSeason($season)}";
     }
 
     /**
@@ -62,6 +63,7 @@ final class SeasonPrizeStandings
     {
         /** @var array<int, int> $positions */
         $positions = SeasonManager::query()->where('season_id', $season->id)->pluck('position', 'id')->all();
+        $history = SquadHistory::forSeason($season);
         $prizes = [];
 
         foreach (SeasonPrize::cases() as $prize) {
@@ -72,15 +74,16 @@ final class SeasonPrizeStandings
                 $ranked = [];
                 $leaders = [];
             } elseif ($calculator instanceof MostOwnedPlayer) {
-                $candidates = $calculator->candidates($season);
+                $candidates = $calculator->candidates($season, $history);
                 $winners = array_values(array_unique(array_merge([], ...array_column($candidates, 'winners'))));
-                $ranked = $this->rankAfterWinners($calculator->rows($season), $winners, $positions);
+                $ranked = $this->rankAfterWinners($calculator->rowsFor($season, $candidates), $winners, $positions);
                 $leaders = array_values(array_intersect(
                     array_map(fn (array $entry): int => $entry['row']->seasonManagerId, $ranked),
                     $winners,
                 ));
             } else {
-                $ranked = PrizeRanking::rank($calculator->rows($season), $positions);
+                $rows = $calculator instanceof BenchPoints ? $calculator->rows($season, $history) : $calculator->rows($season);
+                $ranked = PrizeRanking::rank($rows, $positions);
                 $leaders = PrizeRanking::leaders($ranked);
             }
 

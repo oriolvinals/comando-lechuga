@@ -24,11 +24,12 @@ final class MostOwnedPlayer implements PrizeCalculator
     public function __construct(private readonly SeasonClock $clock) {}
 
     /**
+     * @param  SquadHistory|null  $history  the season's, when the caller already built it
      * @return list<OwnedPlayerCandidate>
      */
-    public function candidates(Season $season): array
+    public function candidates(Season $season, ?SquadHistory $history = null): array
     {
-        $history = SquadHistory::forSeason($season);
+        $history ??= SquadHistory::forSeason($season);
         $ownersByPlayer = [];
 
         foreach ($history->playerIds() as $playerId) {
@@ -89,8 +90,17 @@ final class MostOwnedPlayer implements PrizeCalculator
 
     public function rows(Season $season): array
     {
-        $candidates = $this->candidates($season);
+        return $this->rowsFor($season, $this->candidates($season));
+    }
 
+    /**
+     * Each manager's best jornadas held among the given candidates.
+     *
+     * @param  list<OwnedPlayerCandidate>  $candidates
+     * @return list<PrizeRow>
+     */
+    public function rowsFor(Season $season, array $candidates): array
+    {
         return array_map(function (int $id) use ($candidates): PrizeRow {
             $best = null;
 
