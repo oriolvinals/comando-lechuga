@@ -83,3 +83,22 @@ test('leaves postponed matches out of the lineup lock', function (): void {
     expect($clock->lineupLock($season, 3)?->toDateTimeString())->toBe('2026-08-29 17:00:00')
         ->and($clock->lineupLock($season, 4))->toBeNull();
 });
+
+test('ignores a match brought forward into the previous jornada, however close to the main block', function (): void {
+    $season = Season::factory()->create();
+    jornadaAt($season, 9, ['2026-10-16 21:00:00', '2026-10-17 18:30:00', '2026-10-18 21:00:00', '2026-10-19 21:00:00']);
+    jornadaAt($season, 10, ['2026-10-18 16:15:00', '2026-10-19 21:00:00', '2026-10-20 19:00:00', '2026-10-21 21:30:00', '2026-10-22 21:30:00']);
+
+    $clock = app(SeasonClock::class);
+
+    expect($clock->lineupLock($season, 10)?->toDateTimeString())->toBe('2026-10-20 19:00:00')
+        ->and($clock->lineupLock($season, 9)?->toDateTimeString())->toBe('2026-10-16 21:00:00');
+});
+
+test('a match brought forward after the previous jornada ended locks the jornada', function (): void {
+    $season = Season::factory()->create();
+    jornadaAt($season, 9, ['2026-10-16 21:00:00', '2026-10-19 21:00:00']);
+    jornadaAt($season, 10, ['2026-10-21 19:00:00', '2026-10-23 21:00:00', '2026-10-24 18:30:00', '2026-10-25 21:00:00']);
+
+    expect(app(SeasonClock::class)->lineupLock($season, 10)?->toDateTimeString())->toBe('2026-10-21 19:00:00');
+});

@@ -41,7 +41,7 @@ export function PrizePassport({
                     </b>
                     <small className="mt-[3px] block font-mono text-[11px] text-hq-moss">
                         {candidate.owners.length} dueños · {candidate.transfers}{' '}
-                        traspasos
+                        {candidate.transfers === 1 ? 'traspaso' : 'traspasos'}
                         {candidate.on_market && ' · hoy en el mercado'}
                     </small>
                 </span>

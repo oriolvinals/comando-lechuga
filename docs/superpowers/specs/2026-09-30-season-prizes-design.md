@@ -17,7 +17,7 @@ Cerradas con el usuario. Mandan sobre cualquier otra parte de este documento.
    - El dueño del reparto inicial cuenta como primer dueño.
    - Una compra y venta el mismo día suma un dueño.
    - El tiempo con el jugador se cuenta en **jornadas**: es dueño de una jornada quien lo tiene en el cierre de la
-     alineación, que es el primer partido de la jornada (`SeasonClock::firstKickoff`).
+     alineación, que es el primer partido del bloque principal de la jornada (`SeasonClock::lineupLock`).
 6. **Solo cuentan las jornadas terminadas** (`SeasonClock::finishedWeekNumbers`), en todos los premios por jornada:
    Noche Mágica, Rey del Domingo, El Pupas, Matrimonio, El Banquillo de Oro y los tiempos del Fichaje del Pueblo.
 7. **Hueco libre.** Se enseña con sus 5 € y el texto «Sin categoría todavía».
@@ -186,11 +186,11 @@ Tres columnas en escritorio. En móvil pasan a tres bandas apiladas.
 | El Atracador | `count(activities type=buyout, source=mánager)`. Víctima favorita: el `target` más repetido. |
 | Rey del Domingo | Jornadas terminadas en las que sus puntos son el máximo de la jornada. Si empatan a puntos, cuentan todos. Solo jornadas con al menos 2 alineaciones. |
 | El Pupas | Igual, con el mínimo. |
-| El Banquillo de Oro | Por jornada terminada W: plantilla del mánager en el cierre de W (`SquadHistory::squadAt`) menos sus jugadores en `manager_lineup_players` de W. Se suman los `fixture_lineups.fantasy_points` (nulos = 0) de esos jugadores en partidos de W. «El que más dejó» es la mayor puntuación suelta. |
+| El Banquillo de Oro | Por jornada terminada W: plantilla del mánager en el cierre de W (`SeasonClock::lineupLock`, `SquadHistory::squadAt`) menos sus jugadores en `manager_lineup_players` de W. Se suman los `fixture_lineups.fantasy_points` (nulos = 0) de esos jugadores en partidos de W. «El que más dejó» es la mayor puntuación suelta. |
 | El Criminal | Suma de `max(0, importe − valor)` en `signing` y `buyout` con `source=mánager`. El valor es `player_markets.value` del día de la operación o el último anterior; sin valor, la operación no cuenta. «El peor» es la operación con más sobreprecio. |
 | La Víctima | `count(activities type=buyout, target=mánager)`. Verdugo: el `source` más repetido. |
 | Matrimonio | La racha más larga de jornadas terminadas **consecutivas** con el mismo jugador en su alineación. Con dos rachas iguales, la más reciente. «Sigue» si acaba en la última jornada terminada. |
-| El Fichaje del Pueblo | 1) Los jugadores con más dueños distintos según `SquadHistory` (dueño inicial incluido; una etapa de 0 jornadas también cuenta). 2) De cada uno, las jornadas terminadas que tuvo cada dueño (dueño en `firstKickoff` de la jornada). Gana quien más tuvo. |
+| El Fichaje del Pueblo | 1) Los jugadores con más dueños distintos según `SquadHistory` (dueño inicial incluido; una etapa de 0 jornadas también cuenta). 2) De cada uno, las jornadas terminadas que tuvo cada dueño (dueño en `lineupLock` de la jornada). Gana quien más tuvo. |
 
 ### Historial de plantillas (`SquadHistory`)
 
@@ -208,23 +208,34 @@ coincidir con `manager_players`.
 
 ## Arquitectura
 
-- **`App\Enums\SeasonPrize`** (TitleCase): `NocheMagica`, `ElAtracador`, `ReyDelDomingo`, `BanquilloDeOro`,
-  `ElCriminal`, `LaVictima`, `ElPupas`, `Matrimonio`, `FichajeDelPueblo`, `HuecoLibre`. Tiene `label()`, `amount()`
+- **`App\Enums\SeasonPrize`** (TitleCase, en inglés; las etiquetas visibles siguen en castellano): `BestNight` (Noche
+  Mágica), `MostBuyoutsMade` (El Atracador), `SundayKing` (Rey del Domingo), `BenchPoints` (El Banquillo de Oro),
+  `MostOverpaid` (El Criminal), `MostBuyoutsSuffered` (La Víctima), `WorstWeeks` (El Pupas), `LongestPartnership`
+  (Matrimonio), `MostOwnedPlayer` (El Fichaje del Pueblo), `OpenSlot` (Hueco libre). Tiene `label()`, `amount()`
   (euros), `rule()` e `isDecided()` (false solo en el hueco libre). El orden de los casos es el orden de la página.
 - **`App\Services\Prizes\PrizeCalculator`** (interfaz): `rows(Season): list<PrizeRow>`, una fila por mánager de la
   temporada.
 - **`App\Services\Prizes\PrizeRow`** (readonly): `seasonManagerId`, `value` (`int|float|null`) y `context` (array).
 - **`App\Services\Prizes\PrizeRanking`**: ordena, asigna puestos con empates y saca los líderes.
-- **Una calculadora por premio** en `app/Services/Prizes/`, más `SquadHistory`.
+- **Una calculadora por premio** en `app/Services/Prizes/` con el nombre del caso (`BestNight`, `MostBuyoutsMade`,
+  `SundayKing`, `BenchPoints`, `MostOverpaid`, `MostBuyoutsSuffered`, `WorstWeeks`, `LongestPartnership`,
+  `MostOwnedPlayer`), más `WeeklyExtremes` (compartida por `SundayKing` y `WorstWeeks`) y `SquadHistory`.
+- **Cierre de alineación de los premios:** `SeasonClock::lineupLock($season, $week)`, el primer partido del bloque
+  principal de la jornada. Los partidos se agrupan en bloques separados por más de `LINEUP_BLOCK_GAP_DAYS` (3 días); el
+  bloque con más partidos es el principal (el más antiguo si empatan). Un partido adelantado o aplazado semanas forma su
+  propio bloque y no cuenta, y un partido jugado antes de que acabe el bloque principal de la jornada anterior tampoco.
+  `BenchPoints` y `MostOwnedPlayer` lo usan; `firstKickoff` no cambia (escudos y API siguen con él).
 - **`App\Services\SeasonPrizeStandings`**: calcula los 10 y los devuelve listos para la página. Cada líder lleva su parte
-  en euros (`amount / líderes`), que queda preparada para la orden de cierre.
-  - **Caché:** `Cache::remember("season-prizes:{season}", 10 min)`.
-  - **Invalidación:** el listener `App\Listeners\ForgetSeasonPrizeStandings` escucha `CommandFinished` y hace `forget`
-    cuando termina bien alguna de estas órdenes: `season:sync-activity`, `season:sync-manager-lineups`,
-    `season:sync-manager-players`, `season:sync-current-match-data`, `season:sync-live-match-data`,
-    `season:sync-match-data-backfill`, `season:sync-fixtures`, `season:sync-week`, `season:sync-player-markets`.
-- **`PrizesController@index`**: carga el cálculo en caché, los mánagers y, para El Banquillo de Oro, los datos del modal
-  de cada «el que más dejó». Estos se leen fuera de la caché: son 7 filas.
+  en euros (`amount / líderes`), que queda preparada para la orden de cierre. Construye `SquadHistory` una vez y la
+  comparte con `BenchPoints` y `MostOwnedPlayer`.
+  - **Caché:** `Cache::remember("season-prizes:{season}:{huella}", 60 min)`. La huella
+    (`App\Services\Prizes\PrizeDataFingerprint`) resume con recuentos y sumas baratas todo lo que leen los premios:
+    jornadas terminadas y sus partidos (fecha y estado), posiciones de los mánagers, `activities` de la temporada,
+    `manager_lineups` y `manager_lineup_players` de las jornadas terminadas, `fixture_lineups` de esas jornadas,
+    `player_markets` y `manager_players`. Si algo cambia, la clave cambia y se recalcula; si no, se sirve la caché. El
+    TTL solo cubre lo que la huella no mira (nombre y foto de los jugadores). No hay listener de invalidación.
+- **`PrizesController@index`**: carga el cálculo en caché y los mánagers. «El que más dejó» de El Banquillo de Oro
+  lleva `fixture_id` y abre la hoja de la jornada (`useJornadaSheet().openMatch`), sin datos de modal propios.
 
 ## Convenciones
 
