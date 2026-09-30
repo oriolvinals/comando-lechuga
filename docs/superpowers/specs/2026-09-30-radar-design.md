@@ -18,14 +18,14 @@ investigación y los datos de partida están en `comando-lechuga-research/god-mo
 
 Dentro:
 - Snapshots de `teamMoney` (el saldo real de la cuenta conectada) y el historial de cláusulas (subidas exactas).
-- Modelo de balance: actividad, premio diario, subidas de cláusula, calibración y rango.
+- Modelo de balance: actividad, premio diario, subidas de cláusula y rango.
 - Radar de cláusulas: estado, oportunidad y quién puede pagar.
 - La página `/radar` (variante A · Consola), con el chip GOD como acceso.
 - Subidas de cláusula manuales (solo god), que mandan sobre la inferencia.
 - El test de privacidad.
 
 Fuera:
-- Una UI que muestre la tendencia de la calibración. La calibración en sí sí entra.
+- Aplicar a los rivales el residuo sin explicar de la cuenta conectada (ver «Residuo»).
 - Cualquier dato de esta página en la API pública.
 
 ## Acceso: solo modo god
@@ -69,12 +69,14 @@ actividad = 100.000.000
   `joined_league` no lleva importe, así que no resta nada.
 - El resultado puede ser negativo y **no se recorta a 0**.
 
-### Premio diario (se da por reclamado)
+### Premio diario (reclamado el 67 % de los días)
 
 - Vale **100.000 €** al día, y **200.000 €** en días de parón.
 - Los parones son una **lista fija de rangos inclusivos**, fácil de ampliar. Hoy solo hay uno: `2026-09-21 → 2026-10-04`.
-- El usuario dice que normalmente lo reclaman, así que **se suma en los dos extremos**. Cuenta cada día desde el
-  `joined_league` del mánager (incluido) hasta hoy. Sin `joined_league`, desde el `start_date` de la temporada.
+- El usuario estima que se reclama **el 67 % de los días**, así que se suma **0,67 × el premio del calendario** en los
+  dos extremos (`ManagerBalances::DAILY_BONUS_CLAIM_RATE`). El calendario (`DailyBonusCalendar`) sigue siendo exacto:
+  cuenta cada día desde el `joined_league` del mánager (incluido) hasta hoy. Sin `joined_league`, desde el `start_date`
+  de la temporada.
 - Comprobación: el saldo real de DUBI subió exactamente 200.000 € entre el 29-09 y el 30-09.
 
 ### Subidas de cláusula (subir X cuesta X/2)
@@ -96,7 +98,9 @@ subida.
 **Hacia atrás (inferencia, validada con dos casos que da el usuario).**
 - **Titularidad**:
   - Tras una compra, la base es `máx(precio pagado, 1 M)`.
-  - En la plantilla inicial, la base es `máx(1 M, valor el día de alta)` y la fecha de inicio es el `joined_league`.
+  - En la plantilla inicial, la base es `máx(1 M, 5/3 × valor el día de alta)` y la fecha de inicio es el
+    `joined_league` (16 de los 19 pagos de cláusula de jugadores iniciales dan exactamente 5/3 × ese valor, ±1 €). Sin
+    historial de mercado ese día, la titularidad se salta.
   - Una venta termina la titularidad.
 - **Cláusula automática**: sigue al valor hacia arriba y nunca baja:
   `ref(t) = máx(base, valor máximo de la compra a t)` (`player_markets`).
@@ -111,18 +115,18 @@ subida.
   El primer ancla donde `cláusula − ref(ancla)` sea múltiplo de 100.000 € (±1.000) da una **subida segura** de ese
   importe. Si ninguna encaja, es una **subida posible** de `cláusula − ref(desbloqueo)`. Si la cláusula solo sigue al
   valor, no hay subida.
-- **Clausulazos**: se usa la cláusula de la víctima en ese momento. Un `buyout` **dentro del bloqueo de 14 días de la
-  víctima** o por un **total redondo** (múltiplo de 100.000 € ±1) es una **oferta aceptada entre mánagers**, no un pago
-  de cláusula, y se descarta. Con los datos de hoy son 25 de 91, y 17 de ellos ocurrieron dentro del bloqueo.
+- **Clausulazos**: se usa la cláusula de la víctima en ese momento. Solo un `buyout` **dentro del bloqueo de 14 días de
+  la víctima** es una **oferta aceptada entre mánagers**, no un pago de cláusula, y se descarta. Fuera del bloqueo el
+  importe pagado *es* la cláusula, aunque sea un total redondo: los mánagers suben las cláusulas a cifras redondas
+  (Zubeldia 14 M, Fran García 35.999.999, Dituro 19 M).
 - **Casos de validación**:
   - **Koski** (Gauchitos): comprado el 10-09 a 13.765.656; desbloqueo el 24-09; cláusula al desbloquear 18.769.376;
     ahora 34.269.528. Da **+15.500.152** (coste 7,75 M).
   - **Otto** (CID): clausulado el 14-09 a 16.667.688; desbloqueo el 28-09 a las 00:54; cláusula al desbloquear
     17.623.163 (valor del 27-09); ahora 59.623.163. Da **+42.000.000** (coste 21 M), que cuadra con «hasta los 59 M».
-  - **DUBI**, el control de falsos positivos: **0 subidas seguras** y 4 posibles (10,1 M, solo en el extremo
-    pesimista). El resto eran ofertas.
+  - **Zubeldia** (Duke): comprado a 12 M; DUBI pagó 14 M fuera del bloqueo → subida segura de 2 M de Duke.
+  - **Marc Roca** (Duke): valor del 26-09 17.614.010, cláusula 24.314.010 → **+6,7 M** seguros (coste 3,35 M).
 - **Límites**:
-  - la base de la plantilla inicial es una suposición;
   - las subidas deshechas con una venta no dejan rastro si no se clausuló al jugador;
   - el umbral «redondo» puede fallar alguna vez: por azar pasa ~2 % por ancla.
 
@@ -144,24 +148,21 @@ añada.»
 - Rutas solo god: `POST /radar/subidas`, `PUT/DELETE /radar/subidas/{id}`. Solo se pueden editar o borrar las filas
   `manual`. Nunca aparecen en la API ni en `api-docs.md`, y el test de privacidad lo cubre.
 
-### Rango, calibración y saldo real
+### Rango, saldo real y residuo
 
 ```
-base      = actividad + premio diario + calibración
+base      = actividad + 0,67 × premio diario
 pesimista = base − (seguras + posibles)/2
 optimista = base − seguras/2
 medio     = (pesimista + optimista)/2
 ```
 
 - **Cuenta conectada**: es el mánager con el snapshot de `teamMoney` más reciente, hoy DUBI. Su saldo real es el último
-  snapshot más la actividad posterior. En ese caso pesimista = optimista = real.
-- **Calibración**: el saldo real de DUBI queda **+5,5 M por encima del modelo**, y el usuario confirma que no hay otros
-  ingresos. Ese residuo se trata como un ingreso sistemático que no vemos:
-  `tasa = (real − (actividad + premio − seguras/2)) / días en la liga` de la cuenta conectada (hoy ≈ +89.000 €/día). A
-  cada rival se le suma `tasa × sus días en la liga`.
-
-  Se recalcula en cada visita a partir del último snapshot horario, así que sigue la tendencia. Puede ser negativa. Sin
-  snapshot, no hay calibración.
+  snapshot más la actividad posterior, menos la mitad de las subidas seguras posteriores al snapshot. En ese caso
+  pesimista = optimista = real.
+- **Residuo**: `real − (actividad + premio − seguras/2)` de la cuenta conectada. Se calcula y se guarda
+  (`ManagerBalance::residual`) para estudiarlo más adelante, pero **no se aplica a los rivales** ni se muestra: sale de
+  un solo snapshot, no tiene causa conocida y es sensible a errores. Sin snapshot, no hay residuo.
 - **Valor de plantilla**: la suma de `player_seasons.market_value` de sus jugadores en `manager_players`.
 - **Total** = saldo + plantilla. Los rivales lo muestran como rango con «~» delante del punto medio; la cuenta conectada,
   como dato real.
@@ -172,7 +173,7 @@ medio     = (pesimista + optimista)/2
   mánager. `teamMoney` solo viene relleno para la cuenta autenticada.
 - **Tabla nueva `manager_balance_snapshots`**: `season_manager_id`, `money` y `captured_at`, como mucho una fila por
   mánager y hora.
-- **Usos**: el saldo real de la cuenta conectada y la calibración.
+- **Usos**: el saldo real de la cuenta conectada y su residuo.
 
 ### Aproximación de hoy (30-09-2026)
 
@@ -215,8 +216,8 @@ ayer (real 255,2 con el feed completo).
 - **Aviso** en una línea: «Balances estimados: rango pesimista – optimista; solo el tuyo es real.» Al lado, un
   desplegable compacto «Qué no sabemos» con tres puntos:
   - qué subidas son reales;
-  - si todos reclaman el premio diario (se da por reclamado);
-  - qué es la parte del saldo real que el modelo no explica (se reparte a los rivales como calibración).
+  - qué días reclama cada uno el premio diario (se cuenta el 67 %);
+  - qué es la parte del saldo real que el modelo no explica (no se suma a los rivales).
 
   Sin notas al pie.
 - **Balances**:
@@ -279,6 +280,6 @@ suma de la plantilla. El radar usa la suma, que es la misma cifra.
 ## Dudas abiertas (con el valor por defecto que se aplica)
 
 - **Subidas de DUBI**: dice «no subo mucho». El detector le encuentra 0 seguras y 4 posibles (10,1 M, solo en el extremo pesimista). Si alguna es real, puede meterla a mano.
-- **Los +5,5 M sin explicar de DUBI**: por defecto, calibración por día en la liga, que se refina con los snapshots.
+- **Los +5,5 M sin explicar de DUBI**: se guardan como residuo interno y no se aplican a los rivales.
 - **Colores casi idénticos**: DUBI (#2f5fd8) y CID (#3d7dfd) en azul, DukeBlack9 (#7a2fd6) y planuky (#5c1f8a) en
   morado. Por defecto, **la inicial del mánager dentro del cuadrado** allí donde se ven juntos (pueden pagar, eje común).

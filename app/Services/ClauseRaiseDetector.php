@@ -17,13 +17,15 @@ use Illuminate\Support\Collection;
 /**
  * Money managers spent raising buyout clauses (cost = half the raise).
  * Exact from the clause history when it exists; otherwise inferred:
- * after a purchase the clause is max(price, 1 M), follows the value up and
- * never goes down. Owners raise when the clause opens (unlock) or when a
- * shield expires, by a round amount, so a round excess at one of those
- * anchors is a certain raise and anything else a possible one. Buyouts
- * inside the victim's lock or for a round total are accepted offers, not
- * clause payments. Raises the user entered by hand always count, and replace
- * what the history or the inference would say for their holding.
+ * after a purchase the clause is max(price, 1 M), and an initial-squad
+ * player's is 5/3 of his value on the joining day; either follows the value
+ * up and never goes down. Owners raise when the clause opens (unlock) or when
+ * a shield expires, by a round amount, so a round excess at one of those
+ * anchors is a certain raise and anything else a possible one. Only a buyout
+ * inside the victim's lock is an accepted offer; after it, the amount paid is
+ * the clause, whatever its shape (owners raise to round totals too). Raises
+ * the user entered by hand always count, and replace what the history or the
+ * inference would say for their holding.
  * PRIVATE: never exposed through /api.
  *
  * @phpstan-type Raises array{sure: int, possible: int}
@@ -40,8 +42,16 @@ final class ClauseRaiseDetector
 
     public const float NOISE_RATIO = 0.005;
 
+    /** An initial-squad clause starts at this multiple of the player's value on the joining day. */
+    public const int INITIAL_CLAUSE_NUMERATOR = 5;
+
+    public const int INITIAL_CLAUSE_DENOMINATOR = 3;
+
     /** @var array<int, Raises> */
     private array $raises = [];
+
+    /** @var array<int, list<array{at: CarbonImmutable, raise: int}>> manager id => each certain raise and its moment */
+    private array $sureMoments = [];
 
     /** @var array<int, list<array{0: string, 1: int}>> player id => [Y-m-d, value] ordered by date */
     private array $values = [];
@@ -64,6 +74,7 @@ final class ClauseRaiseDetector
     public function forSeason(Season $season, CarbonImmutable $now): array
     {
         $this->raises = [];
+        $this->sureMoments = [];
         $this->lastMoveAt = [];
         $activities = Activity::query()->where('season_id', $season->id)->orderBy('occurred_at')->orderBy('id')->get();
         $this->joinedAt = $activities
@@ -96,7 +107,7 @@ final class ClauseRaiseDetector
 
         foreach ($this->history as $rows) {
             $rows->where('source', ClauseSnapshotSource::Manual)
-                ->each(fn (ManagerPlayerClauseSnapshot $entry) => $this->add($entry->season_manager_id, 'sure', $entry->raise_amount));
+                ->each(fn (ManagerPlayerClauseSnapshot $entry) => $this->add($entry->season_manager_id, 'sure', $entry->raise_amount, $entry->captured_at));
         }
 
         /** @var array<int, array{manager_id: int, base: int, since: CarbonImmutable}> $holdings */
@@ -110,7 +121,7 @@ final class ClauseRaiseDetector
                 $victimId = $move->target_season_manager_id;
                 $holding = $this->holding($holdings[$playerId] ?? null, $victimId, $playerId, $season);
 
-                if ($holding !== null && !$this->isOffer($amount, $holding['since'], $move->occurred_at)) {
+                if ($holding !== null && !$this->isOffer($holding['since'], $move->occurred_at)) {
                     $this->holdingRaises($victimId, $playerId, $holding['base'], $holding['since'], $amount, $move->occurred_at);
                 }
             }
@@ -139,10 +150,11 @@ final class ClauseRaiseDetector
 
     /**
      * The manager's current holding of the player: the last purchase when it is
-     * his; otherwise an initial-squad holding since he joined (or since the
-     * player's last move, whichever is later) with its value that day as base.
-     * Null when that value is unknown: without market history any clause would
-     * read as a phantom raise.
+     * his; otherwise an initial-squad holding since he joined, whose clause
+     * starts at 5/3 of the player's value that day. When the player moved after
+     * the joining (a gap in the feed), the holding starts at that move instead,
+     * with the value that day as base. Null when that value is unknown: without
+     * market history any clause would read as a phantom raise.
      *
      * @param  array{manager_id: int, base: int, since: CarbonImmutable}|null  $holding
      * @return array{base: int, since: CarbonImmutable}|null
@@ -154,20 +166,28 @@ final class ClauseRaiseDetector
         }
 
         $since = $this->joinedAt[$managerId] ?? $season->start_date;
+        $isInitialSquad = true;
 
         if (isset($this->lastMoveAt[$playerId]) && $this->lastMoveAt[$playerId]->greaterThan($since)) {
             $since = $this->lastMoveAt[$playerId];
+            $isInitialSquad = false;
         }
 
         $value = $this->valueAt($playerId, $since);
 
-        return $value === null ? null : ['base' => max(self::MIN_CLAUSE, $value), 'since' => $since];
+        if ($value === null) {
+            return null;
+        }
+
+        $base = $isInitialSquad ? intdiv($value * self::INITIAL_CLAUSE_NUMERATOR, self::INITIAL_CLAUSE_DENOMINATOR) : $value;
+
+        return ['base' => max(self::MIN_CLAUSE, $base), 'since' => $since];
     }
 
-    /** An accepted offer between managers: inside the victim's lock, or a round total. */
-    private function isOffer(int $amount, CarbonImmutable $since, CarbonImmutable $at): bool
+    /** An accepted offer between managers: only a buyout inside the victim's lock. */
+    private function isOffer(CarbonImmutable $since, CarbonImmutable $at): bool
     {
-        return $at->lessThan($since->addDays(self::LOCK_DAYS)) || $this->isRound($amount, 1);
+        return $at->lessThan($since->addDays(self::LOCK_DAYS));
     }
 
     /**
@@ -239,7 +259,7 @@ final class ClauseRaiseDetector
         }
 
         foreach ($jumps as $candidate) {
-            $this->add($managerId, 'sure', $candidate['jump']);
+            $this->add($managerId, 'sure', $candidate['jump'], $candidate['at']);
         }
     }
 
@@ -281,13 +301,14 @@ final class ClauseRaiseDetector
             $raise = $clause - $this->reference($playerId, $base, $since, $anchor);
 
             if ($raise > $clause * self::NOISE_RATIO && $this->isRound($raise, self::ROUND_TOLERANCE)) {
-                $this->add($managerId, 'sure', $raise);
+                $this->add($managerId, 'sure', $raise, $anchor);
 
                 return;
             }
         }
 
-        $this->add($managerId, 'possible', $clause - $this->reference($playerId, $base, $since, $unlock->lessThan($at) ? $unlock : $at));
+        $moment = $unlock->lessThan($at) ? $unlock : $at;
+        $this->add($managerId, 'possible', $clause - $this->reference($playerId, $base, $since, $moment), $moment);
     }
 
     /** The automatic clause at a moment: the base, raised by the highest value since the holding began. */
@@ -324,11 +345,27 @@ final class ClauseRaiseDetector
         return abs($amount - (int) round($amount / self::ROUND_STEP) * self::ROUND_STEP) <= $tolerance;
     }
 
+    /**
+     * The certain raises of the last forSeason() run that happened after a
+     * moment: they are not in a cash snapshot captured then.
+     */
+    public function sureRaisedAfter(int $managerId, CarbonImmutable $moment): int
+    {
+        return array_sum(array_map(
+            fn (array $sure): int => $sure['at']->greaterThan($moment) ? $sure['raise'] : 0,
+            $this->sureMoments[$managerId] ?? [],
+        ));
+    }
+
     /** @param 'sure'|'possible' $bucket */
-    private function add(int $managerId, string $bucket, int $raise): void
+    private function add(int $managerId, string $bucket, int $raise, CarbonImmutable $at): void
     {
         $this->raises[$managerId] ??= ['sure' => 0, 'possible' => 0];
         $this->raises[$managerId][$bucket] += $raise;
+
+        if ($bucket === 'sure') {
+            $this->sureMoments[$managerId][] = ['at' => $at, 'raise' => $raise];
+        }
     }
 
     /**

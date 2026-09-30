@@ -99,26 +99,63 @@ test('a clause paid after the lock above the reference is a raise the victim pai
     expect(detect($this))->toBe([$this->manager->id => ['sure' => 3_000_000, 'possible' => 0]]);
 });
 
-test('an accepted offer is not a raise: inside the lock or a round total', function (): void {
+test('a buyout inside the victim\'s lock is an accepted offer, not a raise, even for a round total', function (): void {
     acquire($this, $this->manager, 5_000_000, '2026-09-01 12:00');
     acquire($this, $this->rival, 9_734_512, '2026-09-04 12:00', SeasonActivityType::Buyout, $this->manager);
-    acquire($this, $this->manager, 9_734_512, '2026-09-05 12:00', SeasonActivityType::Buyout, $this->rival);
-    acquire($this, $this->rival, 17_000_000, '2026-09-25 12:00', SeasonActivityType::Buyout, $this->manager);
+    // Ibañez: 15 minutes before the unlock.
+    acquire($this, $this->manager, 17_000_000, '2026-09-18 11:45', SeasonActivityType::Buyout, $this->rival);
 
     expect(detect($this))->toBe([]);
 });
 
-test('an initial-squad player uses his value on the joining day as base and raises at unlock', function (): void {
+test('Zubeldia: a round total paid after the lock is the clause, so the owner raised it', function (): void {
+    acquire($this, $this->manager, 12_000_000, '2026-08-15 17:03', SeasonActivityType::Buyout, $this->rival);
+    valueOn($this, '2026-08-15', 9_937_308);
+    valueOn($this, '2026-09-04', 8_625_421);
     Activity::factory()->create([
-        'season_id' => $this->season->id, 'type' => SeasonActivityType::JoinedLeague,
-        'source_season_manager_id' => $this->manager->id, 'player_id' => null, 'amount' => null,
-        'occurred_at' => '2026-08-01 20:00',
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Shield,
+        'source_season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+        'amount' => null, 'occurred_at' => '2026-09-02 23:49',
     ]);
+    acquire($this, $this->rival, 14_000_000, '2026-09-04 21:00', SeasonActivityType::Buyout, $this->manager);
+
+    expect(detect($this))->toBe([$this->manager->id => ['sure' => 2_000_000, 'possible' => 0]]);
+});
+
+function joinLeague(object $test, SeasonManager $manager, string $at = '2026-08-01 20:00'): void
+{
+    Activity::factory()->create([
+        'season_id' => $test->season->id, 'type' => SeasonActivityType::JoinedLeague,
+        'source_season_manager_id' => $manager->id, 'player_id' => null, 'amount' => null,
+        'occurred_at' => $at,
+    ]);
+}
+
+test('Moncayola: an initial-squad clause starts at 5/3 of the value on the joining day, so paying it is no raise', function (): void {
+    joinLeague($this, $this->manager);
+    valueOn($this, '2026-08-01', 5_514_269);
+    valueOn($this, '2026-08-18', 6_905_144);
+    acquire($this, $this->rival, 9_190_448, '2026-08-19 00:43', SeasonActivityType::Buyout, $this->manager);
+
+    expect(detect($this))->toBe([]);
+});
+
+test('an initial-squad raise at unlock is measured over 5/3 of the joining value', function (): void {
+    joinLeague($this, $this->manager);
     valueOn($this, '2026-08-01', 3_000_000);
     valueOn($this, '2026-09-10', 3_500_000);
-    ownNow($this, $this->manager, 5_500_000);
+    ownNow($this, $this->manager, 7_500_000);
 
     expect(detect($this))->toBe([$this->manager->id => ['sure' => 2_500_000, 'possible' => 0]]);
+});
+
+test('an initial-squad clause follows the value once it passes 5/3 of the joining value', function (): void {
+    joinLeague($this, $this->manager);
+    valueOn($this, '2026-08-01', 3_000_000);
+    valueOn($this, '2026-09-10', 8_000_000);
+    ownNow($this, $this->manager, 8_000_000);
+
+    expect(detect($this))->toBe([]);
 });
 
 test('with clause history every jump above the value is an exact raise, even if not round', function (): void {
@@ -244,4 +281,21 @@ test('a manual raise that differs from the sync jump near it still replaces it',
     manualRaise($this, $this->manager, 15_000_000, 33_769_376, '2026-09-24 20:30');
 
     expect(detect($this))->toBe([$this->manager->id => ['sure' => 15_000_000, 'possible' => 0]]);
+});
+
+test('it tells how much of the sure raises happened after a moment', function (): void {
+    acquire($this, $this->manager, 5_000_000, '2026-09-01 12:00');
+    ownNow($this, $this->manager, 7_000_000);
+    $other = Player::factory()->create();
+    ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $this->manager->id, 'player_id' => $other->id, 'source' => ClauseSnapshotSource::Manual,
+        'buyout_clause' => 4_000_000, 'market_value' => 0, 'raise_amount' => 1_000_000, 'captured_at' => '2026-09-28 22:30',
+    ]);
+    $detector = new ClauseRaiseDetector;
+    $detector->forSeason($this->season, $this->now);
+
+    // The 2 M raise anchors on the unlock (15-sep 12:00); the manual one was logged on 28-sep 22:30.
+    expect($detector->sureRaisedAfter($this->manager->id, CarbonImmutable::parse('2026-09-10 00:00')))->toBe(3_000_000)
+        ->and($detector->sureRaisedAfter($this->manager->id, CarbonImmutable::parse('2026-09-28 22:11')))->toBe(1_000_000)
+        ->and($detector->sureRaisedAfter($this->rival->id, CarbonImmutable::parse('2026-09-01 00:00')))->toBe(0);
 });

@@ -9,8 +9,8 @@ use Carbon\CarbonImmutable;
 /**
  * The daily bonus a manager claims by pressing a button once a day:
  * 100.000 €, or 200.000 € during a break without LaLiga jornadas. The feed
- * doesn't record it, but managers normally claim it, so the balance model
- * assumes every day since joining was claimed.
+ * doesn't record it. This calendar is exact (every day since joining); the
+ * share of days actually claimed is applied by ManagerBalances.
  */
 final class DailyBonusCalendar
 {

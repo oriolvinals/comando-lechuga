@@ -14,11 +14,15 @@ use Carbon\CarbonImmutable;
 
 /**
  * Every manager's cash range, squad value and total for the god-mode radar.
- * PRIVATE: never used by /api.
+ * Real cash is the connected account's latest snapshot plus what happened
+ * after it (moves, and the certain raises it paid for). PRIVATE: never used by /api.
  */
 final class ManagerBalances
 {
     public const int STARTING_CASH = 100_000_000;
+
+    /** Share of the days on which managers claim the daily bonus (the user's estimate). */
+    public const float DAILY_BONUS_CLAIM_RATE = 0.67;
 
     public function __construct(
         private readonly DailyBonusCalendar $dailyBonus,
@@ -50,46 +54,28 @@ final class ManagerBalances
             ->mapWithKeys(fn (Activity $joined): array => [$joined->source_season_manager_id => $joined->occurred_at]);
 
         $balances = [];
-        $days = [];
-        $ratePerDay = null;
 
         foreach ($managers as $manager) {
             $since = ($joinedAt->get($manager->id) ?? $season->start_date)->setTimezone($timezone);
-            $days[$manager->id] = (int) $since->startOfDay()->diffInDays($now->startOfDay()) + 1;
+            $activityCash = self::STARTING_CASH + ($activity[$manager->id] ?? 0);
+            $dailyBonus = (int) round(self::DAILY_BONUS_CLAIM_RATE * $this->dailyBonus->totalSince($since, $now));
+            $sureRaises = $raises[$manager->id]['sure'] ?? 0;
             $snapshot = $manager->id === $connectedId ? $connectedSnapshot : null;
             $real = $snapshot instanceof ManagerBalanceSnapshot
-                ? $snapshot->money + ($this->activitySums($season, $snapshot->captured_at)[$manager->id] ?? 0)
+                ? $snapshot->money
+                    + ($this->activitySums($season, $snapshot->captured_at)[$manager->id] ?? 0)
+                    - intdiv($this->raiseDetector->sureRaisedAfter($manager->id, $snapshot->captured_at), 2)
                 : null;
 
             $balances[$manager->id] = new ManagerBalance(
                 seasonManagerId: $manager->id,
-                activity: self::STARTING_CASH + ($activity[$manager->id] ?? 0),
-                dailyBonus: $this->dailyBonus->totalSince($since, $now),
-                sureRaises: $raises[$manager->id]['sure'] ?? 0,
+                activity: $activityCash,
+                dailyBonus: $dailyBonus,
+                sureRaises: $sureRaises,
                 possibleRaises: $raises[$manager->id]['possible'] ?? 0,
                 real: $real,
                 squadValue: (int) ($squad[$manager->id] ?? 0),
-            );
-        }
-
-        if ($connectedId !== null && isset($balances[$connectedId]) && $balances[$connectedId]->real !== null) {
-            $connected = $balances[$connectedId];
-            $model = $connected->activity + $connected->dailyBonus - intdiv($connected->sureRaises, 2);
-            $ratePerDay = ($connected->real - $model) / max(1, $days[$connectedId]);
-        }
-
-        if ($ratePerDay === null) {
-            return $balances;
-        }
-
-        foreach ($balances as $managerId => $balance) {
-            if ($balance->real !== null) {
-                continue;
-            }
-
-            $balances[$managerId] = new ManagerBalance(
-                $balance->seasonManagerId, $balance->activity, $balance->dailyBonus, $balance->sureRaises,
-                $balance->possibleRaises, null, $balance->squadValue, (int) round($ratePerDay * $days[$managerId]),
+                residual: $real === null ? null : $real - ($activityCash + $dailyBonus - intdiv($sureRaises, 2)),
             );
         }
 

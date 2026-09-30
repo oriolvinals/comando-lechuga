@@ -6,10 +6,12 @@ namespace App\Services;
 
 /**
  * A manager's cash as a range.
- * - Certain: activity, the claimed daily bonus, and the calibration measured on the connected account.
+ * - Certain: activity and the share of the daily bonus managers claim.
  * - Pessimistic end: also pays every inferred clause raise at half its amount.
  * - Optimistic end: pays only the certain raises.
- * The connected account has its real cash instead. PRIVATE: web /radar only.
+ * The connected account has its real cash instead, and its residual (real
+ * minus that model) is kept for diagnosis only: it is never applied to
+ * anyone. PRIVATE: web /radar only.
  */
 final readonly class ManagerBalance
 {
@@ -21,7 +23,7 @@ final readonly class ManagerBalance
         public int $possibleRaises,
         public ?int $real,
         public int $squadValue,
-        public int $calibration = 0,
+        public ?int $residual = null,
     ) {}
 
     public function isReal(): bool
@@ -62,6 +64,6 @@ final readonly class ManagerBalance
 
     private function base(): int
     {
-        return $this->activity + $this->dailyBonus + $this->calibration;
+        return $this->activity + $this->dailyBonus;
     }
 }

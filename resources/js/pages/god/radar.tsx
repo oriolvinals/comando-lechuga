@@ -123,13 +123,12 @@ export default function GodRadar({
                             (coste = subida/2), salvo las subidas conocidas.
                         </li>
                         <li>
-                            Si todos reclaman el premio diario: se da por
-                            reclamado (100.000 €; 200.000 € en parón).
+                            Qué días reclama cada uno el premio diario: se
+                            cuenta el 67 % (100.000 €; 200.000 € en parón).
                         </li>
                         <li>
                             Qué es la parte de tu saldo real que no explica la
-                            actividad: se reparte a los rivales por día en la
-                            liga.
+                            actividad: no se suma a los rivales.
                         </li>
                     </ul>
                 </details>

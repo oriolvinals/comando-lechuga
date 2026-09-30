@@ -37,7 +37,7 @@ test('no api response ever carries private god-mode money or radar data', functi
     $forbidden = [
         'team_money', 'teamMoney', 'money', 'balance', 'balances', 'cash', 'real_cash', 'is_real',
         'estimated_balance', 'activity_balance', 'daily_bonus', 'raises', 'clause_raises', 'snapshot', 'snapshots',
-        'radar', 'payers', 'payer_level', 'opportunity', 'connected_manager_id', 'clause_snapshots', 'calibration', 'raise_amount', 'manual_raises', 'manualRaises',
+        'radar', 'payers', 'payer_level', 'opportunity', 'connected_manager_id', 'clause_snapshots', 'calibration', 'residual', 'raise_amount', 'manual_raises', 'manualRaises',
     ];
     $privateMoney = 987_654_321;
 
