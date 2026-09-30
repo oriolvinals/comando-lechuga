@@ -6,6 +6,7 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest;
 use App\Models\ManagerBalanceSnapshot;
 use App\Models\ManagerPlayer;
+use App\Models\ManagerPlayerClauseSnapshot;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
@@ -217,4 +218,46 @@ test('stores at most one snapshot per manager and hour', function (): void {
     $this->travel(2)->minutes();
     $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
     expect(ManagerBalanceSnapshot::query()->count())->toBe(2);
+});
+
+function fakeLeagueTeamWithClause(int $clause, string $lockedEnd, int $marketValue): void
+{
+    $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
+    $loginConnector->shouldReceive('accessToken')->andReturn('header.eyJleHAiOjE3ODc0MTc3NTB9.signature');
+
+    $fantasyConnector = (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetLeagueTeamRequest::class => MockResponse::make(['teamMoney' => null, 'players' => [[
+            'buyoutClause' => $clause,
+            'buyoutClauseLockedEndTime' => $lockedEnd,
+            'isShielded' => false,
+            'playerMaster' => ['id' => '988', 'marketValue' => $marketValue],
+        ]]]),
+    ]));
+
+    app()->instance(LaLigaLoginConnector::class, $loginConnector);
+    app()->instance(LaLigaFantasyConnector::class, $fantasyConnector);
+}
+
+test('stores a clause snapshot only when the clause or its lock changes', function (): void {
+    $seasonManager = currentSeasonWithManager();
+    $player = Player::factory()->create(['fantasy_id' => 988]);
+
+    fakeLeagueTeamWithClause(5_000_000, '2026-09-15T20:00:00+02:00', 4_000_000);
+    $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
+    $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
+    expect(ManagerPlayerClauseSnapshot::query()->count())->toBe(1);
+
+    fakeLeagueTeamWithClause(9_123_456, '2026-09-15T20:00:00+02:00', 4_500_000);
+    $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
+
+    $latest = ManagerPlayerClauseSnapshot::query()->latest('id')->first();
+    expect(ManagerPlayerClauseSnapshot::query()->count())->toBe(2)
+        ->and($latest->season_manager_id)->toBe($seasonManager->id)
+        ->and($latest->player_id)->toBe($player->id)
+        ->and($latest->buyout_clause)->toBe(9_123_456)
+        ->and($latest->market_value)->toBe(4_500_000);
+
+    fakeLeagueTeamWithClause(9_123_456, '2026-10-01T20:00:00+02:00', 4_500_000);
+    $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
+    expect(ManagerPlayerClauseSnapshot::query()->count())->toBe(3);
 });

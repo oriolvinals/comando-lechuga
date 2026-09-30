@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\ClauseSnapshotSource;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\ManagerBalanceSnapshot;
 use App\Models\ManagerPlayer;
+use App\Models\ManagerPlayerClauseSnapshot;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
@@ -74,6 +76,9 @@ class SyncCurrentSeasonManagerPlayers extends Command
                         continue;
                     }
 
+                    $lockedUntil = CarbonImmutable::parse((string) $playerEntry['buyoutClauseLockedEndTime'])
+                        ->setTimezone((string) config('app.timezone'));
+
                     ManagerPlayer::query()->updateOrCreate(
                         [
                             'season_manager_id' => $seasonManager->id,
@@ -81,14 +86,21 @@ class SyncCurrentSeasonManagerPlayers extends Command
                         ],
                         [
                             'buyout_clause' => (int) ($playerEntry['buyoutClause'] ?? 0),
-                            'buyout_clause_locked_until' => CarbonImmutable::parse((string) $playerEntry['buyoutClauseLockedEndTime'])
-                                ->setTimezone((string) config('app.timezone')),
+                            'buyout_clause_locked_until' => $lockedUntil,
                             'shielded' => (bool) ($playerEntry['isShielded'] ?? false),
                             'shielded_until' => isset($playerEntry['shieldedEndDate'])
                                 ? CarbonImmutable::parse((string) $playerEntry['shieldedEndDate'])
                                     ->setTimezone((string) config('app.timezone'))
                                 : null,
                         ],
+                    );
+
+                    $this->snapshotClause(
+                        $seasonManager,
+                        $player,
+                        (int) ($playerEntry['buyoutClause'] ?? 0),
+                        $lockedUntil,
+                        (int) ($playerMasterData['marketValue'] ?? 0),
                     );
 
                     $currentPlayerIds[] = $player->id;
@@ -133,6 +145,37 @@ class SyncCurrentSeasonManagerPlayers extends Command
         ManagerBalanceSnapshot::query()->create([
             'season_manager_id' => $seasonManager->id,
             'money' => (int) $teamMoney,
+            'captured_at' => now(),
+        ]);
+    }
+
+    /**
+     * Keeps the clause history of each holding: a new row only when the
+     * clause or its lock changed since the last sync row. Manual rows never
+     * affect change detection.
+     */
+    private function snapshotClause(SeasonManager $seasonManager, Player $player, int $clause, CarbonImmutable $lockedUntil, int $marketValue): void
+    {
+        $latest = ManagerPlayerClauseSnapshot::query()
+            ->where('season_manager_id', $seasonManager->id)
+            ->where('player_id', $player->id)
+            ->where('source', ClauseSnapshotSource::Sync)
+            ->latest('captured_at')
+            ->latest('id')
+            ->first();
+
+        if ($latest instanceof ManagerPlayerClauseSnapshot
+            && $latest->buyout_clause === $clause
+            && $latest->buyout_clause_locked_until->equalTo($lockedUntil)) {
+            return;
+        }
+
+        ManagerPlayerClauseSnapshot::query()->create([
+            'season_manager_id' => $seasonManager->id,
+            'player_id' => $player->id,
+            'buyout_clause' => $clause,
+            'buyout_clause_locked_until' => $lockedUntil,
+            'market_value' => $marketValue,
             'captured_at' => now(),
         ]);
     }
