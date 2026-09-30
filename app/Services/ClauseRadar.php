@@ -88,7 +88,7 @@ final class ClauseRadar
                     'id' => $entry->player->id,
                     'nickname' => $entry->player->nickname,
                     'position' => $playerSeason->position->value,
-                    'team_short_name' => $entry->player->team?->short_name ?? '',
+                    'team_short_name' => $entry->player->team->short_name,
                     'points' => $playerSeason->points,
                     'average_points' => (float) $playerSeason->average_points,
                     'status' => $entry->player->status->value,
