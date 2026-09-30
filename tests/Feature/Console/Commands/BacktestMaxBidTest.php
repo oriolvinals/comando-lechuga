@@ -6,6 +6,7 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\Team;
+use App\Services\ValueForecast\ValueForecastParameters;
 use Carbon\CarbonImmutable;
 
 test('replays the model over the market history and reports how it did', function (): void {
@@ -231,4 +232,29 @@ test('fails clearly for a control player who is not replayed', function (): void
     $this->artisan(BacktestMaxBid::class, ['--grid-streak' => true, '--control' => 'Nadie De Nadie'])
         ->expectsOutputToContain('Nadie De Nadie')
         ->assertFailed();
+});
+
+test('uses the walk-forward forecast as day 1 unless told not to, and reports the error against the ideal bid', function (): void {
+    $this->travelTo('2026-09-26 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    app()->instance(ValueForecastParameters::class, new ValueForecastParameters(warmupDays: 0, minimumTrainingRows: 10));
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    $riser = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+    $faller = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+
+    foreach (range(0, 24) as $day) {
+        $date = CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString();
+        PlayerMarket::factory()->create(['player_id' => $riser->id, 'date' => $date, 'value' => 10_000_000 + $day * 200_000]);
+        PlayerMarket::factory()->create(['player_id' => $faller->id, 'date' => $date, 'value' => 10_000_000 - $day * 200_000]);
+    }
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-10', '--to' => '2026-09-10'])
+        ->expectsOutputToContain('Previsión día 1: 2 de 2 estimaciones')
+        ->expectsOutputToContain('Error de la puja frente a la ideal')
+        ->assertSuccessful();
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-10', '--to' => '2026-09-10', '--without-forecast' => true])
+        ->expectsOutputToContain('Previsión día 1: desactivada')
+        ->assertSuccessful();
 });

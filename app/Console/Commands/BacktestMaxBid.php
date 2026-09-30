@@ -15,13 +15,14 @@ use App\Services\MaxBidCalculator;
 use App\Services\MaxBidEstimate;
 use App\Services\MaxBidInputs;
 use App\Services\MaxBidParameters;
+use App\Services\ValueForecast\ValueForecastWalkForward;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 
-#[Signature('season:backtest-max-bid {--from= : First reference date (Y-m-d)} {--to= : Last reference date (Y-m-d)} {--player= : Nickname of one player to replay day by day} {--grid : Grid-search the model parameters in memory instead (writes nothing)} {--grid-decay : Grid-search only both decays below 0.80 around the chosen calibration (pass 3; writes nothing)} {--grid-streak : Grid-search only the streak exception to the bad-score cap around the defaults (pass 4; writes nothing)} {--phase= : With a grid, replay only the days of one phase: matchweek or break} {--control= : With a grid, nickname of a player whose results under the top combinations are shown as a qualitative check} {--control-from= : First date (Y-m-d) of the control check} {--control-to= : Last date (Y-m-d) of the control check}')]
+#[Signature('season:backtest-max-bid {--from= : First reference date (Y-m-d)} {--to= : Last reference date (Y-m-d)} {--player= : Nickname of one player to replay day by day} {--grid : Grid-search the model parameters in memory instead (writes nothing)} {--grid-decay : Grid-search only both decays below 0.80 around the chosen calibration (pass 3; writes nothing)} {--grid-streak : Grid-search only the streak exception to the bad-score cap around the defaults (pass 4; writes nothing)} {--phase= : With a grid, replay only the days of one phase: matchweek or break} {--control= : With a grid, nickname of a player whose results under the top combinations are shown as a qualitative check} {--control-from= : First date (Y-m-d) of the control check} {--control-to= : Last date (Y-m-d) of the control check} {--without-forecast : Replay without the value forecast as day 1 (the model before it)}')]
 #[Description('Replay the max bid model over the market history and report how it would have done')]
 class BacktestMaxBid extends Command
 {
@@ -63,7 +64,7 @@ class BacktestMaxBid extends Command
     /** @var list<float> */
     private const array GRID_BENCH_INCREMENT_FACTORS = [0.0, 0.25, 0.5, 0.7, 1.0];
 
-    public function handle(MaxBidCalculator $calculator): int
+    public function handle(MaxBidCalculator $calculator, ValueForecastWalkForward $walkForward): int
     {
         $gridPass = match (true) {
             (bool) $this->option('grid-streak') => 'streak',
@@ -144,6 +145,12 @@ class BacktestMaxBid extends Command
             $valuesByPlayer[(int) $row->player_id][substr((string) $row->date, 0, 10)] = (int) $row->value;
         }
 
+        // Walk-forward forecasts: what the scheduled forecast would have said on
+        // each reference date, with only what was known then (spec §4.1).
+        $dayOneForecasts = $this->option('without-forecast')
+            ? null
+            : $walkForward->predictedValues($season, $from->toDateString(), $to->toDateString());
+
         if ($gridPass !== null) {
             $controlOption = $this->option('control');
             $control = null;
@@ -166,7 +173,7 @@ class BacktestMaxBid extends Command
                 ];
             }
 
-            return $this->gridSearch($calculator, $season, $players, $valuesByPlayer, $from, $to, $phase, $gridPass, $control);
+            return $this->gridSearch($calculator, $season, $players, $valuesByPlayer, $from, $to, $phase, $gridPass, $control, $dayOneForecasts);
         }
 
         /** @var array<string, array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}> $groups */
@@ -174,6 +181,11 @@ class BacktestMaxBid extends Command
 
         /** @var list<array{date: string, value: int, status: MaxBidStatus, bid: int|null, projectedDay14: int, actualDay14: int, probability: float|null, rose: bool}> $playerRows */
         $playerRows = [];
+        $estimates = 0;
+        $withForecast = 0;
+
+        /** @var list<float> $bidErrors |bid − ideal bid| / value of each profitable estimate */
+        $bidErrors = [];
 
         for ($day = $from; $day->lessThanOrEqualTo($to); $day = $day->addDay()) {
             foreach ($players as $player) {
@@ -184,10 +196,18 @@ class BacktestMaxBid extends Command
                     continue;
                 }
 
-                $estimate = $calculator->estimate($player, $season, $day);
+                $inputs = $this->inputs($calculator, $player, $season, $day, $dayOneForecasts);
+                $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters);
 
                 if (!in_array($estimate->status, [MaxBidStatus::Profitable, MaxBidStatus::Unprofitable], true)) {
                     continue;
+                }
+
+                $estimates++;
+                $withForecast += $inputs->dayOneForecast !== null ? 1 : 0;
+
+                if ($estimate->bid !== null) {
+                    $bidErrors[] = abs($estimate->bid - MaxBidCalculator::solveBid($actual, $estimate->confidence)) / max($estimate->value, 1);
                 }
 
                 $trendCase = $this->trend($values, $day);
@@ -219,6 +239,17 @@ class BacktestMaxBid extends Command
             ['Grupo', 'Estimaciones', 'Rentables', 'Prob. real media (obj. 75 %)', 'Sin rentab.', 'Falsos negativos', 'Error proy. medio', 'Error proy. mediana'],
             $this->rows($groups),
         );
+        $this->info($dayOneForecasts === null
+            ? 'Previsión día 1: desactivada.'
+            : "Previsión día 1: {$withForecast} de {$estimates} estimaciones.");
+        $this->info($bidErrors === []
+            ? 'Error de la puja frente a la ideal: sin pujas.'
+            : sprintf(
+                'Error de la puja frente a la ideal: media %s, mediana %s (%d pujas).',
+                $this->percent(array_sum($bidErrors) / count($bidErrors)),
+                $this->percent($this->median($bidErrors)),
+                count($bidErrors),
+            ));
 
         if ($nickname !== null) {
             $this->table(
@@ -239,8 +270,9 @@ class BacktestMaxBid extends Command
      * @param  array<int, array<string, int>>  $valuesByPlayer
      * @param  'broad'|'decay'|'streak'  $gridPass
      * @param  array{player: Player, from: string, to: string}|null  $control
+     * @param  array<int, array<string, int>>|null  $dayOneForecasts  player id → reference date → predicted value
      */
-    private function gridSearch(MaxBidCalculator $calculator, Season $season, Collection $players, array $valuesByPlayer, CarbonImmutable $from, CarbonImmutable $to, ?string $phase, string $gridPass, ?array $control): int
+    private function gridSearch(MaxBidCalculator $calculator, Season $season, Collection $players, array $valuesByPlayer, CarbonImmutable $from, CarbonImmutable $to, ?string $phase, string $gridPass, ?array $control, ?array $dayOneForecasts): int
     {
         $startedAt = hrtime(true);
 
@@ -259,7 +291,7 @@ class BacktestMaxBid extends Command
                     continue;
                 }
 
-                $inputs = $calculator->gatherInputs($player, $season, $day);
+                $inputs = $this->inputs($calculator, $player, $season, $day, $dayOneForecasts);
 
                 if ($inputs->presetStatus !== null || ($phase === 'matchweek' && $inputs->isBreak()) || ($phase === 'break' && !$inputs->isBreak())) {
                     continue;
@@ -639,6 +671,22 @@ class BacktestMaxBid extends Command
             $this->percent($metrics['falseNegativeRate']),
             $this->percent($metrics['medianError']),
         ];
+    }
+
+    /**
+     * One player-day's inputs with the walk-forward forecast of its reference
+     * date as day 1 — or none with --without-forecast. A forecast stored in
+     * the database is always replaced, so a replay never sees the future.
+     *
+     * @param  array<int, array<string, int>>|null  $dayOneForecasts  player id → reference date → predicted value
+     */
+    private function inputs(MaxBidCalculator $calculator, Player $player, Season $season, CarbonImmutable $day, ?array $dayOneForecasts): MaxBidInputs
+    {
+        $inputs = $calculator->gatherInputs($player, $season, $day);
+
+        return $inputs->withDayOneForecast(
+            $dayOneForecasts === null || $inputs->referenceDate === null ? null : ($dayOneForecasts[$player->id][$inputs->referenceDate] ?? null),
+        );
     }
 
     /**
