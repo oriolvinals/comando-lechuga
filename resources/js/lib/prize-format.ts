@@ -29,6 +29,7 @@ export function leaderValue(
 
     switch (prize.key) {
         case 'best_night':
+        case 'worst_night':
             return { big: String(value), unit: 'pts' };
         case 'most_buyouts_made':
         case 'most_buyouts_suffered':

@@ -40,8 +40,8 @@ test('builds the ten prizes in page order with every manager ranked', function (
         ->and($noche['leaders'])->toBe([$gau->id, $cid->id])
         ->and($noche['shares'])->toBe([$gau->id => 5.0, $cid->id => 5.0])
         ->and(array_column($noche['rows'], 'place'))->toBe([1, 1])
-        ->and($prizes[9]['decided'])->toBeFalse()
-        ->and($prizes[9]['rows'])->toBe([]);
+        ->and($prizes[9]['key'])->toBe('worst_night')
+        ->and($prizes[9]['leaders'])->toBe([$gau->id, $cid->id]);
 });
 
 test('before any finished jornada nobody leads anything', function (): void {

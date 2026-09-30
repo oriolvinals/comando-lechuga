@@ -66,6 +66,7 @@ function LeaderContext({
 
     switch (prize.key) {
         case 'best_night':
+        case 'worst_night':
             return context.week_number ? (
                 <JornadaBadges weeks={[context.week_number]} max={1} />
             ) : null;
@@ -276,10 +277,6 @@ function EmptySlot({ children }: { children: ReactNode }) {
 
 /** «Nadie todavía», one leader, or tied leaders side by side sharing the slot. */
 export function PrizeLeader({ prize, managers, players, viewer }: LeaderProps) {
-    if (!prize.decided) {
-        return <EmptySlot>Sin categoría todavía</EmptySlot>;
-    }
-
     if (prize.key === 'most_owned_player') {
         return (
             <MostOwnedLeader

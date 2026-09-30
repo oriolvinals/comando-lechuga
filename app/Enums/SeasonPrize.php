@@ -19,7 +19,7 @@ enum SeasonPrize: string
     case WorstWeeks = 'worst_weeks';
     case LongestPartnership = 'longest_partnership';
     case MostOwnedPlayer = 'most_owned_player';
-    case OpenSlot = 'open_slot';
+    case WorstNight = 'worst_night';
 
     public function label(): string
     {
@@ -33,7 +33,7 @@ enum SeasonPrize: string
             self::WorstWeeks => 'El Pupas',
             self::LongestPartnership => 'Matrimonio',
             self::MostOwnedPlayer => 'El Fichaje del Pueblo',
-            self::OpenSlot => 'Hueco libre',
+            self::WorstNight => 'La Noche Negra',
         };
     }
 
@@ -58,13 +58,13 @@ enum SeasonPrize: string
             self::WorstWeeks => 'El que más veces queda último de la jornada.',
             self::LongestPartnership => 'La pareja mánager-jugador con más jornadas seguidas alineado.',
             self::MostOwnedPlayer => 'El jugador que pasa por más manos; se lo lleva quien más jornadas lo tuvo.',
-            self::OpenSlot => 'Lo proponéis vosotros.',
+            self::WorstNight => 'La peor puntuación en una sola jornada de todo el año.',
         };
     }
 
-    /** False only for the free slot, whose category is still to be proposed. */
-    public function isDecided(): bool
+    /** Whether the lowest value wins instead of the highest. */
+    public function ranksLowestFirst(): bool
     {
-        return $this !== self::OpenSlot;
+        return $this === self::WorstNight;
     }
 }

@@ -19,8 +19,9 @@ Cerradas con el usuario. Mandan sobre cualquier otra parte de este documento.
    - El tiempo con el jugador se cuenta en **jornadas**: es dueño de una jornada quien lo tiene en el cierre de la
      alineación, que es el primer partido del bloque principal de la jornada (`SeasonClock::lineupLock`).
 6. **Solo cuentan las jornadas terminadas** (`SeasonClock::finishedWeekNumbers`), en todos los premios por jornada:
-   Noche Mágica, Rey del Domingo, El Pupas, Matrimonio, El Banquillo de Oro y los tiempos del Fichaje del Pueblo.
-7. **Hueco libre.** Se enseña con sus 5 € y el texto «Sin categoría todavía».
+   Noche Mágica, La Noche Negra, Rey del Domingo, El Pupas, Matrimonio, El Banquillo de Oro y los tiempos del Fichaje del Pueblo.
+7. **La Noche Negra.** El que menos puntos saca en una sola jornada terminada (lo contrario de Noche Mágica). Una jornada
+   sin alineación no cuenta para ese mánager. Los empates comparten el primer puesto y se reparten los 5 €.
 8. **Acceso desde Inicio.** Es un enlace ancho y sencillo bajo la clasificación, sin avance ni datos del mánager.
 
 ## Motivación
@@ -35,7 +36,7 @@ decide al acabar la temporada (J38), y ningún premio se cierra antes. Hasta ent
 ## Alcance
 
 Dentro:
-- El cálculo de los 9 premios decididos, más el hueco libre como «por decidir».
+- El cálculo de los 10 premios.
 - La página `/premios`.
 - El detalle de cada premio.
 - El enlace desde Inicio.
@@ -45,7 +46,6 @@ Fuera, para más adelante:
 - Una orden `season:settle-prizes` que congele los ganadores al acabar la J38 (tabla `season_prize_winners`).
 - La API pública (`/api/prizes`). Por ahora no se expone.
 - El reparto «si acabase hoy» en euros. El mock aprobado no lo enseña.
-- El contenido del hueco libre.
 
 ## Acceso y ruta
 
@@ -164,7 +164,7 @@ Tres columnas en escritorio. En móvil pasan a tres bandas apiladas.
 | El Pupas | 5 | Veces último de la jornada | Etiquetas rojas (tope 12) | Recuento o «—» | Todas las jornadas |
 | Matrimonio | 5 | Racha («23 jornadas seguidas») | Escudo + foto del jugador; «J9 – J31»; «Sigue» | Mánager, jugador (2ª línea), racha | Jugador · J–J · sigue/rota |
 | El Fichaje del Pueblo | 5 | **Dueños** del jugador («4 dueños») | Foto y nombre del jugador + «Se lo lleva {escudo} {mánager}» | Jornadas con el jugador (y cuál, si hay empate de jugador); «no lo tuvo» | Pasaporte + tiempos |
-| Hueco libre | 5 | Ninguno | «Sin categoría todavía» | «Cuando se apruebe, sale aquí con los 7 ordenados.» | Texto fijo |
+| La Noche Negra | 5 | Puntos de su peor jornada («12 pts») | La jornada («J5») | Puntos + jornada pequeña | Puntos · «en la J5» |
 
 - El número va en LED lima con su unidad pequeña al lado. Lo que no es número (jornadas, jugador) va como etiqueta, foto
   o escudo, nunca como frase.
@@ -183,6 +183,7 @@ Tres columnas en escritorio. En móvil pasan a tres bandas apiladas.
 | Premio | Cálculo |
 |---|---|
 | Noche Mágica | `max(manager_lineups.points)` del mánager en jornadas terminadas. Con dos jornadas iguales, la más antigua. |
+| La Noche Negra | `min(manager_lineups.points)` del mánager en jornadas terminadas; sin alineación, esa jornada no cuenta. Con dos jornadas iguales, la más antigua. Gana el valor más bajo (incluido 0). |
 | El Atracador | `count(activities type=buyout, source=mánager)`. Víctima favorita: el `target` más repetido. |
 | Rey del Domingo | Jornadas terminadas en las que sus puntos son el máximo de la jornada. Si empatan a puntos, cuentan todos. Solo jornadas con al menos 2 alineaciones. |
 | El Pupas | Igual, con el mínimo. |
@@ -211,8 +212,8 @@ coincidir con `manager_players`.
 - **`App\Enums\SeasonPrize`** (TitleCase, en inglés; las etiquetas visibles siguen en castellano): `BestNight` (Noche
   Mágica), `MostBuyoutsMade` (El Atracador), `SundayKing` (Rey del Domingo), `BenchPoints` (El Banquillo de Oro),
   `MostOverpaid` (El Criminal), `MostBuyoutsSuffered` (La Víctima), `WorstWeeks` (El Pupas), `LongestPartnership`
-  (Matrimonio), `MostOwnedPlayer` (El Fichaje del Pueblo), `OpenSlot` (Hueco libre). Tiene `label()`, `amount()`
-  (euros), `rule()` e `isDecided()` (false solo en el hueco libre). El orden de los casos es el orden de la página.
+  (Matrimonio), `MostOwnedPlayer` (El Fichaje del Pueblo), `WorstNight` (La Noche Negra). Tiene `label()`, `amount()`
+  (euros), `rule()` e `ranksLowestFirst()` (true solo en La Noche Negra). El orden de los casos es el orden de la página.
 - **`App\Services\Prizes\PrizeCalculator`** (interfaz): `rows(Season): list<PrizeRow>`, una fila por mánager de la
   temporada.
 - **`App\Services\Prizes\PrizeRow`** (readonly): `seasonManagerId`, `value` (`int|float|null`) y `context` (array).

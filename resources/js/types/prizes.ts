@@ -59,14 +59,13 @@ export type SeasonPrizeKey =
     | 'worst_weeks'
     | 'longest_partnership'
     | 'most_owned_player'
-    | 'open_slot';
+    | 'worst_night';
 
 export interface PrizeStanding {
     key: SeasonPrizeKey;
     name: string;
     amount: number;
     rule: string;
-    decided: boolean;
     leaders: number[];
     shares: Record<string, number>;
     rows: PrizeRowData[];
