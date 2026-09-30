@@ -26,7 +26,8 @@ import type {
 } from '@/types/models';
 
 export interface HqPlayerStatsEntry {
-    player: Player;
+    /** Only what the sheet shows, so the comparator can pass its own player shape. */
+    player: Pick<Player, 'id' | 'nickname' | 'image' | 'position'>;
     team: Team;
     points: number;
     /** DAZN rating fields of that match — omit when the player had no minutes. */

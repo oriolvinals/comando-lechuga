@@ -3,6 +3,7 @@ import type {
     FocusEvent,
     HTMLAttributes,
     KeyboardEvent,
+    MouseEvent,
     PointerEvent,
     ReactNode,
 } from 'react';
@@ -20,10 +21,12 @@ import type { WeekMetric } from '@/components/compare/derive';
 import { weekValue, winner } from '@/components/compare/derive';
 import { EntityImage } from '@/components/entity-image';
 import { HqDaznBadge } from '@/components/hq-dazn-badge';
+import { HqPlayerStatsModal } from '@/components/hq-player-stats-modal';
+import type { HqPlayerStatsEntry } from '@/components/hq-player-stats-modal';
 import { COMPARE_MAX, COMPARE_SLOT_COLORS } from '@/lib/compare-selection';
 import { matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
-import type { ComparedPlayerScore } from '@/types/models';
+import type { ComparedPlayer, ComparedPlayerScore } from '@/types/models';
 
 const METRIC_OPTIONS: { value: WeekMetric; label: string }[] = [
     { value: 'points', label: 'Pts' },
@@ -42,12 +45,16 @@ const METRIC_HINTS: Record<WeekMetric, string> = {
  * (one line per player on phones), with the chosen figure, the opponent,
  * a minutes bar (starter / sub), the best-of-the-jornada tick, and NC or
  * PEND when he has no lineup row. One tab stop for every cell: ←/→
- * jornada, ↑/↓ player, Inicio/Fin.
+ * jornada, ↑/↓ player, Inicio/Fin. A jornada with a lineup row is a
+ * button that opens that match's jornada sheet (HqPlayerStatsModal).
  */
 export function CompareWeekByWeek() {
     const { players, derived } = useCompare();
     const { show, hide } = useChartTooltip();
     const [metric, setMetric] = useState<WeekMetric>('points');
+    const [selected, setSelected] = useState<HqPlayerStatsEntry | null>(
+        null,
+    );
     const weekCount = derived[0]?.weeks.length ?? 0;
     const [focus, setFocus] = useState({
         lane: 0,
@@ -195,14 +202,22 @@ export function CompareWeekByWeek() {
                 element,
             );
 
+        const score = derived[lane].weeks[column].score;
+        const text = cellInfo(lane, column).text;
+
         return {
-            role: 'img' as const,
             'data-cell': '',
             'data-lane': lane,
             'data-col': column,
             'data-cmp-tip': '',
             tabIndex: focusLane === lane && focusColumn === column ? 0 : -1,
-            'aria-label': cellInfo(lane, column).text,
+            'aria-label': score ? `${text}. Ver ficha de la jornada` : text,
+            onClick: score
+                ? (event: MouseEvent<HTMLElement>) => {
+                      hide(event.currentTarget);
+                      setSelected(jornadaEntry(players[lane], score));
+                  }
+                : undefined,
             onPointerEnter: (event: PointerEvent<HTMLElement>) =>
                 open(event.currentTarget),
             onPointerLeave: (event: PointerEvent<HTMLElement>) => {
@@ -294,11 +309,11 @@ export function CompareWeekByWeek() {
                             className="sm:hidden"
                         />
                         {weekCount === 0 ? (
-                            <span className="font-mono text-sm text-hq-moss-dim">
+                            <span className="self-center font-mono text-sm text-hq-moss-dim">
                                 —
                             </span>
                         ) : (
-                            <span className="grid w-full grid-cols-[repeat(auto-fill,minmax(34px,1fr))] gap-0.5 pt-1.5 max-sm:mt-1 sm:grid-cols-[repeat(auto-fill,minmax(38px,1fr))]">
+                            <span className="flex w-full flex-wrap justify-center gap-0.5 pt-1.5 max-sm:mt-1">
                                 {derived[lane].weeks.map(
                                     ({ week, score, pending }, column) => (
                                         <WeekCell
@@ -362,8 +377,38 @@ export function CompareWeekByWeek() {
                     </span>
                 </div>
             </div>
+            <HqPlayerStatsModal
+                entry={selected}
+                onClose={() => setSelected(null)}
+            />
         </>
     );
+}
+
+/**
+ * The jornada sheet of one lineup row: the club he played that match for
+ * (never his current one), DAZN once he had minutes, and the fixture so
+ * the sheet links to the match.
+ */
+function jornadaEntry(
+    player: ComparedPlayer,
+    score: ComparedPlayerScore,
+): HqPlayerStatsEntry {
+    return {
+        player: {
+            id: player.id,
+            nickname: player.name,
+            image: player.image,
+            position: player.position,
+        },
+        team: score.is_home
+            ? score.fixture.local_team
+            : score.fixture.guest_team,
+        points: score.points ?? 0,
+        dazn: score.minutes > 0 ? score : undefined,
+        stats: score.stats ?? {},
+        fixture: score.fixture,
+    };
 }
 
 /** One jornada of one player: "J{n}", the figure, the opponent's crest and the minutes bar. */
@@ -380,18 +425,24 @@ function WeekCell({
     pending: boolean;
     metric: WeekMetric;
     top: boolean;
-} & HTMLAttributes<HTMLSpanElement>) {
+} & HTMLAttributes<HTMLElement>) {
     const value = weekValue(score, metric);
     const daznShown =
         metric === 'dazn' &&
         score !== null &&
         score.minutes > 0 &&
         (score.dazn_points !== null || score.dazn_estimate !== null);
+    // A played jornada opens its sheet; NC and PEND are only described.
+    const Cell = score ? 'button' : 'span';
 
     return (
-        <span
+        <Cell
             {...props}
-            className="relative flex cursor-default flex-col items-center gap-[3px] pt-[3px] pb-1 hover:bg-[color-mix(in_srgb,var(--color-hq-paper)_7%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-hq-lime"
+            {...(score ? { type: 'button' as const } : { role: 'img' })}
+            className={cn(
+                'relative flex w-[34px] flex-col items-center gap-[3px] pt-[3px] pb-1 hover:bg-[color-mix(in_srgb,var(--color-hq-paper)_7%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-hq-lime sm:w-[38px]',
+                score ? 'cursor-pointer' : 'cursor-default',
+            )}
         >
             {top && (
                 <i
@@ -475,6 +526,6 @@ function WeekCell({
                     </span>
                 </>
             )}
-        </span>
+        </Cell>
     );
 }

@@ -32,7 +32,7 @@ use Illuminate\Support\Collection as SupportCollection;
  * @phpstan-import-type PlayerNextStart from StartProbabilities
  *
  * @phpstan-type ComparedNextFixture array{week_number: int, opponent: Team, is_home: bool, date: string, difficulty: float|null, difficulty_variant: string|null, difficulty_components: array{rival_strength: float, home: float, absences: float}|array{}, absence_adjusted: bool|null, rival_position: int|null}
- * @phpstan-type ComparedPlayerScore array{fixture_id: int, week_number: int, fixture_state: string, opponent: Team|null, is_home: bool, points: int|null, minutes: int, starter: bool, dazn_points: int|null, dazn_estimate: int|null, dazn_estimate_version: string, dazn_estimate_reasons: list<string>, dazn_estimate_source: string|null}
+ * @phpstan-type ComparedPlayerScore array{fixture_id: int, week_number: int, fixture_state: string, opponent: Team|null, is_home: bool, points: int|null, minutes: int, starter: bool, dazn_points: int|null, dazn_estimate: int|null, dazn_estimate_version: string, dazn_estimate_reasons: list<string>, dazn_estimate_source: string|null, stats: array<string, mixed>|null, fixture: Fixture}
  * @phpstan-type ComparedPlayerShape array{id: int, name: string, image: string, position: string, status: string, team: Team, value: int, difference: int, trend: string|null, value_trend_30d: array{multiple: float, value: int, date: string}|null, market_history: list<array{0: string, 1: int}>, points: int, average_points: float, points_per_million: array{value: float, rank: int|null, ranked: int}|null, scores: list<ComparedPlayerScore>, next_fixtures: list<ComparedNextFixture|null>, pending_weeks: list<int>, next_start: PlayerNextStart|null, owner: array{id: int, name: string, logo: string, color: string|null}|null, clause: array{amount: int, locked_until: string, is_locked: bool, shielded: bool, shielded_until: string|null, purchase: array{amount: int, type: string, occurred_at: string}|null}|null, listing: array{sale_price: int, bids: int, expires_at: string, seller: string}|null}
  */
 final class ComparedPlayers
@@ -219,7 +219,9 @@ final class ComparedPlayers
 
     /**
      * One entry per lineup row of the season, in jornada order (kickoff
-     * breaks a tie), with the same DAZN visibility rule as the ficha.
+     * breaks a tie), with the same DAZN visibility rule as the ficha, plus
+     * what the jornada modal needs: that match's fantasy stats and its
+     * fixture with both teams.
      *
      * @param  SupportCollection<int, FixtureLineup>  $lineups
      * @return list<ComparedPlayerScore>
@@ -242,6 +244,8 @@ final class ComparedPlayers
                     'minutes' => (int) ($lineup->fantasy_stats['mins_played'][0] ?? 0),
                     'starter' => $lineup->starter,
                     ...DaznEstimatePresenter::present($lineup, $fixture),
+                    'stats' => $lineup->fantasy_stats,
+                    'fixture' => $fixture,
                 ];
             })
             ->all());

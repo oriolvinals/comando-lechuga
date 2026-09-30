@@ -121,6 +121,29 @@ test('scores cover the season in jornada order, with minutes, rival side and DAZ
         ->and($scores[1]['dazn_estimate'])->toBe(2);
 });
 
+test('each score carries the match fantasy stats and its fixture with both teams, for the jornada modal', function (): void {
+    $season = comparedSeason();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    $fixture = Fixture::factory()->create([
+        'season_id' => $season->id, 'week_number' => 2, 'state' => FixtureState::Finished,
+        'team_guest_id' => $player->team_id, 'local_score' => 1, 'guest_score' => 2,
+    ]);
+    $stats = ['mins_played' => [90, 2], 'goals' => [1, 5]];
+    FixtureLineup::factory()->create([
+        'player_id' => $player->id, 'fixture_id' => $fixture->id, 'team_id' => $player->team_id,
+        'fantasy_points' => 7, 'fantasy_stats' => $stats,
+    ]);
+
+    $score = app(ComparedPlayers::class)->forIds([$player->id], $season, 3)[0]['scores'][0];
+    $serialized = json_decode((string) json_encode($score['fixture']), true);
+
+    expect($score['stats'])->toBe($stats)
+        ->and($score['fixture']->id)->toBe($fixture->id)
+        ->and($serialized['guest_score'])->toBe(2)
+        ->and($serialized['local_team']['id'])->toBe($fixture->team_local_id)
+        ->and($serialized['guest_team']['id'])->toBe($player->team_id);
+});
+
 test('an owned player carries the owner, the clause and the owner purchase; a listed one the listing', function (): void {
     $season = comparedSeason();
     $manager = SeasonManager::factory()->create(['season_id' => $season->id, 'primary_color' => '#00ff00']);

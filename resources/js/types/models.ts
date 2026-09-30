@@ -751,6 +751,10 @@ export interface ComparedPlayerScore extends DaznFields {
     /** `fantasy_stats.mins_played[0]`, 0 when missing. */
     minutes: number;
     starter: boolean;
+    /** That match's `fantasy_stats`, for the jornada modal. */
+    stats: JornadaStats | null;
+    /** That match, with both teams, for the jornada modal's scoreboard and link. */
+    fixture: Fixture;
 }
 
 export interface ComparedPlayerClause {
