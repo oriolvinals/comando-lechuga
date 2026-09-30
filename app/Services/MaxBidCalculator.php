@@ -18,6 +18,7 @@ use App\Models\PlayerMarket;
 use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\Team;
+use App\Models\ValueForecast;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,9 @@ use RuntimeException;
  * Two steps: `gatherInputs()` does every database query, and the pure
  * `estimateFromInputs()` applies the formula with a set of MaxBidParameters,
  * so the backtest can replay the formula with other parameters in memory.
+ *
+ * Day 1 of the projection is the value forecast when there is one for the
+ * reference date (docs/superpowers/specs/2026-09-30-value-forecast-design.md §4.1).
  */
 class MaxBidCalculator
 {
@@ -159,6 +163,7 @@ class MaxBidCalculator
             referenceDate: $referenceDate,
             strongRise: in_array(MarketTrend::fromDailyValues(array_values($values)), self::STRONG_RISE_TRENDS, true),
             nextStartProbability: $this->nextStartProbability($player, $season, $moment),
+            dayOneForecast: $this->dayOneForecast($player, $season, $referenceDate),
         );
     }
 
@@ -194,6 +199,14 @@ class MaxBidCalculator
             default => $parameters->incrementDecayMatchweek,
         };
         $projection = self::project($value, $increment, $decay);
+        $dayOneOffset = null;
+
+        if ($inputs->dayOneForecast !== null) {
+            $dayOneOffset = $inputs->dayOneForecast - $projection[1];
+
+            $projection = [$value, ...array_map(fn (int $dayValue): int => $dayValue + $dayOneOffset, array_slice($projection, 1))];
+        }
+
         $profitable = $increment > 0;
 
         return new MaxBidEstimate(
@@ -217,6 +230,8 @@ class MaxBidCalculator
             rivalsEffect: $sport['rivals_effect'],
             upcomingRivals: $sport['upcoming_rivals'],
             referenceDate: $inputs->referenceDate,
+            dayOneForecast: $inputs->dayOneForecast,
+            dayOneOffset: $dayOneOffset,
         );
     }
 
@@ -650,6 +665,23 @@ class MaxBidCalculator
             $row->probability !== null => $row->probability / 100,
             default => null,
         };
+    }
+
+    /**
+     * The stored value forecast for the day after `$referenceDate`, made on
+     * that same reference date; null without one — an older forecast never
+     * counts (value forecast spec §4.1).
+     */
+    private function dayOneForecast(Player $player, Season $season, string $referenceDate): ?int
+    {
+        $predictedValue = ValueForecast::query()
+            ->where('season_id', $season->id)
+            ->where('player_id', $player->id)
+            ->whereDate('reference_date', $referenceDate)
+            ->whereDate('target_date', CarbonImmutable::parse($referenceDate)->addDay())
+            ->value('predicted_value');
+
+        return $predictedValue === null ? null : (int) $predictedValue;
     }
 
     /** The player's position in `$season`, null without a season row. */

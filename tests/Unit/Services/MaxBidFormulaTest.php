@@ -252,3 +252,46 @@ test('the estimate exposes recent participation, the start probability and its w
     'without probability' => [null],
     'with probability' => [0.9],
 ]);
+
+test('the value forecast becomes day 1 and shifts days 2–14 by the same amount', function (): void {
+    $without = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters);
+    $with = MaxBidCalculator::estimateFromInputs(formulaInputs(['dayOneForecast' => 10_150_000]), new MaxBidParameters);
+    $offset = 10_150_000 - $without->projection[1];
+
+    expect($with->projection[0])->toBe(10_000_000)
+        ->and($with->projection[1])->toBe(10_150_000)
+        ->and(array_map(fn (int $before, int $after): int => $after - $before, array_slice($without->projection, 1), array_slice($with->projection, 1)))
+        ->toBe(array_fill(0, MaxBidCalculator::LOCK_DAYS, $offset))
+        ->and($with->dayOneForecast)->toBe(10_150_000)
+        ->and($with->dayOneOffset)->toBe($offset)
+        ->and($with->toArray()['day_one_forecast'])->toBe(10_150_000)
+        ->and($with->status)->toBe($without->status)
+        ->and($with->dailyIncrement)->toBe($without->dailyIncrement)
+        ->and($with->bid)->toBeGreaterThan($without->bid);
+});
+
+test('a forecast below today moves the path but never the profitability', function (): void {
+    $with = MaxBidCalculator::estimateFromInputs(formulaInputs(['dayOneForecast' => 9_700_000]), new MaxBidParameters);
+
+    expect($with->status)->toBe(MaxBidStatus::Profitable)
+        ->and($with->projection[1])->toBe(9_700_000);
+});
+
+test('without a forecast the projection is the plain one', function (): void {
+    $estimate = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters);
+
+    expect($estimate->dayOneForecast)->toBeNull()
+        ->and($estimate->dayOneOffset)->toBeNull()
+        ->and($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, 100_000.0, (new MaxBidParameters)->incrementDecayBreak));
+});
+
+test('withDayOneForecast keeps every other input', function (): void {
+    $inputs = formulaInputs(['doubtful' => true, 'referenceDate' => '2026-09-26']);
+    $copy = $inputs->withDayOneForecast(10_050_000);
+
+    expect($copy->dayOneForecast)->toBe(10_050_000)
+        ->and($copy->doubtful)->toBeTrue()
+        ->and($copy->referenceDate)->toBe('2026-09-26')
+        ->and($copy->value)->toBe($inputs->value)
+        ->and($inputs->dayOneForecast)->toBeNull();
+});
