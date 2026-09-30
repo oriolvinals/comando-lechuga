@@ -161,7 +161,11 @@ export default function GodRadar({
                         clauses={clauses}
                     />
                 </div>
-                <RadarUnlocks clauses={clauses} managers={managers} />
+                <RadarUnlocks
+                    clauses={clauses}
+                    managers={managers}
+                    connectedManagerId={connectedManagerId}
+                />
             </div>
         </>
     );

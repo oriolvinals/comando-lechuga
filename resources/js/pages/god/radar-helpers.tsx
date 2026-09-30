@@ -27,7 +27,13 @@ function describeOverValue(overValue: number): string {
 }
 
 /** An amount (clause or sale price) against the value: muted above it, lime at or below it. */
-export function OverValue({ overValue }: { overValue: number }) {
+export function OverValue({
+    overValue,
+    className,
+}: {
+    overValue: number;
+    className?: string;
+}) {
     return (
         <span
             className={cn(
@@ -35,6 +41,7 @@ export function OverValue({ overValue }: { overValue: number }) {
                 overValue < SAME_AS_VALUE_BELOW
                     ? 'text-hq-lime'
                     : 'text-hq-moss-dim',
+                className,
             )}
         >
             {describeOverValue(overValue)}
