@@ -164,6 +164,7 @@ final class ValueForecastFeatures
                 ->where('fixtures.state', FixtureState::Finished->value)
                 ->whereNotNull('fixture_lineups.player_id')
                 ->orderBy('fixtures.date')
+                ->orderBy('fixtures.id')
                 ->get(['fixture_lineups.player_id', 'fixtures.date', 'fixture_lineups.fantasy_points', 'fixture_lineups.fantasy_stats']) as $lineup
         ) {
             $playerId = (int) $lineup->player_id;
