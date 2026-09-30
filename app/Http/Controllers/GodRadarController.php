@@ -47,6 +47,7 @@ class GodRadarController extends Controller
             'connectedManagerId' => $connectedManagerId,
             'managers' => $managers,
             'clauses' => $clauseRadar->forSeason($season, $balances, $connectedManagerId, $now),
+            'market' => $clauseRadar->marketRows($season, $balances, $connectedManagerId, $now),
             'manualRaises' => $this->manualRaises($season),
             'now' => $now->toIso8601String(),
         ]);

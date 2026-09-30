@@ -16,7 +16,7 @@ let trailingReload: ReturnType<typeof setTimeout> | null = null;
 
 function reloadRadarProps(): void {
     lastReloadAt = Date.now();
-    router.reload({ only: ['clauses', 'managers', 'now'] });
+    router.reload({ only: ['clauses', 'market', 'managers', 'now'] });
 }
 
 /**
@@ -60,7 +60,7 @@ function reloadRadarFor(moment: string): void {
  * browser clock ahead of the server's) would otherwise fire on every reload
  * and loop. Key it by `target` so a new moment gets a fresh check.
  */
-function ReloadingCountdown({ target }: { target: string }) {
+export function ReloadingCountdown({ target }: { target: string }) {
     const [isAheadOnMount] = useState(
         () => new Date(target).getTime() > Date.now(),
     );

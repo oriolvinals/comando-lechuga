@@ -6,17 +6,23 @@ namespace App\Services;
 
 use App\Enums\ClauseState;
 use App\Enums\PayerLevel;
+use App\Enums\PlayerPosition;
 use App\Models\ManagerPlayer;
 use App\Models\MarketPlayer;
+use App\Models\Player;
 use App\Models\PlayerSeason;
 use App\Models\Season;
 use Carbon\CarbonImmutable;
 
 /**
  * Every squad player's buyout clause with its state, opportunity and which
- * rivals can pay it. PRIVATE: web /radar only.
+ * rivals can pay it, and the same payers for every market listing.
+ * PRIVATE: web /radar only.
  *
- * @phpstan-type RadarClauseShape array{player: array{id: int, nickname: string, position: string, team_short_name: string, points: int, average_points: float, status: string, market_value: int, market_value_difference: int, market_trend: string|null}, owner_id: int, amount: int, locked_until: string, shielded_until: string|null, state: string, opportunity: int, payers: list<array{manager_id: int, level: string}>}
+ * @phpstan-type RadarPlayerShape array{id: int, nickname: string, image: string, position: string, team_short_name: string, points: int, average_points: float, status: string, market_value: int, market_value_difference: int, market_trend: string|null}
+ * @phpstan-type RadarPayersShape list<array{manager_id: int, level: string}>
+ * @phpstan-type RadarClauseShape array{player: RadarPlayerShape, owner_id: int, amount: int, locked_until: string, shielded_until: string|null, state: string, opportunity: int, payers: RadarPayersShape}
+ * @phpstan-type RadarMarketShape array{player: RadarPlayerShape, listing_id: int, seller_id: int|null, price: int, value: int, bids: int, expires_at: string, payers: RadarPayersShape}
  */
 final class ClauseRadar
 {
@@ -73,39 +79,108 @@ final class ClauseRadar
                 continue;
             }
 
-            $payers = [];
-
-            foreach ($balances as $managerId => $balance) {
-                if ($managerId === $entry->season_manager_id || $managerId === $connectedManagerId) {
-                    continue;
-                }
-
-                $payers[] = ['manager_id' => $managerId, 'level' => self::payerLevel($balance, $entry->buyout_clause)->value];
-            }
-
             $rows[] = [
-                'player' => [
-                    'id' => $entry->player->id,
-                    'nickname' => $entry->player->nickname,
-                    'position' => $playerSeason->position->value,
-                    'team_short_name' => $entry->player->team->short_name,
-                    'points' => $playerSeason->points,
-                    'average_points' => (float) $playerSeason->average_points,
-                    'status' => $entry->player->status->value,
-                    'market_value' => $playerSeason->market_value,
-                    'market_value_difference' => $playerSeason->market_value_difference,
-                    'market_trend' => $playerSeason->market_trend?->value,
-                ],
+                'player' => self::player($entry->player, $playerSeason),
                 'owner_id' => $entry->season_manager_id,
                 'amount' => $entry->buyout_clause,
                 'locked_until' => $entry->buyout_clause_locked_until->toIso8601String(),
                 'shielded_until' => $entry->shielded_until?->toIso8601String(),
                 'state' => self::state($entry, isset($listed[$entry->player_id]), $now)->value,
                 'opportunity' => $this->opportunity($entry->buyout_clause, $playerSeason->market_value, (float) $playerSeason->average_points),
-                'payers' => $payers,
+                'payers' => self::payers($balances, $entry->buyout_clause, [$entry->season_manager_id, $connectedManagerId]),
             ];
         }
 
         return $rows;
+    }
+
+    /**
+     * The live market listings (coaches left out, as on the home market),
+     * soonest to expire first. The seller is the manager who owns the player
+     * this season, or null for a free listing by the league.
+     *
+     * @param  array<int, ManagerBalance>  $balances
+     * @return list<RadarMarketShape>
+     */
+    public function marketRows(Season $season, array $balances, ?int $connectedManagerId, CarbonImmutable $now): array
+    {
+        $listings = MarketPlayer::query()
+            ->where('expires_at', '>', $now)
+            ->with(['player.team', 'player.seasons' => fn ($query) => $query->where('season_id', $season->id)])
+            ->orderBy('expires_at')
+            ->orderBy('id')
+            ->get();
+
+        /** @var array<int, int> $sellers */
+        $sellers = ManagerPlayer::query()
+            ->whereIn('player_id', $listings->pluck('player_id'))
+            ->whereHas('seasonManager', fn ($query) => $query->where('season_id', $season->id))
+            ->pluck('season_manager_id', 'player_id')
+            ->all();
+
+        $rows = [];
+
+        foreach ($listings as $listing) {
+            $playerSeason = $listing->player->seasons->first();
+
+            if (!$playerSeason instanceof PlayerSeason || $playerSeason->position === PlayerPosition::Coach) {
+                continue;
+            }
+
+            $sellerId = $sellers[$listing->player_id] ?? null;
+
+            $rows[] = [
+                'player' => self::player($listing->player, $playerSeason),
+                'listing_id' => $listing->id,
+                'seller_id' => $sellerId,
+                'price' => $listing->sale_price,
+                'value' => $listing->value,
+                'bids' => $listing->bids,
+                'expires_at' => $listing->expires_at->toIso8601String(),
+                'payers' => self::payers($balances, $listing->sale_price, [$sellerId, $connectedManagerId]),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /** @return RadarPlayerShape */
+    private static function player(Player $player, PlayerSeason $playerSeason): array
+    {
+        return [
+            'id' => $player->id,
+            'nickname' => $player->nickname,
+            'image' => $player->image ? asset('storage/'.$player->image) : '',
+            'position' => $playerSeason->position->value,
+            'team_short_name' => $player->team->short_name,
+            'points' => $playerSeason->points,
+            'average_points' => (float) $playerSeason->average_points,
+            'status' => $player->status->value,
+            'market_value' => $playerSeason->market_value,
+            'market_value_difference' => $playerSeason->market_value_difference,
+            'market_trend' => $playerSeason->market_trend?->value,
+        ];
+    }
+
+    /**
+     * Each manager's payer level for an amount, in the balances' order, without the excluded managers.
+     *
+     * @param  array<int, ManagerBalance>  $balances
+     * @param  list<int|null>  $excludedManagerIds
+     * @return RadarPayersShape
+     */
+    private static function payers(array $balances, int $amount, array $excludedManagerIds): array
+    {
+        $payers = [];
+
+        foreach ($balances as $managerId => $balance) {
+            if (in_array($managerId, $excludedManagerIds, true)) {
+                continue;
+            }
+
+            $payers[] = ['manager_id' => $managerId, 'level' => self::payerLevel($balance, $amount)->value];
+        }
+
+        return $payers;
     }
 }

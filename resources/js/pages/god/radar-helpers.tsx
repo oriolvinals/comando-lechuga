@@ -1,8 +1,96 @@
 import type { LucideIcon } from 'lucide-react';
-import { formatNumber } from '@/lib/format';
+import { CircleCheck, CircleHelp } from 'lucide-react';
+import { formatMillions, formatNumber } from '@/lib/format';
 import { managerColor } from '@/lib/season-manager-colors';
 import { cn } from '@/lib/utils';
 import type { PayerLevel, RadarManager } from '@/types/models';
+
+export const MAX_PAYERS_SHOWN = 5;
+export const PAYER_LEVEL_LABELS = {
+    sure: 'paga seguro',
+    maybe: 'quizá',
+    no: 'no llega',
+} as const;
+
+/** Under `formatMillions`' 0,01 M€ precision the difference would print as "0 M€". */
+const SAME_AS_VALUE_BELOW = 5_000;
+
+/** "+5,35 M€ sobre valor", "−1,2 M€ bajo valor" or "igual al valor". */
+function describeOverValue(overValue: number): string {
+    if (Math.abs(overValue) < SAME_AS_VALUE_BELOW) {
+        return 'igual al valor';
+    }
+
+    return overValue > 0
+        ? `+${formatMillions(overValue)} sobre valor`
+        : `−${formatMillions(-overValue)} bajo valor`;
+}
+
+/** An amount (clause or sale price) against the value: muted above it, lime at or below it. */
+export function OverValue({ overValue }: { overValue: number }) {
+    return (
+        <span
+            className={cn(
+                'font-mono text-[11.5px] whitespace-nowrap tabular-nums',
+                overValue < SAME_AS_VALUE_BELOW
+                    ? 'text-hq-lime'
+                    : 'text-hq-moss-dim',
+            )}
+        >
+            {describeOverValue(overValue)}
+        </span>
+    );
+}
+
+/** The first rivals as payer squares, then the sure and maybe counts. */
+export function PayerSquares({
+    payers,
+    byId,
+}: {
+    payers: { manager_id: number; level: PayerLevel }[];
+    byId: Map<number, RadarManager>;
+}) {
+    const sure = payers.filter((entry) => entry.level === 'sure').length;
+    const maybe = payers.filter((entry) => entry.level === 'maybe').length;
+
+    return (
+        <span
+            className="inline-flex items-center gap-1"
+            aria-label={`${sure} pagan seguro, ${maybe} quizá`}
+        >
+            {payers.slice(0, MAX_PAYERS_SHOWN).map((entry) => {
+                const manager = byId.get(entry.manager_id);
+
+                if (!manager) {
+                    return null;
+                }
+
+                return (
+                    <span
+                        key={entry.manager_id}
+                        title={`${manager.name}: ${PAYER_LEVEL_LABELS[entry.level]}`}
+                        className="inline-flex"
+                    >
+                        <ManagerSquare
+                            manager={manager}
+                            variant={entry.level}
+                        />
+                    </span>
+                );
+            })}
+            <span className="ml-1 inline-flex items-center gap-0.5 font-mono text-[11.5px] font-bold text-hq-lime">
+                <CircleCheck aria-hidden="true" className="size-3" />
+                {sure}
+            </span>
+            {maybe > 0 && (
+                <span className="inline-flex items-center gap-0.5 font-mono text-[11.5px] font-bold text-hq-khaki">
+                    <CircleHelp aria-hidden="true" className="size-3" />
+                    {maybe}
+                </span>
+            )}
+        </span>
+    );
+}
 
 /** "212,9" — millions with one decimal, the unit printed by the caller. */
 export function formatM(amount: number): string {

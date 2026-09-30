@@ -80,3 +80,59 @@ test('rows list rivals as payers without the owner or the connected account, and
         ->and($rows[0]['owner_id'])->toBe($owner->id)
         ->and($rows[0]['payers'])->toBe([['manager_id' => $rival->id, 'level' => 'maybe']]);
 });
+
+test('market rows list the live listings with the seller, and payers without the seller or the connected account', function (): void {
+    $now = CarbonImmutable::parse('2026-09-29 12:00');
+    $this->travelTo($now);
+    $season = Season::factory()->create(['start_date' => '2026-07-01', 'end_date' => '2027-06-30']);
+    [$seller, $me, $rich, $poor] = SeasonManager::factory()->count(4)->create(['season_id' => $season->id])->all();
+    $free = Player::factory()->create(['nickname' => 'Libre', 'position' => PlayerPosition::Striker, 'market_value' => 9_000_000]);
+    $owned = Player::factory()->create(['nickname' => 'Vendido', 'position' => PlayerPosition::Midfield]);
+    ManagerPlayer::factory()->create(['season_manager_id' => $seller->id, 'player_id' => $owned->id]);
+    MarketPlayer::factory()->create([
+        'player_id' => $free->id, 'sale_price' => 10_000_000, 'value' => 9_000_000, 'bids' => 2, 'expires_at' => $now->addHours(5),
+    ]);
+    MarketPlayer::factory()->create(['player_id' => $owned->id, 'sale_price' => 20_000_000, 'expires_at' => $now->addHours(3)]);
+    MarketPlayer::factory()->create([
+        'player_id' => Player::factory()->create(['position' => PlayerPosition::Defender])->id, 'expires_at' => $now->subMinute(),
+    ]);
+    MarketPlayer::factory()->create([
+        'player_id' => Player::factory()->create(['position' => PlayerPosition::Coach])->id, 'expires_at' => $now->addHour(),
+    ]);
+    $unsynced = Player::factory()->create();
+    PlayerSeason::query()->where('player_id', $unsynced->id)->delete();
+    MarketPlayer::factory()->create(['player_id' => $unsynced->id, 'expires_at' => $now->addHour()]);
+
+    $rows = app(ClauseRadar::class)->marketRows($season, [
+        $seller->id => balanceOf($seller->id, 500_000_000, 500_000_000),
+        $me->id => balanceOf($me->id, 500_000_000, 500_000_000),
+        $rich->id => balanceOf($rich->id, 15_000_000, 25_000_000),
+        $poor->id => balanceOf($poor->id, 1_000_000, 2_000_000),
+    ], $me->id, $now);
+
+    expect($rows)->toHaveCount(2)
+        ->and($rows[0]['player']['nickname'])->toBe('Vendido')
+        ->and($rows[0]['seller_id'])->toBe($seller->id)
+        ->and($rows[0]['payers'])->toBe([
+            ['manager_id' => $rich->id, 'level' => 'maybe'],
+            ['manager_id' => $poor->id, 'level' => 'no'],
+        ])
+        ->and($rows[1]['player']['nickname'])->toBe('Libre')
+        ->and($rows[1]['player']['position'])->toBe('striker')
+        ->and($rows[1]['seller_id'])->toBeNull()
+        ->and($rows[1]['price'])->toBe(10_000_000)
+        ->and($rows[1]['value'])->toBe(9_000_000)
+        ->and($rows[1]['bids'])->toBe(2)
+        ->and($rows[1]['expires_at'])->toBe($now->addHours(5)->toIso8601String())
+        ->and($rows[1]['payers'])->toBe([
+            ['manager_id' => $seller->id, 'level' => 'sure'],
+            ['manager_id' => $rich->id, 'level' => 'sure'],
+            ['manager_id' => $poor->id, 'level' => 'no'],
+        ]);
+});
+
+test('an empty market has no rows', function (): void {
+    $season = Season::factory()->create(['start_date' => '2026-07-01', 'end_date' => '2027-06-30']);
+
+    expect(app(ClauseRadar::class)->marketRows($season, [], null, CarbonImmutable::now()))->toBe([]);
+});

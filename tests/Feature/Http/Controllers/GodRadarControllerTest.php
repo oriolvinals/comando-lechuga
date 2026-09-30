@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\ClauseSnapshotSource;
+use App\Enums\PlayerPosition;
 use App\Models\ManagerBalanceSnapshot;
 use App\Models\ManagerPlayer;
 use App\Models\ManagerPlayerClauseSnapshot;
+use App\Models\MarketPlayer;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
@@ -94,4 +96,18 @@ test('the radar lists this season\'s manual clause raises with their cost', func
                 'cost' => 21_000_000,
                 'note' => 'hasta los 59 M',
             ]));
+});
+
+test('the radar lists the players on the market', function (): void {
+    $player = Player::factory()->create(['nickname' => 'Libre', 'position' => PlayerPosition::Striker]);
+    MarketPlayer::factory()->create(['player_id' => $player->id, 'sale_price' => 10_000_000, 'expires_at' => now()->addHours(5)]);
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('god.radar'))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('market', 1)
+            ->where('market.0.player.nickname', 'Libre')
+            ->where('market.0.seller_id', null)
+            ->where('market.0.price', 10_000_000)
+            ->has('market.0.payers', 2));
 });

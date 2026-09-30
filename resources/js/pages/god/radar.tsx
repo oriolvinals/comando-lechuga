@@ -23,12 +23,14 @@ import type {
     RadarClause,
     RadarManager,
     RadarManualRaise,
+    RadarMarketListing,
 } from '@/types/models';
 
 interface GodRadarProps {
     connectedManagerId: number | null;
     managers: RadarManager[];
     clauses: RadarClause[];
+    market: RadarMarketListing[];
     manualRaises: RadarManualRaise[];
     now: string;
 }
@@ -70,6 +72,7 @@ export default function GodRadar({
     connectedManagerId,
     managers,
     clauses,
+    market,
     manualRaises,
 }: GodRadarProps) {
     const [payerId, setPayerId] = useState<number | null>(null);
@@ -146,6 +149,7 @@ export default function GodRadar({
                 <div className="min-w-0">
                     <RadarClauses
                         clauses={clauses}
+                        market={market}
                         managers={managers}
                         connectedManagerId={connectedManagerId}
                         payerId={payerId}

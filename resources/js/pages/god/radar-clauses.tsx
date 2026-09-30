@@ -2,11 +2,10 @@ import { router } from '@inertiajs/react';
 import {
     ArrowDownWideNarrow,
     ChevronDown,
-    CircleCheck,
-    CircleHelp,
     Crosshair,
     List,
     LockOpen,
+    Tag,
     Timer,
     User,
     Wallet,
@@ -21,16 +20,30 @@ import { formatAverage, formatMillions } from '@/lib/format';
 import { POSITION_ABBREVIATIONS } from '@/lib/player-labels';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
-import { ManagerSquare, Segmented } from '@/pages/god/radar-helpers';
+import {
+    ManagerSquare,
+    OverValue,
+    PAYER_LEVEL_LABELS,
+    PayerSquares,
+    Segmented,
+} from '@/pages/god/radar-helpers';
+import { RadarMarket } from '@/pages/god/radar-market';
 import { ClauseStateBadge } from '@/pages/god/radar-unlocks';
 import { show as playersShow } from '@/routes/players';
-import type { PlayerPosition, RadarClause, RadarManager } from '@/types/models';
+import type {
+    PlayerPosition,
+    RadarClause,
+    RadarManager,
+    RadarMarketListing,
+} from '@/types/models';
 
 type Scope = 'open' | 'soon' | 'all';
 type Sort = 'opportunity' | 'clause' | 'average' | 'soon';
 
+/** The «Dueño» filter: everyone, one manager, or the players on the market. */
+type Owner = number | 'market' | null;
+
 const PAGE = 14;
-const MAX_PAYERS_SHOWN = 5;
 const SEVENTY_TWO_HOURS = 72 * 3600 * 1000;
 const POSITIONS: (PlayerPosition | 'all')[] = [
     'all',
@@ -39,28 +52,18 @@ const POSITIONS: (PlayerPosition | 'all')[] = [
     'midfield',
     'striker',
 ];
-const PAYER_LEVEL_LABELS = {
-    sure: 'paga seguro',
-    maybe: 'quizá',
-    no: 'no llega',
-} as const;
 
-/** Under `formatMillions`' 0,01 M€ precision the difference would print as "0 M€". */
-const SAME_AS_VALUE_BELOW = 5_000;
-
-/** "+5,35 M€ sobre valor", "−1,2 M€ bajo valor" or "igual al valor". */
-function describeOverValue(overValue: number): string {
-    if (Math.abs(overValue) < SAME_AS_VALUE_BELOW) {
-        return 'igual al valor';
+function parseOwner(value: string): Owner {
+    if (value === 'market') {
+        return 'market';
     }
 
-    return overValue > 0
-        ? `+${formatMillions(overValue)} sobre valor`
-        : `−${formatMillions(-overValue)} bajo valor`;
+    return value ? Number(value) : null;
 }
 
 interface RadarClausesProps {
     clauses: RadarClause[];
+    market: RadarMarketListing[];
     managers: RadarManager[];
     connectedManagerId: number | null;
     payerId: number | null;
@@ -73,12 +76,14 @@ const SELECT_CLASS =
 /** The clause radar: filters, sorts, and one row per squad player. */
 export function RadarClauses({
     clauses,
+    market,
     managers,
     connectedManagerId,
     payerId,
     onPayerChange,
 }: RadarClausesProps) {
-    const [ownerId, setOwnerId] = useState<number | null>(null);
+    const [ownerId, setOwnerId] = useState<Owner>(null);
+    const isMarket = ownerId === 'market';
     const [position, setPosition] = useState<PlayerPosition | 'all'>('all');
     const [scope, setScope] = useState<Scope>('open');
     const [sort, setSort] = useState<Sort>('opportunity');
@@ -156,6 +161,41 @@ export function RadarClauses({
             return b.opportunity - a.opportunity || a.amount - b.amount;
         });
 
+    const listings = market
+        .filter((listing) => {
+            if (position !== 'all' && listing.player.position !== position) {
+                return false;
+            }
+
+            if (
+                payer &&
+                (listing.seller_id === payer.id || payerHigh < listing.price)
+            ) {
+                return false;
+            }
+
+            return true;
+        })
+        .sort((a, b) => {
+            if (sort === 'clause') {
+                return a.price - b.price;
+            }
+
+            if (sort === 'average') {
+                return b.player.average_points - a.player.average_points;
+            }
+
+            if (sort === 'soon') {
+                return a.expires_at.localeCompare(b.expires_at);
+            }
+
+            return a.price - a.value - (b.price - b.value) || a.price - b.price;
+        });
+    const shownCount = isMarket ? listings.length : rows.length;
+    const connected =
+        connectedManagerId !== null ? byId.get(connectedManagerId) : undefined;
+    const myCash = connected?.cash.is_real ? connected.cash.mid : null;
+
     const changeScope = (value: Scope) => {
         setScope(value);
 
@@ -172,10 +212,17 @@ export function RadarClauses({
                 id="radar-clauses"
                 className="flex items-center gap-1.5 px-3.5 pt-3 pb-2 text-[15px] font-black uppercase"
             >
-                <Crosshair aria-hidden="true" className="size-4 text-hq-moss" />
-                Cláusulas
+                {isMarket ? (
+                    <Tag aria-hidden="true" className="size-4 text-hq-moss" />
+                ) : (
+                    <Crosshair
+                        aria-hidden="true"
+                        className="size-4 text-hq-moss"
+                    />
+                )}
+                {isMarket ? 'Mercado' : 'Cláusulas'}
                 <small className="font-mono text-xs font-semibold text-hq-moss-dim normal-case">
-                    {rows.length}
+                    {shownCount}
                     {payer && ` · paga ${payer.name}`}
                 </small>
             </h2>
@@ -215,14 +262,11 @@ export function RadarClauses({
                         className={SELECT_CLASS}
                         value={ownerId ?? ''}
                         onChange={(event) =>
-                            setOwnerId(
-                                event.target.value
-                                    ? Number(event.target.value)
-                                    : null,
-                            )
+                            setOwnerId(parseOwner(event.target.value))
                         }
                     >
                         <option value="">Dueño: todos</option>
+                        <option value="market">Mercado</option>
                         {managers.map((manager) => (
                             <option key={manager.id} value={manager.id}>
                                 {manager.name}
@@ -244,27 +288,29 @@ export function RadarClauses({
                         }))}
                     />
                 </div>
-                <div className="w-full sm:w-auto">
-                    <Segmented<Scope>
-                        label="Estado"
-                        value={scope}
-                        onChange={changeScope}
-                        options={[
-                            {
-                                value: 'open',
-                                label: 'Abiertas',
-                                icon: LockOpen,
-                            },
-                            {
-                                value: 'soon',
-                                label: '72 h',
-                                icon: Timer,
-                                title: 'Se abren en menos de 72 h',
-                            },
-                            { value: 'all', label: 'Todas', icon: List },
-                        ]}
-                    />
-                </div>
+                {!isMarket && (
+                    <div className="w-full sm:w-auto">
+                        <Segmented<Scope>
+                            label="Estado"
+                            value={scope}
+                            onChange={changeScope}
+                            options={[
+                                {
+                                    value: 'open',
+                                    label: 'Abiertas',
+                                    icon: LockOpen,
+                                },
+                                {
+                                    value: 'soon',
+                                    label: '72 h',
+                                    icon: Timer,
+                                    title: 'Se abren en menos de 72 h',
+                                },
+                                { value: 'all', label: 'Todas', icon: List },
+                            ]}
+                        />
+                    </div>
+                )}
                 <label className="flex w-full items-center gap-1.5 sm:w-auto">
                     <ArrowDownWideNarrow
                         aria-hidden="true"
@@ -278,15 +324,30 @@ export function RadarClauses({
                             setSort(event.target.value as Sort)
                         }
                     >
-                        <option value="opportunity">Mejor oportunidad</option>
-                        <option value="clause">Cláusula más baja</option>
+                        <option value="opportunity">
+                            {isMarket ? 'Precio vs valor' : 'Mejor oportunidad'}
+                        </option>
+                        <option value="clause">
+                            {isMarket ? 'Precio más bajo' : 'Cláusula más baja'}
+                        </option>
                         <option value="average">Mejor media</option>
-                        <option value="soon">Se abre antes</option>
+                        <option value="soon">
+                            {isMarket ? 'Cierra antes' : 'Se abre antes'}
+                        </option>
                     </select>
                 </label>
             </div>
 
-            {rows.length === 0 ? (
+            {isMarket ? (
+                <RadarMarket
+                    listings={listings.slice(0, limit)}
+                    byId={byId}
+                    connectedManagerId={connectedManagerId}
+                    payer={payer}
+                    payerLow={payerLow}
+                    myCash={myCash}
+                />
+            ) : rows.length === 0 ? (
                 <HqEmptyState title="Ninguna cláusula con estos filtros." />
             ) : (
                 <table className="w-full border-collapse max-[860px]:block">
@@ -351,12 +412,6 @@ export function RadarClauses({
                                 (entry) =>
                                     entry.manager_id !== connectedManagerId,
                             );
-                            const sure = rivals.filter(
-                                (entry) => entry.level === 'sure',
-                            ).length;
-                            const maybe = rivals.filter(
-                                (entry) => entry.level === 'maybe',
-                            ).length;
                             const left = payerLow - clause.amount;
                             const fichaUrl = playersShow(clause.player.id).url;
                             const isDimmed = clause.state !== 'open';
@@ -442,17 +497,7 @@ export function RadarClauses({
                                             <b className="font-mono text-[13px] whitespace-nowrap tabular-nums">
                                                 {formatMillions(clause.amount)}
                                             </b>
-                                            <span
-                                                className={cn(
-                                                    'font-mono text-[11.5px] whitespace-nowrap tabular-nums',
-                                                    overValue <
-                                                        SAME_AS_VALUE_BELOW
-                                                        ? 'text-hq-lime'
-                                                        : 'text-hq-moss-dim',
-                                                )}
-                                            >
-                                                {describeOverValue(overValue)}
-                                            </span>
+                                            <OverValue overValue={overValue} />
                                         </span>
                                     </td>
                                     <td className="px-2 text-right max-[860px]:p-0">
@@ -517,58 +562,10 @@ export function RadarClauses({
                                                 {formatMillions(left)}
                                             </b>
                                         ) : (
-                                            <span
-                                                className="inline-flex items-center gap-1"
-                                                aria-label={`${sure} pagan seguro, ${maybe} quizá`}
-                                            >
-                                                {rivals
-                                                    .slice(0, MAX_PAYERS_SHOWN)
-                                                    .map((entry) => {
-                                                        const manager =
-                                                            byId.get(
-                                                                entry.manager_id,
-                                                            );
-
-                                                        if (!manager) {
-                                                            return null;
-                                                        }
-
-                                                        return (
-                                                            <span
-                                                                key={
-                                                                    entry.manager_id
-                                                                }
-                                                                title={`${manager.name}: ${PAYER_LEVEL_LABELS[entry.level]}`}
-                                                                className="inline-flex"
-                                                            >
-                                                                <ManagerSquare
-                                                                    manager={
-                                                                        manager
-                                                                    }
-                                                                    variant={
-                                                                        entry.level
-                                                                    }
-                                                                />
-                                                            </span>
-                                                        );
-                                                    })}
-                                                <span className="ml-1 inline-flex items-center gap-0.5 font-mono text-[11.5px] font-bold text-hq-lime">
-                                                    <CircleCheck
-                                                        aria-hidden="true"
-                                                        className="size-3"
-                                                    />
-                                                    {sure}
-                                                </span>
-                                                {maybe > 0 && (
-                                                    <span className="inline-flex items-center gap-0.5 font-mono text-[11.5px] font-bold text-hq-khaki">
-                                                        <CircleHelp
-                                                            aria-hidden="true"
-                                                            className="size-3"
-                                                        />
-                                                        {maybe}
-                                                    </span>
-                                                )}
-                                            </span>
+                                            <PayerSquares
+                                                payers={rivals}
+                                                byId={byId}
+                                            />
                                         )}
                                     </td>
                                     <td className="py-1.5 pr-3.5 pl-2 max-[860px]:col-start-2 max-[860px]:row-start-1 max-[860px]:p-0 max-[860px]:text-right">
@@ -580,7 +577,7 @@ export function RadarClauses({
                     </tbody>
                 </table>
             )}
-            {rows.length > limit && (
+            {shownCount > limit && (
                 <div className="flex justify-center p-2.5">
                     <button
                         type="button"
@@ -588,11 +585,11 @@ export function RadarClauses({
                         className="inline-flex min-h-[34px] cursor-pointer items-center gap-1.5 border border-hq-border-strong px-3 font-mono text-[11.5px] font-bold tracking-[0.05em] text-hq-moss uppercase hover:border-hq-lime hover:text-hq-lime"
                     >
                         <ChevronDown aria-hidden="true" className="size-3" />
-                        Ver {rows.length - limit} más
+                        Ver {shownCount - limit} más
                     </button>
                 </div>
             )}
-            {!payer && rows.length > 0 && (
+            {!payer && shownCount > 0 && (
                 <div
                     aria-label="Leyenda"
                     className="flex flex-wrap gap-x-3.5 gap-y-1 border-t border-hq-border px-3.5 py-2 font-mono text-[11.5px] text-hq-moss-dim"

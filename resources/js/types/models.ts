@@ -859,19 +859,34 @@ export interface RadarManager {
     total: RadarRange;
 }
 
+export interface RadarPlayer {
+    id: number;
+    nickname: string;
+    image: string;
+    position: PlayerPosition;
+    team_short_name: string;
+    points: number;
+    average_points: number;
+    status: PlayerStatus;
+    market_value: number;
+    market_value_difference: number;
+    market_trend: MarketTrend | null;
+}
+
+/** A live market listing with who can pay its price; `seller_id` null = the league sells it. */
+export interface RadarMarketListing {
+    player: RadarPlayer;
+    listing_id: number;
+    seller_id: number | null;
+    price: number;
+    value: number;
+    bids: number;
+    expires_at: string;
+    payers: { manager_id: number; level: PayerLevel }[];
+}
+
 export interface RadarClause {
-    player: {
-        id: number;
-        nickname: string;
-        position: PlayerPosition;
-        team_short_name: string;
-        points: number;
-        average_points: number;
-        status: PlayerStatus;
-        market_value: number;
-        market_value_difference: number;
-        market_trend: MarketTrend | null;
-    };
+    player: RadarPlayer;
     owner_id: number;
     amount: number;
     locked_until: string;
