@@ -228,6 +228,8 @@ function RosterRow({ entry, now }: { entry: ManagerPlayer; now: number }) {
                     scores={entry.player.recent_scores}
                     finished={entry.player.recent_scores_finished}
                     used={entry.player.recent_scores_used}
+                    fixtures={entry.player.recent_scores_fixtures}
+                    playerId={entry.player.id}
                     size="xs"
                     focusable
                     className="gap-[3px] pb-2"

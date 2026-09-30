@@ -1,7 +1,9 @@
+import type { MouseEvent } from 'react';
+import { useJornadaSheet } from '@/components/hq-jornada-sheet';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { formatSignedPoints, matchPointsBadgeClass } from '@/lib/points';
 import { cn } from '@/lib/utils';
-import type { Team } from '@/types/models';
+import type { RecentScoreFixture, Team } from '@/types/models';
 
 interface HqRecentScoresProps {
     scores: (number | null)[];
@@ -11,6 +13,10 @@ interface HqRecentScoresProps {
     used?: (boolean | null)[];
     /** Per-slot: the rival the player's team faced in that match — shows a small crest floating at the bottom center when provided. */
     opponents?: (Team | null)[];
+    /** Per-slot: that match's id and jornada. With `playerId`, a played slot is a button that opens its jornada sheet. */
+    fixtures?: RecentScoreFixture[];
+    /** Whose scores these are — with `fixtures`, makes each played slot open that match's jornada sheet. Omit for team-level totals. */
+    playerId?: number;
     className?: string;
     size?: 'md' | 'sm' | 'xs';
     /** Makes each slot's tooltip keyboard-reachable — off by default, since most rows are already one link. */
@@ -35,6 +41,9 @@ const SIZE_CLASSES: Record<'md' | 'sm' | 'xs', string> = {
  * distinct from the finished ones — when present, it takes the place of the
  * oldest finished slot so the row stays at the same 3 total, rather than
  * growing to 4.
+ * With `playerId` and `fixtures`, a played slot is a button that opens that
+ * match's jornada sheet (and never triggers the row or card around it); NC
+ * and empty slots stay plain.
  */
 export function HqRecentScores({
     scores,
@@ -46,33 +55,30 @@ export function HqRecentScores({
     badgeClass = matchPointsBadgeClass,
     live,
     focusable = false,
+    fixtures,
+    playerId,
 }: HqRecentScoresProps) {
+    const sheet = useJornadaSheet();
     const hasLive = live !== undefined && live !== null;
     // Nulls only ever pad the end (see docblock below), so when there's
     // already a gap, drop that trailing null to make room for the live slot
     // instead of an oldest real value — only trim the oldest real entry once
     // the row is already full of real data.
     const trimStart = hasLive && scores[scores.length - 1] !== null;
-    const visibleScores = hasLive
-        ? trimStart
-            ? scores.slice(1)
-            : scores.slice(0, -1)
-        : scores;
-    const visibleFinished = hasLive
-        ? trimStart
-            ? finished?.slice(1)
-            : finished?.slice(0, -1)
-        : finished;
-    const visibleUsed = hasLive
-        ? trimStart
-            ? used?.slice(1)
-            : used?.slice(0, -1)
-        : used;
-    const visibleOpponents = hasLive
-        ? trimStart
-            ? opponents?.slice(1)
-            : opponents?.slice(0, -1)
-        : opponents;
+    function visible<T>(slots: T[]): T[];
+    function visible<T>(slots: T[] | undefined): T[] | undefined;
+    function visible<T>(slots: T[] | undefined): T[] | undefined {
+        if (!hasLive) {
+            return slots;
+        }
+
+        return trimStart ? slots?.slice(1) : slots?.slice(0, -1);
+    }
+    const visibleScores = visible(scores);
+    const visibleFinished = visible(finished);
+    const visibleUsed = visible(used);
+    const visibleOpponents = visible(opponents);
+    const visibleFixtures = visible(fixtures);
 
     return (
         <div className={cn('flex shrink-0 gap-1', className)}>
@@ -80,6 +86,17 @@ export function HqRecentScores({
                 const wasUsed = visibleUsed?.[index];
                 const notCalledUp = points === null && visibleFinished?.[index];
                 const opponent = visibleOpponents?.[index];
+                const fixture = visibleFixtures?.[index] ?? null;
+                // A played slot opens that match's jornada sheet; NC and
+                // empty slots are only described.
+                const opensSheet =
+                    sheet !== null &&
+                    playerId !== undefined &&
+                    fixture !== null &&
+                    points !== null;
+                const loading =
+                    opensSheet && sheet.isLoading(playerId, fixture.id);
+                const Slot = opensSheet ? 'button' : 'span';
                 const label = [
                     opponent ? `vs ${opponent.main_name}` : null,
                     points !== null
@@ -97,11 +114,31 @@ export function HqRecentScores({
                     .join(' · ');
 
                 return (
-                    <HqTooltip key={index} label={label} focusable={focusable}>
-                        <span
+                    <HqTooltip
+                        key={index}
+                        label={label}
+                        focusable={focusable && !opensSheet}
+                    >
+                        <Slot
+                            {...(opensSheet
+                                ? {
+                                      type: 'button' as const,
+                                      'aria-label': `Ver ficha de la jornada J${fixture.week_number} · ${label}`,
+                                      'aria-busy': loading || undefined,
+                                      onClick: (event: MouseEvent) => {
+                                          // The row or card around it has its own click target.
+                                          event.preventDefault();
+                                          event.stopPropagation();
+                                          sheet.openMatch(playerId, fixture.id);
+                                      },
+                                  }
+                                : {})}
                             className={cn(
                                 'relative flex shrink-0 items-center justify-center border font-mono font-bold',
                                 SIZE_CLASSES[size],
+                                opensSheet &&
+                                    'cursor-pointer transition-[filter] hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hq-lime',
+                                loading && 'animate-pulse',
                                 points !== null
                                     ? badgeClass(points)
                                     : notCalledUp
@@ -128,7 +165,7 @@ export function HqRecentScores({
                                     className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
                                 />
                             )}
-                        </span>
+                        </Slot>
                     </HqTooltip>
                 );
             })}

@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/react';
 import { Search } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
+import { JornadaSheetProvider } from '@/components/hq-jornada-sheet';
 import { HqLiveSignal } from '@/components/hq-live-signal';
 import { HqTicker } from '@/components/hq-ticker';
 import { HqWordmark } from '@/components/hq-wordmark';
@@ -30,7 +31,8 @@ function GodChip({ compact = false }: { compact?: boolean }) {
  * bar (wordmark, live signal, section nav, player search, god-mode chip),
  * the page inside a
  * 1440px ruled frame, a status line on desktop, and a bottom bar with a
- * "Más" sheet on phones and tablets.
+ * "Más" sheet on phones and tablets. The page sits inside the app-wide
+ * jornada sheet (JornadaSheetProvider), so any jornada score can open it.
  */
 export default function AppLayout({ children }: PropsWithChildren) {
     const { season, godMode } = usePage().props;
@@ -88,7 +90,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
             </header>
 
             <main className="mx-auto flex w-full max-w-[1440px] min-w-0 flex-1 flex-col min-[1441px]:border-x min-[1441px]:border-hq-border">
-                {children}
+                <JornadaSheetProvider>{children}</JornadaSheetProvider>
             </main>
 
             <footer className="hidden h-7 border-t border-hq-border bg-hq-well lg:block">

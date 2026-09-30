@@ -428,6 +428,41 @@ test('marks a recent score slot as not called up when the match finished without
     );
 });
 
+test('sends the fixture id and jornada of each recent score slot, so a played one can open its jornada sheet', function (): void {
+    $season = Season::factory()->create([
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    $scored = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 1,
+        'date' => now()->subDays(20),
+        'team_local_id' => $player->team_id,
+        'state' => FixtureState::Finished,
+    ]);
+    $notCalledUp = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 2,
+        'date' => now()->subDays(10),
+        'team_guest_id' => $player->team_id,
+        'state' => FixtureState::Finished,
+    ]);
+    FixtureLineup::factory()->create(['player_id' => $player->id, 'fixture_id' => $scored->id, 'fantasy_points' => 5]);
+
+    $response = $this->get(route('players.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->where('players.data.0.recent_scores', [5, null, null])
+        ->where('players.data.0.recent_scores_fixtures', [
+            ['id' => $scored->id, 'week_number' => 1],
+            ['id' => $notCalledUp->id, 'week_number' => 2],
+            null,
+        ])
+    );
+});
+
 test('shows the rival faced in each recent score, not the player\'s own team', function (): void {
     $season = Season::factory()->create([
         'start_date' => now()->subDay(),

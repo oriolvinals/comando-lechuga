@@ -90,6 +90,8 @@ interface HqPlayerValueChartProps {
     scores: PlayerFichaScore[];
     missedFixtures: PlayerMissedFixture[];
     ownershipSegments: OwnershipSegment[];
+    /** Opens a played jornada's sheet — each bar with points becomes a button when given. */
+    onScoreSelect?: (score: PlayerFichaScore) => void;
 }
 
 interface TooltipParty {
@@ -190,6 +192,7 @@ export function HqPlayerValueChart({
     scores,
     missedFixtures,
     ownershipSegments,
+    onScoreSelect,
 }: HqPlayerValueChartProps) {
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
     const [hoverPoint, setHoverPoint] = useState<{
@@ -355,12 +358,14 @@ export function HqPlayerValueChart({
         const jornadas = [
             ...scores.map((score) => ({
                 key: `score-${score.id}`,
+                score,
                 fixture: score.fixture,
                 points: score.points,
                 manager: score.lineup_manager,
             })),
             ...missedFixtures.map((missed) => ({
                 key: `missed-${missed.fixture.id}`,
+                score: null,
                 fixture: missed.fixture,
                 points: null,
                 manager: missed.lineup_manager,
@@ -413,6 +418,7 @@ export function HqPlayerValueChart({
             return {
                 key: jornada.key,
                 index,
+                score: jornada.score,
                 cx: xAt(index),
                 y: isNegative ? zeroY : valueY,
                 height: Math.max(1.5, Math.abs(zeroY - valueY)),
@@ -560,7 +566,7 @@ export function HqPlayerValueChart({
                         ref={svgRef}
                         viewBox={`0 0 ${width} ${VIEW_HEIGHT}`}
                         className="block w-full cursor-crosshair touch-pan-y overflow-visible"
-                        role="img"
+                        role={onScoreSelect ? 'group' : 'img'}
                         aria-label="Evolución del valor de mercado, puntos por jornada y propietario"
                         onMouseLeave={clearHover}
                     >
@@ -767,6 +773,60 @@ export function HqPlayerValueChart({
                             }
                             onTouchEnd={clearHover}
                         />
+
+                        {onScoreSelect &&
+                            geometry.marks.map((mark) => {
+                                const score = mark.score;
+
+                                if (score === null || score.points === null) {
+                                    return null;
+                                }
+
+                                // A played jornada's column, from its bar down to
+                                // its "J{n}" label, opens that match's sheet; it
+                                // keeps feeding the hover tooltip like the rest.
+                                const hitWidth = Math.max(
+                                    geometry.barWidth,
+                                    16,
+                                );
+
+                                return (
+                                    <rect
+                                        key={`open-${mark.key}`}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label={`Ver ficha de la jornada J${mark.week} · ${score.points} pts`}
+                                        x={mark.cx - hitWidth / 2}
+                                        y={POINTS_TOP}
+                                        width={hitWidth}
+                                        height={
+                                            JORNADA_LABEL_Y + 4 - POINTS_TOP
+                                        }
+                                        fill="transparent"
+                                        className="cursor-pointer focus-visible:outline-2 focus-visible:outline-hq-lime"
+                                        onMouseMove={(event) =>
+                                            handleMove(event.clientX)
+                                        }
+                                        onTouchStart={(event) =>
+                                            handleMove(event.touches[0].clientX)
+                                        }
+                                        onTouchEnd={clearHover}
+                                        onClick={() => {
+                                            clearHover();
+                                            onScoreSelect(score);
+                                        }}
+                                        onKeyDown={(event) => {
+                                            if (
+                                                event.key === 'Enter' ||
+                                                event.key === ' '
+                                            ) {
+                                                event.preventDefault();
+                                                onScoreSelect(score);
+                                            }
+                                        }}
+                                    />
+                                );
+                            })}
                     </svg>
                 )}
             </div>
