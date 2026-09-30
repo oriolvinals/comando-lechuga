@@ -837,3 +837,46 @@ export interface LeagueCloudRow {
     value: number;
     difference: number;
 }
+
+/** God-mode radar (PRIVATE: web only, never in /api). */
+export type ClauseState = 'open' | 'locked' | 'shielded' | 'listed';
+export type PayerLevel = 'sure' | 'maybe' | 'no';
+
+export interface RadarRange {
+    low: number;
+    high: number;
+    mid: number;
+}
+
+export interface RadarManager {
+    id: number;
+    name: string;
+    logo: string;
+    primary_color: string | null;
+    shields: ManagerShieldCount;
+    cash: RadarRange & { is_real: boolean };
+    squad_value: number;
+    total: RadarRange;
+}
+
+export interface RadarClause {
+    player: {
+        id: number;
+        nickname: string;
+        position: PlayerPosition;
+        team_short_name: string;
+        points: number;
+        average_points: number;
+        status: PlayerStatus;
+        market_value: number;
+        market_value_difference: number;
+        market_trend: MarketTrend | null;
+    };
+    owner_id: number;
+    amount: number;
+    locked_until: string;
+    shielded_until: string | null;
+    state: ClauseState;
+    opportunity: number;
+    payers: { manager_id: number; level: PayerLevel }[];
+}
