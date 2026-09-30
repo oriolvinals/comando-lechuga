@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ApiDocsController;
 use App\Http\Controllers\FixturesController;
+use App\Http\Controllers\GodRadarController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PlayerComparisonController;
 use App\Http\Controllers\PlayerJornadaController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\PlayersController;
 use App\Http\Controllers\PrizesController;
 use App\Http\Controllers\SeasonManagersController;
 use App\Http\Controllers\TeamsController;
+use App\Http\Middleware\EnsureGodMode;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -26,3 +28,4 @@ Route::get('/actividad', [ActivityController::class, 'index'])->name('activity.i
 Route::get('/premios', [PrizesController::class, 'index'])->name('prizes.index');
 Route::get('/partidos', [FixturesController::class, 'index'])->name('fixtures.index');
 Route::get('/partidos/{fixture}', [FixturesController::class, 'show'])->name('fixtures.show');
+Route::get('/radar', [GodRadarController::class, 'show'])->middleware(EnsureGodMode::class)->name('god.radar');
