@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Services\ValueForecast\ValueForecastRow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Saloon\Config;
 use Tests\TestCase;
@@ -55,4 +56,31 @@ expect()->extend('toBeOne', fn () => $this->toBe(1));
 function something(): void
 {
     // ..
+}
+
+/**
+ * A value forecast row with sensible defaults: a 10 M€ player rising 2 %
+ * today, no matches around, next match in 5 days, 10,3 M€ tomorrow.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function forecastRow(array $overrides = []): ValueForecastRow
+{
+    return new ValueForecastRow(...[
+        'playerId' => 1,
+        'referenceDate' => '2026-09-29',
+        'targetDate' => '2026-09-30',
+        'value' => 10_000_000,
+        'changeToday' => 0.02,
+        'changeYesterday' => 0.01,
+        'changeBefore' => 0.005,
+        'marketChange' => -0.007,
+        'matchYesterday' => ['team' => false, 'played' => false, 'points' => 0],
+        'matchToday' => ['team' => false, 'played' => false, 'points' => 0],
+        'matchBefore' => ['team' => false, 'played' => false, 'points' => 0],
+        'daysToNextMatch' => 5,
+        'averagePoints' => 4.0,
+        'nextValue' => 10_300_000,
+        ...$overrides,
+    ]);
 }
