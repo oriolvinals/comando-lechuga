@@ -133,7 +133,16 @@ export function RadarClauses({
     const [position, setPosition] = useState<PlayerPosition | 'all'>('all');
     const [scope, setScope] = useState<Scope>('open');
     const [sort, setSort] = useState<Sort>('opportunity');
-    const [limit, setLimit] = useState(PAGE);
+    const filterSignature = [payerId, ownerId, position, scope, sort].join('|');
+    /** «Ver más» expands only the filters it was pressed for; any change goes back to 14 rows. */
+    const [expandedFor, setExpandedFor] = useState<string | null>(null);
+
+    if (expandedFor !== null && expandedFor !== filterSignature) {
+        setExpandedFor(null);
+    }
+
+    const limit =
+        expandedFor === filterSignature ? Number.POSITIVE_INFINITY : PAGE;
     const now = useNow(60_000);
     const byId = new Map(managers.map((manager) => [manager.id, manager]));
     const payer = payerId !== null ? (byId.get(payerId) ?? null) : null;
@@ -409,7 +418,10 @@ export function RadarClauses({
                                     tabIndex={0}
                                     onClick={() => router.visit(fichaUrl)}
                                     onKeyDown={(event) => {
-                                        if (event.key === 'Enter') {
+                                        if (
+                                            event.key === 'Enter' &&
+                                            event.target === event.currentTarget
+                                        ) {
                                             router.visit(fichaUrl);
                                         }
                                     }}
@@ -623,7 +635,7 @@ export function RadarClauses({
                 <div className="flex justify-center p-2.5">
                     <button
                         type="button"
-                        onClick={() => setLimit(Number.POSITIVE_INFINITY)}
+                        onClick={() => setExpandedFor(filterSignature)}
                         className="inline-flex min-h-[34px] cursor-pointer items-center gap-1.5 border border-hq-border-strong px-3 font-mono text-[11.5px] font-bold tracking-[0.05em] text-hq-moss uppercase hover:border-hq-lime hover:text-hq-lime"
                     >
                         <ChevronDown aria-hidden="true" className="size-3" />

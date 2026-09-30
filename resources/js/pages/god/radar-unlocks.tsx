@@ -1,6 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import { Lock, LockOpen, Shield, ShieldCheck, Tag, Timer } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { HqCountdown } from '@/components/hq-countdown';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { formatMillions } from '@/lib/format';
@@ -9,17 +9,49 @@ import { ManagerSquare } from '@/pages/god/radar-helpers';
 import { show as playersShow } from '@/routes/players';
 import type { RadarClause, RadarManager } from '@/types/models';
 
-/** Countdowns that elapse together (same moment, table + sidebar) share one reload. */
 const RELOAD_COOLDOWN_MS = 5_000;
+const reloadedMoments = new Set<string>();
 let lastReloadAt = 0;
+let trailingReload: ReturnType<typeof setTimeout> | null = null;
 
-function reloadRadar(): void {
-    if (Date.now() - lastReloadAt < RELOAD_COOLDOWN_MS) {
+function reloadRadarProps(): void {
+    lastReloadAt = Date.now();
+    router.reload({ only: ['clauses', 'managers', 'now'] });
+}
+
+/**
+ * Reload the radar once per elapsed moment: countdowns of the same moment
+ * (the table and the sidebar, or clauses that open together) share one
+ * reload. A different moment inside the cooldown schedules one trailing
+ * reload instead of being swallowed; it is dropped if the page changed.
+ */
+function reloadRadarFor(moment: string): void {
+    if (reloadedMoments.has(moment)) {
         return;
     }
 
-    lastReloadAt = Date.now();
-    router.reload({ only: ['clauses', 'managers', 'now'] });
+    reloadedMoments.add(moment);
+    const sinceLastReload = Date.now() - lastReloadAt;
+
+    if (sinceLastReload >= RELOAD_COOLDOWN_MS) {
+        reloadRadarProps();
+
+        return;
+    }
+
+    if (trailingReload !== null) {
+        return;
+    }
+
+    const pathname = window.location.pathname;
+
+    trailingReload = setTimeout(() => {
+        trailingReload = null;
+
+        if (window.location.pathname === pathname) {
+            reloadRadarProps();
+        }
+    }, RELOAD_COOLDOWN_MS - sinceLastReload);
 }
 
 /**
@@ -32,11 +64,12 @@ function ReloadingCountdown({ target }: { target: string }) {
     const [isAheadOnMount] = useState(
         () => new Date(target).getTime() > Date.now(),
     );
+    const reload = useCallback(() => reloadRadarFor(target), [target]);
 
     return (
         <HqCountdown
             target={target}
-            onElapsed={isAheadOnMount ? reloadRadar : undefined}
+            onElapsed={isAheadOnMount ? reload : undefined}
         />
     );
 }
