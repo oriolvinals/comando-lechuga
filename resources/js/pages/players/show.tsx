@@ -4,6 +4,10 @@ import type { ReactElement, ReactNode } from 'react';
 import { useState } from 'react';
 import { HqCompareButton } from '@/components/compare/compare-button';
 import { EntityImage } from '@/components/entity-image';
+import {
+    fichaScoreEntry,
+    useJornadaSheet,
+} from '@/components/hq-jornada-sheet';
 import { HqLed } from '@/components/hq-led';
 import {
     describeMarketTrend,
@@ -255,6 +259,7 @@ export default function PlayerShow({
     const kpiBorders =
         nextStart !== null ? KPI_CELL_BORDERS_WITH_START : KPI_CELL_BORDERS;
     const now = useNow(60_000);
+    const jornadaSheet = useJornadaSheet();
 
     return (
         <div className="flex-1">
@@ -488,6 +493,14 @@ export default function PlayerShow({
                             scores={scores}
                             missedFixtures={missedFixtures}
                             ownershipSegments={ownershipSegments}
+                            onScoreSelect={
+                                jornadaSheet
+                                    ? (score) =>
+                                          jornadaSheet.openEntry(
+                                              fichaScoreEntry(player, score),
+                                          )
+                                    : undefined
+                            }
                         />
                     </HqSection>
 

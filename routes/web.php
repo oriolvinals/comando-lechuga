@@ -5,6 +5,7 @@ use App\Http\Controllers\ApiDocsController;
 use App\Http\Controllers\FixturesController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PlayerComparisonController;
+use App\Http\Controllers\PlayerJornadaController;
 use App\Http\Controllers\PlayersController;
 use App\Http\Controllers\SeasonManagersController;
 use App\Http\Controllers\TeamsController;
@@ -19,6 +20,7 @@ Route::get('/equipos/{team}', [TeamsController::class, 'show'])->name('teams.sho
 Route::get('/jugadores', [PlayersController::class, 'index'])->name('players.index');
 Route::get('/jugadores/comparar', [PlayerComparisonController::class, 'show'])->name('players.compare');
 Route::get('/jugadores/{player}', [PlayersController::class, 'show'])->whereNumber('player')->name('players.show');
+Route::get('/jugadores/{player}/jornadas/{fixture}', PlayerJornadaController::class)->whereNumber(['player', 'fixture'])->name('players.jornada');
 Route::get('/actividad', [ActivityController::class, 'index'])->name('activity.index');
 Route::get('/partidos', [FixturesController::class, 'index'])->name('fixtures.index');
 Route::get('/partidos/{fixture}', [FixturesController::class, 'show'])->name('fixtures.show');

@@ -60,6 +60,15 @@ export interface DifficultyComponents {
     absences: number;
 }
 
+/** One recent_scores slot's match — null for a padding slot (no match yet). */
+export type RecentScoreFixture = { id: number; week_number: number } | null;
+
+/** A player's jornada sheet as `players.jornada` returns it (PlayerJornadaController). */
+export interface PlayerJornadaSheet {
+    player: Pick<Player, 'id' | 'nickname' | 'image' | 'position'>;
+    score: PlayerFichaScore;
+}
+
 export interface Player {
     id: number;
     nickname: string;
@@ -82,6 +91,8 @@ export interface Player {
     recent_scores_used?: (boolean | null)[];
     /** Per recent_scores slot, the rival the player's team faced in that match. */
     recent_scores_opponents: (Team | null)[];
+    /** Per recent_scores slot, that match's id and jornada — a played slot opens its jornada sheet (`players.jornada`) with it. */
+    recent_scores_fixtures: RecentScoreFixture[];
     /** The team's next 3 upcoming (not yet started) fixtures, soonest first — null-padded at the end when fewer than 3 remain on the calendar. */
     next_fixtures: (NextFixtureSlot | null)[];
     /** Start probability (or confirmed lineup) for the team's next match. Only present on the manager and team fichas; null without data. */

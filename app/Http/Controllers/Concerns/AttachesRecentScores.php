@@ -23,6 +23,9 @@ trait AttachesRecentScores
      * being silently skipped in favor of an older match. `recent_scores_finished` marks,
      * per slot, whether a real finished fixture exists there at all — false only means
      * "the team hasn't played that many matches yet", never "not called up".
+     * `recent_scores_fixtures` carries each slot's fixture id and jornada (null padding), so a
+     * played slot can lazily open that match's jornada sheet (PlayerJornadaController)
+     * instead of shipping every slot's stats with the list.
      *
      * A finished match the player actually has a FixtureLineup for always takes its slot
      * too, even when it isn't one of the player's CURRENT team's fixtures — otherwise a
@@ -131,6 +134,9 @@ trait AttachesRecentScores
                         : $fixture->localTeam;
                 })
                 ->all();
+            $fixtureRefs = $recentFixtures
+                ->map(fn (Fixture $fixture): array => ['id' => $fixture->id, 'week_number' => $fixture->week_number])
+                ->all();
             $finished = array_fill(0, count($points), true);
 
             /** @var array<int, int|null> $paddedPoints */
@@ -142,9 +148,13 @@ trait AttachesRecentScores
             /** @var array<int, bool> $paddedFinished */
             $paddedFinished = array_pad($finished, 3, false);
 
+            /** @var array<int, array{id: int, week_number: int}|null> $paddedFixtureRefs */
+            $paddedFixtureRefs = array_pad($fixtureRefs, 3, null);
+
             $player->recent_scores = $paddedPoints;
             $player->recent_scores_opponents = $paddedOpponents;
             $player->recent_scores_finished = $paddedFinished;
+            $player->recent_scores_fixtures = $paddedFixtureRefs;
 
             if ($seasonManagerId === null) {
                 return;

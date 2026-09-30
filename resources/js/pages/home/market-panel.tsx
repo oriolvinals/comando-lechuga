@@ -193,18 +193,19 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
     const isCompared = useCompareSelection().some(
         (entry) => entry.id === player.id,
     );
+    const playerUrl = playersShow(player.id).url;
 
     return (
         <div className={cn(CELL_CLASS, 'relative')}>
-            <Link
-                href={playersShow(player.id).url}
+            <div
+                onClick={() => router.visit(playerUrl)}
                 style={
                     {
                         '--pc': POSITION_COLOR_VARS[player.position],
                     } as CSSProperties
                 }
                 className={cn(
-                    'relative flex h-full flex-col bg-hq-ink px-3.5 pt-3.5 pb-[13px] shadow-[inset_0_3px_0_var(--pc)] transition-colors hover:bg-hq-panel',
+                    'relative flex h-full cursor-pointer flex-col bg-hq-ink px-3.5 pt-3.5 pb-[13px] shadow-[inset_0_3px_0_var(--pc)] transition-colors hover:bg-hq-panel',
                     isCompared &&
                         'bg-[linear-gradient(160deg,color-mix(in_srgb,var(--color-hq-lime)_8%,transparent),transparent_55%)] shadow-[inset_0_3px_0_var(--pc),inset_0_0_0_1px_color-mix(in_srgb,var(--color-hq-lime)_45%,transparent)]',
                 )}
@@ -235,9 +236,13 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                         )}
                     </span>
                     <div className="min-w-0 flex-1">
-                        <span className="block truncate text-[15px] leading-[1.1] font-extrabold text-hq-paper">
+                        <Link
+                            href={playerUrl}
+                            onClick={(event) => event.stopPropagation()}
+                            className="block truncate text-[15px] leading-[1.1] font-extrabold text-hq-paper hover:underline"
+                        >
                             {player.nickname}
-                        </span>
+                        </Link>
                         <div className="mt-1.5 flex flex-wrap items-center gap-[5px] font-mono text-[10.5px] leading-none text-hq-moss">
                             <EntityImage
                                 src={player.team.logo}
@@ -282,6 +287,8 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                     <HqRecentScores
                         scores={player.recent_scores}
                         finished={player.recent_scores_finished}
+                        fixtures={player.recent_scores_fixtures}
+                        playerId={player.id}
                         size="sm"
                     />
                     {listing.bids > 0 && (
@@ -291,7 +298,7 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                         </span>
                     )}
                 </div>
-            </Link>
+            </div>
             <div className="absolute top-[9px] right-[9px] z-10 flex">
                 <HqCompareToggle
                     variant="card"

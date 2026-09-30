@@ -25,8 +25,8 @@ use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
-use App\Services\DaznEstimatePresenter;
 use App\Services\MaxBidCalculator;
+use App\Services\PlayerFichaScores;
 use App\Services\PlayerMarketMetrics;
 use App\Services\StartProbabilities;
 use Illuminate\Database\Eloquent\Collection;
@@ -148,7 +148,7 @@ class PlayersController extends Controller
         SeasonActivityType::Buyout,
     ];
 
-    public function show(Request $request, Player $player, MaxBidCalculator $maxBidCalculator, PlayerMarketMetrics $marketMetrics, StartProbabilities $startProbabilities): Response
+    public function show(Request $request, Player $player, PlayerFichaScores $fichaScores, MaxBidCalculator $maxBidCalculator, PlayerMarketMetrics $marketMetrics, StartProbabilities $startProbabilities): Response
     {
         abort_if($player->fantasy_id === null, 404);
 
@@ -175,42 +175,7 @@ class PlayersController extends Controller
             ->orderBy('date')
             ->get(['date', 'value']);
 
-        $scores = $player->fixtureLineups()
-            ->whereHas('fixture', fn ($query) => $query->where('season_id', $season->id))
-            ->with(['fixture.localTeam', 'fixture.guestTeam', 'team'])
-            ->get()
-            ->sortBy(fn (FixtureLineup $lineup) => $lineup->fixture->week_number)
-            ->values()
-            ->map(fn (FixtureLineup $lineup): array => [
-                'id' => $lineup->id,
-                'team_id' => $lineup->team_id,
-                'team' => $lineup->team,
-                'points' => $lineup->fantasy_points,
-                'stats' => $lineup->fantasy_stats,
-                'fixture' => $lineup->fixture,
-                'lineup_manager' => null,
-                'starter' => $lineup->starter,
-                'subbed_in' => $lineup->subbed_in,
-                'subbed_out' => $lineup->subbed_out,
-                'sub_minute' => $lineup->sub_minute,
-                ...DaznEstimatePresenter::present($lineup, $lineup->fixture),
-            ]);
-
-        // Which manager fielded this player in their lineup each jornada — distinct
-        // from ownership, since an owner can bench a player they still own.
-        $lineupManagersByFixture = ManagerLineupPlayer::query()
-            ->where('player_id', $player->id)
-            ->whereIn('fixture_id', $scores->pluck('fixture.id')->filter())
-            ->whereHas('lineup.seasonManager', fn ($query) => $query->where('season_id', $season->id))
-            ->with('lineup.seasonManager')
-            ->get()
-            ->keyBy('fixture_id');
-
-        $scores = $scores->map(function (array $score) use ($lineupManagersByFixture): array {
-            $score['lineup_manager'] = $lineupManagersByFixture->get($score['fixture']->id)?->lineup?->seasonManager;
-
-            return $score;
-        });
+        $scores = collect($fichaScores->forPlayer($player, $season));
 
         $ownershipActivity = Activity::query()
             ->where('season_id', $season->id)

@@ -243,6 +243,8 @@ export function PlayerRow({
                     scores={player.recent_scores}
                     finished={player.recent_scores_finished}
                     opponents={player.recent_scores_opponents}
+                    fixtures={player.recent_scores_fixtures}
+                    playerId={player.id}
                     size="sm"
                     className="pb-2 lg:hidden"
                 />
@@ -250,6 +252,8 @@ export function PlayerRow({
                     scores={player.recent_scores}
                     finished={player.recent_scores_finished}
                     opponents={player.recent_scores_opponents}
+                    fixtures={player.recent_scores_fixtures}
+                    playerId={player.id}
                     className="hidden pb-2 lg:flex"
                 />
             </div>
