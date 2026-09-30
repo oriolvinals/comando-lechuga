@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
+import { HqCompareTray } from '@/components/compare/tray';
 import { HqActivityTimelineEntry } from '@/components/hq-activity-timeline-entry';
 import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqLineupPitch } from '@/components/hq-lineup-pitch';
@@ -267,6 +268,8 @@ export default function SeasonManagerShow({
                 }
                 onClose={() => setSelectedPlayer(null)}
             />
+
+            <HqCompareTray />
         </>
     );
 }

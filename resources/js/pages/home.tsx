@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import type { ReactElement } from 'react';
+import { HqCompareTray } from '@/components/compare/tray';
 import AppLayout from '@/layouts/app-layout';
 import type {
     Fixture,
@@ -60,6 +61,7 @@ export default function Home({
                 weekProgress={weekProgress}
             />
             <ActivityPanel activity={activity} />
+            <HqCompareTray />
         </>
     );
 }

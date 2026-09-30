@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { Shield } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { useState } from 'react';
+import { HqCompareTray } from '@/components/compare/tray';
 import { EntityImage } from '@/components/entity-image';
 import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqLed } from '@/components/hq-led';
@@ -410,6 +411,7 @@ export default function TeamShow({
                                 </div>
                                 {index === 0 && (
                                     <PlayerRowHeader
+                                        comparable
                                         showTeam={false}
                                         showPosition={false}
                                         showNextFixtures={false}
@@ -425,6 +427,7 @@ export default function TeamShow({
                                                     player.id,
                                                 ) ?? null,
                                         }}
+                                        comparable
                                         showTeam={false}
                                         showPosition={false}
                                         showNextFixtures={false}
@@ -447,6 +450,8 @@ export default function TeamShow({
                 }
                 onClose={() => setSelectedPlayer(null)}
             />
+
+            <HqCompareTray />
         </div>
     );
 }

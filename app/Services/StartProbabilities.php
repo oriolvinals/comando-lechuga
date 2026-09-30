@@ -102,15 +102,17 @@ class StartProbabilities
      * Each player's start for his team's next match, keyed by player id.
      * Out-of-league players, and players without a row or a confirmed
      * lineup for that match, are absent. Expects `team` to be loaded.
+     * With `$fromWeek`, the next match is the first one of that jornada or
+     * a later one (the comparator skips a pending match of a live jornada).
      *
      * @param  Collection<int, Player>  $players
      * @return array<int, PlayerNextStart>
      */
-    public function forPlayersNextFixture(Collection $players, Season $season): array
+    public function forPlayersNextFixture(Collection $players, Season $season, ?int $fromWeek = null): array
     {
         $eligible = $players->filter(fn (Player $player): bool => $player->status !== PlayerStatus::OutOfLeague);
         $teamIds = array_values(array_unique($eligible->map(fn (Player $player): int => $player->team_id)->all()));
-        $nextByTeam = $this->nextFixtures($season, $teamIds);
+        $nextByTeam = $this->nextFixtures($season, $teamIds, $fromWeek);
 
         if ($nextByTeam === []) {
             return [];
@@ -455,9 +457,10 @@ class StartProbabilities
      * same next match its absence adjustment reads the probable XI for.
      *
      * @param  list<int>  $teamIds
+     * @param  int|null  $fromWeek  only fixtures of this jornada or a later one
      * @return array<int, Fixture> keyed by team id, with `localTeam`/`guestTeam` loaded
      */
-    public function nextFixtures(Season $season, array $teamIds): array
+    public function nextFixtures(Season $season, array $teamIds, ?int $fromWeek = null): array
     {
         if ($teamIds === []) {
             return [];
@@ -469,6 +472,7 @@ class StartProbabilities
             ->where('season_id', $season->id)
             ->where('state', FixtureState::Scheduled)
             ->where('date', '>', now())
+            ->when($fromWeek !== null, fn ($query) => $query->where('week_number', '>=', $fromWeek))
             ->where(fn ($query) => $query
                 ->whereIn('team_local_id', $teamIds)
                 ->orWhereIn('team_guest_id', $teamIds))

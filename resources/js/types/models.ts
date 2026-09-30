@@ -731,3 +731,98 @@ export interface LineupPlayerStart {
     /** When FútbolFantasy was last read successfully (ISO 8601) — null without a probability row. */
     fetched_at: string | null;
 }
+
+/** A fantasy manager as the comparator shows it (owner chip, league cloud colours). */
+export interface CompareManager {
+    id: number;
+    name: string;
+    logo: string;
+    color: string | null;
+}
+
+/** One lineup row of a compared player this season (ComparedPlayers::scores). */
+export interface ComparedPlayerScore extends DaznFields {
+    fixture_id: number;
+    week_number: number;
+    fixture_state: FixtureState;
+    opponent: Team;
+    is_home: boolean;
+    points: number | null;
+    /** `fantasy_stats.mins_played[0]`, 0 when missing. */
+    minutes: number;
+    starter: boolean;
+    /** That match's `fantasy_stats`, for the jornada modal. */
+    stats: JornadaStats | null;
+    /** That match, with both teams, for the jornada modal's scoreboard and link. */
+    fixture: Fixture;
+}
+
+export interface ComparedPlayerClause {
+    amount: number;
+    locked_until: string;
+    is_locked: boolean;
+    shielded: boolean;
+    shielded_until: string | null;
+    /** The current owner's latest signing/buyout — null when he already had him on joining. */
+    purchase: {
+        amount: number;
+        type: Extract<SeasonActivityType, 'signing' | 'buyout'>;
+        occurred_at: string;
+    } | null;
+}
+
+export interface ComparedPlayerListing {
+    sale_price: number;
+    bids: number;
+    expires_at: string;
+    seller: string;
+}
+
+/** Everything the comparator shows about one compared player (App\Services\ComparedPlayers). */
+export interface ComparedPlayer {
+    id: number;
+    name: string;
+    image: string;
+    position: PlayerPosition;
+    status: PlayerStatus;
+    team: Team;
+    value: number;
+    difference: number;
+    trend: MarketTrend | null;
+    value_trend_30d: PlayerValueTrend | null;
+    /** Up to 31 `[Y-m-d, value]` snapshots, oldest first. */
+    market_history: [string, number][];
+    points: number;
+    average_points: number;
+    points_per_million: PlayerPointsPerMillion | null;
+    scores: ComparedPlayerScore[];
+    /** Upcoming slots from the comparison week on (`currentWeek`), soonest first, null-padded to 3. */
+    next_fixtures: (NextFixtureSlot | null)[];
+    /** Jornadas before `currentWeek` whose match is still scheduled or in play (a live jornada's Monday game, a rescheduled one). */
+    pending_weeks: number[];
+    /** Start for the `currentWeek` match only; null otherwise. */
+    next_start: PlayerNextStart | null;
+    owner: CompareManager | null;
+    clause: ComparedPlayerClause | null;
+    listing: ComparedPlayerListing | null;
+}
+
+/** One listed league player for the comparator's clouds, search and hover cards (App\Services\LeagueCloud). */
+export interface LeagueCloudRow {
+    id: number;
+    name: string;
+    image: string;
+    position: PlayerPosition;
+    team_short: string;
+    owner_id: number | null;
+    points: number;
+    average_points: number;
+    /** Points per million of value; null without a value. */
+    ppm: number | null;
+    /** Confirmed lineup as 100/0, else FútbolFantasy's %, else null. */
+    start_probability: number | null;
+    /** The 30-day value multiple (×1,25), null without 30 days of history. */
+    value_trend_30d: number | null;
+    value: number;
+    difference: number;
+}

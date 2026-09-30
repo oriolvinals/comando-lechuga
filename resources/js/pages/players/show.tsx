@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { Info, Shield, User } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { useState } from 'react';
+import { HqCompareButton } from '@/components/compare/compare-button';
 import { EntityImage } from '@/components/entity-image';
 import { HqLed } from '@/components/hq-led';
 import {
@@ -22,6 +23,7 @@ import { HqStartOutcomeChip } from '@/components/hq-start-probability';
 import { HqStatusBadge } from '@/components/hq-status-badge';
 import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
+import { toCompareEntry } from '@/lib/compare-selection';
 import {
     formatAverage,
     formatCurrency,
@@ -295,6 +297,10 @@ export default function PlayerShow({
                         </Link>
                         <HqStatusBadge status={player.status} variant="long" />
                     </div>
+                    <HqCompareButton
+                        player={toCompareEntry(player)}
+                        className="mt-3"
+                    />
                 </div>
             </div>
 

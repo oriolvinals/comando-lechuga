@@ -24,7 +24,8 @@ import type {
 } from '@/types/models';
 
 export interface HqPlayerStatsEntry {
-    player: Player;
+    /** Only what the sheet shows, so the comparator can pass its own player shape. */
+    player: Pick<Player, 'id' | 'nickname' | 'image' | 'position'>;
     team: Team;
     points: number;
     /** DAZN rating fields of that match — omit when the player had no minutes. */
@@ -241,13 +242,15 @@ export function HqPlayerStatsModal({
                     <HqJornadaStatsGrid stats={stats} showEmptyStats={false} />
                 </div>
 
-                <Link
-                    href={playersShow(player.id).url}
-                    className="flex min-h-11 items-center justify-center gap-1.5 font-mono text-xs font-bold tracking-[0.06em] text-hq-lime uppercase hover:bg-hq-panel"
-                >
-                    Ver ficha completa
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                </Link>
+                <div className="flex items-center justify-end border-t border-hq-border px-3 py-2 sm:px-4">
+                    <Link
+                        href={playersShow(player.id).url}
+                        className="inline-flex h-11 cursor-pointer items-center justify-center gap-1.5 px-3 font-mono text-xs font-bold tracking-[0.06em] text-hq-lime uppercase hover:bg-hq-panel sm:h-9"
+                    >
+                        Ver ficha completa
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                </div>
             </div>
         </div>
     );

@@ -724,18 +724,12 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
         <section
             aria-label="God mode: puja máxima rentable"
             className={cn(
-                'border-b border-hq-border',
+                'hq-god-frame',
                 profitable
                     ? 'bg-linear-to-b from-hq-amber/5 to-transparent to-60%'
                     : 'bg-linear-to-b from-hq-live/5 to-transparent to-60%',
             )}
         >
-            <div className="flex min-h-[38px] items-center gap-3 border-b border-hq-amber/35 px-3.5 font-mono text-xs leading-none font-bold tracking-[0.09em] text-hq-amber uppercase hq-hazard sm:px-4">
-                <span className="bg-hq-amber px-1.5 py-1 tracking-[0.14em] text-[#1a1405]">
-                    God mode
-                </span>
-            </div>
-
             <div
                 className={cn(
                     'grid grid-cols-1 gap-3.5 p-3.5 sm:px-5 sm:py-[18px]',
