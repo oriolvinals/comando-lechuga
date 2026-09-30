@@ -98,6 +98,10 @@ class SyncCurrentSeasonPlayerMarkets extends Command
 
         $this->info($playersSynchronized.' player markets synchronized.');
 
+        // Forecast right away instead of waiting for the next scheduled run;
+        // it does nothing when the fingerprinted inputs did not change.
+        $this->call('season:forecast-values');
+
         return self::SUCCESS;
     }
 }

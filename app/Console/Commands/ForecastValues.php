@@ -20,6 +20,11 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
  * read as a `Y-m-d` string), never the database or app clock. The model is
  * fitted by walking the season forward one day at a time, so only the
  * residual window's rows are ever held in memory.
+ *
+ * It runs at the end of every season:sync-player-markets and every 15
+ * minutes as a safety net. The input fingerprint only covers the reference
+ * day's values, so a correction of an earlier day's value does not trigger
+ * a refit on its own: run it with `--force`.
  */
 #[Signature('season:forecast-values {--force : Refit even if the inputs did not change}')]
 #[Description('Forecast tomorrow\'s value of every league player (god mode only) when the published values or the finished matches changed')]
