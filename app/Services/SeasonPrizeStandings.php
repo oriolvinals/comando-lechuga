@@ -180,7 +180,7 @@ final class SeasonPrizeStandings
             ->mapWithKeys(fn (Player $player): array => [$player->id => [
                 'id' => $player->id,
                 'nickname' => $player->nickname,
-                'image' => $player->image,
+                'image' => $player->image !== '' ? asset('storage/'.$player->image) : '',
             ]])
             ->all();
     }
