@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { show as seasonManagersShow } from '@/routes/season-managers';
 import type { Season, SeasonManager } from '@/types/models';
+import { PrizesLink } from './prizes-link';
 
 interface StandingsTableProps {
     season: Season;
@@ -342,6 +343,7 @@ export function StandingsTable({ season, standings }: StandingsTableProps) {
                     </Link>
                 ))}
             </div>
+            <PrizesLink />
         </HqSection>
     );
 }
