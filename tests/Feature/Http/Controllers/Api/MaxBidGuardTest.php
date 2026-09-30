@@ -35,6 +35,7 @@ test('no api response ever carries a field of the private max bid model', functi
         'max_bid', 'bid', 'bid_premium', 'projection', 'projected_day7', 'projected_day14',
         'momentum_increment', 'market_adjustment', 'sport_adjustment', 'daily_increment',
         'sport_score', 'rivals_effect', 'upcoming_rivals', 'confidence', 'lock_days', 'reference_date',
+        'day_one_forecast', 'day_one_offset',
     ];
 
     $world = ApiWorld::seed();

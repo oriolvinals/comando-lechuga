@@ -93,7 +93,7 @@ lucide-react.
 | `app/Services/ValueForecast/ValueForecastPresenter.php` (create), `app/Http/Controllers/PlayersController.php` (modify) | God-only `valueForecast` prop. |
 | `resources/js/types/models.ts`, `resources/js/lib/rival-difficulty.ts` (modify) | Types; ease → 0–10. |
 | `resources/js/components/hq-max-bid-card.tsx` → `hq-god-market-section.tsx` (git mv + modify), `resources/js/pages/players/show.tsx` (modify) | The «Mercado» section. |
-| `tests/Feature/Http/Controllers/Api/MaxBidGuardTest.php`, `ApiDocsDriftTest.php` (modify) | Privacy. |
+| `tests/Feature/Http/Controllers/Api/MaxBidGuardTest.php`, `GodPrivacyGuardTest.php` (modify) | Privacy (keys, leaked values, api-docs terms, arch rule). |
 | Optional: `app/Services/ComparedPlayers.php`, `app/Http/Controllers/PlayerComparisonController.php`, `resources/js/components/compare/derive.ts` (modify) | Verdict evidence «Mañana». |
 | Tests | `tests/Feature/Console/Commands/SnapshotPlayerSignalsTest.php`, `tests/Feature/Models/ValueForecastTest.php`, `tests/Unit/Services/HybridRegressionTest.php`, `tests/Unit/Services/ValueForecastFeatureVectorTest.php`, `tests/Feature/Services/ValueForecastFeaturesTest.php`, `tests/Unit/Services/ValueForecastModelTest.php`, `tests/Feature/Services/ValueForecastWalkForwardTest.php`, `tests/Feature/Console/Commands/BacktestValueForecastTest.php`, `tests/Feature/Console/Commands/ForecastValuesTest.php`, `tests/Unit/Services/MaxBidFormulaTest.php`, `tests/Feature/Services/MaxBidCalculatorTest.php`, `tests/Feature/Console/Commands/BacktestMaxBidTest.php`, `tests/Unit/Services/MaxBidParametersTest.php`, `tests/Feature/Http/Controllers/PlayersControllerTest.php` |
 
