@@ -65,18 +65,21 @@ final readonly class MaxBidParameters
          * Chosen confidence (whole percent, one knot every 5 from 50 to 95) →
          * the confidence the bid is solved at, so the confidence the user picks
          * is the real chance that an offer beats the bid (value forecast spec
-         * §4.2; fitted with `season:backtest-max-bid --calibrate`). Empty =
+         * §4.2; fitted with `season:backtest-max-bid --calibrate --target=75`
+         * on 2026-10-01, together with the 0.8 shrink: 73.5 % real chance at
+         * 75 % on the validation half, against 57.6 % uncalibrated). Only 75 %
+         * is gated; 50 % and 90 % stay off target (≈57 % and ≈80 %). Empty =
          * identity.
          *
          * @var array<int, float>
          */
-        public array $confidenceCalibration = [],
+        public array $confidenceCalibration = [50 => 0.5, 55 => 0.5, 60 => 0.6378, 65 => 0.826, 70 => 0.9196, 75 => 0.9654, 80 => 0.9865, 85 => 0.99, 90 => 0.99, 95 => 0.99],
         /**
          * Factor on the daily increment before projecting (0 < f ≤ 1): shrinks
          * an optimistic path without touching the profitability, which only
          * depends on the increment's sign. 1 = off.
          */
-        public float $incrementShrink = 1.0,
+        public float $incrementShrink = 0.8,
     ) {
         $maximumBenches = count(MaxBidCalculator::RECENCY_WEIGHTS);
 

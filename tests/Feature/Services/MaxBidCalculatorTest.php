@@ -467,6 +467,8 @@ test('pins the formula on a sport-rich scenario with explicit parameters', funct
         benchesBeforeUnprofitable: 0,
         badScoreRule: BadScoreRule::Off,
         startProbabilityWeight: 0.5,
+        confidenceCalibration: [],
+        incrementShrink: 1.0,
     );
 
     $estimate = (new MaxBidCalculator(app(LeagueStandings::class), app(MatchDifficulty::class), $parameters))->estimate($player, $this->season);
