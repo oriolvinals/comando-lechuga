@@ -67,3 +67,12 @@ export const RIVAL_DIFFICULTY_TINT_CLASSES: Record<
     mid: 'border-hq-amber/45 bg-hq-amber/[0.17]',
     easy: 'border-hq-lime/45 bg-hq-lime/[0.17]',
 };
+
+/**
+ * MaxBidCalculator's rival ease (−1 hard … +1 easy) back on the 0–10
+ * difficulty scale — the exact inverse of MatchDifficultyResult's
+ * `rivalEase = (5 − difficulty) / 5`, one decimal.
+ */
+export function difficultyFromEase(ease: number): number {
+    return Math.round((5 - 5 * ease) * 10) / 10;
+}

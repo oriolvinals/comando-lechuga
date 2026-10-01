@@ -18,6 +18,7 @@ use App\Models\PlayerMarket;
 use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\Team;
+use App\Models\ValueForecast;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,9 @@ use RuntimeException;
  * Two steps: `gatherInputs()` does every database query, and the pure
  * `estimateFromInputs()` applies the formula with a set of MaxBidParameters,
  * so the backtest can replay the formula with other parameters in memory.
+ *
+ * Day 1 of the projection is the value forecast when there is one for the
+ * reference date (docs/superpowers/specs/2026-09-30-value-forecast-design.md §4.1).
  */
 class MaxBidCalculator
 {
@@ -111,24 +115,18 @@ class MaxBidCalculator
      * day with the variant the player's position faces; a null or today's
      * `$at` rates them "now", the only moment its rival-absence adjustment
      * applies.
+     *
+     * `$readStoredForecast` false leaves `dayOneForecast` null without
+     * querying: the backtest injects its own walk-forward forecast.
      */
-    public function gatherInputs(Player $player, Season $season, ?CarbonInterface $at = null): MaxBidInputs
+    public function gatherInputs(Player $player, Season $season, ?CarbonInterface $at = null, bool $readStoredForecast = true): MaxBidInputs
     {
         $moment = CarbonImmutable::parse($at ?? now());
         $difficultyAt = $moment->isToday() ? null : $moment->endOfDay();
         $at = $moment->endOfDay();
         $referenceDate = $this->referenceDate($season, $at);
 
-        $values = $referenceDate === null ? [] : PlayerMarket::query()
-            ->where('player_id', $player->id)
-            ->whereDate('date', '<=', $referenceDate)
-            ->orderByDesc('date')
-            ->limit(self::VALUES_READ)
-            ->pluck('value')
-            ->reverse()
-            ->values()
-            ->map(static fn (mixed $value): int => (int) $value)
-            ->all();
+        $values = $referenceDate === null ? [] : PlayerMarket::recentValues($player->id, $referenceDate, self::VALUES_READ);
         $value = $values === [] ? 0 : end($values);
 
         if (in_array($player->status, self::UNAVAILABLE_STATUSES, true)) {
@@ -157,8 +155,9 @@ class MaxBidCalculator
             doubtful: $player->status === PlayerStatus::Doubtful,
             recentTeamPoints: $recentTeamPoints,
             referenceDate: $referenceDate,
-            strongRise: in_array(MarketTrend::fromDailyValues(array_values($values)), self::STRONG_RISE_TRENDS, true),
+            strongRise: in_array(MarketTrend::fromDailyValues($values), self::STRONG_RISE_TRENDS, true),
             nextStartProbability: $this->nextStartProbability($player, $season, $moment),
+            dayOneForecast: $readStoredForecast ? $this->dayOneForecast($player, $season, $referenceDate) : null,
         );
     }
 
@@ -193,7 +192,15 @@ class MaxBidCalculator
             $inputs->isBreak() => $parameters->incrementDecayBreak,
             default => $parameters->incrementDecayMatchweek,
         };
-        $projection = self::project($value, $increment, $decay);
+        $projection = self::project($value, $increment * $parameters->incrementShrink, $decay);
+        $dayOneOffset = null;
+
+        if ($inputs->dayOneForecast !== null) {
+            $dayOneOffset = $inputs->dayOneForecast - $projection[1];
+
+            $projection = [$value, ...array_map(fn (int $dayValue): int => $dayValue + $dayOneOffset, array_slice($projection, 1))];
+        }
+
         $profitable = $increment > 0;
 
         return new MaxBidEstimate(
@@ -201,7 +208,7 @@ class MaxBidCalculator
             value: $value,
             confidence: $confidence,
             lockDays: self::LOCK_DAYS,
-            bid: $profitable ? self::solveBid($projection, $confidence) : null,
+            bid: $profitable ? self::solveBid($projection, $parameters->effectiveConfidence($confidence)) : null,
             projection: $projection,
             momentumIncrement: $inputs->momentum,
             marketAdjustment: $marketAdjustment,
@@ -217,6 +224,8 @@ class MaxBidCalculator
             rivalsEffect: $sport['rivals_effect'],
             upcomingRivals: $sport['upcoming_rivals'],
             referenceDate: $inputs->referenceDate,
+            dayOneForecast: $inputs->dayOneForecast,
+            dayOneOffset: $dayOneOffset,
         );
     }
 
@@ -408,6 +417,16 @@ class MaxBidCalculator
             && array_sum($inputs->recentTeamPoints) >= $parameters->streakExceptionTeamPoints
             && count($inputs->recentParticipation) === $matches
             && array_filter($inputs->recentParticipation, fn (array $match): bool => !$match['starter']) === [];
+    }
+
+    /**
+     * The latest published market day (Y-m-d) up to the end of `$at`'s day
+     * (default today), null when there is none — the day every estimate reads
+     * its market data from.
+     */
+    public function latestMarketDate(Season $season, ?CarbonInterface $at = null): ?string
+    {
+        return $this->referenceDate($season, CarbonImmutable::parse($at ?? now())->endOfDay());
     }
 
     /**
@@ -650,6 +669,23 @@ class MaxBidCalculator
             $row->probability !== null => $row->probability / 100,
             default => null,
         };
+    }
+
+    /**
+     * The stored value forecast for the day after `$referenceDate`, made on
+     * that same reference date; null without one — an older forecast never
+     * counts (value forecast spec §4.1).
+     */
+    private function dayOneForecast(Player $player, Season $season, string $referenceDate): ?int
+    {
+        $predictedValue = ValueForecast::query()
+            ->where('season_id', $season->id)
+            ->where('player_id', $player->id)
+            ->whereDate('reference_date', $referenceDate)
+            ->whereDate('target_date', CarbonImmutable::parse($referenceDate)->addDay())
+            ->value('predicted_value');
+
+        return $predictedValue === null ? null : (int) $predictedValue;
     }
 
     /** The player's position in `$season`, null without a season row. */

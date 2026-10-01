@@ -50,7 +50,19 @@ final readonly class MaxBidInputs
          * figure) for that match.
          */
         public ?float $nextStartProbability = null,
+        /**
+         * The value forecast for the day after `referenceDate`, made on that
+         * same date (value forecast spec §4.1): the projection's day 1, with
+         * days 2–14 shifted by the same amount. Null without one.
+         */
+        public ?int $dayOneForecast = null,
     ) {}
+
+    /** A copy with another day-1 forecast (the backtest injects its walk-forward one). */
+    public function withDayOneForecast(?int $dayOneForecast): self
+    {
+        return new self(...[...get_object_vars($this), 'dayOneForecast' => $dayOneForecast]);
+    }
 
     /** Fantasy points of the most recent finished lineup, null when he has none. */
     public function latestPoints(): ?int

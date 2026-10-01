@@ -748,6 +748,34 @@ function startText(item: DerivedPlayer): string {
     return item.startProbability === null ? '—' : `${item.startProbability} %`;
 }
 
+/** Tomorrow's forecast change (%) of each player, null without one (always null outside god mode). */
+function forecastValuesOf(players: ComparedPlayer[]): (number | null)[] {
+    return players.map((player) => player.forecast?.change_pct ?? null);
+}
+
+/** The «Mañana» evidence row, only when at least one compared player has a forecast. */
+function forecastRows(
+    forecastValues: (number | null)[],
+    mark: 'best' | 'worst',
+): VerdictEvidenceRow[] {
+    if (!forecastValues.some((value) => value !== null)) {
+        return [];
+    }
+
+    return [
+        {
+            label: 'Mañana',
+            hint: 'previsión',
+            texts: forecastValues.map((value) =>
+                value === null ? '—' : formatPercentChange(value),
+            ),
+            values: forecastValues,
+            lowerIsBetter: false,
+            mark,
+        },
+    ];
+}
+
 function buyLens(
     players: ComparedPlayer[],
     derived: DerivedPlayer[],
@@ -769,6 +797,8 @@ function buyLens(
         derived.map((item) => item.nextAverageDifficulty),
         true,
     );
+    const forecastValues = forecastValuesOf(players);
+    const risesTomorrow = normalizeAmong(forecastValues);
 
     return {
         title: 'Para fichar',
@@ -778,7 +808,8 @@ function buyLens(
                 0.9 * ppm[index] +
                 average[index] +
                 0.6 * rise[index] +
-                0.4 * easyCalendar[index],
+                0.4 * easyCalendar[index] +
+                0.5 * risesTomorrow[index],
         ),
         out: derived.map((item) => !canBuy(item)),
         reasons: players.map((player, index) => {
@@ -860,6 +891,7 @@ function buyLens(
                 lowerIsBetter: true,
                 mark: 'best',
             },
+            ...forecastRows(forecastValues, 'best'),
         ],
     };
 }
@@ -886,6 +918,8 @@ function sellLens(
         derived.map((item) => item.last3Points),
         true,
     );
+    const forecastValues = forecastValuesOf(players);
+    const fallsTomorrow = normalizeAmong(forecastValues, true);
 
     return {
         title: 'Vender antes',
@@ -895,7 +929,8 @@ function sellLens(
                 0.7 * hardCalendar[index] +
                 lowStart[index] +
                 0.8 * badForm[index] +
-                (isFalling(player) ? 0.6 : 0),
+                (isFalling(player) ? 0.6 : 0) +
+                0.8 * fallsTomorrow[index],
         ),
         out: players.map(() => false),
         reasons: players.map((player, index) => {
@@ -984,6 +1019,7 @@ function sellLens(
                     acquireTone(item.acquire.kind, 'sell'),
                 ),
             },
+            ...forecastRows(forecastValues, 'worst'),
         ],
     };
 }
@@ -1102,7 +1138,8 @@ function startLens(
 /**
  * God mode only: which of the compared players to buy, sell or field (spec §5b,
  * mock D `lensDef`). Every signal is min–max among the compared players, and
- * difficulty is the 0–10 scale where lower is easier.
+ * difficulty is the 0–10 scale where lower is easier. «Mañana» (the value
+ * forecast) weighs +0,5 in Fichar and +0,8 in Vender.
  */
 export function verdict(
     lens: VerdictLens,

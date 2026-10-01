@@ -29,6 +29,7 @@ use App\Services\MaxBidCalculator;
 use App\Services\PlayerFichaScores;
 use App\Services\PlayerMarketMetrics;
 use App\Services\StartProbabilities;
+use App\Services\ValueForecast\ValueForecastPresenter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -148,7 +149,7 @@ class PlayersController extends Controller
         SeasonActivityType::Buyout,
     ];
 
-    public function show(Request $request, Player $player, PlayerFichaScores $fichaScores, MaxBidCalculator $maxBidCalculator, PlayerMarketMetrics $marketMetrics, StartProbabilities $startProbabilities): Response
+    public function show(Request $request, Player $player, PlayerFichaScores $fichaScores, MaxBidCalculator $maxBidCalculator, PlayerMarketMetrics $marketMetrics, StartProbabilities $startProbabilities, ValueForecastPresenter $valueForecasts): Response
     {
         abort_if($player->fantasy_id === null, 404);
 
@@ -220,6 +221,12 @@ class PlayersController extends Controller
             ->with(['localTeam', 'guestTeam'])
             ->get();
 
+        // Hidden: only computed and sent when god mode is on for this
+        // request (see HandleGodMode).
+        $maxBid = HandleGodMode::isEnabled($request)
+            ? $maxBidCalculator->estimate($player, $season, confidence: $this->resolveConfidence($request))
+            : null;
+
         return Inertia::render('players/show', [
             'player' => $player,
             'currentWeek' => $displayWeek,
@@ -238,11 +245,12 @@ class PlayersController extends Controller
                 $season,
                 $scores->map(fn (array $score): int => $score['fixture']->id)->all(),
             ),
-            // Hidden: only computed and sent when god mode is on for this
-            // request (see HandleGodMode).
-            'maxBid' => HandleGodMode::isEnabled($request)
-                ? $maxBidCalculator->estimate($player, $season, confidence: $this->resolveConfidence($request))->toArray()
-                : null,
+            'maxBid' => $maxBid?->toArray(),
+            // Tomorrow's value from the max bid's own market day, so both
+            // read the same published values.
+            'valueForecast' => $maxBid === null
+                ? null
+                : $valueForecasts->forReferenceDate($player, $season, $maxBid->referenceDate),
         ]);
     }
 

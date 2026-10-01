@@ -19,6 +19,7 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\Team;
+use App\Services\ValueForecast\ValueForecastPresenter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
 
@@ -33,7 +34,7 @@ use Illuminate\Support\Collection as SupportCollection;
  *
  * @phpstan-type ComparedNextFixture array{week_number: int, opponent: Team, is_home: bool, date: string, difficulty: float|null, difficulty_variant: string|null, difficulty_components: array{rival_strength: float, home: float, absences: float}|array{}, absence_adjusted: bool|null, rival_position: int|null}
  * @phpstan-type ComparedPlayerScore array{fixture_id: int, week_number: int, fixture_state: string, opponent: Team|null, is_home: bool, points: int|null, minutes: int, starter: bool, dazn_points: int|null, dazn_estimate: int|null, dazn_estimate_version: string, dazn_estimate_reasons: list<string>, dazn_estimate_source: string|null, stats: array<string, mixed>|null, fixture: Fixture}
- * @phpstan-type ComparedPlayerShape array{id: int, name: string, image: string, position: string, status: string, team: Team, value: int, difference: int, trend: string|null, value_trend_30d: array{multiple: float, value: int, date: string}|null, market_history: list<array{0: string, 1: int}>, points: int, average_points: float, points_per_million: array{value: float, rank: int|null, ranked: int}|null, scores: list<ComparedPlayerScore>, next_fixtures: list<ComparedNextFixture|null>, pending_weeks: list<int>, next_start: PlayerNextStart|null, owner: array{id: int, name: string, logo: string, color: string|null}|null, clause: array{amount: int, locked_until: string, is_locked: bool, shielded: bool, shielded_until: string|null, purchase: array{amount: int, type: string, occurred_at: string}|null}|null, listing: array{sale_price: int, bids: int, expires_at: string, seller: string}|null}
+ * @phpstan-type ComparedPlayerShape array{id: int, name: string, image: string, position: string, status: string, team: Team, value: int, difference: int, trend: string|null, value_trend_30d: array{multiple: float, value: int, date: string}|null, market_history: list<array{0: string, 1: int}>, points: int, average_points: float, points_per_million: array{value: float, rank: int|null, ranked: int}|null, scores: list<ComparedPlayerScore>, next_fixtures: list<ComparedNextFixture|null>, pending_weeks: list<int>, next_start: PlayerNextStart|null, owner: array{id: int, name: string, logo: string, color: string|null}|null, clause: array{amount: int, locked_until: string, is_locked: bool, shielded: bool, shielded_until: string|null, purchase: array{amount: int, type: string, occurred_at: string}|null}|null, listing: array{sale_price: int, bids: int, expires_at: string, seller: string}|null, forecast: array{predicted_value: int, change_pct: float, up_probability: float}|null}
  */
 final class ComparedPlayers
 {
@@ -50,6 +51,7 @@ final class ComparedPlayers
     public function __construct(
         private readonly PlayerMarketMetrics $marketMetrics,
         private readonly StartProbabilities $startProbabilities,
+        private readonly ValueForecastPresenter $valueForecasts,
     ) {}
 
     /**
@@ -57,12 +59,14 @@ final class ComparedPlayers
      * slots and the start probability begin there, and a match of an earlier
      * jornada that hasn't finished yet (a live jornada's Monday game, a
      * rescheduled postponement) is listed in `pending_weeks` instead, so
-     * every "J{$fromWeek}" label describes that jornada.
+     * every "J{$fromWeek}" label describes that jornada. `$withForecast`
+     * (god mode only) adds each player's forecast for tomorrow, a few
+     * lookups per player on top of the batched ones.
      *
      * @param  list<int>  $ids  validated ids (league players of the season, so they have a team and a position), in display order
      * @return list<ComparedPlayerShape>
      */
-    public function forIds(array $ids, Season $season, int $fromWeek): array
+    public function forIds(array $ids, Season $season, int $fromWeek, bool $withForecast = false): array
     {
         if ($ids === []) {
             return [];
@@ -119,7 +123,7 @@ final class ComparedPlayers
             ->groupBy('player_id');
 
         return array_values($players
-            ->map(function (Player $player) use ($fromWeek, $nextStarts, $pendingWeeksByTeam, $pointsPerMillion, $historyByPlayer, $clauses, $purchasesByPlayer, $listings, $lineupsByPlayer): array {
+            ->map(function (Player $player) use ($season, $withForecast, $fromWeek, $nextStarts, $pendingWeeksByTeam, $pointsPerMillion, $historyByPlayer, $clauses, $purchasesByPlayer, $listings, $lineupsByPlayer): array {
                 /** @var Collection<int, PlayerMarket> $history */
                 $history = $historyByPlayer->get($player->id) ?? new Collection;
                 $clause = $clauses->get($player->id);
@@ -167,6 +171,7 @@ final class ComparedPlayers
                         'expires_at' => $listing->expires_at->toIso8601String(),
                         'seller' => MarketPlayer::SELLER_LEAGUE,
                     ],
+                    'forecast' => $withForecast ? $this->forecastFor($player, $season) : null,
                 ];
             })
             ->all());
@@ -183,6 +188,20 @@ final class ComparedPlayers
     private function startFor(?array $start, int $fromWeek): ?array
     {
         return $start !== null && $start['week_number'] === $fromWeek ? $start : null;
+    }
+
+    /**
+     * @return array{predicted_value: int, change_pct: float, up_probability: float}|null
+     */
+    private function forecastFor(Player $player, Season $season): ?array
+    {
+        $forecast = $this->valueForecasts->forPlayer($player, $season);
+
+        return $forecast === null ? null : [
+            'predicted_value' => $forecast['predicted_value'],
+            'change_pct' => $forecast['change_pct'],
+            'up_probability' => $forecast['up_probability'],
+        ];
     }
 
     /**

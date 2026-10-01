@@ -5,6 +5,9 @@ declare(strict_types=1);
 use App\Enums\ClauseSnapshotSource;
 use App\Models\ManagerBalanceSnapshot;
 use App\Models\ManagerPlayerClauseSnapshot;
+use App\Models\PlayerDailySignal;
+use App\Models\ValueForecast;
+use App\Models\ValueForecastFit;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use Tests\Feature\Http\Controllers\Api\ApiWorld;
@@ -97,3 +100,66 @@ test('the api docs never describe private god-mode data and keep saying the api 
 
     expect($docs)->toContain('La API no tiene el saldo');
 });
+
+test('no api response ever carries the private value forecast or the daily signals', function (): void {
+    $forbidden = [
+        'predicted_value', 'up_probability', 'change_pct', 'impact_pct', 'target_date', 'day_one_forecast',
+        'day_one_offset', 'value_forecast', 'valueForecast', 'forecast', 'next_difficulty',
+    ];
+    $privateForecast = 987_650_001;
+
+    $world = ApiWorld::seed();
+    ValueForecast::factory()->create([
+        'season_id' => $world->seasonId,
+        'player_id' => $world->ownedPlayerId,
+        'reference_date' => now()->toDateString(),
+        'target_date' => now()->addDay()->toDateString(),
+        'predicted_value' => $privateForecast,
+        'low' => $privateForecast - 1,
+        'high' => $privateForecast + 1,
+    ]);
+    PlayerDailySignal::factory()->create([
+        'season_id' => $world->seasonId,
+        'player_id' => $world->ownedPlayerId,
+        'next_difficulty' => 9.87,
+    ]);
+    $sampleIds = [
+        'seasonManager' => $world->managerId,
+        'fixture' => $world->finishedFixtureId,
+        'player' => $world->ownedPlayerId,
+    ];
+
+    $apiRoutes = collect(Route::getRoutes()->getRoutes())
+        ->filter(fn (RoutingRoute $route): bool => str_starts_with($route->uri(), 'api/') && in_array('GET', $route->methods(), true));
+
+    foreach ($apiRoutes as $route) {
+        $url = '/'.preg_replace_callback(
+            '/\{(\w+)\}/',
+            fn (array $match): string => (string) ($sampleIds[$match[1]] ?? throw new RuntimeException("No sample id for route parameter {$match[1]}")),
+            $route->uri(),
+        );
+
+        $response = $this->getJson($url);
+
+        $response->assertOk();
+        expect(array_values(array_intersect(godPrivacyKeys($response->json()), $forbidden)))
+            ->toBe([], "{$url} exposes a private value forecast field")
+            ->and($response->getContent())
+            ->not->toContain((string) $privateForecast, "{$url} leaks a forecast value");
+    }
+});
+
+test('the api docs never describe the value forecast', function (): void {
+    $docs = mb_strtolower((string) file_get_contents(resource_path('docs/api-docs.md')));
+
+    foreach (['previsión del valor', 'prevision del valor', 'value forecast', 'value_forecast', 'forecast'] as $term) {
+        expect(str_contains($docs, $term))->toBeFalse("api-docs.md mentions {$term}");
+    }
+});
+
+// One arch() per target: an array of targets passed to a single expect() does not fail on a violation.
+foreach (['App\Http\Controllers\Api', 'App\Http\Resources', 'App\Services\ApiPlayerShapes'] as $publicApiCode) {
+    arch("{$publicApiCode} never reads the private value forecast or the daily signals")
+        ->expect($publicApiCode)
+        ->not->toUse([ValueForecast::class, ValueForecastFit::class, PlayerDailySignal::class, 'App\Services\ValueForecast']);
+}

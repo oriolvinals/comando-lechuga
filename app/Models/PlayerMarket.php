@@ -54,4 +54,23 @@ class PlayerMarket extends Model
             'value' => 'int',
         ];
     }
+
+    /**
+     * The player's last `$count` daily values up to `$date` (Y-m-d),
+     * oldest first.
+     *
+     * @return list<int>
+     */
+    public static function recentValues(int $playerId, string $date, int $count): array
+    {
+        return array_values(self::query()
+            ->where('player_id', $playerId)
+            ->where('date', '<=', $date)
+            ->orderByDesc('date')
+            ->limit($count)
+            ->pluck('value')
+            ->reverse()
+            ->map(static fn (mixed $value): int => (int) $value)
+            ->all());
+    }
 }

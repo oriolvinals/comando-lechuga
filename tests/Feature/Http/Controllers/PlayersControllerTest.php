@@ -20,6 +20,8 @@ use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\SeasonManager;
 use App\Models\Team;
+use App\Models\ValueForecast;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -1758,4 +1760,97 @@ test('the player next_start is null without any start data', function (): void {
     $response->assertInertia(fn (Assert $page): AssertableInertia => $page
         ->where('player.next_start', null)
     );
+});
+
+/**
+ * A god-mode ficha player with six daily values ending today (10,0 → 10,5 M€)
+ * and a forecast made today for tomorrow (10,65 M€).
+ *
+ * @return array{0: Player, 1: Season}
+ */
+function forecastFichaPlayer(string $referenceDate): array
+{
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+
+    foreach ([10_000_000, 10_100_000, 10_200_000, 10_300_000, 10_400_000, 10_500_000] as $index => $value) {
+        PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->subDays(5 - $index)->toDateString(), 'value' => $value]);
+    }
+
+    ValueForecast::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'reference_date' => $referenceDate,
+        'target_date' => CarbonImmutable::parse($referenceDate)->addDay()->toDateString(),
+        'value' => 10_500_000,
+        'predicted_value' => 10_650_000,
+        'low' => 10_600_000,
+        'high' => 10_700_000,
+        'change_pct' => 1.4286,
+        'up_probability' => 0.97,
+        'reasons' => [['kind' => 'inertia', 'label' => 'Inercia: cambio de hoy', 'impact_pct' => 0.97]],
+    ]);
+
+    return [$player, $season];
+}
+
+test('the ficha has no value forecast without god mode', function (): void {
+    [$player] = forecastFichaPlayer(now()->toDateString());
+
+    $this->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('valueForecast', null));
+});
+
+test('god mode adds today\'s value forecast with its trend and reasons', function (): void {
+    [$player] = forecastFichaPlayer(now()->toDateString());
+    $trend = MarketTrend::fromDailyValues([10_000_000, 10_100_000, 10_200_000, 10_300_000, 10_400_000, 10_500_000, 10_650_000]);
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('valueForecast.target_date', now()->addDay()->toDateString())
+            ->where('valueForecast.predicted_value', 10_650_000)
+            ->where('valueForecast.change', 150_000)
+            ->where('valueForecast.change_pct', 1.43)
+            ->where('valueForecast.low', 10_600_000)
+            ->where('valueForecast.up_probability', 0.97)
+            ->where('valueForecast.direction', 'up')
+            ->where('valueForecast.trend', $trend?->value)
+            ->where('valueForecast.reasons.0.kind', 'inertia'));
+});
+
+test('a forecast made before the latest market day is not shown', function (): void {
+    [$player] = forecastFichaPlayer(now()->subDay()->toDateString());
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('valueForecast', null));
+});
+
+test('god mode without a forecast row for the latest market day sends no value forecast', function (): void {
+    [$player] = forecastFichaPlayer(now()->toDateString());
+    ValueForecast::query()->delete();
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('maxBid.reference_date', now()->toDateString())
+            ->where('valueForecast', null));
+});
+
+test('god mode with no market values at all sends no value forecast', function (): void {
+    [$player] = forecastFichaPlayer(now()->toDateString());
+    PlayerMarket::query()->delete();
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('maxBid.status', 'no_data')
+            ->where('maxBid.reference_date', null)
+            ->where('valueForecast', null));
 });

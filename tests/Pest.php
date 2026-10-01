@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\PlayerStatus;
+use App\Models\Player;
+use App\Models\PlayerMarket;
+use App\Models\Season;
+use App\Models\Team;
+use App\Services\ValueForecast\ValueForecastRow;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Saloon\Config;
 use Tests\TestCase;
@@ -55,4 +62,71 @@ expect()->extend('toBeOne', fn () => $this->toBe(1));
 function something(): void
 {
     // ..
+}
+
+/**
+ * A value forecast row with sensible defaults: a 10 M€ player rising 2 %
+ * today, no matches around, next match in 5 days, 10,3 M€ tomorrow.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function forecastRow(array $overrides = []): ValueForecastRow
+{
+    return new ValueForecastRow(...[
+        'playerId' => 1,
+        'referenceDate' => '2026-09-29',
+        'targetDate' => '2026-09-30',
+        'value' => 10_000_000,
+        'changeToday' => 0.02,
+        'changeYesterday' => 0.01,
+        'changeBefore' => 0.005,
+        'marketChange' => -0.007,
+        'matchYesterday' => ['team' => false, 'played' => false, 'points' => 0],
+        'matchToday' => ['team' => false, 'played' => false, 'points' => 0],
+        'matchBefore' => ['team' => false, 'played' => false, 'points' => 0],
+        'daysToNextMatch' => 5,
+        'averagePoints' => 4.0,
+        'nextValue' => 10_300_000,
+        ...$overrides,
+    ]);
+}
+
+/**
+ * A season player with one market value per day ending on `$lastDate`.
+ *
+ * @param  list<int>  $values  oldest first
+ * @param  array<string, mixed>  $attributes
+ */
+function forecastPlayer(Season $season, array $values, string $lastDate, array $attributes = []): Player
+{
+    $team = isset($attributes['team_id']) ? Team::query()->findOrFail($attributes['team_id']) : Team::factory()->create();
+    $season->teams()->syncWithoutDetaching([$team->id]);
+    $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok, ...$attributes]);
+    $last = CarbonImmutable::parse($lastDate);
+
+    foreach (array_values($values) as $index => $value) {
+        PlayerMarket::factory()->create([
+            'player_id' => $player->id,
+            'date' => $last->subDays(count($values) - 1 - $index)->toDateString(),
+            'value' => $value,
+        ]);
+    }
+
+    return $player;
+}
+
+/**
+ * Max bid calibration knots (50…95 %) shifted up by `$shift`, capped at 0,99.
+ *
+ * @return array<int, float>
+ */
+function calibrationKnots(float $shift): array
+{
+    $knots = [];
+
+    foreach (range(50, 95, 5) as $percent) {
+        $knots[$percent] = round(min(0.99, $percent / 100 + $shift), 4);
+    }
+
+    return $knots;
 }

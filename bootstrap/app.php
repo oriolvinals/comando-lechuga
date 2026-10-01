@@ -55,6 +55,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->onOneServer();
 
+        $schedule->command('season:snapshot-player-signals')
+            ->hourly()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->command('season:sync-match-data-backfill')
             ->dailyAt('00:00')
             ->runInBackground()
@@ -75,6 +81,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $schedule->command('season:sync-player-markets')
             ->everyFifteenMinutes()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        // Also chained after every market sync; offset from it, as a safety net.
+        $schedule->command('season:forecast-values')
+            ->cron('5,20,35,50 * * * *')
             ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();

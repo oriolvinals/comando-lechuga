@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { useState } from 'react';
 import { HqCompareButton } from '@/components/compare/compare-button';
 import { EntityImage } from '@/components/entity-image';
+import { HqGodMarketSection } from '@/components/hq-god-market-section';
 import {
     fichaScoreEntry,
     useJornadaSheet,
@@ -13,7 +14,6 @@ import {
     describeMarketTrend,
     HqMarketValueDifference,
 } from '@/components/hq-market-trend-icon';
-import { HqMaxBidCard } from '@/components/hq-max-bid-card';
 import { HqPlayerMatchTimeline } from '@/components/hq-player-match-timeline';
 import { HqPlayerPropertyCard } from '@/components/hq-player-property-card';
 import {
@@ -66,6 +66,7 @@ import type {
     PlayerPointsPerMillion,
     PlayerStatus,
     PlayerValueTrend,
+    ValueForecast,
 } from '@/types/models';
 
 interface PlayerShowProps {
@@ -83,6 +84,7 @@ interface PlayerShowProps {
     pointsPerMillion: PlayerPointsPerMillion | null;
     capitalGain: PlayerCapitalGain | null;
     maxBid: MaxBidEstimate | null;
+    valueForecast: ValueForecast | null;
     [key: string]: unknown;
 }
 
@@ -223,6 +225,7 @@ export default function PlayerShow({
     pointsPerMillion,
     capitalGain,
     maxBid,
+    valueForecast,
 }: PlayerShowProps) {
     const [chartRange, setChartRange] = useState<ValueChartRange>(30);
     const ownershipSegments = buildOwnershipTimeline(
@@ -472,7 +475,20 @@ export default function PlayerShow({
             </div>
 
             {maxBid !== null && (
-                <HqMaxBidCard estimate={maxBid} playerStatus={player.status} />
+                <HqGodMarketSection
+                    estimate={maxBid}
+                    forecast={valueForecast}
+                    playerStatus={player.status}
+                    scores={scores}
+                    onScoreSelect={
+                        jornadaSheet
+                            ? (score) =>
+                                  jornadaSheet.openEntry(
+                                      fichaScoreEntry(player, score),
+                                  )
+                            : undefined
+                    }
+                />
             )}
 
             <div className="grid grid-cols-1 min-[73.75rem]:grid-cols-[minmax(0,1fr)_400px]">

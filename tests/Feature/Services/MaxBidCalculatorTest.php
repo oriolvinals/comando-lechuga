@@ -13,6 +13,7 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\Team;
+use App\Models\ValueForecast;
 use App\Services\LeagueStandings;
 use App\Services\MatchDifficulty;
 use App\Services\MaxBidCalculator;
@@ -574,4 +575,52 @@ test('a match already finished earlier today or a postponed one is not an upcomi
 
     expect($inputs->upcomingRivals)->toBe([])
         ->and($inputs->isBreak())->toBeTrue();
+});
+
+test('gatherInputs takes the stored forecast made on its own reference date only', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    ValueForecast::factory()->create([
+        'season_id' => $this->season->id,
+        'player_id' => $player->id,
+        'reference_date' => '2026-09-25',
+        'target_date' => '2026-09-26',
+        'predicted_value' => 1,
+    ]);
+
+    expect(app(MaxBidCalculator::class)->gatherInputs($player, $this->season)->dayOneForecast)->toBeNull();
+
+    ValueForecast::factory()->create([
+        'season_id' => $this->season->id,
+        'player_id' => $player->id,
+        'reference_date' => '2026-09-26',
+        'target_date' => '2026-09-27',
+        'predicted_value' => 10_420_000,
+    ]);
+
+    expect(app(MaxBidCalculator::class)->gatherInputs($player, $this->season)->dayOneForecast)->toBe(10_420_000)
+        ->and(app(MaxBidCalculator::class)->estimate($player, $this->season)->projection[1])->toBe(10_420_000);
+});
+
+test('an unavailable player never reads the forecast', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000], ['status' => PlayerStatus::Injured]);
+    ValueForecast::factory()->create([
+        'season_id' => $this->season->id,
+        'player_id' => $player->id,
+        'reference_date' => '2026-09-26',
+        'target_date' => '2026-09-27',
+    ]);
+
+    expect(app(MaxBidCalculator::class)->gatherInputs($player, $this->season)->dayOneForecast)->toBeNull();
+});
+
+test('gatherInputs can leave the stored forecast unread', function (): void {
+    $player = maxBidPlayer($this->season, [10_000_000, 10_100_000, 10_200_000, 10_300_000]);
+    ValueForecast::factory()->create([
+        'season_id' => $this->season->id,
+        'player_id' => $player->id,
+        'reference_date' => '2026-09-26',
+        'target_date' => '2026-09-27',
+    ]);
+
+    expect(app(MaxBidCalculator::class)->gatherInputs($player, $this->season, readStoredForecast: false)->dayOneForecast)->toBeNull();
 });

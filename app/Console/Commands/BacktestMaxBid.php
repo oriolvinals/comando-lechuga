@@ -15,13 +15,14 @@ use App\Services\MaxBidCalculator;
 use App\Services\MaxBidEstimate;
 use App\Services\MaxBidInputs;
 use App\Services\MaxBidParameters;
+use App\Services\ValueForecast\ValueForecastWalkForward;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 
-#[Signature('season:backtest-max-bid {--from= : First reference date (Y-m-d)} {--to= : Last reference date (Y-m-d)} {--player= : Nickname of one player to replay day by day} {--grid : Grid-search the model parameters in memory instead (writes nothing)} {--grid-decay : Grid-search only both decays below 0.80 around the chosen calibration (pass 3; writes nothing)} {--grid-streak : Grid-search only the streak exception to the bad-score cap around the defaults (pass 4; writes nothing)} {--phase= : With a grid, replay only the days of one phase: matchweek or break} {--control= : With a grid, nickname of a player whose results under the top combinations are shown as a qualitative check} {--control-from= : First date (Y-m-d) of the control check} {--control-to= : Last date (Y-m-d) of the control check}')]
+#[Signature('season:backtest-max-bid {--from= : First reference date (Y-m-d)} {--to= : Last reference date (Y-m-d)} {--player= : Nickname of one player to replay day by day} {--grid : Grid-search the model parameters in memory instead (writes nothing)} {--grid-decay : Grid-search only both decays below 0.80 around the chosen calibration (pass 3; writes nothing)} {--grid-streak : Grid-search only the streak exception to the bad-score cap around the defaults (pass 4; writes nothing)} {--phase= : With a grid, replay only the days of one phase: matchweek or break} {--control= : With a grid, nickname of a player whose results under the top combinations are shown as a qualitative check} {--control-from= : First date (Y-m-d) of the control check} {--control-to= : Last date (Y-m-d) of the control check} {--without-forecast : Replay without the value forecast as day 1 (the model before it)} {--calibrate : Fit a confidence calibration on the first half of the dates and validate it on the second (writes nothing)}')]
 #[Description('Replay the max bid model over the market history and report how it would have done')]
 class BacktestMaxBid extends Command
 {
@@ -63,7 +64,18 @@ class BacktestMaxBid extends Command
     /** @var list<float> */
     private const array GRID_BENCH_INCREMENT_FACTORS = [0.0, 0.25, 0.5, 0.7, 1.0];
 
-    public function handle(MaxBidCalculator $calculator): int
+    /** @var list<float> Increment shrinks `--calibrate` tries, each with its own fitted knots. */
+    private const array CALIBRATION_SHRINKS = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5];
+
+    /** @var list<int> Confidences (%) whose realised probability must land within the tolerance. */
+    private const array CALIBRATION_TARGETS = [50, 75, 90];
+
+    private const float CALIBRATION_TOLERANCE = 0.03;
+
+    /** Highest confidence a knot may solve at (a knot that can't reach its target gets this). */
+    private const float CALIBRATION_MAX_CONFIDENCE = 0.99;
+
+    public function handle(MaxBidCalculator $calculator, ValueForecastWalkForward $walkForward): int
     {
         $gridPass = match (true) {
             (bool) $this->option('grid-streak') => 'streak',
@@ -144,6 +156,16 @@ class BacktestMaxBid extends Command
             $valuesByPlayer[(int) $row->player_id][substr((string) $row->date, 0, 10)] = (int) $row->value;
         }
 
+        // Walk-forward forecasts: what the scheduled forecast would have said on
+        // each reference date, with only what was known then (spec §4.1).
+        $dayOneForecasts = $this->option('without-forecast')
+            ? null
+            : $walkForward->predictedValues($season, $from->toDateString(), $to->toDateString());
+
+        if ($this->option('calibrate')) {
+            return $this->calibrate($calculator, $season, $players, $valuesByPlayer, $from, $to, $dayOneForecasts);
+        }
+
         if ($gridPass !== null) {
             $controlOption = $this->option('control');
             $control = null;
@@ -166,7 +188,7 @@ class BacktestMaxBid extends Command
                 ];
             }
 
-            return $this->gridSearch($calculator, $season, $players, $valuesByPlayer, $from, $to, $phase, $gridPass, $control);
+            return $this->gridSearch($calculator, $season, $players, $valuesByPlayer, $from, $to, $phase, $gridPass, $control, $dayOneForecasts);
         }
 
         /** @var array<string, array{count: int, profitableCount: int, profitableProbabilitySum: float, unprofitableCount: int, unprofitableRoseCount: int, errors: list<float>}> $groups */
@@ -174,6 +196,13 @@ class BacktestMaxBid extends Command
 
         /** @var list<array{date: string, value: int, status: MaxBidStatus, bid: int|null, projectedDay14: int, actualDay14: int, probability: float|null, rose: bool}> $playerRows */
         $playerRows = [];
+        $estimates = 0;
+        $withForecast = 0;
+        $dayOneErrorEuros = 0;
+        $dayOneErrorShare = 0.0;
+
+        /** @var list<float> $bidErrors |bid − ideal bid| / value of each profitable estimate */
+        $bidErrors = [];
 
         for ($day = $from; $day->lessThanOrEqualTo($to); $day = $day->addDay()) {
             foreach ($players as $player) {
@@ -184,10 +213,21 @@ class BacktestMaxBid extends Command
                     continue;
                 }
 
-                $estimate = $calculator->estimate($player, $season, $day);
+                $inputs = $this->inputs($calculator, $player, $season, $day, $dayOneForecasts);
+                $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters);
 
                 if (!in_array($estimate->status, [MaxBidStatus::Profitable, MaxBidStatus::Unprofitable], true)) {
                     continue;
+                }
+
+                $estimates++;
+                $withForecast += $inputs->dayOneForecast !== null ? 1 : 0;
+                $dayOneError = abs(($estimate->projection[1] ?? 0) - $actual[1]);
+                $dayOneErrorEuros += $dayOneError;
+                $dayOneErrorShare += $dayOneError / max($estimate->value, 1);
+
+                if ($estimate->bid !== null) {
+                    $bidErrors[] = abs($estimate->bid - MaxBidCalculator::solveBid($actual, $estimate->confidence)) / max($estimate->value, 1);
                 }
 
                 $trendCase = $this->trend($values, $day);
@@ -219,6 +259,24 @@ class BacktestMaxBid extends Command
             ['Grupo', 'Estimaciones', 'Rentables', 'Prob. real media (obj. 75 %)', 'Sin rentab.', 'Falsos negativos', 'Error proy. medio', 'Error proy. mediana'],
             $this->rows($groups),
         );
+        $this->info($dayOneForecasts === null
+            ? 'Previsión día 1: desactivada.'
+            : "Previsión día 1: {$withForecast} de {$estimates} estimaciones.");
+        $this->info($estimates === 0
+            ? 'Error del día 1: sin estimaciones.'
+            : sprintf(
+                'Error del día 1: media %s € (%s del valor).',
+                number_format($dayOneErrorEuros / $estimates, 0, ',', '.'),
+                $this->percent($dayOneErrorShare / $estimates, 2),
+            ));
+        $this->info($bidErrors === []
+            ? 'Error de la puja frente a la ideal: sin pujas.'
+            : sprintf(
+                'Error de la puja frente a la ideal: media %s, mediana %s (%d pujas).',
+                $this->percent(array_sum($bidErrors) / count($bidErrors)),
+                $this->percent($this->median($bidErrors)),
+                count($bidErrors),
+            ));
 
         if ($nickname !== null) {
             $this->table(
@@ -239,8 +297,9 @@ class BacktestMaxBid extends Command
      * @param  array<int, array<string, int>>  $valuesByPlayer
      * @param  'broad'|'decay'|'streak'  $gridPass
      * @param  array{player: Player, from: string, to: string}|null  $control
+     * @param  array<int, array<string, int>>|null  $dayOneForecasts  player id → reference date → predicted value
      */
-    private function gridSearch(MaxBidCalculator $calculator, Season $season, Collection $players, array $valuesByPlayer, CarbonImmutable $from, CarbonImmutable $to, ?string $phase, string $gridPass, ?array $control): int
+    private function gridSearch(MaxBidCalculator $calculator, Season $season, Collection $players, array $valuesByPlayer, CarbonImmutable $from, CarbonImmutable $to, ?string $phase, string $gridPass, ?array $control, ?array $dayOneForecasts): int
     {
         $startedAt = hrtime(true);
 
@@ -259,7 +318,7 @@ class BacktestMaxBid extends Command
                     continue;
                 }
 
-                $inputs = $calculator->gatherInputs($player, $season, $day);
+                $inputs = $this->inputs($calculator, $player, $season, $day, $dayOneForecasts);
 
                 if ($inputs->presetStatus !== null || ($phase === 'matchweek' && $inputs->isBreak()) || ($phase === 'break' && !$inputs->isBreak())) {
                     continue;
@@ -642,6 +701,260 @@ class BacktestMaxBid extends Command
     }
 
     /**
+     * Fits, for each increment shrink, the confidence knots that make the
+     * realised probability (the chance the best offer of the lock beats the
+     * bid, with the real path) match 50…95 % on the first half of the
+     * reference dates, validates them on the second half, and picks the
+     * combination within ±3 pp at 50/75/90 % with the lowest bid error
+     * against the ideal bid (spec §4.2). Writes nothing.
+     *
+     * @param  Collection<int, Player>  $players
+     * @param  array<int, array<string, int>>  $valuesByPlayer
+     * @param  array<int, array<string, int>>|null  $dayOneForecasts
+     */
+    private function calibrate(MaxBidCalculator $calculator, Season $season, Collection $players, array $valuesByPlayer, CarbonImmutable $from, CarbonImmutable $to, ?array $dayOneForecasts): int
+    {
+        /** @var list<array{date: string, inputs: MaxBidInputs, actual: list<int>}> $records */
+        $records = [];
+
+        for ($day = $from; $day->lessThanOrEqualTo($to); $day = $day->addDay()) {
+            foreach ($players as $player) {
+                $actual = $this->actualValues($valuesByPlayer[$player->id] ?? [], $day);
+
+                if ($actual === null) {
+                    continue;
+                }
+
+                $inputs = $this->inputs($calculator, $player, $season, $day, $dayOneForecasts);
+
+                if ($inputs->presetStatus === null) {
+                    $records[] = ['date' => $day->toDateString(), 'inputs' => $inputs, 'actual' => $actual];
+                }
+            }
+        }
+
+        $dates = array_values(array_unique(array_column($records, 'date')));
+
+        if (count($dates) < 2) {
+            $this->error('Hacen falta al menos dos días con estimaciones para ajustar y validar la calibración.');
+
+            return self::FAILURE;
+        }
+
+        $middle = $dates[intdiv(count($dates), 2)];
+        $fit = array_values(array_filter($records, fn (array $record): bool => $record['date'] < $middle));
+        $validation = array_values(array_filter($records, fn (array $record): bool => $record['date'] >= $middle));
+
+        $this->info(sprintf('Calibración de la confianza: ajuste %s a %s, validación %s a %s.', $dates[0], $fit === [] ? $dates[0] : end($fit)['date'], $middle, end($dates)));
+
+        $baseline = $this->calibrationMetrics($validation, new MaxBidParameters);
+        $rows = [$this->calibrationRow('Actual', null, $baseline)];
+        $best = null;
+
+        foreach (self::CALIBRATION_SHRINKS as $shrink) {
+            $knots = $this->fitCalibration($fit, $shrink);
+
+            if ($knots === null) {
+                $rows[] = ["×{$shrink}", 'sin pujas', '—', '—', '—', '—', '—', '—', 'no'];
+
+                continue;
+            }
+
+            $metrics = $this->calibrationMetrics($validation, new MaxBidParameters(confidenceCalibration: $knots, incrementShrink: $shrink));
+            $rows[] = $this->calibrationRow("×{$shrink}", $knots, $metrics);
+
+            if ($metrics['passes'] && ($best === null || $metrics['bidError'] < $best['metrics']['bidError'])) {
+                $best = ['shrink' => $shrink, 'knots' => $knots, 'metrics' => $metrics];
+            }
+        }
+
+        $this->table(
+            ['Reducción', 'Conf. usada 50/75/90', 'P real 50 %', 'P real 75 %', 'P real 90 %', 'Error puja (mediana)', 'Pujas', 'Cambios rentable', 'Cumple ±3 pp'],
+            $rows,
+        );
+
+        if ($best === null) {
+            $this->warn('Ninguna combinación cumple ±3 pp en 50/75/90 %: se mantiene la puja actual.');
+
+            return self::SUCCESS;
+        }
+
+        $this->info('Calibración elegida (copiar en MaxBidParameters):');
+        $this->line("incrementShrink: {$best['shrink']}");
+        $this->line('confidenceCalibration: ['.implode(', ', array_map(
+            fn (int $percent, float $knot): string => "{$percent} => {$knot}",
+            array_keys($best['knots']),
+            $best['knots'],
+        )).']');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * The knots (50…95 %) that make the mean realised probability of the
+     * profitable estimates match each target, by scanning the confidence the
+     * bid is solved at from 0,50 to 0,99 and interpolating. Null without any
+     * profitable estimate.
+     *
+     * @param  list<array{date: string, inputs: MaxBidInputs, actual: list<int>}>  $records
+     * @return array<int, float>|null
+     */
+    private function fitCalibration(array $records, float $shrink): ?array
+    {
+        $parameters = new MaxBidParameters(incrementShrink: $shrink);
+        $cases = [];
+
+        foreach ($records as $record) {
+            $estimate = MaxBidCalculator::estimateFromInputs($record['inputs'], $parameters);
+
+            if ($estimate->status === MaxBidStatus::Profitable && $estimate->projection !== null) {
+                $cases[] = [$estimate->projection, $record['actual']];
+            }
+        }
+
+        if ($cases === []) {
+            return null;
+        }
+
+        /** @var list<array{0: float, 1: float}> $curve solved-at confidence → mean realised probability */
+        $curve = [];
+
+        for ($step = 50; $step <= 99; $step++) {
+            $sum = 0.0;
+
+            foreach ($cases as [$projection, $actual]) {
+                $sum += 1 - MaxBidCalculator::bestOfferProbabilityAtMost(MaxBidCalculator::solveBid($projection, $step / 100), $actual);
+            }
+
+            $curve[] = [$step / 100, $sum / count($cases)];
+        }
+
+        $knots = [];
+        $previous = 0.0;
+
+        foreach (range(50, 95, 5) as $percent) {
+            $target = $percent / 100;
+            $knot = self::CALIBRATION_MAX_CONFIDENCE;
+
+            foreach ($curve as $index => [$confidence, $realised]) {
+                if ($realised < $target) {
+                    continue;
+                }
+
+                if ($index === 0) {
+                    $knot = $confidence;
+                } else {
+                    [$previousConfidence, $previousRealised] = $curve[$index - 1];
+                    $knot = $previousConfidence + ($target - $previousRealised) / max($realised - $previousRealised, 1e-9) * ($confidence - $previousConfidence);
+                }
+
+                break;
+            }
+
+            $knot = round(max($previous, $knot), 4);
+            $knots[$percent] = $knot;
+            $previous = $knot;
+        }
+
+        return $knots;
+    }
+
+    /**
+     * Realised probability at 50/75/90 %, bid error against the ideal bid at
+     * 75 % (mean and median), bids and profitability changes against the
+     * current defaults, on the validation records.
+     *
+     * @param  list<array{date: string, inputs: MaxBidInputs, actual: list<int>}>  $records
+     * @return array{realised: array<int, float|null>, bidError: float, bidErrorMedian: float|null, bids: int, flips: int, passes: bool}
+     */
+    private function calibrationMetrics(array $records, MaxBidParameters $parameters): array
+    {
+        $defaults = new MaxBidParameters;
+        $realised = [];
+
+        foreach (self::CALIBRATION_TARGETS as $percent) {
+            $sum = 0.0;
+            $count = 0;
+
+            foreach ($records as $record) {
+                $estimate = MaxBidCalculator::estimateFromInputs($record['inputs'], $parameters, $percent / 100);
+
+                if ($estimate->bid !== null) {
+                    $sum += 1 - MaxBidCalculator::bestOfferProbabilityAtMost($estimate->bid, $record['actual']);
+                    $count++;
+                }
+            }
+
+            $realised[$percent] = $count === 0 ? null : $sum / $count;
+        }
+
+        $errors = [];
+        $flips = 0;
+
+        foreach ($records as $record) {
+            $estimate = MaxBidCalculator::estimateFromInputs($record['inputs'], $parameters);
+            $flips += $estimate->status !== MaxBidCalculator::estimateFromInputs($record['inputs'], $defaults)->status ? 1 : 0;
+
+            if ($estimate->bid !== null) {
+                $errors[] = abs($estimate->bid - MaxBidCalculator::solveBid($record['actual'], MaxBidCalculator::CONFIDENCE)) / max($estimate->value, 1);
+            }
+        }
+
+        $passes = true;
+
+        foreach ($realised as $percent => $probability) {
+            $passes = $passes && $probability !== null && abs($probability - $percent / 100) <= self::CALIBRATION_TOLERANCE;
+        }
+
+        return [
+            'realised' => $realised,
+            'bidError' => $errors === [] ? INF : array_sum($errors) / count($errors),
+            'bidErrorMedian' => $this->median($errors),
+            'bids' => count($errors),
+            'flips' => $flips,
+            'passes' => $passes,
+        ];
+    }
+
+    /**
+     * @param  array<int, float>|null  $knots
+     * @param  array{realised: array<int, float|null>, bidError: float, bidErrorMedian: float|null, bids: int, flips: int, passes: bool}  $metrics
+     * @return list<string|int>
+     */
+    private function calibrationRow(string $label, ?array $knots, array $metrics): array
+    {
+        return [
+            $label,
+            $knots === null ? 'sin calibrar' : implode(' / ', array_map(fn (int $percent): string => number_format($knots[$percent] * 100, 1, ',', '.'), self::CALIBRATION_TARGETS)),
+            $this->percent($metrics['realised'][50]),
+            $this->percent($metrics['realised'][75]),
+            $this->percent($metrics['realised'][90]),
+            is_finite($metrics['bidError'])
+                ? $this->percent($metrics['bidError']).' ('.$this->percent($metrics['bidErrorMedian']).')'
+                : '—',
+            $metrics['bids'],
+            $metrics['flips'],
+            $metrics['passes'] ? 'sí' : 'no',
+        ];
+    }
+
+    /**
+     * One player-day's inputs with the walk-forward forecast of its reference
+     * date as day 1 — or none with --without-forecast. A forecast stored in
+     * the database is never read, so a replay never sees the future.
+     *
+     * @param  array<int, array<string, int>>|null  $dayOneForecasts  player id → reference date → predicted value
+     */
+    private function inputs(MaxBidCalculator $calculator, Player $player, Season $season, CarbonImmutable $day, ?array $dayOneForecasts): MaxBidInputs
+    {
+        $inputs = $calculator->gatherInputs($player, $season, $day, readStoredForecast: false);
+
+        return $inputs->withDayOneForecast(
+            $dayOneForecasts === null || $inputs->referenceDate === null ? null : ($dayOneForecasts[$player->id][$inputs->referenceDate] ?? null),
+        );
+    }
+
+    /**
      * The real values from `$day` to the end of the lock (day 0…14), or null
      * when any of those days is missing.
      *
@@ -773,9 +1086,9 @@ class BacktestMaxBid extends Command
         return $values[intdiv(count($values), 2)];
     }
 
-    private function percent(?float $value): string
+    private function percent(?float $value, int $decimals = 1): string
     {
-        return $value === null ? '—' : number_format($value * 100, 1, ',', '.').' %';
+        return $value === null ? '—' : number_format($value * 100, $decimals, ',', '.').' %';
     }
 
     /**

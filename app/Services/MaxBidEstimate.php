@@ -46,6 +46,10 @@ final readonly class MaxBidEstimate
         public array $upcomingRivals = [],
         /** The market day the values come from (Y-m-d), null without any market data. */
         public ?string $referenceDate = null,
+        /** The value forecast used as day 1, null without one. */
+        public ?int $dayOneForecast = null,
+        /** How much the forecast moved the projection (forecast − the formula's own day 1), null without one. */
+        public ?int $dayOneOffset = null,
     ) {}
 
     /**
@@ -77,6 +81,8 @@ final readonly class MaxBidEstimate
             'rivals_effect' => $this->rivalsEffect,
             'upcoming_rivals' => $this->upcomingRivals,
             'reference_date' => $this->referenceDate,
+            'day_one_forecast' => $this->dayOneForecast,
+            'day_one_offset' => $this->dayOneOffset,
         ];
     }
 }

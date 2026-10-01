@@ -9,6 +9,8 @@ use App\Models\PlayerMarket;
 use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\Team;
+use App\Services\ValueForecast\ValueForecastFingerprint;
+use Illuminate\Support\Facades\Exceptions;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
@@ -122,4 +124,44 @@ test('leaves no market trend when the market history stopped days ago', function
     $this->artisan(SyncCurrentSeasonPlayerMarkets::class)->assertSuccessful();
 
     expect(PlayerSeason::query()->sole()->market_trend)->toBeNull();
+});
+
+test('forecasts the values right after synchronizing them', function (): void {
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    Player::factory()->create(['fantasy_id' => 2783, 'team_id' => $team->id]);
+
+    app()->instance(LaLigaFantasyConnector::class, (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerMarketValueRequest::class => MockResponse::make([
+            ['lfpId' => 4002783, 'marketValue' => 150, 'date' => '2026-08-21T00:00:00+02:00'],
+        ]),
+    ])));
+
+    $this->artisan(SyncCurrentSeasonPlayerMarkets::class)
+        ->expectsOutput('1 player markets synchronized.')
+        ->expectsOutput('Sin datos suficientes para ajustar el modelo.')
+        ->assertSuccessful();
+});
+
+test('a failing forecast never fails the synchronization', function (): void {
+    Exceptions::fake();
+    $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    Player::factory()->create(['fantasy_id' => 2783, 'team_id' => $team->id]);
+    app()->bind(ValueForecastFingerprint::class, fn () => throw new RuntimeException('forecast failed'));
+
+    app()->instance(LaLigaFantasyConnector::class, (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        GetPlayerMarketValueRequest::class => MockResponse::make([
+            ['lfpId' => 4002783, 'marketValue' => 150, 'date' => '2026-08-21T00:00:00+02:00'],
+        ]),
+    ])));
+
+    $this->artisan(SyncCurrentSeasonPlayerMarkets::class)
+        ->expectsOutput('1 player markets synchronized.')
+        ->assertSuccessful();
+
+    expect(PlayerMarket::query()->count())->toBe(1);
+    Exceptions::assertReported(fn (RuntimeException $exception): bool => $exception->getMessage() === 'forecast failed');
 });

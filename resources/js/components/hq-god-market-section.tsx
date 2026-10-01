@@ -3,11 +3,24 @@ import { Info } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { HqDifficultyBars } from '@/components/hq-difficulty-bars';
 import { HqLed } from '@/components/hq-led';
+import type { HqLedTone } from '@/components/hq-led';
+import { HqMarketValueDifference } from '@/components/hq-market-trend-icon';
 import { HqTooltip } from '@/components/hq-tooltip';
 import { STATUS_LABELS } from '@/lib/player-labels';
+import { difficultyFromEase } from '@/lib/rival-difficulty';
 import { cn } from '@/lib/utils';
-import type { MaxBidEstimate, MaxBidRival, PlayerStatus } from '@/types/models';
+import type {
+    MaxBidEstimate,
+    MaxBidRival,
+    PlayerFichaScore,
+    PlayerStatus,
+    ValueForecast,
+    ValueForecastDirection,
+    ValueForecastReason,
+    ValueForecastReasonKind,
+} from '@/types/models';
 
 const OFFER_SPREAD = 0.1;
 /** Rough Chivo Mono advance width at 11px — used only to keep the chart's
@@ -96,8 +109,20 @@ interface ChartTooltipState {
     day: number;
 }
 
-function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
+function ProjectionChart({
+    estimate,
+    forecast,
+}: {
+    estimate: MaxBidEstimate;
+    forecast: ValueForecast | null;
+}) {
     const projection = estimate.projection ?? [];
+    // The forecast's 80 % range, drawn on day 1 only when the projection was
+    // re-anchored to that same forecast.
+    const range =
+        forecast !== null && estimate.day_one_forecast !== null
+            ? { low: forecast.low, high: forecast.high }
+            : null;
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
@@ -176,8 +201,11 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
     // is already projection[0]), with 5 % padding — not the ±10 % offer band,
     // which would otherwise squash the curve into a thin sliver. The band is
     // still drawn at its real width, just clipped to the plot area below.
-    const domainValues =
-        estimate.bid !== null ? [...projection, estimate.bid] : projection;
+    const domainValues = [
+        ...projection,
+        ...(estimate.bid !== null ? [estimate.bid] : []),
+        ...(range !== null ? [range.low, range.high] : []),
+    ];
     const rawMin = Math.min(...domainValues);
     const rawMax = Math.max(...domainValues);
     let low: number;
@@ -220,12 +248,13 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
     const gap = 10;
     const available = width - 2 * CHART_PAD;
     const hoyWidth = textWidth('hoy');
-    const fitsFull =
-        hoyWidth + gap + textWidth(day7Full) + gap + textWidth(day14Full) <=
-        available;
-    const fitsShort =
-        hoyWidth + gap + textWidth(day7Short) + gap + textWidth(day14Short) <=
-        available;
+    // The day-7 label is centred, so each half of it must clear its
+    // neighbour within its own half of the axis.
+    const fitsAround = (day7: string, day14: string) =>
+        hoyWidth + gap + textWidth(day7) / 2 <= available / 2 &&
+        textWidth(day7) / 2 + gap + textWidth(day14) <= available / 2;
+    const fitsFull = fitsAround(day7Full, day14Full);
+    const fitsShort = fitsAround(day7Short, day14Short);
     const day14Label = fitsFull ? day14Full : day14Short;
     const day7Label = fitsFull ? day7Full : fitsShort ? day7Short : null;
 
@@ -331,6 +360,29 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                         </text>
                     </>
                 )}
+                {range !== null && (
+                    <g stroke="var(--color-hq-lime)" opacity={0.85}>
+                        <line
+                            x1={x(1)}
+                            x2={x(1)}
+                            y1={y(range.high)}
+                            y2={y(range.low)}
+                            strokeWidth={2}
+                        />
+                        <line
+                            x1={x(1) - 4}
+                            x2={x(1) + 4}
+                            y1={y(range.high)}
+                            y2={y(range.high)}
+                        />
+                        <line
+                            x1={x(1) - 4}
+                            x2={x(1) + 4}
+                            y1={y(range.low)}
+                            y2={y(range.low)}
+                        />
+                    </g>
+                )}
                 <polyline
                     points={line}
                     fill="none"
@@ -413,6 +465,12 @@ function ProjectionChart({ estimate }: { estimate: MaxBidEstimate }) {
                             {' – '}
                             {formatMillions(hoveredValue * (1 + OFFER_SPREAD))}
                         </div>
+                        {tooltip.day === 1 && range !== null && (
+                            <div className="mt-1 text-hq-lime">
+                                Previsión · rango {formatMillions(range.low)} –{' '}
+                                {formatMillions(range.high)}
+                            </div>
+                        )}
                         {estimate.bid !== null && maxOfferAtHover !== null && (
                             <div
                                 className={cn(
@@ -443,18 +501,34 @@ function ColumnHeading({ children }: { children: ReactNode }) {
     );
 }
 
+const BREAKDOWN_ROW_CLASS =
+    'flex items-center justify-between gap-2.5 border-t border-hq-border py-[7px] font-mono text-[11.5px] leading-tight text-hq-moss';
+
 function BreakdownRow({
     label,
     value,
     valueClass,
+    onSelect,
+    selectLabel,
 }: {
     label: ReactNode;
     value: string;
     valueClass: string;
+    /** Makes the whole row a button (a jornada score opens its sheet). */
+    onSelect?: () => void;
+    selectLabel?: string;
 }) {
-    return (
-        <div className="flex items-center justify-between gap-2.5 border-t border-hq-border py-[7px] font-mono text-[11.5px] leading-tight text-hq-moss">
-            <span className="min-w-0">{label}</span>
+    const content = (
+        <>
+            <span
+                className={cn(
+                    'min-w-0',
+                    onSelect &&
+                        'underline decoration-hq-moss-dim decoration-dotted underline-offset-[3px] transition-colors group-hover:text-hq-paper group-hover:decoration-hq-paper',
+                )}
+            >
+                {label}
+            </span>
             <b
                 className={cn(
                     'shrink-0 text-right font-bold whitespace-nowrap tabular-nums',
@@ -463,29 +537,183 @@ function BreakdownRow({
             >
                 {value}
             </b>
-        </div>
+        </>
     );
+
+    if (onSelect) {
+        return (
+            <button
+                type="button"
+                onClick={onSelect}
+                aria-label={selectLabel}
+                className={cn(
+                    BREAKDOWN_ROW_CLASS,
+                    'group w-full cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hq-lime',
+                )}
+            >
+                {content}
+            </button>
+        );
+    }
+
+    return <div className={BREAKDOWN_ROW_CLASS}>{content}</div>;
+}
+
+/** Which calculation uses a factor: the forecast (MAÑ), the bid (PUJA) or none, shown as context (INFO). */
+type FactorUse = 'forecast' | 'bid' | 'info';
+
+const FACTOR_USE_LABELS: Record<FactorUse, string> = {
+    forecast: 'MAÑ',
+    bid: 'PUJA',
+    info: 'INFO',
+};
+
+const FACTOR_USE_CLASSES: Record<FactorUse, string> = {
+    forecast: 'border-hq-lime/50 text-hq-lime',
+    bid: 'border-hq-gold/50 text-hq-gold',
+    info: 'border-hq-border-bright text-hq-moss',
+};
+
+function FactorUses({ uses }: { uses: FactorUse[] }) {
+    return (
+        <span className="ml-1.5 inline-flex gap-1 align-middle">
+            {uses.map((use) => (
+                <span
+                    key={use}
+                    className={cn(
+                        'border px-1 font-mono text-[11px] leading-[15px] font-bold',
+                        FACTOR_USE_CLASSES[use],
+                    )}
+                >
+                    {FACTOR_USE_LABELS[use]}
+                </span>
+            ))}
+        </span>
+    );
+}
+
+/** Forecast reasons shown in the Mercado column; the rest go to Deportivo. */
+const MARKET_REASON_KINDS: ValueForecastReasonKind[] = [
+    'inertia',
+    'streak',
+    'market',
+    'baseline',
+    'floor',
+];
+
+/** How many days before the forecast's reference date each match reason's match was played. */
+const MATCH_REASON_DAYS_BACK: Partial<Record<ValueForecastReasonKind, number>> =
+    {
+        match_today: 0,
+        match_yesterday: 1,
+        match_before: 2,
+    };
+
+function formatImpact(impactPct: number): string {
+    return `${impactPct.toLocaleString('es-ES', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        signDisplay: 'always',
+    })} pp`;
+}
+
+/** `2026-09-29` minus `days` days, as Y-m-d — UTC arithmetic, so no timezone can shift the day. */
+function shiftIsoDate(isoDate: string, days: number): string {
+    const date = new Date(`${isoDate}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() - days);
+
+    return date.toISOString().slice(0, 10);
+}
+
+/**
+ * The ficha score of a played match reason («Partido del 28/09 · 12 pts»),
+ * matched on the fixture's UTC date like the forecast's own features; null
+ * for other reasons, unplayed matches or a score the ficha doesn't hold.
+ */
+function reasonScore(
+    reason: ValueForecastReason,
+    referenceDate: string,
+    scores: PlayerFichaScore[],
+): PlayerFichaScore | null {
+    const daysBack = MATCH_REASON_DAYS_BACK[reason.kind];
+
+    if (daysBack === undefined) {
+        return null;
+    }
+
+    const matchDate = shiftIsoDate(referenceDate, daysBack);
+
+    return (
+        scores.find(
+            (score) =>
+                score.points !== null &&
+                score.fixture.date.slice(0, 10) === matchDate,
+        ) ?? null
+    );
+}
+
+function ReasonRows({
+    reasons,
+    referenceDate,
+    scores,
+    onScoreSelect,
+}: {
+    reasons: ValueForecastReason[];
+    referenceDate: string;
+    scores: PlayerFichaScore[];
+    onScoreSelect?: (score: PlayerFichaScore) => void;
+}) {
+    return reasons.map((reason) => {
+        const score = onScoreSelect
+            ? reasonScore(reason, referenceDate, scores)
+            : null;
+
+        return (
+            <BreakdownRow
+                key={reason.kind}
+                label={
+                    <>
+                        {reason.label}
+                        <FactorUses uses={['forecast']} />
+                    </>
+                }
+                value={formatImpact(reason.impact_pct)}
+                valueClass={toneClass(reason.impact_pct)}
+                onSelect={
+                    score !== null && onScoreSelect
+                        ? () => onScoreSelect(score)
+                        : undefined
+                }
+                selectLabel={
+                    score !== null
+                        ? `Ver ficha de la jornada J${score.fixture.week_number} · ${score.points} pts`
+                        : undefined
+                }
+            />
+        );
+    });
 }
 
 function RivalRow({ rival }: { rival: MaxBidRival }) {
     return (
-        <BreakdownRow
-            label={
-                <span className="flex items-center gap-1.5">
-                    <img
-                        src={rival.team.logo}
-                        alt=""
-                        className="size-4 shrink-0 object-contain"
-                    />
-                    <span>
-                        {rival.team.short_name} ({rival.position}º) · en{' '}
-                        {rival.days_until} días
-                    </span>
+        <div className="flex items-center justify-between gap-2.5 border-t border-hq-border py-[7px] font-mono text-[11.5px] leading-tight text-hq-moss">
+            <span className="flex min-w-0 items-center gap-1.5">
+                <img
+                    src={rival.team.logo}
+                    alt=""
+                    className="size-4 shrink-0 object-contain"
+                />
+                <span className="truncate">
+                    {rival.team.short_name} ({rival.position}º) · en{' '}
+                    {rival.days_until} días
                 </span>
-            }
-            value={`${formatSigned(rival.difficulty)} × ${formatDecimal(rival.weight)}`}
-            valueClass={toneClass(rival.difficulty)}
-        />
+            </span>
+            <HqDifficultyBars
+                difficulty={difficultyFromEase(rival.difficulty)}
+                layout="gauge"
+                className="shrink-0"
+            />
+        </div>
     );
 }
 
@@ -577,7 +805,7 @@ function ConfidenceLabel({ lockDays }: { lockDays: number }) {
                 <button
                     type="button"
                     aria-label="Qué significa la confianza"
-                    className="flex size-11 cursor-help items-center justify-center text-hq-moss transition-colors hover:text-hq-paper focus-visible:text-hq-paper sm:size-6"
+                    className="flex size-11 cursor-pointer items-center justify-center text-hq-moss transition-colors hover:text-hq-paper focus-visible:text-hq-paper sm:size-6"
                 >
                     <Info className="size-3.5" />
                 </button>
@@ -586,13 +814,13 @@ function ConfidenceLabel({ lockDays }: { lockDays: number }) {
     );
 }
 
-/** The bid as a dot-matrix readout, its thousands dots set in mono so they stay legible. */
-function BidReadout({ bid }: { bid: number }) {
-    const groups = Math.round(bid).toLocaleString('es-ES').split('.');
+/** An amount as a dot-matrix readout, its thousands dots set in mono so they stay legible. */
+function LedAmount({ amount, tone }: { amount: number; tone: HqLedTone }) {
+    const groups = Math.round(amount).toLocaleString('es-ES').split('.');
 
     return (
         <HqLed
-            tone="lime"
+            tone={tone}
             glow
             className="mt-2.5 block text-[34px] whitespace-nowrap sm:text-[40px]"
         >
@@ -611,6 +839,66 @@ function BidReadout({ bid }: { bid: number }) {
     );
 }
 
+const FORECAST_TONES: Record<ValueForecastDirection, HqLedTone> = {
+    up: 'lime',
+    stable: 'paper',
+    down: 'live',
+};
+
+function formatSignedPercent(value: number): string {
+    return `${value.toLocaleString('es-ES', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        signDisplay: 'always',
+    })} %`;
+}
+
+function ForecastReadout({ forecast }: { forecast: ValueForecast }) {
+    const likelyUp = forecast.up_probability >= 0.5;
+
+    return (
+        <div>
+            <div className="flex items-center justify-between gap-2">
+                <p className="hq-label">
+                    Mañana · {formatReferenceDate(forecast.target_date)}
+                </p>
+                <span
+                    className={cn(
+                        'border px-1.5 py-0.5 font-mono text-[11px] leading-none font-bold whitespace-nowrap tabular-nums',
+                        likelyUp
+                            ? 'border-hq-lime/50 text-hq-lime'
+                            : 'border-hq-neg/50 text-hq-neg',
+                    )}
+                >
+                    P(sube) {formatPercent(forecast.up_probability)}
+                </span>
+            </div>
+            <LedAmount
+                amount={forecast.predicted_value}
+                tone={FORECAST_TONES[forecast.direction]}
+            />
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-xs text-hq-moss">
+                <HqMarketValueDifference
+                    difference={forecast.change}
+                    trend={forecast.trend}
+                />
+                <b
+                    className={cn(
+                        'font-bold tabular-nums',
+                        toneClass(forecast.change_pct),
+                    )}
+                >
+                    {formatSignedPercent(forecast.change_pct)}
+                </b>
+            </p>
+            <p className="mt-1 font-mono text-xs whitespace-nowrap text-hq-moss">
+                rango {formatMillions(forecast.low)} –{' '}
+                {formatMillions(forecast.high)}
+            </p>
+        </div>
+    );
+}
+
 function Headline({
     estimate,
     playerStatus,
@@ -624,7 +912,7 @@ function Headline({
         return (
             <>
                 {label}
-                <BidReadout bid={estimate.bid} />
+                <LedAmount amount={estimate.bid} tone="amber" />
                 <p className="mt-1.5 font-mono text-xs text-hq-moss">
                     <b className="font-bold text-hq-lime">
                         {((estimate.bid_premium ?? 0) * 100).toLocaleString(
@@ -666,20 +954,29 @@ function Headline({
     );
 }
 
-interface HqMaxBidCardProps {
+interface HqGodMarketSectionProps {
     estimate: MaxBidEstimate;
+    forecast: ValueForecast | null;
     playerStatus: PlayerStatus;
+    /** The ficha's jornada scores — a played match reason opens its sheet. */
+    scores: PlayerFichaScore[];
+    onScoreSelect?: (score: PlayerFichaScore) => void;
 }
 
 /**
- * Hidden "puja máxima rentable" panel, fenced by the god-mode amber hazard
- * strip (mock `.god`): the bid the best daily league offer beats with the
- * chosen confidence probability (default 75 %, adjustable via the stepper)
- * during the clause lock, the 14-day projection, and the factors behind it
- * in three columns. In no_data/unavailable states only the headline renders
- * — no chart, no breakdown, since there is nothing to project.
+ * God mode «Mercado» section of the ficha (mock _prevision-valor.html, variant
+ * A), fenced by the `hq-god-frame` tape: tomorrow's value forecast and the
+ * max profitable bid side by side, the bid's 14-day projection (day 1 = the
+ * forecast, with its 80 % range) and the factors behind both, each tagged
+ * with the calculation that uses it (MAÑ / PUJA / INFO).
  */
-export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
+export function HqGodMarketSection({
+    estimate,
+    forecast,
+    playerStatus,
+    scores,
+    onScoreSelect,
+}: HqGodMarketSectionProps) {
     const hasProjection = estimate.projection !== null;
     const profitable = estimate.status === 'profitable';
     const firstRival = estimate.upcoming_rivals[0] ?? null;
@@ -712,7 +1009,7 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
             params.set('confianza', String(nextPercent));
 
             router.get(window.location.pathname, Object.fromEntries(params), {
-                only: ['maxBid'],
+                only: ['maxBid', 'valueForecast'],
                 preserveScroll: true,
                 preserveState: true,
                 replace: true,
@@ -722,7 +1019,7 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
 
     return (
         <section
-            aria-label="God mode: puja máxima rentable"
+            aria-label="Mercado"
             className={cn(
                 'hq-god-frame',
                 profitable
@@ -730,6 +1027,9 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                     : 'bg-linear-to-b from-hq-live/5 to-transparent to-60%',
             )}
         >
+            <h2 className="px-3.5 pt-3 font-mono text-[11px] leading-none font-bold tracking-[0.07em] text-hq-amber uppercase sm:px-5">
+                Mercado
+            </h2>
             <div
                 className={cn(
                     'grid grid-cols-1 gap-3.5 p-3.5 sm:px-5 sm:py-[18px]',
@@ -737,131 +1037,256 @@ export function HqMaxBidCard({ estimate, playerStatus }: HqMaxBidCardProps) {
                         'min-[68.75rem]:grid-cols-[270px_minmax(0,1fr)] min-[68.75rem]:items-center min-[68.75rem]:gap-7',
                 )}
             >
-                <div>
-                    <Headline estimate={estimate} playerStatus={playerStatus} />
-                    {hasProjection && (
-                        <>
-                            <ConfidenceStepper
-                                percent={confidencePercent}
-                                onChange={handleConfidenceChange}
-                            />
-                            <ConfidenceLabel lockDays={estimate.lock_days} />
-                        </>
+                <div className="space-y-5 sm:max-w-[270px]">
+                    {forecast !== null && (
+                        <ForecastReadout forecast={forecast} />
                     )}
+                    <div>
+                        <Headline
+                            estimate={estimate}
+                            playerStatus={playerStatus}
+                        />
+                        {hasProjection && (
+                            <>
+                                <ConfidenceStepper
+                                    percent={confidencePercent}
+                                    onChange={handleConfidenceChange}
+                                />
+                                <ConfidenceLabel
+                                    lockDays={estimate.lock_days}
+                                />
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                {hasProjection && <ProjectionChart estimate={estimate} />}
+                {hasProjection && (
+                    <ProjectionChart estimate={estimate} forecast={forecast} />
+                )}
             </div>
 
-            {hasProjection && (
-                <div className="grid grid-cols-1 border-t border-hq-amber/25 min-[68.75rem]:grid-cols-3">
+            {(hasProjection || forecast !== null) && (
+                <div
+                    className={cn(
+                        'grid grid-cols-1 border-t border-hq-amber/25',
+                        hasProjection
+                            ? 'min-[68.75rem]:grid-cols-3'
+                            : 'min-[68.75rem]:grid-cols-2',
+                    )}
+                >
                     <div className="border-b border-hq-border px-3.5 py-3 sm:px-4 min-[68.75rem]:border-r min-[68.75rem]:border-b-0">
                         <ColumnHeading>Mercado</ColumnHeading>
-                        <BreakdownRow
-                            label="Momentum (3 días)"
-                            value={formatDaily(
-                                estimate.momentum_increment ?? 0,
-                            )}
-                            valueClass={toneClass(
-                                estimate.momentum_increment ?? 0,
-                            )}
-                        />
-                        <BreakdownRow
-                            label="Mercado general"
-                            value={formatDaily(estimate.market_adjustment ?? 0)}
-                            valueClass={toneClass(
-                                estimate.market_adjustment ?? 0,
-                            )}
-                        />
-                        <BreakdownRow
-                            label="Deportivo"
-                            value={formatDaily(estimate.sport_adjustment ?? 0)}
-                            valueClass={toneClass(
-                                estimate.sport_adjustment ?? 0,
-                            )}
-                        />
-                        <BreakdownRow
-                            label={`Proyección día ${estimate.lock_days}`}
-                            value={formatMillions(
-                                estimate.projected_day14 ?? 0,
-                            )}
-                            valueClass="text-hq-paper"
-                        />
-                    </div>
-
-                    <div className="border-b border-hq-border px-3.5 py-3 sm:px-4 min-[68.75rem]:border-r min-[68.75rem]:border-b-0">
-                        <ColumnHeading>
-                            Deportivo · S{' '}
-                            {formatSigned(estimate.sport_score ?? 0)}
-                        </ColumnHeading>
-                        <BreakdownRow
-                            label="Forma"
-                            value={formatSigned(estimate.form ?? 0)}
-                            valueClass={toneClass(estimate.form ?? 0)}
-                        />
-                        <BreakdownRow
-                            label={`Participación reciente ${estimate.recent_participation
-                                .map((match) => `${match.minutes}'`)
-                                .join(' · ')}`}
-                            value={formatDecimal(
-                                estimate.recent_participation_share ?? 0,
-                            )}
-                            valueClass="text-hq-paper"
-                        />
-                        <BreakdownRow
-                            label="Titularidad prevista (FútbolFantasy)"
-                            value={
-                                estimate.next_start_probability === null
-                                    ? '—'
-                                    : formatPercent(
-                                          estimate.next_start_probability,
-                                      )
-                            }
-                            valueClass="text-hq-paper"
-                        />
-                        <BreakdownRow
-                            label={
-                                <>
-                                    Participación usada
-                                    <span className="block text-[10.5px] text-hq-moss/70">
-                                        {participationMixHint(estimate)}
-                                    </span>
-                                </>
-                            }
-                            value={formatDecimal(estimate.participation ?? 0)}
-                            valueClass="text-hq-paper"
-                        />
-                        {firstRival !== null && (
-                            <BreakdownRow
-                                label={`Próximo partido en ${firstRival.days_until} días`}
-                                value={`peso ${formatDecimal(firstRival.weight)}`}
-                                valueClass="text-hq-paper"
+                        {forecast !== null && (
+                            <ReasonRows
+                                reasons={forecast.reasons.filter((reason) =>
+                                    MARKET_REASON_KINDS.includes(reason.kind),
+                                )}
+                                referenceDate={forecast.reference_date}
+                                scores={scores}
+                                onScoreSelect={onScoreSelect}
                             />
+                        )}
+                        {hasProjection && (
+                            <>
+                                <BreakdownRow
+                                    label={
+                                        <>
+                                            Momentum (3 días)
+                                            <FactorUses uses={['bid']} />
+                                        </>
+                                    }
+                                    value={formatDaily(
+                                        estimate.momentum_increment ?? 0,
+                                    )}
+                                    valueClass={toneClass(
+                                        estimate.momentum_increment ?? 0,
+                                    )}
+                                />
+                                <BreakdownRow
+                                    label={
+                                        <>
+                                            Mercado general
+                                            <FactorUses uses={['bid']} />
+                                        </>
+                                    }
+                                    value={formatDaily(
+                                        estimate.market_adjustment ?? 0,
+                                    )}
+                                    valueClass={toneClass(
+                                        estimate.market_adjustment ?? 0,
+                                    )}
+                                />
+                                <BreakdownRow
+                                    label={
+                                        <>
+                                            Deportivo
+                                            <FactorUses uses={['bid']} />
+                                        </>
+                                    }
+                                    value={formatDaily(
+                                        estimate.sport_adjustment ?? 0,
+                                    )}
+                                    valueClass={toneClass(
+                                        estimate.sport_adjustment ?? 0,
+                                    )}
+                                />
+                                <BreakdownRow
+                                    label={
+                                        <>
+                                            Proyección día {estimate.lock_days}
+                                            <FactorUses uses={['bid']} />
+                                        </>
+                                    }
+                                    value={formatMillions(
+                                        estimate.projected_day14 ?? 0,
+                                    )}
+                                    valueClass="text-hq-paper"
+                                />
+                            </>
                         )}
                     </div>
 
-                    <div className="px-3.5 py-3 sm:px-4">
+                    <div
+                        className={cn(
+                            'px-3.5 py-3 sm:px-4',
+                            hasProjection &&
+                                'border-b border-hq-border min-[68.75rem]:border-r min-[68.75rem]:border-b-0',
+                        )}
+                    >
                         <ColumnHeading>
-                            Rivales ·{' '}
-                            {formatSigned(estimate.rivals_effect ?? 0)}
+                            Deportivo
+                            {hasProjection &&
+                                ` · S ${formatSigned(estimate.sport_score ?? 0)}`}
                         </ColumnHeading>
-                        {estimate.upcoming_rivals.map((rival) => (
-                            <RivalRow
-                                key={`${rival.team.id}-${rival.days_until}`}
-                                rival={rival}
+                        {forecast !== null && (
+                            <ReasonRows
+                                reasons={forecast.reasons.filter(
+                                    (reason) =>
+                                        !MARKET_REASON_KINDS.includes(
+                                            reason.kind,
+                                        ),
+                                )}
+                                referenceDate={forecast.reference_date}
+                                scores={scores}
+                                onScoreSelect={onScoreSelect}
                             />
-                        ))}
+                        )}
+                        <BreakdownRow
+                            label={
+                                <>
+                                    Estado
+                                    <FactorUses
+                                        uses={
+                                            hasProjection
+                                                ? ['bid', 'info']
+                                                : ['info']
+                                        }
+                                    />
+                                </>
+                            }
+                            value={STATUS_LABELS[playerStatus]}
+                            valueClass={
+                                playerStatus === 'ok'
+                                    ? 'text-hq-lime'
+                                    : 'text-hq-neg'
+                            }
+                        />
+                        {hasProjection && (
+                            <>
+                                <BreakdownRow
+                                    label={
+                                        <>
+                                            Forma
+                                            <FactorUses uses={['bid']} />
+                                        </>
+                                    }
+                                    value={formatSigned(estimate.form ?? 0)}
+                                    valueClass={toneClass(estimate.form ?? 0)}
+                                />
+                                <BreakdownRow
+                                    label={
+                                        <>
+                                            {`Participación reciente ${estimate.recent_participation
+                                                .map(
+                                                    (match) =>
+                                                        `${match.minutes}'`,
+                                                )
+                                                .join(' · ')}`}
+                                            <FactorUses uses={['bid']} />
+                                        </>
+                                    }
+                                    value={formatDecimal(
+                                        estimate.recent_participation_share ??
+                                            0,
+                                    )}
+                                    valueClass="text-hq-paper"
+                                />
+                                <BreakdownRow
+                                    label={
+                                        <>
+                                            Titularidad prevista
+                                            <FactorUses
+                                                uses={['bid', 'info']}
+                                            />
+                                        </>
+                                    }
+                                    value={
+                                        estimate.next_start_probability === null
+                                            ? '—'
+                                            : formatPercent(
+                                                  estimate.next_start_probability,
+                                              )
+                                    }
+                                    valueClass="text-hq-paper"
+                                />
+                                <BreakdownRow
+                                    label={
+                                        <>
+                                            Participación usada
+                                            <FactorUses uses={['bid']} />
+                                            <span className="block text-[11px] text-hq-moss/70">
+                                                {participationMixHint(estimate)}
+                                            </span>
+                                        </>
+                                    }
+                                    value={formatDecimal(
+                                        estimate.participation ?? 0,
+                                    )}
+                                    valueClass="text-hq-paper"
+                                />
+                                {firstRival !== null && (
+                                    <BreakdownRow
+                                        label={
+                                            <>
+                                                Próximo partido en{' '}
+                                                {firstRival.days_until} días
+                                                <FactorUses uses={['bid']} />
+                                            </>
+                                        }
+                                        value={`peso ${formatDecimal(firstRival.weight)}`}
+                                        valueClass="text-hq-paper"
+                                    />
+                                )}
+                            </>
+                        )}
                     </div>
+
+                    {hasProjection && (
+                        <div className="px-3.5 py-3 sm:px-4">
+                            <ColumnHeading>
+                                Próximos rivales
+                                <FactorUses uses={['bid', 'info']} />
+                            </ColumnHeading>
+                            {estimate.upcoming_rivals.map((rival) => (
+                                <RivalRow
+                                    key={`${rival.team.id}-${rival.days_until}`}
+                                    rival={rival}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
-
-            <p className="border-t border-hq-border px-3.5 py-2.5 font-mono text-[11.5px] leading-snug text-hq-moss-dim sm:px-4">
-                Mejor oferta esperada durante los {estimate.lock_days} días de
-                blindaje · {Math.round(estimate.confidence * 100)} % de
-                confianza
-                {estimate.reference_date !== null &&
-                    ` · Datos del ${formatReferenceDate(estimate.reference_date)}`}
-            </p>
         </section>
     );
 }
