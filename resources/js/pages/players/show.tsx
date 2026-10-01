@@ -479,6 +479,15 @@ export default function PlayerShow({
                     estimate={maxBid}
                     forecast={valueForecast}
                     playerStatus={player.status}
+                    scores={scores}
+                    onScoreSelect={
+                        jornadaSheet
+                            ? (score) =>
+                                  jornadaSheet.openEntry(
+                                      fichaScoreEntry(player, score),
+                                  )
+                            : undefined
+                    }
                 />
             )}
 
