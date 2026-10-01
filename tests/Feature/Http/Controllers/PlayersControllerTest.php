@@ -1829,3 +1829,28 @@ test('a forecast made before the latest market day is not shown', function (): v
         ->assertOk()
         ->assertInertia(fn (Assert $page): AssertableInertia => $page->where('valueForecast', null));
 });
+
+test('god mode without a forecast row for the latest market day sends no value forecast', function (): void {
+    [$player] = forecastFichaPlayer(now()->toDateString());
+    ValueForecast::query()->delete();
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('maxBid.reference_date', now()->toDateString())
+            ->where('valueForecast', null));
+});
+
+test('god mode with no market values at all sends no value forecast', function (): void {
+    [$player] = forecastFichaPlayer(now()->toDateString());
+    PlayerMarket::query()->delete();
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.show', $player))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): AssertableInertia => $page
+            ->where('maxBid.status', 'no_data')
+            ->where('maxBid.reference_date', null)
+            ->where('valueForecast', null));
+});

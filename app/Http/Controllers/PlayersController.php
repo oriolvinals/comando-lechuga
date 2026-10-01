@@ -221,6 +221,12 @@ class PlayersController extends Controller
             ->with(['localTeam', 'guestTeam'])
             ->get();
 
+        // Hidden: only computed and sent when god mode is on for this
+        // request (see HandleGodMode).
+        $maxBid = HandleGodMode::isEnabled($request)
+            ? $maxBidCalculator->estimate($player, $season, confidence: $this->resolveConfidence($request))
+            : null;
+
         return Inertia::render('players/show', [
             'player' => $player,
             'currentWeek' => $displayWeek,
@@ -239,14 +245,12 @@ class PlayersController extends Controller
                 $season,
                 $scores->map(fn (array $score): int => $score['fixture']->id)->all(),
             ),
-            // Hidden: only computed and sent when god mode is on for this
-            // request (see HandleGodMode).
-            'maxBid' => HandleGodMode::isEnabled($request)
-                ? $maxBidCalculator->estimate($player, $season, confidence: $this->resolveConfidence($request))->toArray()
-                : null,
-            'valueForecast' => HandleGodMode::isEnabled($request)
-                ? $valueForecasts->forPlayer($player, $season)
-                : null,
+            'maxBid' => $maxBid?->toArray(),
+            // Tomorrow's value from the max bid's own market day, so both
+            // read the same published values.
+            'valueForecast' => $maxBid === null
+                ? null
+                : $valueForecasts->forReferenceDate($player, $season, $maxBid->referenceDate),
         ]);
     }
 

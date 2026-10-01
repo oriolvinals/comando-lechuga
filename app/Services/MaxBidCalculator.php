@@ -420,6 +420,16 @@ class MaxBidCalculator
     }
 
     /**
+     * The latest published market day (Y-m-d) up to the end of `$at`'s day
+     * (default today), null when there is none — the day every estimate reads
+     * its market data from.
+     */
+    public function latestMarketDate(Season $season, ?CarbonInterface $at = null): ?string
+    {
+        return $this->referenceDate($season, CarbonImmutable::parse($at ?? now())->endOfDay());
+    }
+
+    /**
      * The latest day (Y-m-d) up to `$at` with any published market values,
      * null when there is none. Cached per season + date like the market index.
      */
