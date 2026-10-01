@@ -3,7 +3,14 @@
 use App\Services\MaxBidParameters;
 
 test('without a calibration the chosen confidence is used as is', function (): void {
-    expect((new MaxBidParameters)->effectiveConfidence(0.75))->toBe(0.75);
+    expect((new MaxBidParameters(confidenceCalibration: []))->effectiveConfidence(0.75))->toBe(0.75);
+});
+
+test('the defaults carry the calibration fitted for a real 75 %', function (): void {
+    $defaults = new MaxBidParameters;
+
+    expect($defaults->effectiveConfidence(0.75))->toBe(0.9654)
+        ->and($defaults->incrementShrink)->toBe(0.8);
 });
 
 test('interpolates between the knots and clamps to 50–95 %', function (): void {

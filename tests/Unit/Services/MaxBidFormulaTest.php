@@ -38,17 +38,17 @@ function formulaRival(int $daysUntil): array
 }
 
 test('the defaults reproduce a plain rising player', function (): void {
-    $estimate = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters);
+    $estimate = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0));
 
     expect($estimate->status)->toBe(MaxBidStatus::Profitable)
         ->and($estimate->dailyIncrement)->toEqual(100_000.0)
-        ->and($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, 100_000.0, (new MaxBidParameters)->incrementDecayBreak))
+        ->and($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, 100_000.0, (new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0))->incrementDecayBreak))
         ->and($estimate->confidence)->toBe(MaxBidCalculator::CONFIDENCE);
 });
 
 test('a different decay changes the projection', function (): void {
-    $default = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(incrementDecayBreak: 0.9));
-    $slower = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(incrementDecayBreak: 0.8));
+    $default = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, incrementDecayBreak: 0.9));
+    $slower = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, incrementDecayBreak: 0.8));
 
     expect($slower->projection[14])->toBeLessThan($default->projection[14])
         ->and($slower->bid)->toBeLessThan($default->bid);
@@ -56,7 +56,7 @@ test('a different decay changes the projection', function (): void {
 
 test('the decay follows the phase: break beyond 7 days to the next match, matchweek within', function (?int $daysToNextMatch, float $expectedDecay): void {
     $inputs = formulaInputs(['upcomingRivals' => $daysToNextMatch === null ? [] : [formulaRival($daysToNextMatch)]]);
-    $parameters = new MaxBidParameters(incrementDecayBreak: 0.5, incrementDecayMatchweek: 0.95);
+    $parameters = new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, incrementDecayBreak: 0.5, incrementDecayMatchweek: 0.95);
 
     $estimate = MaxBidCalculator::estimateFromInputs($inputs, $parameters);
 
@@ -71,7 +71,7 @@ test('the decay follows the phase: break beyond 7 days to the next match, matchw
 test('a bench player gets the bench factor of a positive increment', function (): void {
     $benched = formulaInputs(['recentParticipation' => array_fill(0, 3, ['starter' => false, 'minutes' => 10])]);
 
-    $estimate = MaxBidCalculator::estimateFromInputs($benched, new MaxBidParameters(benchIncrementFactor: 0.25));
+    $estimate = MaxBidCalculator::estimateFromInputs($benched, new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, benchIncrementFactor: 0.25));
 
     expect($estimate->participation)->toBeLessThan(0.4)
         ->and($estimate->dailyIncrement)->toEqualWithDelta(25_000.0, 0.0001);
@@ -83,7 +83,7 @@ test('benchesBeforeUnprofitable makes a rising player unprofitable after that ma
         $minutes,
     )]);
 
-    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters(benchesBeforeUnprofitable: $benches));
+    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, benchesBeforeUnprofitable: $benches));
 
     expect($estimate->status)->toBe($expected);
 })->with([
@@ -98,7 +98,7 @@ test('benchesBeforeUnprofitable makes a rising player unprofitable after that ma
 test('each bad score rule triggers at its boundary and not past it', function (BadScoreRule $rule, array $lastPoints, float $seasonAverage, MaxBidStatus $expected): void {
     $inputs = formulaInputs(['lastPoints' => $lastPoints, 'seasonPointsAverage' => $seasonAverage]);
 
-    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters(badScoreRule: $rule));
+    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, badScoreRule: $rule));
 
     expect($estimate->status)->toBe($expected);
 })->with([
@@ -113,7 +113,7 @@ test('each bad score rule triggers at its boundary and not past it', function (B
 ]);
 
 test('a status-only input is returned as that status, with no factors', function (MaxBidStatus $status): void {
-    $estimate = MaxBidCalculator::estimateFromInputs(new MaxBidInputs(value: 5_000_000, presetStatus: $status), new MaxBidParameters, 0.9);
+    $estimate = MaxBidCalculator::estimateFromInputs(new MaxBidInputs(value: 5_000_000, presetStatus: $status), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0), 0.9);
 
     expect($estimate->status)->toBe($status)
         ->and($estimate->value)->toBe(5_000_000)
@@ -144,7 +144,7 @@ function streakInputs(array $overrides = []): MaxBidInputs
 }
 
 test('the streak exception lifts the bad-score cap only when all three conditions hold', function (array $overrides, MaxBidStatus $expected): void {
-    $parameters = new MaxBidParameters(badScoreRule: BadScoreRule::AtMostTwo, streakExceptionPace: 0.05, streakExceptionTeamPoints: 6);
+    $parameters = new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, badScoreRule: BadScoreRule::AtMostTwo, streakExceptionPace: 0.05, streakExceptionTeamPoints: 6);
 
     expect(MaxBidCalculator::estimateFromInputs(streakInputs($overrides), $parameters)->status)->toBe($expected);
 })->with([
@@ -161,7 +161,7 @@ test('the streak exception lifts the bad-score cap only when all three condition
 ]);
 
 test('the streak exception is off when its pace is null', function (): void {
-    $estimate = MaxBidCalculator::estimateFromInputs(streakInputs(), new MaxBidParameters(badScoreRule: BadScoreRule::AtMostTwo));
+    $estimate = MaxBidCalculator::estimateFromInputs(streakInputs(), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, badScoreRule: BadScoreRule::AtMostTwo));
 
     expect((new MaxBidParameters)->streakExceptionPace)->toBeNull()
         ->and($estimate->status)->toBe(MaxBidStatus::Unprofitable)
@@ -173,7 +173,7 @@ test('the streak exception never lifts the bench rules', function (): void {
     $inputs = streakInputs(['lastPoints' => [8, 8, 8], 'recentParticipation' => [
         ['starter' => true, 'minutes' => 0], ['starter' => true, 'minutes' => 90], ['starter' => true, 'minutes' => 90],
     ]]);
-    $parameters = new MaxBidParameters(benchesBeforeUnprofitable: 1, streakExceptionPace: 0.05, streakExceptionTeamPoints: 6);
+    $parameters = new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, benchesBeforeUnprofitable: 1, streakExceptionPace: 0.05, streakExceptionTeamPoints: 6);
 
     expect(MaxBidCalculator::estimateFromInputs($inputs, $parameters)->status)->toBe(MaxBidStatus::Unprofitable);
 });
@@ -185,7 +185,7 @@ test('a strong riser keeps his momentum longer in a break', function (bool $stro
         'upcomingRivals' => $daysToNextMatch === null ? [] : [formulaRival($daysToNextMatch)],
     ]);
 
-    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters);
+    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0));
 
     expect($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, $estimate->dailyIncrement, $expectedDecay));
 })->with([
@@ -202,7 +202,7 @@ test('without a start probability the participation and sport score are the rece
         'upcomingRivals' => [formulaRival(2)],
     ]);
 
-    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters);
+    $estimate = MaxBidCalculator::estimateFromInputs($inputs, new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0));
 
     // p = 0,5·(0 + 0,5·30/90) + 0,3·1 + 0,2·(0,5 + 0,5·60/90); form 0 and a neutral rival,
     // so score = 0,5^(2/7)·0,3·(2p − 1), exactly the formula before the start probability.
@@ -215,11 +215,11 @@ test('without a start probability the participation and sport score are the rece
 
 test('a start probability pulls the participation towards it by startProbabilityWeight', function (float $probability, float $weight): void {
     $recent = [['starter' => false, 'minutes' => 30], ['starter' => true, 'minutes' => 90], ['starter' => true, 'minutes' => 60]];
-    $without = MaxBidCalculator::estimateFromInputs(formulaInputs(['recentParticipation' => $recent]), new MaxBidParameters(startProbabilityWeight: $weight));
+    $without = MaxBidCalculator::estimateFromInputs(formulaInputs(['recentParticipation' => $recent]), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, startProbabilityWeight: $weight));
 
     $estimate = MaxBidCalculator::estimateFromInputs(
         formulaInputs(['recentParticipation' => $recent, 'nextStartProbability' => $probability]),
-        new MaxBidParameters(startProbabilityWeight: $weight),
+        new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, startProbabilityWeight: $weight),
     );
 
     expect($estimate->participation)->toEqualWithDelta((1 - $weight) * $without->participation + $weight * $probability, 1e-12)
@@ -236,7 +236,7 @@ test('the start probability weight defaults to 0,5', function (): void {
 
 test('the estimate exposes recent participation, the start probability and its weight next to the mixed participation', function (?float $probability): void {
     $recent = [['starter' => false, 'minutes' => 30], ['starter' => true, 'minutes' => 90], ['starter' => true, 'minutes' => 60]];
-    $parameters = new MaxBidParameters(startProbabilityWeight: 0.4);
+    $parameters = new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0, startProbabilityWeight: 0.4);
     $without = MaxBidCalculator::estimateFromInputs(formulaInputs(['recentParticipation' => $recent]), $parameters);
 
     $estimate = MaxBidCalculator::estimateFromInputs(formulaInputs(['recentParticipation' => $recent, 'nextStartProbability' => $probability]), $parameters);
@@ -254,8 +254,8 @@ test('the estimate exposes recent participation, the start probability and its w
 ]);
 
 test('the value forecast becomes day 1 and shifts days 2–14 by the same amount', function (): void {
-    $without = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters);
-    $with = MaxBidCalculator::estimateFromInputs(formulaInputs(['dayOneForecast' => 10_150_000]), new MaxBidParameters);
+    $without = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0));
+    $with = MaxBidCalculator::estimateFromInputs(formulaInputs(['dayOneForecast' => 10_150_000]), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0));
     $offset = 10_150_000 - $without->projection[1];
 
     expect($with->projection[0])->toBe(10_000_000)
@@ -271,18 +271,18 @@ test('the value forecast becomes day 1 and shifts days 2–14 by the same amount
 });
 
 test('a forecast below today moves the path but never the profitability', function (): void {
-    $with = MaxBidCalculator::estimateFromInputs(formulaInputs(['dayOneForecast' => 9_700_000]), new MaxBidParameters);
+    $with = MaxBidCalculator::estimateFromInputs(formulaInputs(['dayOneForecast' => 9_700_000]), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0));
 
     expect($with->status)->toBe(MaxBidStatus::Profitable)
         ->and($with->projection[1])->toBe(9_700_000);
 });
 
 test('without a forecast the projection is the plain one', function (): void {
-    $estimate = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters);
+    $estimate = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0));
 
     expect($estimate->dayOneForecast)->toBeNull()
         ->and($estimate->dayOneOffset)->toBeNull()
-        ->and($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, 100_000.0, (new MaxBidParameters)->incrementDecayBreak));
+        ->and($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, 100_000.0, (new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0))->incrementDecayBreak));
 });
 
 test('withDayOneForecast keeps every other input', function (): void {
@@ -297,7 +297,7 @@ test('withDayOneForecast keeps every other input', function (): void {
 });
 
 test('a shrink scales the projected increments but not the reported factors nor the profitability', function (): void {
-    $parameters = new MaxBidParameters(incrementShrink: 0.5);
+    $parameters = new MaxBidParameters(confidenceCalibration: [], incrementShrink: 0.5);
     $estimate = MaxBidCalculator::estimateFromInputs(formulaInputs(), $parameters);
 
     expect($estimate->projection)->toBe(MaxBidCalculator::project(10_000_000, 50_000.0, $parameters->incrementDecayBreak))
@@ -306,8 +306,8 @@ test('a shrink scales the projected increments but not the reported factors nor 
 });
 
 test('the bid is solved at the calibrated confidence while the estimate keeps the chosen one', function (): void {
-    $calibrated = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(confidenceCalibration: calibrationKnots(0.15)), 0.75);
-    $plainAt90 = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters, 0.9);
+    $calibrated = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(confidenceCalibration: calibrationKnots(0.15), incrementShrink: 1.0), 0.75);
+    $plainAt90 = MaxBidCalculator::estimateFromInputs(formulaInputs(), new MaxBidParameters(confidenceCalibration: [], incrementShrink: 1.0), 0.9);
 
     expect($calibrated->confidence)->toBe(0.75)
         ->and($calibrated->bid)->toBe($plainAt90->bid);

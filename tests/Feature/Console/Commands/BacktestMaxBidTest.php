@@ -261,7 +261,25 @@ test('uses the walk-forward forecast as day 1 unless told not to, and reports th
 });
 
 test('fits a confidence calibration on the first half, validates it on the second and writes nothing', function (): void {
-    $this->travelTo('2026-09-26 12:00:00');
+    $this->travelTo('2026-10-30 12:00:00');
+    calibrationRisers();
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-10-15', '--calibrate' => true, '--without-forecast' => true])
+        ->expectsOutputToContain('Calibración de la confianza')
+        ->expectsOutputToContain('P real 75 %')
+        ->expectsOutputToContain('Puerta: ±3 pp en 50/75/90 %.')
+        ->assertSuccessful();
+
+    expect(PlayerMarket::query()->count())->toBe(177);
+});
+
+/**
+ * Three steady risers with 59 days of history from 2026-09-01, so a
+ * calibration over 2026-09-04…2026-10-15 has a fit half, a lock-window gap
+ * and a validation half.
+ */
+function calibrationRisers(): void
+{
     $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
     $team = Team::factory()->create();
     $season->teams()->attach($team);
@@ -269,7 +287,7 @@ test('fits a confidence calibration on the first half, validates it on the secon
     foreach ([150_000, 200_000, 250_000] as $pace) {
         $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
 
-        foreach (range(0, 24) as $day) {
+        foreach (range(0, 58) as $day) {
             PlayerMarket::factory()->create([
                 'player_id' => $player->id,
                 'date' => CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString(),
@@ -277,13 +295,57 @@ test('fits a confidence calibration on the first half, validates it on the secon
             ]);
         }
     }
+}
 
-    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-09-10', '--calibrate' => true, '--without-forecast' => true])
-        ->expectsOutputToContain('Calibración de la confianza')
-        ->expectsOutputToContain('P real 75 %')
+test('leaves a lock window between the fit and validation halves so their labels never overlap', function (): void {
+    $this->travelTo('2026-10-30 12:00:00');
+    calibrationRisers();
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-10-15', '--calibrate' => true, '--without-forecast' => true])
+        ->expectsOutputToContain('ajuste 2026-09-04 a 2026-09-10, validación 2026-09-25 a 2026-10-15')
         ->assertSuccessful();
+});
 
-    expect(PlayerMarket::query()->count())->toBe(75);
+test('with --target=75 gates only on 75 % and prints the chosen calibration to copy', function (): void {
+    $this->travelTo('2026-10-30 12:00:00');
+    $season = Season::factory()->create(['start_date' => '2026-06-29', 'end_date' => '2027-05-31']);
+    $team = Team::factory()->create();
+    $season->teams()->attach($team);
+    // A weekly zigzag (five days up 3 %, two down 6 %) the model reads too
+    // optimistically, the same in the fit and validation halves.
+    $dailyFactors = [1.03, 1.03, 1.03, 1.03, 1.03, 0.94, 0.94];
+
+    foreach ([0, 2, 4] as $phase) {
+        $player = Player::factory()->create(['team_id' => $team->id, 'status' => PlayerStatus::Ok]);
+        $value = 10_000_000.0;
+
+        foreach (range(0, 58) as $day) {
+            PlayerMarket::factory()->create([
+                'player_id' => $player->id,
+                'date' => CarbonImmutable::parse('2026-09-01')->addDays($day)->toDateString(),
+                'value' => (int) round($value),
+            ]);
+            $value *= $dailyFactors[($day + $phase) % 7];
+        }
+    }
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-10-15', '--calibrate' => true, '--target' => '75', '--without-forecast' => true])
+        ->expectsOutputToContain('Puerta: ±3 pp en 75 % (50 y 90 %, solo informativos).')
+        ->expectsOutputToContain('P real 50 %')
+        ->expectsOutputToContain('Calibración elegida (copiar en MaxBidParameters):')
+        // ×0.8 has the lowest median bid error; ×0.5 would win on the mean.
+        ->expectsOutputToContain('incrementShrink: 0.8')
+        ->expectsOutputToContain('confidenceCalibration: [50 => ')
+        ->assertSuccessful();
+});
+
+test('fails clearly for a calibration target other than 50, 75 or 90', function (): void {
+    $this->travelTo('2026-10-30 12:00:00');
+    calibrationRisers();
+
+    $this->artisan(BacktestMaxBid::class, ['--calibrate' => true, '--target' => '80', '--without-forecast' => true])
+        ->expectsOutputToContain('«80»')
+        ->assertFailed();
 });
 
 test('needs at least two reference days to calibrate', function (): void {
@@ -299,5 +361,9 @@ test('needs at least two reference days to calibrate', function (): void {
 
     $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-10', '--to' => '2026-09-10', '--calibrate' => true, '--without-forecast' => true])
         ->expectsOutputToContain('al menos dos días')
+        ->assertFailed();
+
+    $this->artisan(BacktestMaxBid::class, ['--from' => '2026-09-04', '--to' => '2026-09-10', '--calibrate' => true, '--without-forecast' => true])
+        ->expectsOutputToContain('Ningún día queda para el ajuste')
         ->assertFailed();
 });
