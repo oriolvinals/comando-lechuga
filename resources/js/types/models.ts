@@ -573,6 +573,51 @@ export interface MaxBidEstimate {
     upcoming_rivals: MaxBidRival[];
     /** The market day the values come from (Y-m-d): the latest published day, null without market data. */
     reference_date: string | null;
+    /** The value forecast used as day 1 (the projection is re-anchored to it); null without one. */
+    day_one_forecast: number | null;
+    /** Forecast − the formula's own day 1, in euros; null without a forecast. */
+    day_one_offset: number | null;
+}
+
+export type ValueForecastDirection = 'up' | 'stable' | 'down';
+
+export type ValueForecastReasonKind =
+    | 'inertia'
+    | 'streak'
+    | 'market'
+    | 'match_yesterday'
+    | 'match_today'
+    | 'match_before'
+    | 'calendar'
+    | 'baseline'
+    | 'floor';
+
+export interface ValueForecastReason {
+    kind: ValueForecastReasonKind;
+    label: string;
+    /** Percentage points of tomorrow's change, e.g. 5.65. */
+    impact_pct: number;
+}
+
+/** Tomorrow's value, god mode only (App\Services\ValueForecast\ValueForecastPresenter). */
+export interface ValueForecast {
+    reference_date: string;
+    target_date: string;
+    value: number;
+    predicted_value: number;
+    /** predicted_value − value, in euros. */
+    change: number;
+    /** Percent, e.g. 5.2. */
+    change_pct: number;
+    /** 80 % interval. */
+    low: number;
+    high: number;
+    /** 0–1. */
+    up_probability: number;
+    direction: ValueForecastDirection;
+    /** The market trend the forecast value would draw. */
+    trend: MarketTrend | null;
+    reasons: ValueForecastReason[];
 }
 
 /** A team as the shell's teletipo shows it: crest and short name. */
