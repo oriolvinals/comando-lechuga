@@ -29,6 +29,7 @@ use App\Services\MaxBidCalculator;
 use App\Services\PlayerFichaScores;
 use App\Services\PlayerMarketMetrics;
 use App\Services\StartProbabilities;
+use App\Services\ValueForecast\ValueForecastPresenter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -148,7 +149,7 @@ class PlayersController extends Controller
         SeasonActivityType::Buyout,
     ];
 
-    public function show(Request $request, Player $player, PlayerFichaScores $fichaScores, MaxBidCalculator $maxBidCalculator, PlayerMarketMetrics $marketMetrics, StartProbabilities $startProbabilities): Response
+    public function show(Request $request, Player $player, PlayerFichaScores $fichaScores, MaxBidCalculator $maxBidCalculator, PlayerMarketMetrics $marketMetrics, StartProbabilities $startProbabilities, ValueForecastPresenter $valueForecasts): Response
     {
         abort_if($player->fantasy_id === null, 404);
 
@@ -242,6 +243,9 @@ class PlayersController extends Controller
             // request (see HandleGodMode).
             'maxBid' => HandleGodMode::isEnabled($request)
                 ? $maxBidCalculator->estimate($player, $season, confidence: $this->resolveConfidence($request))->toArray()
+                : null,
+            'valueForecast' => HandleGodMode::isEnabled($request)
+                ? $valueForecasts->forPlayer($player, $season)
                 : null,
         ]);
     }

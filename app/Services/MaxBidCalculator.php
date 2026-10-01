@@ -126,16 +126,7 @@ class MaxBidCalculator
         $at = $moment->endOfDay();
         $referenceDate = $this->referenceDate($season, $at);
 
-        $values = $referenceDate === null ? [] : PlayerMarket::query()
-            ->where('player_id', $player->id)
-            ->whereDate('date', '<=', $referenceDate)
-            ->orderByDesc('date')
-            ->limit(self::VALUES_READ)
-            ->pluck('value')
-            ->reverse()
-            ->values()
-            ->map(static fn (mixed $value): int => (int) $value)
-            ->all();
+        $values = $referenceDate === null ? [] : PlayerMarket::recentValues($player->id, $referenceDate, self::VALUES_READ);
         $value = $values === [] ? 0 : end($values);
 
         if (in_array($player->status, self::UNAVAILABLE_STATUSES, true)) {
@@ -164,7 +155,7 @@ class MaxBidCalculator
             doubtful: $player->status === PlayerStatus::Doubtful,
             recentTeamPoints: $recentTeamPoints,
             referenceDate: $referenceDate,
-            strongRise: in_array(MarketTrend::fromDailyValues(array_values($values)), self::STRONG_RISE_TRENDS, true),
+            strongRise: in_array(MarketTrend::fromDailyValues($values), self::STRONG_RISE_TRENDS, true),
             nextStartProbability: $this->nextStartProbability($player, $season, $moment),
             dayOneForecast: $readStoredForecast ? $this->dayOneForecast($player, $season, $referenceDate) : null,
         );

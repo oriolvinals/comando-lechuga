@@ -42,9 +42,19 @@ final readonly class ValueForecastPrediction
      */
     public function direction(float $stableBand): string
     {
+        return self::directionOf($this->change, $stableBand);
+    }
+
+    /**
+     * Where a forecast change (a fraction) points: within ±`$stableBand` it is stable.
+     *
+     * @return 'up'|'stable'|'down'
+     */
+    public static function directionOf(float $change, float $stableBand): string
+    {
         return match (true) {
-            $this->change > $stableBand => 'up',
-            $this->change < -$stableBand => 'down',
+            $change > $stableBand => 'up',
+            $change < -$stableBand => 'down',
             default => 'stable',
         };
     }
