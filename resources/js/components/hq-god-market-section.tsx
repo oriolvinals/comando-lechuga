@@ -647,8 +647,7 @@ function reasonScore(
         scores.find(
             (score) =>
                 score.points !== null &&
-                new Date(score.fixture.date).toISOString().slice(0, 10) ===
-                    matchDate,
+                score.fixture.date.slice(0, 10) === matchDate,
         ) ?? null
     );
 }
@@ -1010,7 +1009,7 @@ export function HqGodMarketSection({
             params.set('confianza', String(nextPercent));
 
             router.get(window.location.pathname, Object.fromEntries(params), {
-                only: ['maxBid'],
+                only: ['maxBid', 'valueForecast'],
                 preserveScroll: true,
                 preserveState: true,
                 replace: true,

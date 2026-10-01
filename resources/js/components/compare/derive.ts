@@ -299,11 +299,6 @@ export function formatPercentChange(value: number): string {
     return `${sign}${String(Math.abs(rounded)).replace('.', ',')} %`;
 }
 
-/** Tomorrow's forecast change: "+3 %", "−1,2 %". */
-function formatForecastPct(value: number): string {
-    return `${value.toLocaleString('es-ES', { maximumFractionDigits: 1, signDisplay: 'always' })} %`;
-}
-
 /** % change of each snapshot over the first one. */
 export function percentSeries(history: [string, number][]): number[] {
     const base = history[0]?.[1] ?? 0;
@@ -772,7 +767,7 @@ function forecastRows(
             label: 'Mañana',
             hint: 'previsión',
             texts: forecastValues.map((value) =>
-                value === null ? '—' : formatForecastPct(value),
+                value === null ? '—' : formatPercentChange(value),
             ),
             values: forecastValues,
             lowerIsBetter: false,
