@@ -861,6 +861,12 @@ export interface ComparedPlayer {
     owner: CompareManager | null;
     clause: ComparedPlayerClause | null;
     listing: ComparedPlayerListing | null;
+    /** Tomorrow's value forecast — god mode only, null otherwise. */
+    forecast: {
+        predicted_value: number;
+        change_pct: number;
+        up_probability: number;
+    } | null;
 }
 
 /** One listed league player for the comparator's clouds, search and hover cards (App\Services\LeagueCloud). */

@@ -6,9 +6,11 @@ use App\Enums\FixtureState;
 use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\Player;
+use App\Models\PlayerMarket;
 use App\Models\PlayerSeason;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Models\ValueForecast;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function comparisonSeason(array $attributes = []): Season
@@ -162,4 +164,31 @@ test('the configured key turns godMode on for the comparator through the remembe
     $this->withCookie('god_mode', '1')
         ->get(route('players.compare'))
         ->assertInertia(fn (Assert $page): Assert => $page->where('godMode', true));
+});
+
+test('god mode adds each compared player\'s forecast for tomorrow', function (): void {
+    $season = comparisonSeason();
+    $player = Player::factory()->create(['status' => PlayerStatus::Ok]);
+    PlayerMarket::factory()->create(['player_id' => $player->id, 'date' => now()->toDateString(), 'value' => 10_000_000]);
+    ValueForecast::factory()->create([
+        'season_id' => $season->id,
+        'player_id' => $player->id,
+        'reference_date' => now()->toDateString(),
+        'target_date' => now()->addDay()->toDateString(),
+        'predicted_value' => 10_300_000,
+        'change_pct' => 3.0,
+        'up_probability' => 0.95,
+    ]);
+
+    $this->get(route('players.compare', ['ids' => (string) $player->id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page->where('players.0.forecast', null));
+
+    $this->withCookie('god_mode', '1')
+        ->get(route('players.compare', ['ids' => (string) $player->id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('players.0.forecast.predicted_value', 10_300_000)
+            ->where('players.0.forecast.change_pct', fn (int|float $changePct): bool => (float) $changePct === 3.0)
+            ->where('players.0.forecast.up_probability', 0.95));
 });

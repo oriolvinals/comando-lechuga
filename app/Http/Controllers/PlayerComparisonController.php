@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\HandleGodMode;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
@@ -33,7 +34,7 @@ class PlayerComparisonController extends Controller
             'currentWeek' => $week,
             'totalWeeks' => $season->total_weeks,
             'ids' => $ids,
-            'players' => fn (): array => $comparedPlayers->forIds($ids, $season, $week),
+            'players' => fn (): array => $comparedPlayers->forIds($ids, $season, $week, withForecast: HandleGodMode::isEnabled($request)),
             'league' => fn (): array => $leagueCloud->rows($season, $week),
             'managers' => fn (): array => $this->managers($season),
         ]);
