@@ -7,6 +7,7 @@ import { HqEmptyState } from '@/components/hq-empty-state';
 import { HqMultiSelect } from '@/components/hq-multi-select';
 import { HqPageHeader } from '@/components/hq-page-header';
 import { PlayerRow, PlayerRowHeader } from '@/components/hq-player-row';
+import { HqPlayersViewTabs } from '@/components/hq-players-view-tabs';
 import { HqTooltip } from '@/components/hq-tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { formatNumber } from '@/lib/format';
@@ -195,6 +196,12 @@ export default function PlayersIndex({
                         value: formatNumber(players.total),
                     },
                 ]}
+            />
+
+            <HqPlayersViewTabs
+                view="list"
+                position={filters.position}
+                team={filters.team}
             />
 
             <div className="flex flex-wrap items-center gap-1.5 border-b border-hq-border bg-hq-panel px-3.5 py-2.5 sm:gap-2 sm:px-4 sm:py-3">

@@ -9,6 +9,8 @@ interface HqChannelHeaderProps {
     action?: ReactNode;
     /** Heading level of the title; section headers are h2 by default. */
     as?: 'h2' | 'h3';
+    /** `live` turns the ▮ marker and the title red (e.g. the rankings' «Malas acciones»). */
+    tone?: 'lime' | 'live';
     className?: string;
 }
 
@@ -21,6 +23,7 @@ export function HqChannelHeader({
     title,
     action,
     as: Heading = 'h2',
+    tone = 'lime',
     className,
 }: HqChannelHeaderProps) {
     return (
@@ -31,10 +34,19 @@ export function HqChannelHeader({
             )}
         >
             <Heading className="flex min-w-0 items-center gap-3">
-                <span className="shrink-0 font-semibold text-hq-lime">
+                <span
+                    className={cn(
+                        'shrink-0 font-semibold',
+                        tone === 'live' ? 'text-hq-live' : 'text-hq-lime',
+                    )}
+                >
                     ▮{code ? ` ${code}` : ''}
                 </span>
-                <span className="min-w-0">{title}</span>
+                <span
+                    className={cn('min-w-0', tone === 'live' && 'text-hq-live')}
+                >
+                    {title}
+                </span>
             </Heading>
             {action && (
                 <div className="ml-auto flex items-center gap-2.5 font-medium tracking-[0.06em] text-hq-moss-dim">
