@@ -17,7 +17,7 @@ use App\Models\Team;
 test('returns the jornada sheet of one match: the historical team, stats, fixture with both teams and the lineup manager', function (): void {
     $season = Season::factory()->create(['start_date' => now()->subDay(), 'end_date' => now()->addDay()]);
     $oldClub = Team::factory()->create();
-    $player = Player::factory()->create();
+    $player = Player::factory()->create(['image' => 'images/player/3101.png']);
     PlayerSeason::query()->where('player_id', $player->id)->update(['position' => PlayerPosition::Striker]);
     $fixture = Fixture::factory()->create([
         'season_id' => $season->id, 'week_number' => 7, 'state' => FixtureState::Finished,
@@ -38,6 +38,7 @@ test('returns the jornada sheet of one match: the historical team, stats, fixtur
         ->assertJsonPath('player.id', $player->id)
         ->assertJsonPath('player.nickname', $player->nickname)
         ->assertJsonPath('player.position', 'striker')
+        ->assertJsonPath('player.image', asset('storage/images/player/3101.png'))
         ->assertJsonPath('score.points', 11)
         ->assertJsonPath('score.stats', $stats)
         ->assertJsonPath('score.starter', true)

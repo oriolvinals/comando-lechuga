@@ -11,6 +11,7 @@ use App\Models\Season;
 use App\Services\PlayerFichaScores;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Arr;
 
 /**
  * One player's jornada sheet (`/jugadores/{player}/jornadas/{fixture}`), as
@@ -34,7 +35,7 @@ class PlayerJornadaController extends Controller
         $this->attachCurrentSeason(new Collection([$player]), $season->id);
 
         return response()->json([
-            'player' => $player->only(['id', 'nickname', 'image', 'position']),
+            'player' => Arr::only($player->toArray(), ['id', 'nickname', 'image', 'position']),
             'score' => $score,
         ]);
     }
