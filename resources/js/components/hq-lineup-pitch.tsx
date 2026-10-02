@@ -105,15 +105,14 @@ interface StartBadge {
 }
 
 /**
- * The bottom-left mirror of the points chip: while the pick's own fixture
- * hasn't kicked off, either the confirmed lineup (✓ titular / bench glyph
- * suplente) or FútbolFantasy's % on the same colour scale used everywhere
- * else (lilac ≥ 90 %, lime 70–89 %, gold < 70 %, red injured/suspended) —
- * its tooltip also says how old that % is, once confirmed the lineup itself
- * is the source of truth so no age is shown. Null once the match has started
- * or finished, or without any data — the backend
- * (`StartProbabilities::forLineupEntries`) already omits `start` in both
- * cases, so this only needs to read it.
+ * The bottom-left chip while the pick's own fixture hasn't kicked off:
+ * FútbolFantasy's % on the same colour scale used everywhere else (lilac
+ * ≥ 90 %, lime 70–89 %, gold < 70 %, red injured/suspended), its tooltip
+ * also saying how old that % is. Null once the lineup is confirmed —
+ * titular/suplente then shows in the top status badge (see
+ * `lineupBadgeState`) — and once the match has started or finished or
+ * without any data, where the backend (`StartProbabilities::forLineupEntries`)
+ * already omits `start`.
  */
 function lineupStartBadge(
     entry: ManagerLineupPlayerEntry,
@@ -121,27 +120,11 @@ function lineupStartBadge(
 ): StartBadge | null {
     const start = entry.start;
 
-    if (!start) {
-        return null;
-    }
-
-    if (start.confirmed_starter !== null) {
-        return start.confirmed_starter
-            ? {
-                  label: 'Titular confirmado',
-                  className: 'bg-hq-lime text-hq-ink',
-                  content: '✓',
-              }
-            : {
-                  label: 'Suplente confirmado',
-                  className: 'bg-hq-border-strong text-hq-moss',
-                  content: (
-                      <Armchair aria-hidden="true" className="h-2.5 w-2.5" />
-                  ),
-              };
-    }
-
-    if (start.probability === null) {
+    if (
+        !start ||
+        start.confirmed_starter !== null ||
+        start.probability === null
+    ) {
         return null;
     }
 
@@ -161,19 +144,32 @@ function lineupStartBadge(
  * `sub_minute` + `subbed_out` (see `ManagerLineupPlayerEntry`). `starter`
  * being null means no `FixtureLineup` ever resolved for this pick — once
  * the match has finished that means "not called up" at all; before that,
- * their team just hasn't played yet.
+ * their team just hasn't played yet — unless its lineup is already
+ * confirmed (`start.confirmed_starter`), shown as titular/suplente.
  */
 type LineupBadgeState =
     | 'starter'
     | 'subbed_out'
     | 'subbed_in'
     | 'bench'
+    | 'confirmed_starter'
+    | 'confirmed_bench'
     | 'not_called_up'
     | 'not_played_yet';
 
 function lineupBadgeState(entry: ManagerLineupPlayerEntry): LineupBadgeState {
     if (entry.starter === null) {
-        return entry.match_finished ? 'not_called_up' : 'not_played_yet';
+        if (entry.match_finished) {
+            return 'not_called_up';
+        }
+
+        const confirmedStarter = entry.start?.confirmed_starter ?? null;
+
+        if (confirmedStarter === null) {
+            return 'not_played_yet';
+        }
+
+        return confirmedStarter ? 'confirmed_starter' : 'confirmed_bench';
     }
 
     if (entry.sub_minute !== null) {
@@ -184,7 +180,11 @@ function lineupBadgeState(entry: ManagerLineupPlayerEntry): LineupBadgeState {
 }
 
 function statusBadgeToneClass(state: LineupBadgeState): string {
-    if (state === 'starter' || state === 'subbed_in') {
+    if (
+        state === 'starter' ||
+        state === 'confirmed_starter' ||
+        state === 'subbed_in'
+    ) {
         return 'text-hq-lime';
     }
 
@@ -212,6 +212,10 @@ function statusBadgeLabel(
             return 'Su partido aún no se ha jugado';
         case 'bench':
             return 'Suplente sin minutos';
+        case 'confirmed_starter':
+            return 'Titular confirmado';
+        case 'confirmed_bench':
+            return 'Suplente confirmado';
     }
 }
 
@@ -222,7 +226,7 @@ function StatusBadgeContent({
     state: LineupBadgeState;
     subMinute: number | null;
 }) {
-    if (state === 'starter') {
+    if (state === 'starter' || state === 'confirmed_starter') {
         return '✓';
     }
 
@@ -292,17 +296,21 @@ interface PlayerTokenProps {
     showStarterBadge: boolean;
     /** Off on a team's own ficha — the pitch there already only shows that team's real XI for a match already known to be live from the scoreline above, so a per-player glow adds noise instead of signal. Still on for a fantasy manager's lineup, where it's the only cue for which picks are live right now. */
     showLiveIndicator: boolean;
+    /** False until any pick's match that week has kicked off — until then the token drops its points chip and its "not played yet" clock. */
+    jornadaStarted: boolean;
     widthClass: string;
 }
 
 /**
  * A pitch token (mock `.tok`): 48px photo in a paper frame with the club
- * crest showing through behind the cut-out, the real-match status badge on
- * top (✓ / ↳min' / ✕ / clock / armchair), the solid points tier chip at the
- * bottom-right corner, its start-probability/confirmed-lineup mirror at the
+ * crest showing through behind the cut-out — framed in lime while the pick
+ * is in its team's XI (confirmed, else FútbolFantasy's probable one) — the
+ * real-match status badge on top (✓ / ↳min' / ✕ / clock / armchair), the
+ * solid points tier chip at the bottom-right corner, the start % at the
  * bottom-left (see `lineupStartBadge`) while the pick's own match hasn't
  * kicked off, a pulsing red frame while the match is live, and the name pill
- * below. Opens the player's jornada modal.
+ * below. Before the jornada starts there's no points chip nor clock. Opens
+ * the player's jornada modal.
  */
 function PlayerToken({
     entry,
@@ -311,21 +319,27 @@ function PlayerToken({
     showTeamBadge,
     showStarterBadge,
     showLiveIndicator,
+    jornadaStarted,
     widthClass,
 }: PlayerTokenProps) {
     const badgeState = lineupBadgeState(entry);
     const liveNow = showLiveIndicator && isPlayerLiveNow(entry, badgeState);
-    const showBadge = badgeState !== 'starter' || showStarterBadge;
+    const showBadge =
+        (badgeState !== 'starter' || showStarterBadge) &&
+        (badgeState !== 'not_played_yet' || jornadaStarted);
     const stateLabel = statusBadgeLabel(badgeState, entry.sub_minute);
     const pointsLabel =
         entry.points === null ? 'sin puntos' : `${entry.points} puntos`;
     const startBadge = lineupStartBadge(entry, now);
+    const inStartingXi = entry.start
+        ? (entry.start.confirmed_starter ?? entry.start.predicted_starter)
+        : false;
 
     return (
         <button
             type="button"
             onClick={() => onSelectPlayer(entry)}
-            aria-label={`${entry.player.nickname} · ${stateLabel} · ${pointsLabel}${startBadge ? ` · ${startBadge.label}` : ''}${liveNow ? ' · en directo' : ''}`}
+            aria-label={`${entry.player.nickname} · ${stateLabel}${jornadaStarted ? ` · ${pointsLabel}` : ''}${startBadge ? ` · ${startBadge.label}` : ''}${liveNow ? ' · en directo' : ''}`}
             className={cn(
                 'group relative flex shrink-0 cursor-pointer flex-col items-center outline-none',
                 widthClass,
@@ -337,8 +351,14 @@ function PlayerToken({
                     overflow:hidden would cut off. */}
                 <span
                     className={cn(
-                        'absolute inset-0 overflow-hidden border-[1.5px] bg-hq-well transition-colors group-hover:border-hq-lime group-focus-visible:border-hq-lime',
-                        liveNow ? 'border-transparent' : 'border-hq-paper/85',
+                        'absolute inset-0 overflow-hidden bg-hq-well transition-colors',
+                        inStartingXi
+                            ? 'border-2 border-hq-lime group-hover:border-hq-paper group-focus-visible:border-hq-paper'
+                            : 'border-[1.5px] group-hover:border-hq-lime group-focus-visible:border-hq-lime',
+                        !inStartingXi &&
+                            (liveNow
+                                ? 'border-transparent'
+                                : 'border-hq-paper/85'),
                     )}
                 >
                     {/* Sits behind the photo — the photo is a cutout with
@@ -380,15 +400,17 @@ function PlayerToken({
                         />
                     </HqTooltip>
                 )}
-                <span
-                    aria-hidden="true"
-                    className={cn(
-                        'absolute -right-[7px] -bottom-[5px] z-10 flex h-4 min-w-5 items-center justify-center px-[3px] font-mono text-[10.5px] leading-none font-extrabold tabular-nums',
-                        pointsBadgeTierClass(entry.points),
-                    )}
-                >
-                    {entry.points ?? '–'}
-                </span>
+                {jornadaStarted && (
+                    <span
+                        aria-hidden="true"
+                        className={cn(
+                            'absolute -right-[7px] -bottom-[5px] z-10 flex h-4 min-w-5 items-center justify-center px-[3px] font-mono text-[10.5px] leading-none font-extrabold tabular-nums',
+                            pointsBadgeTierClass(entry.points),
+                        )}
+                    >
+                        {entry.points ?? '–'}
+                    </span>
+                )}
                 {startBadge && (
                     <HqTooltip
                         label={startBadge.label}
@@ -496,6 +518,13 @@ export function HqLineupPitch({
     teamId,
 }: HqLineupPitchProps) {
     const now = useNow(60_000);
+    const jornadaStarted = [...players, ...substitutes].some(
+        (entry) =>
+            entry.match_finished ||
+            (entry.fixture !== null &&
+                (entry.fixture.state === 'finished' ||
+                    isLiveFixtureState(entry.fixture.state))),
+    );
     const scoreboard = (() => {
         if (!fixture || teamId === undefined) {
             return null;
@@ -679,6 +708,7 @@ export function HqLineupPitch({
                                   showTeamBadge={showTeamBadge}
                                   showStarterBadge={showStarterBadge}
                                   showLiveIndicator={showLiveIndicator}
+                                  jornadaStarted={jornadaStarted}
                                   widthClass="w-full"
                               />
                           </div>
@@ -703,6 +733,7 @@ export function HqLineupPitch({
                                           showTeamBadge={showTeamBadge}
                                           showStarterBadge={showStarterBadge}
                                           showLiveIndicator={showLiveIndicator}
+                                          jornadaStarted={jornadaStarted}
                                           widthClass={widthClass}
                                       />
                                   ))}
@@ -732,6 +763,7 @@ export function HqLineupPitch({
                                 showTeamBadge={showTeamBadge}
                                 showStarterBadge={showStarterBadge}
                                 showLiveIndicator={showLiveIndicator}
+                                jornadaStarted={jornadaStarted}
                                 widthClass="w-[72px]"
                             />
                         ))}

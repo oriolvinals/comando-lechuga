@@ -190,6 +190,10 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
     const player = listing.player;
     const now = useNow(60_000);
     const startBadge = nextStartBadge(player.next_start, player.status, now);
+    const inStartingXi = player.next_start
+        ? (player.next_start.confirmed_starter ??
+          player.next_start.predicted_starter)
+        : false;
     const isCompared = useCompareSelection().some(
         (entry) => entry.id === player.id,
     );
@@ -217,7 +221,12 @@ function MarketCard({ listing }: { listing: MarketPlayer }) {
                             alt={player.nickname}
                             fallback={User}
                             shape="square"
-                            className="h-[58px] w-[58px] rounded-none border border-hq-border-strong bg-hq-panel-alt object-cover object-top text-hq-moss-dim"
+                            className={cn(
+                                'h-[58px] w-[58px] rounded-none bg-hq-panel-alt object-cover object-top text-hq-moss-dim',
+                                inStartingXi
+                                    ? 'border-2 border-hq-lime'
+                                    : 'border border-hq-border-strong',
+                            )}
                         />
                         <HqPositionTag
                             position={player.position}
