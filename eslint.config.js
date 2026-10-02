@@ -106,9 +106,18 @@ export default [
         },
     },
     {
+        files: ['video/**/*.mjs'],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+            },
+        },
+    },
+    {
         ignores: [
             'vendor',
             'node_modules',
+            'video/node_modules',
             'public',
             'bootstrap/ssr',
             'tailwind.config.js',

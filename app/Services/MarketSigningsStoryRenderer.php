@@ -13,12 +13,12 @@ use RuntimeException;
 /**
  * Renders the «Compras del mercado» stories with the external Remotion project (config services.remotion):
  *
- *  1. writes the export to <path>/data/compras-<date>.json;
- *  2. `npm run build:compras -- <date>` → <path>/src/generated/compras-<date>.json, {parts: [{frames: [{kind}]}]},
+ *  1. writes the export to <path>/market-signings/data/market-signings-<date>.json;
+ *  2. `npm run build:market-signings -- <date>` → <path>/market-signings/generated/market-signings-<date>.json, {parts: [{frames: [{kind}]}]},
  *     one `player` frame per buy, in the export's order;
- *  3. `npm run render:compras -- <date>` → <path>/out/compras-<date>.mp4 (one part) or compras-<date>-p1.mp4, -p2…
+ *  3. `npm run render:market-signings -- <date>` → <path>/market-signings/out/market-signings-<date>.mp4 (one part) or market-signings-<date>-p1.mp4, -p2…
  *
- * and copies every MP4 to the public disk at stories/compras-<date>[-pN].mp4.
+ * and copies every MP4 to the public disk at stories/market-signings-<date>[-pN].mp4.
  */
 final class MarketSigningsStoryRenderer
 {
@@ -31,7 +31,7 @@ final class MarketSigningsStoryRenderer
     public function render(string $date, array $data, StoryProgress $progress = new StoryProgress): array
     {
         $projectPath = $this->projectPath();
-        $name = "compras-{$date}";
+        $name = "market-signings-{$date}";
         $this->deleteStaleStories($progress);
 
         file_put_contents($this->projectFile((string) config('services.remotion.data_directory'), "{$name}.json"), MarketSigningsExport::toJson($data));

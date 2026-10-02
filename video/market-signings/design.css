@@ -1,4 +1,4 @@
-/* «Compras del mercado» (opción 4 «Uno a uno», aprobada) — frame CSS copied verbatim from comando-lechuga/public/_video-compras-4.html. */
+/* «Compras del mercado» («Uno a uno») — the CSS of the frames built by design.js. */
 :root{
   --ink:#0b0d09;--panel:#10130d;--panel2:#161b11;--well:#060705;
   --b1:#262c1d;--b2:#3a4228;--b3:#4f5936;
@@ -24,7 +24,7 @@ body{margin:0;background:var(--ink);color:var(--paper);font:14px/1.45 var(--sans
 .fr-top .r::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--live)}
 .fr-body{position:absolute;left:0;right:0;top:30px;bottom:0;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 
-/* primitives (as in _video-compras) */
+/* primitives */
 .lbl{font:500 9.5px/1.25 var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--moss2)}
 .hd{display:flex;align-items:center;gap:7px;font:800 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--paper)}
 .hd::before{content:"";width:7px;height:7px;background:var(--lime);flex:none}

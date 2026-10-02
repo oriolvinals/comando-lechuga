@@ -9,5 +9,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "remotion.config.ts"]
+  "include": ["src", "*/**/*.ts", "*/**/*.tsx", "remotion.config.ts"],
+  "exclude": ["node_modules"]
 }

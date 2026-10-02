@@ -31,7 +31,7 @@ beforeEach(function (): void {
     Storage::fake('public');
 
     $this->remotionPath = sys_get_temp_dir().'/remotion-test-'.uniqid();
-    foreach (['data', 'src/generated', 'out'] as $directory) {
+    foreach (['market-signings/data', 'market-signings/generated', 'market-signings/out'] as $directory) {
         File::ensureDirectoryExists("{$this->remotionPath}/{$directory}");
     }
 
@@ -59,25 +59,25 @@ afterEach(function (): void {
 function fakeRemotion(string $path, ?array $playersPerPart = null): void
 {
     Process::fake([
-        '*build:compras*' => function (PendingProcess $process) use ($path, $playersPerPart) {
+        '*build:market-signings*' => function (PendingProcess $process) use ($path, $playersPerPart) {
             preg_match('/(\d{4}-\d{2}-\d{2})$/', (string) $process->command, $match);
-            $data = json_decode((string) file_get_contents("{$path}/data/compras-{$match[1]}.json"), true);
+            $data = json_decode((string) file_get_contents("{$path}/market-signings/data/market-signings-{$match[1]}.json"), true);
             $sizes = $playersPerPart ?? [count($data['buys'])];
             $parts = array_map(fn (int $size): array => ['frames' => [
                 ['kind' => 'intro'],
                 ...array_fill(0, $size, ['kind' => 'player']),
             ]], $sizes);
-            file_put_contents("{$path}/src/generated/compras-{$match[1]}.json", json_encode(['parts' => $parts]));
+            file_put_contents("{$path}/market-signings/generated/market-signings-{$match[1]}.json", json_encode(['parts' => $parts]));
 
             return Process::result('built');
         },
-        '*render:compras*' => function (PendingProcess $process) use ($path) {
+        '*render:market-signings*' => function (PendingProcess $process) use ($path) {
             preg_match('/(\d{4}-\d{2}-\d{2})$/', (string) $process->command, $match);
-            $spec = json_decode((string) file_get_contents("{$path}/src/generated/compras-{$match[1]}.json"), true);
+            $spec = json_decode((string) file_get_contents("{$path}/market-signings/generated/market-signings-{$match[1]}.json"), true);
             $count = count($spec['parts']);
             $output = [];
             foreach (range(1, $count) as $part) {
-                $video = "{$path}/out/compras-{$match[1]}".($count === 1 ? '' : "-p{$part}").'.mp4';
+                $video = "{$path}/market-signings/out/market-signings-{$match[1]}".($count === 1 ? '' : "-p{$part}").'.mp4';
                 file_put_contents($video, "video {$part}");
                 array_push($output, "\e[32mRendered 150/300\e[0m", 'Rendered 300/300', $video, 'faststart: OK');
             }
@@ -174,12 +174,12 @@ test('renders, publishes and marks the unshared signings of the Madrid day, ment
         ->expectsOutputToContain('Marcadas 2 actividades como compartidas.')
         ->assertSuccessful();
 
-    Process::assertRan(fn (PendingProcess $process): bool => $process->command === 'npm run build:compras -- 2026-10-02'
+    Process::assertRan(fn (PendingProcess $process): bool => $process->command === 'npm run build:market-signings -- 2026-10-02'
         && $process->path === $this->remotionPath
         && $process->timeout === 900);
-    Process::assertRan('npm run render:compras -- 2026-10-02');
+    Process::assertRan('npm run render:market-signings -- 2026-10-02');
 
-    $data = json_decode((string) file_get_contents("{$this->remotionPath}/data/compras-2026-10-02.json"), true);
+    $data = json_decode((string) file_get_contents("{$this->remotionPath}/market-signings/data/market-signings-2026-10-02.json"), true);
     expect(array_column($data['buys'], 'id'))->toBe([$first->id, $second->id])
         ->and(sentMentions($mockClient))->toBe(['[{"username":"oriolvinals"}]'])
         ->and($first->refresh()->shared_at)->not->toBeNull()
@@ -187,7 +187,7 @@ test('renders, publishes and marks the unshared signings of the Madrid day, ment
         ->and($yesterday->refresh()->shared_at)->toBeNull();
 
     $mockClient->assertSent(fn ($request, $response): bool => $request instanceof CreateStoryContainerRequest
-        && $response->getPendingRequest()->body()->all()['video_url'] === Storage::disk('public')->url('stories/compras-2026-10-02.mp4')
+        && $response->getPendingRequest()->body()->all()['video_url'] === Storage::disk('public')->url('stories/market-signings-2026-10-02.mp4')
         && $response->getPendingRequest()->query()->get('access_token') === 'seed-token');
 
     $story = PublishedStory::query()->sole();
@@ -197,8 +197,8 @@ test('renders, publishes and marks the unshared signings of the Madrid day, ment
         ->and($story->activity_ids)->toBe([$first->id, $second->id])
         ->and($story->media_id)->toBe('media-1');
 
-    Storage::disk('public')->assertMissing('stories/compras-2026-10-02.mp4');
-    expect("{$this->remotionPath}/out/compras-2026-10-02.mp4")->not->toBeFile();
+    Storage::disk('public')->assertMissing('stories/market-signings-2026-10-02.mp4');
+    expect("{$this->remotionPath}/market-signings/out/market-signings-2026-10-02.mp4")->not->toBeFile();
 });
 
 test('publishes a later batch with only the signings that arrived after the first story', function (): void {
@@ -211,7 +211,7 @@ test('publishes a later batch with only the signings that arrived after the firs
 
     $this->artisan('stories:publish-market-signings')->assertSuccessful();
 
-    $data = json_decode((string) file_get_contents("{$this->remotionPath}/data/compras-2026-10-02.json"), true);
+    $data = json_decode((string) file_get_contents("{$this->remotionPath}/market-signings/data/market-signings-2026-10-02.json"), true);
     expect(array_column($data['buys'], 'id'))->toBe([$late->id])
         ->and(PublishedStory::query()->where('batch', 2)->sole()->activity_ids)->toBe([$late->id])
         ->and($late->refresh()->shared_at)->not->toBeNull();
@@ -260,7 +260,7 @@ test('publishes the empty-market story only on the last run of a day without sig
     $this->travelTo(CarbonImmutable::parse('2026-10-02 23:05', 'Europe/Madrid'));
     $this->artisan('stories:publish-market-signings')->assertSuccessful();
 
-    $data = json_decode((string) file_get_contents("{$this->remotionPath}/data/compras-2026-10-02.json"), true);
+    $data = json_decode((string) file_get_contents("{$this->remotionPath}/market-signings/data/market-signings-2026-10-02.json"), true);
     $story = PublishedStory::query()->sole();
     expect($data['buys'])->toBe([])
         ->and([$story->signings_count, $story->activity_ids])->toBe([0, []]);
@@ -289,11 +289,11 @@ test('a past --date publishes its unshared signings outside the time window', fu
 
     $this->artisan('stories:publish-market-signings', ['--date' => '2026-09-30'])->assertSuccessful();
 
-    $data = json_decode((string) file_get_contents("{$this->remotionPath}/data/compras-2026-09-30.json"), true);
-    Process::assertRan('npm run build:compras -- 2026-09-30');
-    Process::assertRan('npm run render:compras -- 2026-09-30');
+    $data = json_decode((string) file_get_contents("{$this->remotionPath}/market-signings/data/market-signings-2026-09-30.json"), true);
+    Process::assertRan('npm run build:market-signings -- 2026-09-30');
+    Process::assertRan('npm run render:market-signings -- 2026-09-30');
     $mockClient->assertSent(fn ($request, $response): bool => $request instanceof CreateStoryContainerRequest
-        && $response->getPendingRequest()->body()->all()['video_url'] === Storage::disk('public')->url('stories/compras-2026-09-30.mp4'));
+        && $response->getPendingRequest()->body()->all()['video_url'] === Storage::disk('public')->url('stories/market-signings-2026-09-30.mp4'));
     expect($data['date'])->toBe('2026-09-30')
         ->and(array_column($data['buys'], 'id'))->toBe([$signing->id])
         ->and($signing->refresh()->shared_at)->not->toBeNull()
@@ -345,18 +345,18 @@ test('a dry run exports and renders but neither publishes nor marks', function (
         ->expectsOutputToContain('Simulación (--dry-run)')
         ->assertSuccessful();
 
-    Process::assertRan('npm run render:compras -- 2026-10-02');
+    Process::assertRan('npm run render:market-signings -- 2026-10-02');
     $mockClient->assertNothingSent();
-    Storage::disk('public')->assertExists('stories/compras-2026-10-02.mp4');
+    Storage::disk('public')->assertExists('stories/market-signings-2026-10-02.mp4');
     expect($signing->refresh()->shared_at)->toBeNull()
         ->and(PublishedStory::query()->count())->toBe(0);
 });
 
 test('a render deletes the dry-run MP4s left on the public disk for more than a day', function (): void {
     $disk = Storage::disk('public');
-    $disk->put('stories/compras-2026-09-29.mp4', 'old dry run');
-    touch($disk->path('stories/compras-2026-09-29.mp4'), now()->subDays(2)->getTimestamp());
-    $disk->put('stories/compras-2026-10-01.mp4', 'fresh dry run');
+    $disk->put('stories/market-signings-2026-09-29.mp4', 'old dry run');
+    touch($disk->path('stories/market-signings-2026-09-29.mp4'), now()->subDays(2)->getTimestamp());
+    $disk->put('stories/market-signings-2026-10-01.mp4', 'fresh dry run');
     signingOn($this->season, '2026-10-02 22:00');
     fakeRemotion($this->remotionPath);
     fakeInstagram();
@@ -365,9 +365,9 @@ test('a render deletes the dry-run MP4s left on the public disk for more than a 
         ->expectsOutputToContain('Borrados 1 MP4 de más de 24 h en stories/.')
         ->assertSuccessful();
 
-    $disk->assertMissing('stories/compras-2026-09-29.mp4');
-    $disk->assertExists('stories/compras-2026-10-01.mp4');
-    $disk->assertExists('stories/compras-2026-10-02.mp4');
+    $disk->assertMissing('stories/market-signings-2026-09-29.mp4');
+    $disk->assertExists('stories/market-signings-2026-10-01.mp4');
+    $disk->assertExists('stories/market-signings-2026-10-02.mp4');
 });
 
 test('on the production server the render runs niced and with the configured Chrome concurrency', function (): void {
@@ -378,7 +378,7 @@ test('on the production server the render runs niced and with the configured Chr
 
     $this->artisan('stories:publish-market-signings')->assertSuccessful();
 
-    Process::assertRan(fn (PendingProcess $process): bool => $process->command === 'nice -n 10 npm run render:compras -- 2026-10-02'
+    Process::assertRan(fn (PendingProcess $process): bool => $process->command === 'nice -n 10 npm run render:market-signings -- 2026-10-02'
         && $process->environment === ['REMOTION_CONCURRENCY' => '1']);
 });
 

@@ -79,7 +79,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini \
     && rm -rf /var/lib/apt/lists/*
 
 # Runtime for the stories render (stories:publish-market-signings → npm run
-# build:compras / render:compras in video/): Node from NodeSource, as in the
+# build:market-signings / render:market-signings in video/): Node from NodeSource, as in the
 # build stage, plus the shared libraries Chrome Headless Shell needs (the list
 # from remotion.dev/docs/docker, runtime packages instead of -dev ones).
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg \

@@ -24,7 +24,7 @@ docs
 # Stories video: dependencies are installed in the image (Linux build), never copied from a dev machine
 video/node_modules
 video/build
-video/out
+video/*/out
 video/public/mk
-video/src/generated/*.json
-video/data/*.json
+video/*/generated/*.json
+video/*/data/*.json

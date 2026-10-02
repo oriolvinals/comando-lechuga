@@ -69,19 +69,19 @@ return [
     ],
 
     /*
-     * The external Remotion project (comando-lechuga-research/video) that renders the «Compras del mercado» stories.
-     * Contract: the JSON goes to <path>/<data_directory>/compras-<date>.json, then `npm run <build_script> -- <date>`
-     * writes <path>/<generated_directory>/compras-<date>.json ({parts: [{frames: [{kind}]}]}) and
-     * `npm run <render_script> -- <date>` renders <path>/<output_directory>/compras-<date>.mp4 (one part) or
-     * compras-<date>-p1.mp4, -p2… (one composition per part).
+     * The Remotion project (video/, one folder per video) that renders the «Compras del mercado» stories (video/market-signings/).
+     * Contract: the JSON goes to <path>/<data_directory>/market-signings-<date>.json, then `npm run <build_script> -- <date>`
+     * writes <path>/<generated_directory>/market-signings-<date>.json ({parts: [{frames: [{kind}]}]}) and
+     * `npm run <render_script> -- <date>` renders <path>/<output_directory>/market-signings-<date>.mp4 (one part) or
+     * market-signings-<date>-p1.mp4, -p2… (one composition per part).
      */
     'remotion' => [
         'path' => env('REMOTION_PROJECT_PATH', base_path('video')),
-        'build_script' => env('REMOTION_COMPRAS_BUILD_SCRIPT', 'build:compras'),
-        'render_script' => env('REMOTION_COMPRAS_RENDER_SCRIPT', 'render:compras'),
-        'data_directory' => 'data',
-        'generated_directory' => 'src/generated',
-        'output_directory' => 'out',
+        'build_script' => env('REMOTION_MARKET_SIGNINGS_BUILD_SCRIPT', 'build:market-signings'),
+        'render_script' => env('REMOTION_MARKET_SIGNINGS_RENDER_SCRIPT', 'render:market-signings'),
+        'data_directory' => 'market-signings/data',
+        'generated_directory' => 'market-signings/generated',
+        'output_directory' => 'market-signings/out',
         'timeout' => (int) env('REMOTION_TIMEOUT', 900), // 15 min: the 2-core VPS renders a ~30 s story in 5–10 min
         // Chrome tabs per render; empty lets Remotion pick (one per core). Production (2 cores, 3.7 GB) uses 1.
         'concurrency' => env('REMOTION_CONCURRENCY', ''),

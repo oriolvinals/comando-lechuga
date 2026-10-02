@@ -29,8 +29,8 @@ yarn-error.log
 /.vscode
 /.zed
 /.superpowers
-/video/out
+/video/*/out
 /video/public/mk
-/video/src/generated/*.json
-/video/data/*.json
+/video/*/generated/*.json
+/video/*/data/*.json
 /.impeccable
