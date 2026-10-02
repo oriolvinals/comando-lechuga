@@ -82,7 +82,7 @@ return [
         'data_directory' => 'data',
         'generated_directory' => 'src/generated',
         'output_directory' => 'out',
-        'timeout' => (int) env('REMOTION_TIMEOUT', 600),
+        'timeout' => (int) env('REMOTION_TIMEOUT', 900), // 15 min: the 2-core VPS renders a ~30 s story in 5–10 min
         // Chrome tabs per render; empty lets Remotion pick (one per core). Production (2 cores, 3.7 GB) uses 1.
         'concurrency' => env('REMOTION_CONCURRENCY', ''),
         // Run the render with `nice -n 10` (Linux only) so the scheduler's syncs keep priority.

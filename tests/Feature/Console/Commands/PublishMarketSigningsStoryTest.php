@@ -176,7 +176,7 @@ test('renders, publishes and marks the unshared signings of the Madrid day, ment
 
     Process::assertRan(fn (PendingProcess $process): bool => $process->command === 'npm run build:compras -- 2026-10-02'
         && $process->path === $this->remotionPath
-        && $process->timeout === 600);
+        && $process->timeout === 900);
     Process::assertRan('npm run render:compras -- 2026-10-02');
 
     $data = json_decode((string) file_get_contents("{$this->remotionPath}/data/compras-2026-10-02.json"), true);
