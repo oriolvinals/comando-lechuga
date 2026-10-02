@@ -23,7 +23,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * «Compras del mercado» Instagram story. Scheduled from 20:05 to 23:05 Madrid every 15 minutes: each run first asks
+ * «Compras del mercado» Instagram story. Scheduled from 20:05 to 23:05 Madrid every 5 minutes: each run first asks
  * one cheap question (are there unshared signings today?) and stops when there aren't. When there are, it renders
  * them, publishes every part in order (the PublishedStory registry skips parts already out when a batch resumes)
  * and only then marks the activities shared. At 23:05 (or straight away for a past --date), a day without any

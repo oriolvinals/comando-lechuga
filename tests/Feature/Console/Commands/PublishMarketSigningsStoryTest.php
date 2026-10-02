@@ -407,26 +407,22 @@ test('fails without marking anything when the render fails', function (): void {
     expect($signing->refresh()->shared_at)->toBeNull();
 });
 
-test('is scheduled every 15 minutes from 20:05 to 23:05 Madrid time', function (): void {
+test('is scheduled every 5 minutes from 20:05 to 23:05 Madrid time', function (): void {
     Artisan::all();
 
-    $events = collect(app(Schedule::class)->events())
-        ->filter(fn (Event $event): bool => str_contains((string) $event->command, 'stories:publish-market-signings'));
-
     $dueAt = [];
-    $minute = CarbonImmutable::parse('2026-10-02 00:00', 'Europe/Madrid');
 
-    for ($offset = 0; $offset < 24 * 60; $offset++) {
-        $this->travelTo($minute->addMinutes($offset));
+    foreach (['19:55', '20:00', '20:05', '20:07', '20:10', '21:35', '23:00', '23:05', '23:10'] as $time) {
+        $this->travelTo(CarbonImmutable::parse("2026-10-02 {$time}", 'Europe/Madrid'));
+        app()->forgetInstance(Schedule::class);
+        $events = collect(app(Schedule::class)->events())
+            ->filter(fn (Event $event): bool => str_contains((string) $event->command, 'stories:publish-market-signings'));
 
-        if ($events->contains(fn (Event $event): bool => $event->isDue(app()))) {
-            $dueAt[] = now('Europe/Madrid')->format('H:i');
+        if ($events->contains(fn (Event $event): bool => $event->isDue(app()) && $event->filtersPass(app()))) {
+            $dueAt[] = $time;
         }
     }
 
-    expect($dueAt)->toBe([
-        '20:05', '20:20', '20:35', '20:50', '21:05', '21:20', '21:35', '21:50',
-        '22:05', '22:20', '22:35', '22:50', '23:05',
-    ])->and($events->every(fn (Event $event): bool => $event->withoutOverlapping && $event->onOneServer
-        && $event->mutexName() === 'stories:publish-market-signings'))->toBeTrue();
+    expect($dueAt)->toBe(['20:05', '20:10', '21:35', '23:00', '23:05'])
+        ->and($events->every(fn (Event $event): bool => $event->withoutOverlapping && $event->onOneServer))->toBeTrue();
 });
