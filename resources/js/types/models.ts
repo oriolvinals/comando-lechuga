@@ -957,9 +957,10 @@ export interface RadarPickerPlayer {
     team_logo: string;
 }
 
-/** A clause raise the user entered by hand (god-only). */
+/** A known clause raise (god-only): entered by hand (editable) or caught by the sync (read-only). */
 export interface RadarManualRaise {
     id: number;
+    source: 'manual' | 'sync';
     player: RadarPickerPlayer;
     manager_id: number;
     captured_at: string;

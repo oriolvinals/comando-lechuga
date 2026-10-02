@@ -310,7 +310,7 @@ function Field({
     );
 }
 
-/** «Subidas conocidas»: add, edit and delete the clause raises the user knows about; they override the inference. */
+/** «Subidas conocidas»: the clause raises the user entered (add, edit, delete; they override the inference) and, read-only, the ones the sync caught. */
 export function RadarManualRaises({
     entries,
     managers,
@@ -647,7 +647,14 @@ export function RadarManualRaises({
                             </span>
                         </span>
                         <span className="col-start-2 row-span-2 row-start-1 flex gap-1 sm:col-start-3 sm:row-span-1">
-                            {isConfirmingDelete ? (
+                            {entry.source === 'sync' ? (
+                                <span
+                                    title="Detectada por la sincronización: no se puede editar"
+                                    className="inline-flex min-h-8 min-w-[68px] items-center justify-center border border-dashed border-hq-border-strong px-2 font-mono text-[11px] font-bold tracking-[0.08em] text-hq-moss-dim uppercase"
+                                >
+                                    Auto
+                                </span>
+                            ) : isConfirmingDelete ? (
                                 <>
                                     <button
                                         type="button"

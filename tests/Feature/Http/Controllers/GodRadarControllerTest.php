@@ -71,13 +71,17 @@ test('without a snapshot every rival of the owner can be a payer, in ranking ord
                 === [$third->id, $this->managers[1]->id]));
 });
 
-test('the radar lists this season\'s manual clause raises with their cost', function (): void {
+test('the radar lists this season\'s known clause raises, manual and synced ones with a raise, with their cost', function (): void {
     $player = Player::factory()->create(['nickname' => 'Otto']);
     $manual = ManagerPlayerClauseSnapshot::factory()->create([
         'season_manager_id' => $this->managers[0]->id, 'player_id' => $player->id, 'source' => ClauseSnapshotSource::Manual,
         'buyout_clause' => 59_623_163, 'raise_amount' => 42_000_000, 'note' => 'hasta los 59 M', 'captured_at' => now()->subDay(),
     ]);
     ManagerPlayerClauseSnapshot::factory()->create(['season_manager_id' => $this->managers[0]->id, 'player_id' => $player->id]);
+    $synced = ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $this->managers[1]->id, 'player_id' => $player->id, 'source' => ClauseSnapshotSource::Sync,
+        'buyout_clause' => 9_500_000, 'raise_amount' => 1_000_000, 'captured_at' => now()->subDays(2),
+    ]);
     $oldSeason = Season::factory()->create(['start_date' => now()->subYears(2), 'end_date' => now()->subYear()]);
     ManagerPlayerClauseSnapshot::factory()->create([
         'season_manager_id' => SeasonManager::factory()->create(['season_id' => $oldSeason->id])->id,
@@ -87,9 +91,10 @@ test('the radar lists this season\'s manual clause raises with their cost', func
     $this->withCookie('god_mode', '1')
         ->get(route('god.radar'))
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('manualRaises', 1)
-            ->where('manualRaises.0', [
+            ->has('knownRaises', 2)
+            ->where('knownRaises.0', [
                 'id' => $manual->id,
+                'source' => 'manual',
                 'player' => [
                     'id' => $player->id, 'nickname' => 'Otto', 'image' => '', 'position' => $player->seasons()->sole()->position->value,
                     'team_short_name' => $player->team->short_name, 'team_logo' => '',
@@ -100,7 +105,11 @@ test('the radar lists this season\'s manual clause raises with their cost', func
                 'raise' => 42_000_000,
                 'cost' => 21_000_000,
                 'note' => 'hasta los 59 M',
-            ]));
+            ])
+            ->where('knownRaises.1.id', $synced->id)
+            ->where('knownRaises.1.source', 'sync')
+            ->where('knownRaises.1.raise', 1_000_000)
+            ->where('knownRaises.1.cost', 500_000));
 });
 
 test('the radar lists the players on the market', function (): void {

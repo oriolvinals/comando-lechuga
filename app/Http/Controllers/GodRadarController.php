@@ -54,7 +54,7 @@ class GodRadarController extends Controller
             'managers' => $managers,
             'clauses' => $clauseRadar->forSeason($season, $balances, $connectedManagerId, $now),
             'market' => $clauseRadar->marketRows($season, $balances, $connectedManagerId, $now),
-            'manualRaises' => $this->manualRaises($season),
+            'knownRaises' => $this->knownRaises($season),
             'raiseCandidates' => $this->raiseCandidates($season),
             'now' => $now->toIso8601String(),
         ]);
@@ -117,14 +117,17 @@ class GodRadarController extends Controller
     }
 
     /**
-     * The clause raises the user entered by hand this season, newest first.
+     * This season's known clause raises, newest first: the ones the user entered
+     * by hand (editable) and the ones the sync caught (read-only).
      *
-     * @return list<array{id: int, player: PickerPlayer, manager_id: int, captured_at: string, clause: int, raise: int, cost: int, note: string}>
+     * @return list<array{id: int, source: string, player: PickerPlayer, manager_id: int, captured_at: string, clause: int, raise: int, cost: int, note: string}>
      */
-    private function manualRaises(Season $season): array
+    private function knownRaises(Season $season): array
     {
         $entries = ManagerPlayerClauseSnapshot::query()
-            ->where('source', ClauseSnapshotSource::Manual)
+            ->where(fn (Builder $query): Builder => $query
+                ->where('source', ClauseSnapshotSource::Manual)
+                ->orWhere('raise_amount', '>', 0))
             ->whereHas('seasonManager', fn (Builder $query): Builder => $query->where('season_id', $season->id))
             ->orderByDesc('captured_at')
             ->orderByDesc('id')
@@ -134,6 +137,7 @@ class GodRadarController extends Controller
         return array_values($entries
             ->map(fn (ManagerPlayerClauseSnapshot $entry): array => [
                 'id' => $entry->id,
+                'source' => $entry->source->value,
                 'player' => $players[$entry->player_id],
                 'manager_id' => $entry->season_manager_id,
                 'captured_at' => $entry->captured_at->toIso8601String(),

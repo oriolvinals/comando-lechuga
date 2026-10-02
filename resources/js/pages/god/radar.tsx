@@ -32,7 +32,7 @@ interface GodRadarProps {
     managers: RadarManager[];
     clauses: RadarClause[];
     market: RadarMarketListing[];
-    manualRaises: RadarManualRaise[];
+    knownRaises: RadarManualRaise[];
     raiseCandidates: RadarRaiseCandidate[];
     now: string;
 }
@@ -75,7 +75,7 @@ export default function GodRadar({
     managers,
     clauses,
     market,
-    manualRaises,
+    knownRaises,
     raiseCandidates,
 }: GodRadarProps) {
     const [payerId, setPayerId] = useState<number | null>(null);
@@ -158,7 +158,7 @@ export default function GodRadar({
                         onPayerChange={setPayerId}
                     />
                     <RadarManualRaises
-                        entries={manualRaises}
+                        entries={knownRaises}
                         managers={managers}
                         candidates={raiseCandidates}
                     />
