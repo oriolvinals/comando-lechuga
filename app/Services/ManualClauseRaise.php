@@ -120,7 +120,7 @@ final class ManualClauseRaise
     }
 
     /** The manager's joined_league, or the season start when the feed doesn't have it. */
-    private function joinedAt(SeasonManager $manager): CarbonImmutable
+    public function joinedAt(SeasonManager $manager): CarbonImmutable
     {
         return Activity::query()
             ->where('season_id', $manager->season_id)

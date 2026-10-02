@@ -13,6 +13,7 @@ use App\Models\ManagerPlayerClauseSnapshot;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Services\ClauseSnapshotRaise;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -27,6 +28,8 @@ use Throwable;
 #[Description('Synchronize the current squad of each season manager from La Liga Fantasy')]
 class SyncCurrentSeasonManagerPlayers extends Command
 {
+    private ClauseSnapshotRaise $clauseSnapshotRaise;
+
     /**
      * @throws FatalRequestException
      * @throws JsonException
@@ -36,7 +39,9 @@ class SyncCurrentSeasonManagerPlayers extends Command
     public function handle(
         LaLigaLoginConnector $loginConnector,
         LaLigaFantasyConnector $fantasyConnector,
+        ClauseSnapshotRaise $clauseSnapshotRaise,
     ): int {
+        $this->clauseSnapshotRaise = $clauseSnapshotRaise;
         $season = Season::current();
         $managersSynchronized = 0;
         $seasonManagers = SeasonManager::query()->where('season_id', $season->id)->get();
@@ -151,8 +156,9 @@ class SyncCurrentSeasonManagerPlayers extends Command
 
     /**
      * Keeps the clause history of each holding: a new row only when the
-     * clause or its lock changed since the last sync row. Manual rows never
-     * affect change detection.
+     * clause or its lock changed since the last sync row, with the raise it
+     * shows (see {@see ClauseSnapshotRaise}). Manual rows never affect change
+     * detection.
      */
     private function snapshotClause(SeasonManager $seasonManager, Player $player, int $clause, CarbonImmutable $lockedUntil, int $marketValue): void
     {
@@ -170,13 +176,16 @@ class SyncCurrentSeasonManagerPlayers extends Command
             return;
         }
 
+        $now = CarbonImmutable::now();
+
         ManagerPlayerClauseSnapshot::query()->create([
             'season_manager_id' => $seasonManager->id,
             'player_id' => $player->id,
             'buyout_clause' => $clause,
             'buyout_clause_locked_until' => $lockedUntil,
             'market_value' => $marketValue,
-            'captured_at' => now(),
+            'captured_at' => $now,
+            'raise_amount' => $this->clauseSnapshotRaise->forSync($seasonManager->id, $player->id, $clause, $marketValue, $now),
         ]);
     }
 }

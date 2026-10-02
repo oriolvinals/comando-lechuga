@@ -256,7 +256,8 @@ test('stores a clause snapshot only when the clause or its lock changes', functi
         ->and($latest->season_manager_id)->toBe($seasonManager->id)
         ->and($latest->player_id)->toBe($player->id)
         ->and($latest->buyout_clause)->toBe(9_123_456)
-        ->and($latest->market_value)->toBe(4_500_000);
+        ->and($latest->market_value)->toBe(4_500_000)
+        ->and($latest->raise_amount)->toBe(4_123_456);
 
     fakeLeagueTeamWithClause(9_123_456, '2026-10-01T20:00:00+02:00', 4_500_000);
     $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();

@@ -363,3 +363,45 @@ test('Marc Roca: 24.314.010 over the 17.614.010 value at unlock is a certain 6,7
 
     expect(detect($this))->toBe([$this->manager->id => ['sure' => 6_700_000, 'possible' => 0]]);
 });
+
+test('jugador 1541: bought for 8,5 M and seen at 9,5 M on the first sync row is a certain 1 M raise', function (): void {
+    $this->now = CarbonImmutable::parse('2026-10-02 20:00');
+    $this->travelTo($this->now);
+    acquire($this, $this->rival, 4_632_323, '2026-08-22 20:00:08');
+    acquire($this, $this->manager, 8_500_000, '2026-09-04 14:22:52', SeasonActivityType::Buyout, $this->rival);
+    valueOn($this, '2026-09-05', 5_401_608);
+    valueOn($this, '2026-09-06', 5_411_060);
+    valueOn($this, '2026-09-07', 5_399_286);
+    valueOn($this, '2026-10-01', 4_868_408);
+    ManagerPlayer::factory()->create([
+        'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+        'buyout_clause' => 9_500_000, 'buyout_clause_locked_until' => '2026-09-18 14:22:52',
+    ]);
+    ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id, 'source' => ClauseSnapshotSource::Sync,
+        'buyout_clause' => 9_500_000, 'buyout_clause_locked_until' => '2026-09-18 14:22:52',
+        'market_value' => 4_868_408, 'captured_at' => '2026-10-01 00:43:21',
+    ]);
+
+    expect(detect($this)[$this->manager->id] ?? null)->toBe(['sure' => 1_000_000, 'possible' => 0]);
+});
+
+test('Rebbach sold to the market afterwards: the raise his clause history shows still counts', function (): void {
+    $this->now = CarbonImmutable::parse('2026-10-03 20:00');
+    $this->travelTo($this->now);
+    acquire($this, $this->manager, 8_500_000, '2026-09-04 14:22:52');
+    valueOn($this, '2026-09-06', 5_411_060);
+    valueOn($this, '2026-10-01', 4_868_408);
+    ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id, 'source' => ClauseSnapshotSource::Sync,
+        'buyout_clause' => 9_500_000, 'buyout_clause_locked_until' => '2026-09-18 14:22:52',
+        'market_value' => 4_868_408, 'captured_at' => '2026-10-01 00:43:21',
+    ]);
+    Activity::factory()->create([
+        'season_id' => $this->season->id, 'type' => SeasonActivityType::Sale,
+        'source_season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+        'amount' => 4_900_000, 'occurred_at' => '2026-10-03 10:00',
+    ]);
+
+    expect(detect($this)[$this->manager->id] ?? null)->toBe(['sure' => 1_000_000, 'possible' => 0]);
+});

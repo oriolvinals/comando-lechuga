@@ -48,7 +48,9 @@ class GodClauseRaiseController extends Controller
 
     /**
      * Validates the entry (the new clause, for a manager of the current season who owned the player at that
-     * moment) and derives the row to store.
+     * moment) and derives the row to store. The previous clause is derived unless the user enters it: the
+     * derived floor can't tell a paid raise from the value catching up with it (e.g. 8,5 M → 9,5 M paid when
+     * the value is 9,5 M today).
      * A manual row has no real lock to record: `buyout_clause_locked_until`
      * is the raise moment (a raise happens with the clause open) and
      * `market_value` is 0, as neither is read from manual rows.
@@ -57,12 +59,13 @@ class GodClauseRaiseController extends Controller
      */
     private function attributes(Request $request, ManualClauseRaise $manualClauseRaise, ?int $ignoreId = null): array
     {
-        /** @var array{season_manager_id: int|string, player_id: int|string, captured_at: string, new_clause: int|string, note?: string|null} $validated */
+        /** @var array{season_manager_id: int|string, player_id: int|string, captured_at: string, new_clause: int|string, previous_clause?: int|string|null, note?: string|null} $validated */
         $validated = $request->validate([
             'season_manager_id' => ['required', 'integer', Rule::exists('season_managers', 'id')->where('season_id', Season::current()->id)],
             'player_id' => ['required', 'integer', 'exists:players,id'],
             'captured_at' => ['required', 'date', 'before_or_equal:now'],
             'new_clause' => ['required', 'integer', 'min:1'],
+            'previous_clause' => ['nullable', 'integer', 'min:1'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -77,7 +80,9 @@ class GodClauseRaiseController extends Controller
             ]);
         }
 
-        $derived = $manualClauseRaise->derive($managerId, $playerId, $at, $newClause, $ignoreId);
+        $derived = isset($validated['previous_clause'])
+            ? ['previous' => (int) $validated['previous_clause'], 'clause' => $newClause, 'raise' => $newClause - (int) $validated['previous_clause']]
+            : $manualClauseRaise->derive($managerId, $playerId, $at, $newClause, $ignoreId);
 
         if ($derived['raise'] <= 0) {
             throw ValidationException::withMessages([

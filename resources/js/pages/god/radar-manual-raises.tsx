@@ -85,6 +85,7 @@ const EMPTY_FORM = {
     season_manager_id: '',
     player_id: '',
     captured_at: '',
+    previous_clause: '',
     new_clause: '',
     note: '',
 };
@@ -156,7 +157,9 @@ function PlayerPicker({
             setActive((index) =>
                 options.length === 0
                     ? 0
-                    : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) %
+                    : (index +
+                          (event.key === 'ArrowDown' ? 1 : -1) +
+                          options.length) %
                       options.length,
             );
         } else if (event.key === 'Enter' && open && options[active]) {
@@ -183,32 +186,32 @@ function PlayerPicker({
                             {selected.team_short_name}
                         </span>
                     )}
-                <input
-                    role="combobox"
-                    aria-expanded={open}
-                    aria-controls="radar-player-options"
-                    aria-autocomplete="list"
-                    autoComplete="off"
-                    placeholder="Buscar jugador"
-                    className={cn(
-                        FIELD_CLASS,
-                        'cursor-text',
-                        selected && !open && 'pr-16 pl-9',
-                    )}
-                    value={open ? query : (selected?.nickname ?? '')}
-                    onFocus={() => {
-                        setQuery('');
-                        setActive(0);
-                        setOpen(true);
-                    }}
-                    onBlur={() => setOpen(false)}
-                    onChange={(event) => {
-                        setQuery(event.target.value);
-                        setActive(0);
-                        setOpen(true);
-                    }}
-                    onKeyDown={onKeyDown}
-                />
+                    <input
+                        role="combobox"
+                        aria-expanded={open}
+                        aria-controls="radar-player-options"
+                        aria-autocomplete="list"
+                        autoComplete="off"
+                        placeholder="Buscar jugador"
+                        className={cn(
+                            FIELD_CLASS,
+                            'cursor-text',
+                            selected && !open && 'pr-16 pl-9',
+                        )}
+                        value={open ? query : (selected?.nickname ?? '')}
+                        onFocus={() => {
+                            setQuery('');
+                            setActive(0);
+                            setOpen(true);
+                        }}
+                        onBlur={() => setOpen(false)}
+                        onChange={(event) => {
+                            setQuery(event.target.value);
+                            setActive(0);
+                            setOpen(true);
+                        }}
+                        onKeyDown={onKeyDown}
+                    />
                 </span>
             </label>
             {open && (
@@ -223,8 +226,12 @@ function PlayerPicker({
                         </span>
                     )}
                     {filtered.map((group) => (
-                        <div key={group.label} role="group" aria-label={group.label}>
-                            <span className="hq-label block px-2 pt-1.5 pb-0.5">
+                        <div
+                            key={group.label}
+                            role="group"
+                            aria-label={group.label}
+                        >
+                            <span className="block px-2 pt-1.5 pb-0.5 hq-label">
                                 {group.label}
                             </span>
                             {group.players.map((player) => (
@@ -264,7 +271,10 @@ function PlayerPicker({
                 </div>
             )}
             {error && (
-                <span role="alert" className="font-mono text-[11px] text-hq-neg">
+                <span
+                    role="alert"
+                    className="font-mono text-[11px] text-hq-neg"
+                >
                     {error}
                 </span>
             )}
@@ -389,6 +399,7 @@ export function RadarManualRaises({
             season_manager_id: String(entry.manager_id),
             player_id: String(entry.player.id),
             captured_at: entry.captured_at.slice(0, 16),
+            previous_clause: String(entry.clause - entry.raise),
             new_clause: String(entry.clause),
             note: entry.note,
         });
@@ -505,7 +516,7 @@ export function RadarManualRaises({
                 <Field
                     label="Nota"
                     error={form.errors.note}
-                    className="sm:order-last sm:col-span-2"
+                    className="sm:order-last sm:col-span-5"
                 >
                     <input
                         className={FIELD_CLASS}
@@ -517,9 +528,33 @@ export function RadarManualRaises({
                     />
                 </Field>
                 <Field
+                    label="Cláusula anterior €"
+                    error={form.errors.previous_clause}
+                    className="sm:col-span-3"
+                >
+                    <input
+                        inputMode="numeric"
+                        placeholder="Automática"
+                        className={cn(FIELD_CLASS, 'tabular-nums')}
+                        value={
+                            form.data.previous_clause
+                                ? formatNumber(
+                                      Number(form.data.previous_clause),
+                                  )
+                                : ''
+                        }
+                        onChange={(event) =>
+                            form.setData(
+                                'previous_clause',
+                                event.target.value.replace(/\D/g, ''),
+                            )
+                        }
+                    />
+                </Field>
+                <Field
                     label="Nueva cláusula €"
                     error={form.errors.new_clause}
-                    className="col-span-2 sm:col-span-3"
+                    className="sm:col-span-3"
                 >
                     <input
                         required

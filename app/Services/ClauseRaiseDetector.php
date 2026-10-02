@@ -25,7 +25,8 @@ use Illuminate\Support\Collection;
  * inside the victim's lock (short of its last hour) is an accepted offer; after it, the amount paid is
  * the clause, whatever its shape (owners raise to round totals too). Raises
  * the user entered by hand always count, and replace what the history or the
- * inference would say for their holding.
+ * inference would say for their holding. A holding sold to the market keeps
+ * the raises its clause history shows.
  * PRIVATE: never exposed through /api.
  *
  * @phpstan-type Raises array{sure: int, possible: int}
@@ -129,14 +130,15 @@ final class ClauseRaiseDetector
                 }
             }
 
-            $this->lastMoveAt[$playerId] = $move->occurred_at;
-
             if ($move->type === SeasonActivityType::Sale) {
+                $this->soldHoldingRaises($holdings[$playerId] ?? null, $move, $season);
+                $this->lastMoveAt[$playerId] = $move->occurred_at;
                 unset($holdings[$playerId]);
 
                 continue;
             }
 
+            $this->lastMoveAt[$playerId] = $move->occurred_at;
             $holdings[$playerId] = ['manager_id' => $move->source_season_manager_id, 'base' => max(self::MIN_CLAUSE, $amount), 'since' => $move->occurred_at];
         }
 
@@ -185,6 +187,34 @@ final class ClauseRaiseDetector
         $base = $isInitialSquad ? intdiv($value * self::INITIAL_CLAUSE_NUMERATOR, self::INITIAL_CLAUSE_DENOMINATOR) : $value;
 
         return ['base' => max(self::MIN_CLAUSE, $base), 'since' => $since];
+    }
+
+    /**
+     * A holding sold to the market keeps the raises its clause history shows:
+     * the sale price says nothing about the clause, so the last sync row before
+     * the sale stands in for the clause at the end. Without history nothing is
+     * known about the clause, so nothing is inferred.
+     *
+     * @param  array{manager_id: int, base: int, since: CarbonImmutable}|null  $holding
+     */
+    private function soldHoldingRaises(?array $holding, Activity $sale, Season $season): void
+    {
+        $sellerId = (int) $sale->source_season_manager_id;
+        $playerId = (int) $sale->player_id;
+        $holding = $this->holding($holding, $sellerId, $playerId, $season);
+
+        if ($holding === null) {
+            return;
+        }
+
+        $last = ($this->history["{$sellerId}:{$playerId}"] ?? collect())
+            ->filter(fn (ManagerPlayerClauseSnapshot $snapshot): bool => $snapshot->source === ClauseSnapshotSource::Sync
+                && $snapshot->captured_at->betweenIncluded($holding['since'], $sale->occurred_at))
+            ->last();
+
+        if ($last instanceof ManagerPlayerClauseSnapshot) {
+            $this->holdingRaises($sellerId, $playerId, $holding['base'], $holding['since'], $last->buyout_clause, $last->captured_at);
+        }
     }
 
     /**

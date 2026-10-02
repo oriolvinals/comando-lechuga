@@ -55,6 +55,28 @@ test('validation needs a new clause above the previous one; the amount paid is n
     'negative' => [['new_clause' => -5], 'new_clause'],
 ]);
 
+test('a previous clause entered by hand replaces the derived one, even below the current value', function (): void {
+    PlayerMarket::factory()->create(['player_id' => $this->player->id, 'date' => now()->subDay()->toDateString(), 'value' => 19_500_000]);
+
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+            'captured_at' => now()->subDay()->toDateTimeString(), 'previous_clause' => 18_500_000, 'new_clause' => 19_500_000,
+        ])
+        ->assertRedirect(route('god.radar'));
+
+    expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->sole()->raise_amount)->toBe(1_000_000);
+});
+
+test('the new clause must exceed a previous clause entered by hand', function (): void {
+    $this->withCookie('god_mode', '1')
+        ->post(route('god.clause-raises.store'), [
+            'season_manager_id' => $this->manager->id, 'player_id' => $this->player->id,
+            'captured_at' => now()->subDay()->toDateTimeString(), 'previous_clause' => 30_000_000, 'new_clause' => 25_000_000,
+        ])
+        ->assertSessionHasErrors('new_clause');
+});
+
 test('only manual rows can be edited or deleted', function (): void {
     $sync = ManagerPlayerClauseSnapshot::query()->sole();
 
