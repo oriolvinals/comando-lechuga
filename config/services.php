@@ -82,6 +82,8 @@ return [
         'data_directory' => 'market-signings/data',
         'generated_directory' => 'market-signings/generated',
         'output_directory' => 'market-signings/out',
+        // Cache lock every video command holds while it runs: one video at a time, so two Chromes never share the server's memory.
+        'lock' => 'remotion',
         'timeout' => (int) env('REMOTION_TIMEOUT', 900), // 15 min: the 2-core VPS renders a ~30 s story in 5–10 min
         // Chrome tabs per render; empty lets Remotion pick (one per core). Production (2 cores, 3.7 GB) uses 1.
         'concurrency' => env('REMOTION_CONCURRENCY', ''),

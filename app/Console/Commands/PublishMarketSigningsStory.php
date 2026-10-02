@@ -17,6 +17,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -39,9 +40,36 @@ class PublishMarketSigningsStory extends Command
     /** The last scheduled run (Madrid time): only from then on does today, without signings, get its story. */
     public const string LAST_RUN_AT = '23:05';
 
+    /** Seconds after which a crashed run's lock expires: past the build and render timeouts plus Instagram's processing. */
+    private const int LOCK_SECONDS = 3600;
+
     private StoryProgress $progress;
 
+    /**
+     * Holds the Remotion lock (services.remotion.lock) for the whole run: one video at a time on the server, and a
+     * manual run never overlaps a scheduled one. A run that finds it taken skips; the next scheduled one retries.
+     */
     public function handle(
+        MarketSigningsExport $export,
+        MarketSigningsStoryRenderer $renderer,
+        InstagramStoryPublisher $publisher,
+    ): int {
+        $lock = Cache::lock((string) config('services.remotion.lock'), self::LOCK_SECONDS);
+
+        if (!$lock->get()) {
+            $this->info('Otro vídeo en curso: esta ejecución se salta.');
+
+            return self::SUCCESS;
+        }
+
+        try {
+            return $this->publish($export, $renderer, $publisher);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function publish(
         MarketSigningsExport $export,
         MarketSigningsStoryRenderer $renderer,
         InstagramStoryPublisher $publisher,

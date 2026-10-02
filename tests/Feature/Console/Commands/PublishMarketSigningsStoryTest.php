@@ -18,6 +18,7 @@ use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
@@ -405,6 +406,26 @@ test('fails without marking anything when the render fails', function (): void {
 
     $mockClient->assertNothingSent();
     expect($signing->refresh()->shared_at)->toBeNull();
+});
+
+test('does nothing while another video holds the Remotion lock', function (): void {
+    $signing = signingOn($this->season, '2026-10-02 21:58');
+    fakeRemotion($this->remotionPath);
+    $mockClient = fakeInstagram();
+    $lock = Cache::lock((string) config('services.remotion.lock'), 60);
+    $lock->get();
+
+    $this->artisan('stories:publish-market-signings')
+        ->expectsOutputToContain('Otro vídeo en curso: esta ejecución se salta.')
+        ->assertSuccessful();
+
+    Process::assertNothingRan();
+    $mockClient->assertNothingSent();
+    expect($signing->refresh()->shared_at)->toBeNull();
+
+    $lock->release();
+    $this->artisan('stories:publish-market-signings')->assertSuccessful();
+    expect($signing->refresh()->shared_at)->not->toBeNull();
 });
 
 test('is scheduled every 5 minutes from 20:05 to 23:05 Madrid time', function (): void {
