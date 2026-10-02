@@ -148,16 +148,27 @@ function StartRow({
     );
 }
 
+/** The rows a side's XI takes in the list: one per starter plus one per alternative under him. */
+function starterRowCount(starters: StartProbabilityEntry[]): number {
+    return starters.reduce(
+        (rows, entry) => rows + 1 + entry.alternatives.length,
+        0,
+    );
+}
+
 function TeamColumn({
     team,
     block,
     now,
     starterRowsClassName,
+    starterRowTarget,
 }: {
     team: Team;
     block: StartProbabilityTeamBlock | null;
     now: number;
     starterRowsClassName: string;
+    /** The XI rows of the longer side: this one pads up to it, so both bench headings line up side by side. */
+    starterRowTarget: number;
 }) {
     if (block === null) {
         return (
@@ -221,6 +232,21 @@ function TeamColumn({
                         />
                     </Fragment>
                 ))}
+                {Array.from(
+                    {
+                        length: Math.max(
+                            0,
+                            starterRowTarget - starterRowCount(starters),
+                        ),
+                    },
+                    (_, index) => (
+                        <div
+                            key={index}
+                            aria-hidden="true"
+                            className="min-h-[51px] border-b border-hq-border max-md:hidden"
+                        />
+                    ),
+                )}
             </div>
             <SubHead
                 label={confirmed ? 'Suplentes destacados' : 'Banquillo y dudas'}
@@ -294,6 +320,17 @@ export function HqStartProbabilitiesSection({
         (block) => block.is_stale && block.fetched_at !== null,
     );
     const showPitch = viewMode === 'pitch';
+    const starterRowTarget = Math.max(
+        0,
+        ...blocks.map((block) =>
+            starterRowCount(
+                splitStartEntries(
+                    block.players,
+                    block.confirmed_source !== null,
+                ).starters,
+            ),
+        ),
+    );
 
     return (
         <section className="border-b border-hq-border">
@@ -370,6 +407,7 @@ export function HqStartProbabilitiesSection({
                             block={block}
                             now={now}
                             starterRowsClassName={showPitch ? 'lg:hidden' : ''}
+                            starterRowTarget={starterRowTarget}
                         />
                     </div>
                 ))}

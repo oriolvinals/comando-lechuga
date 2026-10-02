@@ -304,12 +304,12 @@ export function HqStartAlternativeRows({
     return alternatives.map((alternative, index) => (
         <div
             key={alternative.position}
-            className="relative grid grid-cols-[14px_minmax(0,1fr)] border-b border-hq-border bg-hq-well/55 py-[5px] pr-3.5 pl-[31px] transition-colors hover:bg-hq-panel sm:pr-4"
+            className="relative grid min-h-[50px] grid-cols-[14px_minmax(0,1fr)] border-b border-hq-border bg-hq-well/55 py-[7px] pr-3.5 pl-[31px] transition-colors hover:bg-hq-panel sm:pr-4"
         >
             <span
                 aria-hidden="true"
                 className={cn(
-                    'relative -my-[5px] self-stretch before:absolute before:top-0 before:left-0 before:border-l before:border-dashed before:border-hq-khaki after:absolute after:top-1/2 after:left-0 after:w-full after:border-t after:border-dashed after:border-hq-khaki',
+                    'relative -my-[7px] self-stretch before:absolute before:top-0 before:left-0 before:border-l before:border-dashed before:border-hq-khaki after:absolute after:top-1/2 after:left-0 after:w-full after:border-t after:border-dashed after:border-hq-khaki',
                     index < alternatives.length - 1
                         ? 'before:h-full'
                         : 'before:h-1/2',
@@ -322,7 +322,7 @@ export function HqStartAlternativeRows({
                         ? entriesById.get(alternative.player.id)
                         : undefined
                 }
-                className="ml-2 grid-cols-[28px_minmax(0,1fr)_auto]"
+                className="ml-2 h-9 min-h-0 grid-cols-[28px_minmax(0,1fr)_auto]"
             />
         </div>
     ));

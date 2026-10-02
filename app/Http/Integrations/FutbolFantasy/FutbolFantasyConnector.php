@@ -14,7 +14,7 @@ use Saloon\Traits\Plugins\HasTimeout;
 /**
  * FútbolFantasy's public, server-rendered team pages (~2.4 MB each) — the
  * source of the start probabilities. One attempt per page (no retries);
- * the sync command spaces requests 10–30 s apart.
+ * the sync command spaces requests 2–5 s apart.
  */
 class FutbolFantasyConnector extends Connector
 {

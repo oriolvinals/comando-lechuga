@@ -383,7 +383,7 @@ test('--force fetches every team whether it is due or not', function (): void {
     $mockClient->assertSentCount(2);
 });
 
-test('pauses 10 to 30 seconds between two page requests', function (): void {
+test('pauses 2 to 5 seconds between two page requests', function (): void {
     ['season' => $season, 'villarreal' => $villarreal] = madridHostsVillarrealInWeek8();
     $season->teams()->attach($villarreal->id);
     fakeFutbolFantasyPages([
@@ -394,7 +394,7 @@ test('pauses 10 to 30 seconds between two page requests', function (): void {
     $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
 
     Sleep::assertSleptTimes(1);
-    Sleep::assertSlept(fn (CarbonInterval $duration): bool => $duration->totalSeconds >= 10 && $duration->totalSeconds <= 30);
+    Sleep::assertSlept(fn (CarbonInterval $duration): bool => $duration->totalSeconds >= 2 && $duration->totalSeconds <= 5);
 });
 
 test('is scheduled every ten minutes', function (): void {

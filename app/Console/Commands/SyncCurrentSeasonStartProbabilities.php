@@ -39,9 +39,9 @@ class SyncCurrentSeasonStartProbabilities extends Command
     /** Further away, a team is fetched at most this often. */
     private const int FAR_AWAY_EVERY_HOURS = 6;
 
-    private const int MIN_PAUSE_SECONDS = 10;
+    private const int MIN_PAUSE_SECONDS = 2;
 
-    private const int MAX_PAUSE_SECONDS = 30;
+    private const int MAX_PAUSE_SECONDS = 5;
 
     private const string ATTEMPTED_AT_CACHE_PREFIX = 'start_probabilities.attempted_at.';
 
