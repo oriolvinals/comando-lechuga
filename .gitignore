@@ -33,3 +33,4 @@ yarn-error.log
 /video/public/mk
 /video/src/generated/*.json
 /video/data/*.json
+/.impeccable
