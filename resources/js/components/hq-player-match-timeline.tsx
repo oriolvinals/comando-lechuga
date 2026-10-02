@@ -230,8 +230,17 @@ function PointsChip({
     );
 }
 
-/** TITULAR / SUPLENTE, the substitution minute or the bench glyph, and minutes played. */
-function RoleCell({ score }: { score: PlayerFichaScore }) {
+/**
+ * TITULAR / SUPLENTE, the substitution minute or the bench glyph, the
+ * match's goals, assists, cards and penalties, and minutes played.
+ */
+function RoleCell({
+    score,
+    playerPosition,
+}: {
+    score: PlayerFichaScore;
+    playerPosition: PlayerPosition;
+}) {
     const minutes = score.stats?.mins_played?.[0] ?? 0;
     const subMinute = score.sub_minute;
 
@@ -276,6 +285,11 @@ function RoleCell({ score }: { score: PlayerFichaScore }) {
                     </HqTooltip>
                 )
             )}
+            <MatchEventIcons
+                stats={score.stats ?? {}}
+                position={playerPosition}
+                className="mb-0"
+            />
             <HqTooltip label="Minutos jugados" className="ml-auto">
                 <span className="font-mono text-xs leading-none text-hq-moss">
                     <HqLed className="text-[17px]">{minutes}</HqLed>'
@@ -327,7 +341,7 @@ function ScoreRow({
                 <WeekCell week={week} />
                 <RivalCell fixture={fixture} teamId={score.team_id} />
                 <ResultCell fixture={fixture} teamId={score.team_id} />
-                <RoleCell score={score} />
+                <RoleCell score={score} playerPosition={playerPosition} />
                 <span className={CELL_DAZN}>
                     <span className="mr-1.5 hq-label md:hidden">DAZN</span>
                     {hasDazn && !didNotPlay ? (
