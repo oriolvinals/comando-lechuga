@@ -639,6 +639,9 @@ export function RadarManualRaises({
                         </span>
                         <span className="col-start-1 row-start-2 flex flex-wrap gap-x-3 font-mono text-xs tabular-nums sm:col-start-2 sm:row-start-1 sm:flex-col sm:items-end">
                             <span className="text-hq-paper">
+                                <span className="text-hq-moss-dim">
+                                    {formatMillions(entry.clause - entry.raise)}
+                                </span>{' '}
                                 → {formatMillions(entry.clause)}
                             </span>
                             <span className="text-hq-khaki">
