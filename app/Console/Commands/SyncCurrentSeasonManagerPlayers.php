@@ -158,7 +158,8 @@ class SyncCurrentSeasonManagerPlayers extends Command
      * Keeps the clause history of each holding: a new row only when the
      * clause or its lock changed since the last sync row, with the raise it
      * shows (see {@see ClauseSnapshotRaise}). Manual rows never affect change
-     * detection.
+     * detection. A holding whose purchase the activity feed does not show yet
+     * waits for a later run.
      */
     private function snapshotClause(SeasonManager $seasonManager, Player $player, int $clause, CarbonImmutable $lockedUntil, int $marketValue): void
     {
@@ -173,6 +174,10 @@ class SyncCurrentSeasonManagerPlayers extends Command
         if ($latest instanceof ManagerPlayerClauseSnapshot
             && $latest->buyout_clause === $clause
             && $latest->buyout_clause_locked_until->equalTo($lockedUntil)) {
+            return;
+        }
+
+        if (!$this->clauseSnapshotRaise->holdingInFeed($seasonManager, $player->id)) {
             return;
         }
 

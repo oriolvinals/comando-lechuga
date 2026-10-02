@@ -11,6 +11,7 @@ use App\Models\Activity;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Services\ClauseSnapshotRaise;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -35,6 +36,7 @@ class SyncCurrentSeasonActivity extends Command
     public function handle(
         LaLigaLoginConnector $loginConnector,
         LaLigaFantasyConnector $fantasyConnector,
+        ClauseSnapshotRaise $clauseSnapshotRaise,
     ): int {
         $season = Season::current();
         $activitiesSynchronized = 0;
@@ -51,7 +53,7 @@ class SyncCurrentSeasonActivity extends Command
                 break;
             }
 
-            $activitiesSynchronized += DB::transaction(function () use ($season, $activities): int {
+            $activitiesSynchronized += DB::transaction(function () use ($season, $activities, $clauseSnapshotRaise): int {
                 $synchronized = 0;
 
                 foreach ($activities as $activityData) {
@@ -85,7 +87,7 @@ class SyncCurrentSeasonActivity extends Command
                         ? Player::query()->where('fantasy_id', (int) $activityData['playerMasterId'])->first()
                         : null;
 
-                    Activity::query()->updateOrCreate(
+                    $activity = Activity::query()->updateOrCreate(
                         [
                             'season_id' => $season->id,
                             'fantasy_id' => (int) $activityData['id'],
@@ -101,6 +103,12 @@ class SyncCurrentSeasonActivity extends Command
                                 ->setTimezone((string) config('app.timezone')),
                         ],
                     );
+
+                    if ($activity->wasRecentlyCreated
+                        && $activity->player_id !== null
+                        && in_array($type, [SeasonActivityType::Signing, SeasonActivityType::Buyout], true)) {
+                        $clauseSnapshotRaise->refreshSince($sourceSeasonManager->id, $activity->player_id, $activity->occurred_at);
+                    }
 
                     $synchronized++;
                 }

@@ -64,6 +64,55 @@ final class ClauseSnapshotRaise
         return $raise > $clause * ClauseRaiseDetector::NOISE_RATIO ? $raise : 0;
     }
 
+    /**
+     * Whether the activity feed already shows how the manager got the player:
+     * the player's latest move since the manager joined is the manager's own
+     * signing or buyout, or there is none (initial squad). The squad endpoint
+     * can show a purchase before the feed does; until the feed catches up,
+     * any clause row would read the new clause as a raise.
+     */
+    public function holdingInFeed(SeasonManager $manager, int $playerId): bool
+    {
+        $latestMove = Activity::query()
+            ->where('season_id', $manager->season_id)
+            ->where('player_id', $playerId)
+            ->whereIn('type', [SeasonActivityType::Signing, SeasonActivityType::Buyout, SeasonActivityType::Sale])
+            ->where('occurred_at', '>', $this->manualClauseRaise->joinedAt($manager))
+            ->orderByDesc('occurred_at')
+            ->orderByDesc('id')
+            ->first();
+
+        return $latestMove === null
+            || ($latestMove->type !== SeasonActivityType::Sale && $latestMove->source_season_manager_id === $manager->id);
+    }
+
+    /**
+     * Recomputes the stored raise of the manager's sync rows of the player
+     * captured from a purchase on: the sync can store the new holding's first
+     * row before the activity feed brings the purchase, and without it the new
+     * clause reads as a raise.
+     */
+    public function refreshSince(int $managerId, int $playerId, CarbonImmutable $since): void
+    {
+        ManagerPlayerClauseSnapshot::query()
+            ->where('season_manager_id', $managerId)
+            ->where('player_id', $playerId)
+            ->where('source', ClauseSnapshotSource::Sync)
+            ->where('captured_at', '>=', $since)
+            ->orderBy('captured_at')
+            ->orderBy('id')
+            ->each(fn (ManagerPlayerClauseSnapshot $snapshot): bool => $snapshot->update([
+                'raise_amount' => $this->forSync(
+                    $managerId,
+                    $playerId,
+                    $snapshot->buyout_clause,
+                    $snapshot->market_value,
+                    $snapshot->captured_at,
+                    $snapshot->id,
+                ),
+            ]));
+    }
+
     /** Null for an initial-squad holding without a value on the joining day: any clause would read as a phantom raise. */
     private function firstRowReference(int $managerId, int $playerId, ?Activity $acquisition, CarbonImmutable $at): ?int
     {

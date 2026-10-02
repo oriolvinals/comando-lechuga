@@ -1,10 +1,12 @@
 <?php
 
 use App\Console\Commands\SyncCurrentSeasonActivity;
+use App\Enums\ClauseSnapshotSource;
 use App\Enums\SeasonActivityType;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\Activity;
+use App\Models\ManagerPlayerClauseSnapshot;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\SeasonManager;
@@ -140,4 +142,46 @@ test('does not duplicate season activities when synchronized twice', function ()
     }
 
     expect(Activity::query()->count())->toBe(1);
+});
+
+test('a purchase that reaches the feed after its first clause row clears the raise that row read', function (): void {
+    Cache::forget('la_liga_fantasy.access_token');
+
+    $season = Season::factory()->create([
+        'fantasy_id' => '017834818',
+        'start_date' => now()->subMonth(),
+        'end_date' => now()->addMonth(),
+    ]);
+    $buyer = SeasonManager::factory()->create(['season_id' => $season->id, 'fantasy_user_id' => 11757415]);
+    SeasonManager::factory()->create(['season_id' => $season->id, 'fantasy_user_id' => 2035022]);
+    $player = Player::factory()->create(['fantasy_id' => 2329]);
+    $snapshot = ManagerPlayerClauseSnapshot::factory()->create([
+        'season_manager_id' => $buyer->id,
+        'player_id' => $player->id,
+        'source' => ClauseSnapshotSource::Sync,
+        'buyout_clause' => 12_000_000,
+        'market_value' => 6_000_000,
+        'captured_at' => '2026-08-21 14:24:00',
+        'raise_amount' => 7_000_000,
+    ]);
+
+    $loginConnector = Mockery::mock(LaLigaLoginConnector::class);
+    $loginConnector->shouldReceive('accessToken')->once()->andReturn('header.eyJleHAiOjE3ODc0MTc3NTB9.signature');
+    app()->instance(LaLigaLoginConnector::class, $loginConnector);
+    app()->instance(LaLigaFantasyConnector::class, (new LaLigaFantasyConnector)->withMockClient(new MockClient([
+        MockResponse::make([[
+            'activityTypeId' => 1,
+            'id' => '20544177',
+            'user1Id' => 11757415,
+            'user2Id' => 2035022,
+            'playerMasterId' => 2329,
+            'amount' => 12_000_000,
+            'createdAt' => '2026-08-21T14:23:09+02:00',
+        ]]),
+        MockResponse::make([]),
+    ])));
+
+    $this->artisan(SyncCurrentSeasonActivity::class)->assertSuccessful();
+
+    expect($snapshot->fresh()->raise_amount)->toBe(0);
 });

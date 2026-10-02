@@ -2,9 +2,11 @@
 
 use App\Console\Commands\SyncCurrentSeasonManagerPlayers;
 use App\Enums\ClauseSnapshotSource;
+use App\Enums\SeasonActivityType;
 use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Http\Integrations\LaLigaFantasy\Requests\GetLeagueTeamRequest;
+use App\Models\Activity;
 use App\Models\ManagerBalanceSnapshot;
 use App\Models\ManagerPlayer;
 use App\Models\ManagerPlayerClauseSnapshot;
@@ -279,4 +281,29 @@ test('manual clause raises never affect the sync\'s clause change detection', fu
 
     expect(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Sync)->count())->toBe(1)
         ->and(ManagerPlayerClauseSnapshot::query()->where('source', ClauseSnapshotSource::Manual)->sole()->buyout_clause)->toBe(60_000_000);
+});
+
+test('a squad player whose purchase the feed does not show yet waits for a later run', function (): void {
+    $seasonManager = currentSeasonWithManager();
+    $rival = SeasonManager::factory()->create(['season_id' => $seasonManager->season_id]);
+    $player = Player::factory()->create(['fantasy_id' => 988]);
+    Activity::factory()->create([
+        'season_id' => $seasonManager->season_id, 'type' => SeasonActivityType::Signing,
+        'source_season_manager_id' => $rival->id, 'player_id' => $player->id,
+        'amount' => 5_000_000, 'occurred_at' => now()->subHours(3),
+    ]);
+
+    fakeLeagueTeamWithClause(12_000_000, '2026-10-16T20:00:00+02:00', 6_000_000);
+    $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
+    expect(ManagerPlayerClauseSnapshot::query()->where('season_manager_id', $seasonManager->id)->count())->toBe(0)
+        ->and(ManagerPlayer::query()->where('player_id', $player->id)->exists())->toBeTrue();
+
+    Activity::factory()->create([
+        'season_id' => $seasonManager->season_id, 'type' => SeasonActivityType::Buyout,
+        'source_season_manager_id' => $seasonManager->id, 'target_season_manager_id' => $rival->id,
+        'player_id' => $player->id, 'amount' => 12_000_000, 'occurred_at' => now()->subMinute(),
+    ]);
+    $this->artisan(SyncCurrentSeasonManagerPlayers::class)->assertSuccessful();
+
+    expect(ManagerPlayerClauseSnapshot::query()->where('season_manager_id', $seasonManager->id)->sole()->raise_amount)->toBe(0);
 });
