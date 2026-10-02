@@ -28,6 +28,7 @@ class ActivityFactory extends Factory
             'amount' => $this->faker->numberBetween(0, 50000000),
             'week_number' => null,
             'occurred_at' => now(),
+            'shared_at' => null,
         ];
     }
 }

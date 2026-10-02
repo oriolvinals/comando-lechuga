@@ -45,6 +45,14 @@ network, not `localhost`.
 | `INERTIA_SSR_ENABLED` | `false` — see [SSR](#ssr) |
 | `LA_LIGA_LOGIN_EMAIL` / `LA_LIGA_LOGIN_PASSWORD` | your real La Liga Fantasy account credentials |
 | the other `LA_LIGA_*` vars | copy as-is from `.env.example`, not secrets |
+| `INSTAGRAM_ACCESS_TOKEN` / `INSTAGRAM_USER_ID` | the Instagram Login long-lived token and IG user id for the Compras stories. The token only seeds the `instagram_access_tokens` table: `instagram:refresh-token` renews it every Monday and the latest row wins |
+| `REMOTION_CONCURRENCY` | `1` — one Chrome tab per story render, so it fits in the VPS's 2 cores / 3.7 GB next to the syncs |
+| `REMOTION_NICE` | `true` — the render runs under `nice -n 10` so the every-10/20-second syncs keep priority |
+
+The stories are rendered inside this container (Node + Chrome Headless Shell
+for the host arch are installed by the `Dockerfile`, Remotion lives in
+`video/`), and Instagram downloads each MP4 from
+`APP_URL/storage/stories/…`, so `APP_URL` must be the real public HTTPS URL.
 
 No `RAILPACK_*` variables, `NIXPACKS_PHP_ROOT_DIR` / `NIXPACKS_PHP_FALLBACK_PATH`
 / `IS_LARAVEL` to set — remove any of those left over from a previous setup.

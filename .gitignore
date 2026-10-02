@@ -1,6 +1,8 @@
 /.phpunit.cache
 /bootstrap/ssr
 /node_modules
+/video/node_modules
+/video/build
 /public/build
 /public/fonts-manifest.dev.json
 /public/hot
@@ -27,3 +29,7 @@ yarn-error.log
 /.vscode
 /.zed
 /.superpowers
+/video/out
+/video/public/mk
+/video/src/generated/*.json
+/video/data/*.json

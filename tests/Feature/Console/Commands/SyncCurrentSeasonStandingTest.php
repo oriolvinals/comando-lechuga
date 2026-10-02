@@ -65,7 +65,8 @@ test('updates an existing season manager without touching its name', function ()
         ->and($seasonManager->position)->toBe(1)
         ->and($seasonManager->last_position)->toBe(3)
         ->and($seasonManager->value)->toBe(246474249)
-        ->and($seasonManager->logo)->toBe('images/managers/37394521.png');
+        ->and($seasonManager->logo)->toBe('images/managers/37394521.png')
+        ->and($seasonManager->instagram_username)->toBe('abeel19');
 });
 
 test('stores a null live points when the API omits it', function (): void {
@@ -107,7 +108,8 @@ test('stores a null live points when the API omits it', function (): void {
 
     $seasonManager = SeasonManager::query()->where('fantasy_id', 888888888)->sole();
 
-    expect($seasonManager->live_points)->toBeNull();
+    expect($seasonManager->live_points)->toBeNull()
+        ->and($seasonManager->instagram_username)->toBe('');
 });
 
 test('leaves the logo empty when no matching image exists on disk', function (): void {

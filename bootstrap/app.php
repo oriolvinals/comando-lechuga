@@ -119,6 +119,29 @@ return Application::configure(basePath: dirname(__DIR__))
             ->runInBackground()
             ->withoutOverlapping()
             ->onOneServer();
+
+        // «Compras del mercado» story: 20:05, 20:20 … 22:50 and the last run at 23:05 (Madrid), see PublishMarketSigningsStory.
+        $schedule->command('stories:publish-market-signings')
+            ->cron('5,20,35,50 20-22 * * *')
+            ->timezone('Europe/Madrid')
+            ->createMutexNameUsing('stories:publish-market-signings')
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        $schedule->command('stories:publish-market-signings')
+            ->cron('5 23 * * *')
+            ->timezone('Europe/Madrid')
+            ->createMutexNameUsing('stories:publish-market-signings')
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        $schedule->command('instagram:refresh-token')
+            ->weeklyOn(1, '04:00')
+            ->timezone('Europe/Madrid')
+            ->withoutOverlapping()
+            ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [

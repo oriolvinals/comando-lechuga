@@ -8,6 +8,7 @@ use App\Http\Integrations\LaLigaFantasy\LaLigaFantasyConnector;
 use App\Http\Integrations\LaLigaFantasy\LaLigaLoginConnector;
 use App\Models\Season;
 use App\Models\SeasonManager;
+use App\Services\ManagerInstagramAccounts;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -68,6 +69,7 @@ class SyncCurrentSeasonStanding extends Command
                     'last_position' => (int) $standingData['previousPosition'],
                     'value' => (int) $teamData['teamValue'],
                     'logo' => $this->resolveLogo($fantasyId),
+                    'instagram_username' => ManagerInstagramAccounts::usernameFor((int) $managerData['id']),
                 ])->save();
 
                 $seasonManagersSynchronized++;

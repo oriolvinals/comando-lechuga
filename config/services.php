@@ -57,6 +57,38 @@ return [
         'base_url' => env('FUTBOLFANTASY_BASE_URL', 'https://www.futbolfantasy.com/'),
     ],
 
+    /*
+     * Instagram API with Instagram Login (graph.instagram.com). The access token here only seeds the first weekly
+     * `instagram:refresh-token`; afterwards the newest refreshed token (instagram_access_tokens table) is used.
+     */
+    'instagram' => [
+        'base_url' => env('INSTAGRAM_BASE_URL', 'https://graph.instagram.com/'),
+        'graph_version' => env('INSTAGRAM_GRAPH_VERSION', 'v24.0'),
+        'access_token' => env('INSTAGRAM_ACCESS_TOKEN'),
+        'user_id' => env('INSTAGRAM_USER_ID'),
+    ],
+
+    /*
+     * The external Remotion project (comando-lechuga-research/video) that renders the «Compras del mercado» stories.
+     * Contract: the JSON goes to <path>/<data_directory>/compras-<date>.json, then `npm run <build_script> -- <date>`
+     * writes <path>/<generated_directory>/compras-<date>.json ({parts: [{frames: [{kind}]}]}) and
+     * `npm run <render_script> -- <date>` renders <path>/<output_directory>/compras-<date>.mp4 (one part) or
+     * compras-<date>-p1.mp4, -p2… (one composition per part).
+     */
+    'remotion' => [
+        'path' => env('REMOTION_PROJECT_PATH', base_path('video')),
+        'build_script' => env('REMOTION_COMPRAS_BUILD_SCRIPT', 'build:compras'),
+        'render_script' => env('REMOTION_COMPRAS_RENDER_SCRIPT', 'render:compras'),
+        'data_directory' => 'data',
+        'generated_directory' => 'src/generated',
+        'output_directory' => 'out',
+        'timeout' => (int) env('REMOTION_TIMEOUT', 600),
+        // Chrome tabs per render; empty lets Remotion pick (one per core). Production (2 cores, 3.7 GB) uses 1.
+        'concurrency' => env('REMOTION_CONCURRENCY', ''),
+        // Run the render with `nice -n 10` (Linux only) so the scheduler's syncs keep priority.
+        'nice' => (bool) env('REMOTION_NICE', false),
+    ],
+
     'god_mode' => [
         'key' => env('GOD_MODE_KEY'),
     ],

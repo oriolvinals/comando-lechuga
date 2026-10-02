@@ -27,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array{week_number: int, used: int, remaining: int, total: int}|null $shields The manager's shields in one jornada (ManagerShields): the current one on the home standings, the browsed one on the managers page (null after the current shield jornada). Computed at query time by HomeController and SeasonManagersController; not a database column.
  */
 #[Table(name: 'season_managers', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fantasy_id', 'fantasy_user_id', 'name', 'logo', 'primary_color', 'secondary_color', 'total_points', 'live_points', 'position', 'last_position', 'value', 'season_id'])]
+#[Fillable(['fantasy_id', 'fantasy_user_id', 'name', 'logo', 'instagram_username', 'primary_color', 'secondary_color', 'total_points', 'live_points', 'position', 'last_position', 'value', 'season_id'])]
 class SeasonManager extends Model
 {
     /** @use HasFactory<SeasonManagerFactory> */
@@ -37,6 +37,7 @@ class SeasonManager extends Model
     protected $attributes = [
         'name' => '',
         'logo' => '',
+        'instagram_username' => '',
         'total_points' => 0,
         'live_points' => null,
         'position' => 1,
