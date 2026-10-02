@@ -198,6 +198,7 @@ test('renders, publishes and marks the unshared signings of the Madrid day, ment
         ->and($story->media_id)->toBe('media-1');
 
     Storage::disk('public')->assertMissing('stories/compras-2026-10-02.mp4');
+    expect("{$this->remotionPath}/out/compras-2026-10-02.mp4")->not->toBeFile();
 });
 
 test('publishes a later batch with only the signings that arrived after the first story', function (): void {

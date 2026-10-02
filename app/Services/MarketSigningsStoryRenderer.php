@@ -76,6 +76,7 @@ final class MarketSigningsStoryRenderer
             }
 
             $progress->note("stories/{$fileName} (".number_format(filesize($video) / 1048576, 1, ',', '').' MB)');
+            unlink($video);
             $parts[] = ['file' => "stories/{$fileName}", 'activity_ids' => $activityIdsPerPart[$part - 1]];
         }
 
