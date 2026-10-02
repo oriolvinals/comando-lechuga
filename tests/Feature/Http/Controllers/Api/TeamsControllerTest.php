@@ -8,6 +8,7 @@ use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
 use App\Models\FixtureLineupProbability;
+use App\Models\FixtureLineupProbabilityAlternative;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
@@ -105,6 +106,34 @@ test('adds each team\'s next match with its probable lineup from FútbolFantasy'
     $response->assertJsonPath('data.1.next_fixture.lineup', null);
 });
 
+test('lists the alternatives FútbolFantasy gives for each probable starter', function (): void {
+    [$season, $barcelona, $madrid] = teamsApiLeague();
+    $next = Fixture::factory()->create([
+        'season_id' => $season->id,
+        'week_number' => 2,
+        'state' => FixtureState::Scheduled,
+        'team_local_id' => $barcelona->id,
+        'team_guest_id' => $madrid->id,
+        'date' => now()->addDays(2),
+    ]);
+    $fermin = Player::factory()->create(['nickname' => 'Fermín', 'status' => PlayerStatus::Ok, 'team_id' => $barcelona->id]);
+    $olmo = Player::factory()->create(['nickname' => 'Olmo', 'status' => PlayerStatus::Ok, 'team_id' => $barcelona->id, 'position' => PlayerPosition::Midfield]);
+    $row = FixtureLineupProbability::factory()->onPitch(50, 40)->create(['fixture_id' => $next->id, 'player_id' => $fermin->id, 'probability' => 50]);
+    FixtureLineupProbabilityAlternative::factory()->for($row, 'probability')->create(['position' => 1, 'player_id' => $olmo->id, 'name' => 'Olmo']);
+    FixtureLineupProbabilityAlternative::factory()->for($row, 'probability')->unlinked()->create(['position' => 2, 'name' => 'Bernal']);
+
+    $response = $this->getJson('/api/teams');
+
+    $response->assertJsonPath('data.0.next_fixture.lineup.players.0.alternatives', [
+        [
+            'position' => 1,
+            'name' => 'Olmo',
+            'player' => ['id' => $olmo->id, 'url' => route('api.players.show', $olmo->id), 'nickname' => 'Olmo', 'position' => 'midfield'],
+        ],
+        ['position' => 2, 'name' => 'Bernal', 'player' => null],
+    ]);
+});
+
 test('uses the confirmed worldcup26 lineup once there is one', function (): void {
     [$season, $barcelona, $madrid] = teamsApiLeague();
     $next = Fixture::factory()->create([
@@ -162,10 +191,13 @@ test('keeps the number of queries flat however many teams have a next fixture', 
             'date' => now()->addDays(2),
         ]);
         $player = Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $local->id]);
-        FixtureLineupProbability::factory()->onPitch(50, 40)->create([
+        $row = FixtureLineupProbability::factory()->onPitch(50, 40)->create([
             'fixture_id' => $fixture->id,
             'player_id' => $player->id,
             'probability' => 80,
+        ]);
+        FixtureLineupProbabilityAlternative::factory()->for($row, 'probability')->create([
+            'player_id' => Player::factory()->create(['status' => PlayerStatus::Ok, 'team_id' => $local->id])->id,
         ]);
     };
 

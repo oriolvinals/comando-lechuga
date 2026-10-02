@@ -107,6 +107,16 @@ class TeamsController extends Controller
                     'predicted_starter' => $entry['predicted_starter'],
                     'confirmed_starter' => $entry['confirmed_starter'],
                     'pitch_position' => $entry['pitch_position'],
+                    'alternatives' => array_map(fn (array $alternative): array => [
+                        'position' => $alternative['position'],
+                        'name' => $alternative['name'],
+                        'player' => $alternative['player'] === null ? null : [
+                            'id' => $alternative['player']->id,
+                            'url' => route('api.players.show', $alternative['player']->id),
+                            'nickname' => $alternative['player']->nickname,
+                            'position' => $alternative['player']->position?->value,
+                        ],
+                    ], $entry['alternatives']),
                 ], $block['players']),
             ],
         ];

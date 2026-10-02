@@ -108,7 +108,7 @@ class FutbolFantasyPlayerLinker
             $free = $candidates->reject(fn (Player $player): bool => isset($taken[$player->id]))->values();
 
             $link = $this->byMarketValue($ffPlayer, $free, $recentValues, $seasonRows)
-                ?? $this->byName($ffPlayer, $free)
+                ?? $this->byName($ffPlayer->name, $ffPlayer->slug, $free)
                 ?? $this->byManualMap($ffPlayer, $taken);
 
             if ($link === null) {
@@ -121,6 +121,32 @@ class FutbolFantasyPlayerLinker
         }
 
         return $links;
+    }
+
+    /**
+     * Our player behind an alternative FF lists under a starter. FF gives
+     * only his name and slug, so: the page's own block with that slug when
+     * {@see link()} linked it (an alternative is usually on the page, on the
+     * bench or in the XI), else a unique name match among the team's
+     * players. Never guessed, and never stores an FF id: the alternative's
+     * link carries none.
+     *
+     * @param  list<FutbolFantasyPlayer>  $ffPlayers  the page's players
+     * @param  array<int, array{player: Player, rule: FutbolFantasyLinkRule}>  $links  {@see link()} of those players
+     */
+    public function linkAlternative(Team $team, FutbolFantasyAlternative $alternative, array $ffPlayers, array $links): ?Player
+    {
+        if ($alternative->slug !== '') {
+            foreach ($ffPlayers as $ffPlayer) {
+                if ($ffPlayer->slug === $alternative->slug && isset($links[$ffPlayer->futbolfantasyId])) {
+                    return $links[$ffPlayer->futbolfantasyId]['player'];
+                }
+            }
+        }
+
+        $teamPlayers = Player::query()->where('team_id', $team->id)->get();
+
+        return $this->byName($alternative->name, $alternative->slug, $teamPlayers)['player'] ?? null;
     }
 
     /**
@@ -148,10 +174,10 @@ class FutbolFantasyPlayerLinker
      * @param  Collection<int, Player>  $free
      * @return array{player: Player, rule: FutbolFantasyLinkRule}|null
      */
-    private function byName(FutbolFantasyPlayer $ffPlayer, Collection $free): ?array
+    private function byName(string $name, string $slug, Collection $free): ?array
     {
         $names = array_values(array_unique(array_filter(
-            [self::normalize($ffPlayer->name), self::normalize(str_replace('-', ' ', $ffPlayer->slug))],
+            [self::normalize($name), self::normalize(str_replace('-', ' ', $slug))],
             fn (string $name): bool => $name !== '',
         )));
 

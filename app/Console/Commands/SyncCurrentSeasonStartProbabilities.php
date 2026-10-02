@@ -53,6 +53,9 @@ class SyncCurrentSeasonStartProbabilities extends Command
     /** @var list<string> */
     private array $unlinked = [];
 
+    /** @var list<string> alternatives kept with FF's name only, no player of ours */
+    private array $unlinkedAlternatives = [];
+
     /** One step per team; its message says what the command is doing right now (fetching, or pausing between requests). */
     private ?ProgressBar $progress = null;
 
@@ -175,8 +178,10 @@ class SyncCurrentSeasonStartProbabilities extends Command
      * Upserts the page onto the team's fixture of that jornada. A confirmed
      * page ("Titular"/"Suplente", no %) only sets `confirmed_starter`: the
      * last predicted % and FF's probable XI stay for the "Sorpresa / Se cae
-     * · era N %" marks. Nothing is written for a fixture that has already
-     * kicked off — its rows are history.
+     * · era N %" marks. Each predicted row's alternatives (the players FF
+     * lists under him as the ones who could start instead) are replaced on
+     * every sync and deleted once the lineup is confirmed. Nothing is written
+     * for a fixture that has already kicked off — its rows are history.
      *
      * @throws Throwable
      */
@@ -219,7 +224,10 @@ class SyncCurrentSeasonStartProbabilities extends Command
         /** @var list<FutbolFantasyPlayer> $unlinked */
         $unlinked = [];
 
-        DB::transaction(function () use ($page, $links, $fixture, $fetchedAt, &$unlinked): void {
+        /** @var list<string> $unlinkedAlternatives */
+        $unlinkedAlternatives = [];
+
+        DB::transaction(function () use ($team, $page, $links, $linker, $fixture, $fetchedAt, &$unlinked, &$unlinkedAlternatives): void {
             foreach ($page->players as $ffPlayer) {
                 $link = $links[$ffPlayer->futbolfantasyId] ?? null;
 
@@ -232,7 +240,7 @@ class SyncCurrentSeasonStartProbabilities extends Command
                 $rule = $link['rule']->value;
                 $this->linkedByRule[$rule] = ($this->linkedByRule[$rule] ?? 0) + 1;
 
-                FixtureLineupProbability::query()->updateOrCreate(
+                $row = FixtureLineupProbability::query()->updateOrCreate(
                     ['player_id' => $link['player']->id, 'fixture_id' => $fixture->id],
                     $ffPlayer->confirmedStarter === null
                         ? [
@@ -248,8 +256,34 @@ class SyncCurrentSeasonStartProbabilities extends Command
                             'fetched_at' => $fetchedAt,
                         ],
                 );
+
+                $row->alternatives()->delete();
+
+                if ($ffPlayer->confirmedStarter !== null) {
+                    continue;
+                }
+
+                foreach ($ffPlayer->alternatives as $alternative) {
+                    $player = $linker->linkAlternative($team, $alternative, $page->players, $links);
+
+                    if ($player === null) {
+                        $unlinkedAlternatives[] = "{$alternative->name} (alternative to {$ffPlayer->name}, {$team->short_name})";
+                    }
+
+                    $row->alternatives()->create([
+                        'position' => $alternative->position,
+                        'player_id' => $player?->id,
+                        'name' => $alternative->name,
+                        'futbolfantasy_slug' => $alternative->slug,
+                    ]);
+                }
             }
         });
+
+        if ($unlinkedAlternatives !== []) {
+            $this->unlinkedAlternatives = [...$this->unlinkedAlternatives, ...$unlinkedAlternatives];
+            Log::warning('season:sync-start-probabilities — unlinked FútbolFantasy alternatives: '.implode(', ', $unlinkedAlternatives));
+        }
 
         $names = array_map(
             fn (FutbolFantasyPlayer $ffPlayer): string => "{$ffPlayer->name} ({$team->short_name}, FF {$ffPlayer->futbolfantasyId})",
@@ -277,6 +311,10 @@ class SyncCurrentSeasonStartProbabilities extends Command
 
         if ($this->unlinked !== []) {
             $this->warn('Unlinked ('.count($this->unlinked).'): '.implode(', ', $this->unlinked));
+        }
+
+        if ($this->unlinkedAlternatives !== []) {
+            $this->warn('Unlinked alternatives ('.count($this->unlinkedAlternatives).'): '.implode(', ', $this->unlinkedAlternatives));
         }
 
         if ($missingFromMap !== []) {

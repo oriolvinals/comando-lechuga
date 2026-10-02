@@ -24,6 +24,7 @@ final readonly class FutbolFantasyPlayer
      * @param  PlayerPosition|null  $position  `data-posicionLaLigaFantasy`
      * @param  int|null  $pitchX  the probable-XI shirt's `left: X%` on FF's pitch, 0–100 (0 = the team's left touchline — FF attacks up); null off the pitch (bench shirts sit in px rows)
      * @param  int|null  $pitchY  the probable-XI shirt's `top: Y%` on FF's pitch, 0–100 (0 = the rival goal line, ~87 = the goalkeeper); null off the pitch
+     * @param  list<FutbolFantasyAlternative>  $alternatives  the players FF lists under his shirt as the ones who could start instead, in FF's order
      */
     public function __construct(
         public int $futbolfantasyId,
@@ -38,6 +39,7 @@ final readonly class FutbolFantasyPlayer
         public ?PlayerPosition $position,
         public ?int $pitchX = null,
         public ?int $pitchY = null,
+        public array $alternatives = [],
     ) {}
 
     /**
@@ -60,6 +62,7 @@ final readonly class FutbolFantasyPlayer
             position: $this->position ?? $other->position,
             pitchX: $this->pitchX ?? $other->pitchX,
             pitchY: $this->pitchY ?? $other->pitchY,
+            alternatives: $this->alternatives !== [] ? $this->alternatives : $other->alternatives,
         );
     }
 }

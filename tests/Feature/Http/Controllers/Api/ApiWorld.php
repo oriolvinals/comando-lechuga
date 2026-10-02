@@ -14,6 +14,7 @@ use App\Models\Fixture;
 use App\Models\FixtureEvent;
 use App\Models\FixtureLineup;
 use App\Models\FixtureLineupProbability;
+use App\Models\FixtureLineupProbabilityAlternative;
 use App\Models\ManagerLineup;
 use App\Models\ManagerLineupPlayer;
 use App\Models\ManagerPlayer;
@@ -219,11 +220,15 @@ final readonly class ApiWorld
             'minute' => 30,
         ]);
 
-        FixtureLineupProbability::factory()->onPitch(50, 40)->create([
+        $ownedStart = FixtureLineupProbability::factory()->onPitch(50, 40)->create([
             'fixture_id' => $next->id,
             'player_id' => $owned->id,
             'probability' => 85,
             'fetched_at' => now()->subHour(),
+        ]);
+        FixtureLineupProbabilityAlternative::factory()->for($ownedStart, 'probability')->create([
+            'player_id' => $rivalPlayer->id,
+            'name' => $rivalPlayer->nickname,
         ]);
         FixtureLineupProbability::factory()->create([
             'fixture_id' => $next->id,

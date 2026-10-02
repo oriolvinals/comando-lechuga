@@ -8,6 +8,7 @@ use App\Models\Player;
 use App\Models\PlayerMarket;
 use App\Models\Season;
 use App\Models\Team;
+use App\Services\FutbolFantasyAlternative;
 use App\Services\FutbolFantasyPlayer;
 use App\Services\FutbolFantasyPlayerLinker;
 
@@ -166,4 +167,34 @@ test('falls back to the manual map for leftovers', function (): void {
     expect($links[17000]['player']->id)->toBe($player->id)
         ->and($links[17000]['rule'])->toBe(FutbolFantasyLinkRule::ManualMap)
         ->and($player->refresh()->futbolfantasy_id)->toBe(17000);
+});
+
+test('links an alternative through the page\'s own block with his slug', function (): void {
+    $mbappe = Player::factory()->create(['team_id' => $this->team->id, 'nickname' => 'Mbappé', 'futbolfantasy_id' => 3429]);
+    $page = [linkerFfPlayer(3429, 'Mbappé', 'kylian-mbappe')];
+    $linker = new FutbolFantasyPlayerLinker([]);
+    $links = $linker->link($this->team, $this->season, $page);
+
+    $player = $linker->linkAlternative($this->team, new FutbolFantasyAlternative(1, 'K. Mbappé', 'kylian-mbappe'), $page, $links);
+
+    expect($player?->id)->toBe($mbappe->id);
+});
+
+test('links an alternative missing from the page by a unique name on his team, without storing an id', function (): void {
+    $diomande = Player::factory()->create(['team_id' => $this->team->id, 'nickname' => 'Y. Diomande']);
+    Player::factory()->create(['nickname' => 'Y. Diomande']);
+
+    $player = (new FutbolFantasyPlayerLinker([]))->linkAlternative($this->team, new FutbolFantasyAlternative(1, 'Y. Diomande', 'yan-diomande'), [], []);
+
+    expect($player?->id)->toBe($diomande->id)
+        ->and($diomande->refresh()->futbolfantasy_id)->toBeNull();
+});
+
+test('leaves an alternative unlinked when his name is ambiguous or unknown', function (): void {
+    Player::factory()->create(['team_id' => $this->team->id, 'nickname' => 'A. Rodríguez']);
+    Player::factory()->create(['team_id' => $this->team->id, 'nickname' => 'M. Rodríguez']);
+    $linker = new FutbolFantasyPlayerLinker([]);
+
+    expect($linker->linkAlternative($this->team, new FutbolFantasyAlternative(1, 'Rodríguez', 'rodriguez'), [], []))->toBeNull()
+        ->and($linker->linkAlternative($this->team, new FutbolFantasyAlternative(1, 'Nadie', 'nadie-nadie'), [], []))->toBeNull();
 });

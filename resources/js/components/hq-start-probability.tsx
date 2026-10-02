@@ -206,6 +206,7 @@ export function HqStartRosterRow({
     muted = false,
     fetchedAt = null,
     positionUnderName = false,
+    alternativeOf = [],
 }: {
     entry: StartProbabilityEntry;
     confirmed: boolean;
@@ -213,6 +214,8 @@ export function HqStartRosterRow({
     muted?: boolean;
     fetchedAt?: string | null;
     positionUnderName?: boolean;
+    /** The probable starters FútbolFantasy lists him under as the one who could start instead. */
+    alternativeOf?: string[];
 }) {
     return (
         <div
@@ -248,6 +251,7 @@ export function HqStartRosterRow({
                     {entry.player.status !== 'ok' && (
                         <HqStatusBadge
                             status={entry.player.status}
+                            variant={probableStatusVariant(entry.player.status)}
                             className="shrink-0"
                         />
                     )}
@@ -258,6 +262,7 @@ export function HqStartRosterRow({
                         className="mt-1"
                     />
                 )}
+                <HqAlternativeOf starters={alternativeOf} />
             </div>
             <div className="relative z-10 flex items-center justify-end">
                 {confirmed ? (
@@ -273,6 +278,37 @@ export function HqStartRosterRow({
             </div>
         </div>
     );
+}
+
+/**
+ * «Alternativa a **A** y **B**» under a bench player FútbolFantasy lists as
+ * the one who could start instead of one or more probable starters.
+ */
+export function HqAlternativeOf({ starters }: { starters: string[] }) {
+    if (starters.length === 0) {
+        return null;
+    }
+
+    return (
+        <span className="mt-[3px] block font-mono text-[11px] leading-[1.3] text-hq-khaki">
+            Alternativa a{' '}
+            {starters.map((name, index) => (
+                <span key={name}>
+                    {index > 0 &&
+                        (index === starters.length - 1 ? ' y ' : ', ')}
+                    <b className="font-bold text-hq-paper">{name}</b>
+                </span>
+            ))}
+        </span>
+    );
+}
+
+/**
+ * The probable lineup's status tag: DUDA and LESIÓN as their icon alone (the
+ * label stays as its title), any other status with its text.
+ */
+export function probableStatusVariant(status: PlayerStatus): 'icon' | 'short' {
+    return status === 'doubtful' || status === 'injured' ? 'icon' : 'short';
 }
 
 /** "● Probable" / "● Probable · antigua" / "● Confirmada". */
@@ -483,6 +519,7 @@ export function HqStartPitchToken({
                 {entry.player.status !== 'ok' && (
                     <HqStatusBadge
                         status={entry.player.status}
+                        variant={probableStatusVariant(entry.player.status)}
                         className="absolute -top-2 -left-3 z-10 bg-hq-ink px-[3px] py-0.5 text-[8.5px]"
                     />
                 )}

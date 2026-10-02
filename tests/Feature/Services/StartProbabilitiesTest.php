@@ -8,6 +8,7 @@ use App\Enums\PlayerStatus;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
 use App\Models\FixtureLineupProbability;
+use App\Models\FixtureLineupProbabilityAlternative;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
@@ -275,4 +276,25 @@ test('takes the formation and positions of the worldcup26 lineup once it confirm
     expect($local['formation'])->toBe('4-2-3-1')
         ->and($byPlayer[$courtois->id]['pitch_position'])->toBe('Goalkeeper')
         ->and($byPlayer[$gonzalo->id]['pitch_position'])->toBe('Forward');
+});
+
+test('gives each probable starter the alternatives FútbolFantasy lists under him, in its order', function (): void {
+    $vinicius = startRow(startPlayer($this->madrid, 'Vini Jr.', PlayerPosition::Striker), $this->fixture, ['probability' => 60]);
+    $rodrygo = startPlayer($this->madrid, 'Rodrygo', PlayerPosition::Striker);
+    FixtureLineupProbabilityAlternative::factory()->for($vinicius, 'probability')->unlinked()->create(['position' => 2, 'name' => 'Y. Diomande']);
+    FixtureLineupProbabilityAlternative::factory()->for($vinicius, 'probability')->create(['position' => 1, 'player_id' => $rodrygo->id, 'name' => 'Rodrygo']);
+
+    $alternatives = app(StartProbabilities::class)->forFixture($this->fixture)['local']['players'][0]['alternatives'];
+
+    expect(array_column($alternatives, 'position'))->toBe([1, 2])
+        ->and($alternatives[0]['player']?->id)->toBe($rodrygo->id)
+        ->and($alternatives[1]['player'])->toBeNull()
+        ->and($alternatives[1]['name'])->toBe('Y. Diomande');
+});
+
+test('gives no alternatives once the lineup is confirmed', function (): void {
+    $vinicius = startRow(startPlayer($this->madrid, 'Vini Jr.'), $this->fixture, ['confirmed_starter' => true]);
+    FixtureLineupProbabilityAlternative::factory()->for($vinicius, 'probability')->create();
+
+    expect(app(StartProbabilities::class)->forFixture($this->fixture)['local']['players'][0]['alternatives'])->toBe([]);
 });

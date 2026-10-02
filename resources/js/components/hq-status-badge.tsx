@@ -22,8 +22,8 @@ const STATUS_TONE_CLASSES: Record<UnavailableStatus, string> = {
 
 interface HqStatusBadgeProps {
     status: PlayerStatus;
-    /** `short` ("Lesión") for rows and cards, `long` ("Lesionado") for the player ficha. */
-    variant?: 'short' | 'long';
+    /** `short` ("Lesión") for rows and cards, `long` ("Lesionado") for the player ficha, `icon` alone (the label stays as its title and for screen readers). */
+    variant?: 'short' | 'long' | 'icon';
     className?: string;
 }
 
@@ -56,9 +56,13 @@ export function HqStatusBadge({
                 className="size-[11px]"
                 strokeWidth={2.5}
             />
-            {variant === 'long'
-                ? STATUS_LABELS[status]
-                : STATUS_SHORT_LABELS[status]}
+            {variant === 'icon' ? (
+                <span className="sr-only">{STATUS_LABELS[status]}</span>
+            ) : variant === 'long' ? (
+                STATUS_LABELS[status]
+            ) : (
+                STATUS_SHORT_LABELS[status]
+            )}
         </span>
     );
 }

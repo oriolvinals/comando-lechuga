@@ -10,6 +10,7 @@ use App\Http\Controllers\Concerns\AttachesCurrentPlayerSeason;
 use App\Models\Fixture;
 use App\Models\FixtureLineup;
 use App\Models\FixtureLineupProbability;
+use App\Models\FixtureLineupProbabilityAlternative;
 use App\Models\ManagerLineupPlayer;
 use App\Models\Player;
 use App\Models\Season;
@@ -35,7 +36,8 @@ use Illuminate\Support\Collection;
  * confirmed the lineup, otherwise read off where FF draws its probable XI
  * (PredictedFormation — a heuristic, hence null when FF drew nothing).
  *
- * @phpstan-type StartEntry array{player: Player, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, pitch_position: string|null}
+ * @phpstan-type StartAlternative array{position: int, name: string, player: Player|null}
+ * @phpstan-type StartEntry array{player: Player, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, pitch_position: string|null, alternatives: list<StartAlternative>}
  * @phpstan-type StartTeamBlock array{fixture_id: int, week_number: int, team: Team, source_url: string, fetched_at: string|null, is_stale: bool, confirmed_source: 'worldcup26'|'futbolfantasy'|null, formation: string|null, players: list<StartEntry>}
  * @phpstan-type PlayerNextStart array{fixture_id: int, week_number: int, probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, confirmed_source: 'worldcup26'|'futbolfantasy'|null, is_stale: bool, fetched_at: string|null, source_url: string, team_short_name: string, opponent: Team, is_home: bool, date: string}
  * @phpstan-type LineupEntryStart array{probability: int|null, predicted_starter: bool, confirmed_starter: bool|null, is_stale: bool, fetched_at: string|null}
@@ -263,7 +265,7 @@ class StartProbabilities
         $rows = FixtureLineupProbability::query()
             ->where('fixture_id', $fixture->id)
             ->whereHas('player', fn ($query) => $query->where('team_id', $team->id))
-            ->with('player.team')
+            ->with(['player.team', 'alternatives.player.team'])
             ->get();
 
         $lineups = FixtureLineup::query()
@@ -276,7 +278,7 @@ class StartProbabilities
         $block = $this->buildBlock($fixture, $team, $rows, $lineups);
 
         if ($block !== null) {
-            $this->attachCurrentSeason(collect(array_map(fn (array $entry): Player => $entry['player'], $block['players'])), $fixture->season_id);
+            $this->attachCurrentSeason(collect($this->blockPlayers($block)), $fixture->season_id);
         }
 
         return $block;
@@ -301,7 +303,7 @@ class StartProbabilities
 
         $rowsByFixtureAndTeam = FixtureLineupProbability::query()
             ->whereIn('fixture_id', $fixtureIds)
-            ->with('player.team')
+            ->with(['player.team', 'alternatives.player.team'])
             ->get()
             ->groupBy(fn (FixtureLineupProbability $row): string => "{$row->fixture_id}:{$row->player->team_id}");
 
@@ -334,7 +336,7 @@ class StartProbabilities
                 'is_home' => $isHome,
             ];
 
-            $allPlayers->push(...array_map(fn (array $entry): Player => $entry['player'], $block['players']));
+            $allPlayers->push(...$this->blockPlayers($block));
         }
 
         if ($allPlayers->isNotEmpty()) {
@@ -383,6 +385,7 @@ class StartProbabilities
                     default => null,
                 },
                 'pitch_position' => $pitchPositions[$row->player_id] ?? null,
+                'alternatives' => $confirmedSource === null ? $this->alternatives($row) : [],
             ];
         }
 
@@ -399,6 +402,7 @@ class StartProbabilities
                 'predicted_starter' => false,
                 'confirmed_starter' => $lineup->starter,
                 'pitch_position' => $pitchPositions[(int) $lineup->player_id] ?? null,
+                'alternatives' => [],
             ];
         }
 
@@ -415,6 +419,48 @@ class StartProbabilities
             'formation' => $formation,
             'players' => $players,
         ];
+    }
+
+    /**
+     * The players FF lists under him as the ones who could start instead,
+     * in FF's order: our player when linked, else only FF's name. Only while
+     * the lineup is predicted — a confirmed one has no alternatives.
+     *
+     * @return list<StartAlternative>
+     */
+    private function alternatives(FixtureLineupProbability $row): array
+    {
+        return array_values($row->alternatives
+            ->map(fn (FixtureLineupProbabilityAlternative $alternative): array => [
+                'position' => $alternative->position,
+                'name' => $alternative->name,
+                'player' => $alternative->player,
+            ])
+            ->all());
+    }
+
+    /**
+     * The players of the block and of their alternatives, for the
+     * current-season figures the fichas show on both.
+     *
+     * @param  StartTeamBlock  $block
+     * @return list<Player>
+     */
+    private function blockPlayers(array $block): array
+    {
+        $players = [];
+
+        foreach ($block['players'] as $entry) {
+            $players[] = $entry['player'];
+
+            foreach ($entry['alternatives'] as $alternative) {
+                if ($alternative['player'] instanceof Player) {
+                    $players[] = $alternative['player'];
+                }
+            }
+        }
+
+        return $players;
     }
 
     /**

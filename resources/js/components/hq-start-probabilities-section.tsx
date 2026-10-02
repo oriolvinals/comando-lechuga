@@ -1,12 +1,19 @@
 import { Link } from '@inertiajs/react';
 import { Shield, User } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { ReactNode } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
 import { HqProbableMatchPitch } from '@/components/hq-probable-match-pitch';
 import { HqChannelHeader } from '@/components/hq-section';
 import {
+    HqStartAlternativeRows,
+    alternativeOfByPlayerId,
+    entriesByPlayerId,
+} from '@/components/hq-start-alternatives';
+import {
+    HqAlternativeOf,
+    probableStatusVariant,
     HqStartAttribution,
     HqStartMeter,
     HqStartOutcomeChip,
@@ -76,12 +83,15 @@ function StartRow({
     dim = false,
     muted = false,
     fetchedAt = null,
+    alternativeOf = [],
 }: {
     entry: StartProbabilityEntry;
     confirmed: boolean;
     dim?: boolean;
     muted?: boolean;
     fetchedAt?: string | null;
+    /** The probable starters FútbolFantasy lists him under as the one who could start instead. */
+    alternativeOf?: string[];
 }) {
     return (
         <div
@@ -115,10 +125,12 @@ function StartRow({
                     {entry.player.status !== 'ok' && (
                         <HqStatusBadge
                             status={entry.player.status}
+                            variant={probableStatusVariant(entry.player.status)}
                             className="shrink-0"
                         />
                     )}
                 </div>
+                <HqAlternativeOf starters={alternativeOf} />
             </div>
             <div className="relative z-10 flex items-center justify-end">
                 {confirmed ? (
@@ -166,6 +178,8 @@ function TeamColumn({
     );
     const nonStarters = [...bench, ...rest];
     const average = averageProbability(starters);
+    const entriesById = entriesByPlayerId(block.players);
+    const alternativeOf = alternativeOfByPlayerId(block.players);
 
     return (
         <>
@@ -194,13 +208,18 @@ function TeamColumn({
             </ColumnHead>
             <div className={starterRowsClassName}>
                 {starters.map((entry) => (
-                    <StartRow
-                        key={entry.player.id}
-                        entry={entry}
-                        confirmed={confirmed}
-                        muted={muted}
-                        fetchedAt={block.fetched_at}
-                    />
+                    <Fragment key={entry.player.id}>
+                        <StartRow
+                            entry={entry}
+                            confirmed={confirmed}
+                            muted={muted}
+                            fetchedAt={block.fetched_at}
+                        />
+                        <HqStartAlternativeRows
+                            alternatives={entry.alternatives}
+                            entriesById={entriesById}
+                        />
+                    </Fragment>
                 ))}
             </div>
             <SubHead
@@ -214,6 +233,7 @@ function TeamColumn({
                     confirmed={confirmed}
                     muted={muted}
                     fetchedAt={block.fetched_at}
+                    alternativeOf={alternativeOf.get(entry.player.id)}
                 />
             ))}
             {out.length > 0 && (

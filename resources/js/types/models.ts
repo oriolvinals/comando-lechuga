@@ -729,6 +729,18 @@ export interface StartProbabilityEntry {
     confirmed_starter: boolean | null;
     /** Where he plays in the XI shown, in worldcup26's vocabulary ("Right Back", "Center Left Midfielder"…): worldcup26's own once it confirms, else read off where FútbolFantasy draws its probable XI. Null off the XI or without a drawn pitch. */
     pitch_position: string | null;
+    /** The players FútbolFantasy lists under him as the ones who could start instead, in FF's order — only while the lineup is predicted. */
+    alternatives: StartProbabilityAlternative[];
+}
+
+/** A player FútbolFantasy lists under a probable starter as one who could start instead. */
+export interface StartProbabilityAlternative {
+    /** FF's order under the starter: 1 the first alternative, 2 the next… */
+    position: number;
+    /** FF's short name — all there is when the player couldn't be linked. */
+    name: string;
+    /** Our player, null when he couldn't be linked. */
+    player: Player | null;
 }
 
 /** One team's side of a fixture's start probabilities. */

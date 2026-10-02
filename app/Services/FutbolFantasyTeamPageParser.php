@@ -22,7 +22,8 @@ use Dom\HTMLDocument;
  *   is the closest `jugador_{id}` element. FF prints each player twice
  *   (pitch + list), merged by id.
  * - A probable-XI shirt's pitch wrapper also carries its spot on FF's
- *   pitch (`style="left: X%; top: Y%"`) — see pitchCoordinates().
+ *   pitch (`style="left: X%; top: Y%"`) — see pitchCoordinates() — and
+ *   the players who could start instead — see alternatives().
  */
 class FutbolFantasyTeamPageParser
 {
@@ -132,7 +133,45 @@ class FutbolFantasyTeamPageParser
             },
             pitchX: $pitchX,
             pitchY: $pitchY,
+            alternatives: $this->alternatives($wrapper),
         );
+    }
+
+    /**
+     * The players FF lists under the shirt as the ones who could start
+     * instead: the `a.juggador.pos-N` of its `div.juggadores` past `pos-0`
+     * (the player himself), in FF's order, whatever his %. Only the probable
+     * XI's shirts carry them. Only links to a player page count: FF also
+     * lists a change of system there ("(4-2-3-1)"), and one naming the
+     * player himself is dropped.
+     *
+     * @return list<FutbolFantasyAlternative>
+     */
+    private function alternatives(Element $wrapper): array
+    {
+        $ownSlug = $this->slugOf((string) $wrapper->querySelector('.juggadores a.juggador.pos-0')?->getAttribute('href'));
+
+        /** @var array<int, FutbolFantasyAlternative> $byPosition */
+        $byPosition = [];
+
+        foreach ($wrapper->querySelectorAll('.juggadores a.juggador') as $link) {
+            if (preg_match('/(?:^|\s)pos-(\d+)(?:\s|$)/', (string) $link->getAttribute('class'), $matches) !== 1 || (int) $matches[1] < 1) {
+                continue;
+            }
+
+            $name = trim((string) $link->querySelector('.truncate-name')?->textContent);
+            $slug = $this->slugOf((string) $link->getAttribute('href'));
+
+            if ($slug === '' || $slug === $ownSlug) {
+                continue;
+            }
+
+            $byPosition[(int) $matches[1]] = new FutbolFantasyAlternative((int) $matches[1], $name, $slug);
+        }
+
+        ksort($byPosition);
+
+        return array_values($byPosition);
     }
 
     /**
@@ -168,6 +207,11 @@ class FutbolFantasyTeamPageParser
             $href = (string) $wrapper->querySelector('a[href*="/jugadores/"]')?->getAttribute('href');
         }
 
+        return $this->slugOf($href);
+    }
+
+    private function slugOf(string $href): string
+    {
         return preg_match('~/jugadores/([^/?#]+)~', $href, $matches) === 1 ? $matches[1] : '';
     }
 }

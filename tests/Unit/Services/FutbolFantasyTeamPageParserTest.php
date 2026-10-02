@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\PlayerPosition;
+use App\Services\FutbolFantasyAlternative;
 use App\Services\FutbolFantasyPageException;
 use App\Services\FutbolFantasyPlayer;
 use App\Services\FutbolFantasyTeamPage;
@@ -68,6 +69,42 @@ test('takes the name and slug of the slot\'s own player when the shirt links now
     expect($vinicius->name)->toBe('Vinicius')
         ->and($vinicius->slug)->toBe('vinicius-junior')
         ->and($vinicius->position)->toBe(PlayerPosition::Striker);
+});
+
+test('reads the player FútbolFantasy lists under a starter as the one who could start instead', function (): void {
+    $players = parsedPlayersById(parsedFutbolFantasyPage('real-madrid-posible'));
+
+    expect($players[5565]->alternatives)->toEqual([new FutbolFantasyAlternative(1, 'Y. Diomande', 'yan-diomande')])
+        ->and($players[59]->alternatives)->toBe([])
+        ->and($players[13564]->alternatives)->toBe([]);
+});
+
+test('reads every alternative of a starter in FútbolFantasy\'s order, whatever his %, skipping the player himself and a change of system', function (): void {
+    $html = lineupSectionHtml(
+        '<span class="posible">Posible alineación</span><span class="jornada">9</span>',
+        '<div class="jugador_7 camiseta-wrapper" style="left: 50%; top: 20%" data-onceFF="titular">'
+            .'<a class="camiseta" data-probabilidad="95%" data-rival="BAR" href="https://www.futbolfantasy.com/jugadores/kylian-mbappe/laliga-26-27"></a>'
+            .'<div class="juggadores">'
+            .'<a class="juggador pos-0" href="https://www.futbolfantasy.com/jugadores/kylian-mbappe/laliga-26-27"><span class="truncate-name">Mbappé</span></a>'
+            .'<a class="juggador pos-2" href="https://www.futbolfantasy.com/jugadores/gonzalo-garcia/laliga-26-27"><span class="truncate-name">Gonzalo</span></a>'
+            .'<a class="juggador pos-1" href="https://www.futbolfantasy.com/jugadores/endrick/laliga-26-27"><span class="truncate-name">Endrick</span></a>'
+            .'<a class="juggador pos-3" href="https://www.futbolfantasy.com/jugadores/kylian-mbappe/laliga-26-27"><span class="truncate-name">Mbappé</span></a>'
+            .'<a class="juggador pos-4" href="#"><span class="truncate-name">(4-2-3-1)</span></a>'
+            .'</div></div>',
+    );
+
+    $mbappe = parsedPlayersById((new FutbolFantasyTeamPageParser)->parse($html))[7];
+
+    expect($mbappe->alternatives)->toEqual([
+        new FutbolFantasyAlternative(1, 'Endrick', 'endrick'),
+        new FutbolFantasyAlternative(2, 'Gonzalo', 'gonzalo-garcia'),
+    ]);
+});
+
+test('reads no alternatives on a confirmed lineup', function (): void {
+    $players = parsedPlayersById(parsedFutbolFantasyPage('real-madrid-confirmada'));
+
+    expect(array_merge(...array_map(fn (FutbolFantasyPlayer $player): array => $player->alternatives, array_values($players))))->toBe([]);
 });
 
 test('reads a bench player out of FútbolFantasy\'s probable XI', function (): void {

@@ -998,7 +998,8 @@ La clasificación real de LaLiga (partidos terminados y en juego) y, para cada e
         "lineup": {
           "source": "futbolfantasy", "confirmed": false, "formation": "4-3-3", "is_stale": false,
           "fetched_at": "2026-09-28T19:09:17+02:00", "source_url": "https://www.futbolfantasy.com/laliga/equipos/barcelona",
-          "players": [ { "player": { "id": 746, "url": "…", "nickname": "Lamine Yamal", "position": "striker" }, "probability": 95, "predicted_starter": true, "confirmed_starter": null, "pitch_position": "Right Forward" } ]
+          "players": [ { "player": { "id": 746, "url": "…", "nickname": "Lamine Yamal", "position": "striker" }, "probability": 95, "predicted_starter": true, "confirmed_starter": null, "pitch_position": "Right Forward",
+            "alternatives": [ { "position": 1, "name": "Roony", "player": { "id": 812, "url": "…", "nickname": "Roony", "position": "striker" } } ] } ]
         }
       }
     }
@@ -1051,6 +1052,10 @@ La clasificación real de LaLiga (partidos terminados y en juego) y, para cada e
 | `[].next_fixture.lineup.players[].predicted_starter` | booleano | En el once probable. |
 | `[].next_fixture.lineup.players[].confirmed_starter` | booleano o null | Titular confirmado; `null` sin confirmar. |
 | `[].next_fixture.lineup.players[].pitch_position` | texto o null | Su puesto real en el once (p. ej. `"Right Back"`); `null` si no es titular. |
+| `[].next_fixture.lineup.players[].alternatives` | lista | Jugadores que FútbolFantasy da como alternativa a él, los que podrían jugar en su lugar, en su orden. Solo en el once probable; `[]` sin alternativas o con la alineación confirmada. |
+| `[].next_fixture.lineup.players[].alternatives[].position` | entero | Orden de FútbolFantasy: 1 la primera alternativa, 2 la siguiente… |
+| `[].next_fixture.lineup.players[].alternatives[].name` | texto | Nombre en FútbolFantasy. |
+| `[].next_fixture.lineup.players[].alternatives[].player` | objeto o null | El jugador `{id, url, nickname, position}`; `null` si no lo hemos podido identificar (queda solo `name`). |
 
 ---
 

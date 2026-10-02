@@ -6,6 +6,7 @@ use App\Enums\PlayerStatus;
 use App\Http\Integrations\FutbolFantasy\FutbolFantasyConnector;
 use App\Models\Fixture;
 use App\Models\FixtureLineupProbability;
+use App\Models\FixtureLineupProbabilityAlternative;
 use App\Models\Player;
 use App\Models\Season;
 use App\Models\Team;
@@ -190,6 +191,60 @@ test('keeps the last predicted % and XI when FútbolFantasy confirms the lineup'
         ->and($rows[$endrick->id]->probability)->toBe(10)
         ->and($rows[$endrick->id]->predicted_starter)->toBeFalse()
         ->and($rows[$endrick->id]->confirmed_starter)->toBeTrue();
+});
+
+test('stores the player FútbolFantasy lists under a starter as his alternative, linked to ours', function (): void {
+    ['madrid' => $madrid, 'vinicius' => $vinicius] = madridHostsVillarrealInWeek8();
+    $diomande = Player::factory()->create(['team_id' => $madrid->id, 'nickname' => 'Y. Diomande']);
+    fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-posible'))]);
+
+    $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
+
+    $alternatives = FixtureLineupProbability::query()->where('player_id', $vinicius->id)->sole()->alternatives;
+
+    expect($alternatives)->toHaveCount(1)
+        ->and($alternatives[0]->position)->toBe(1)
+        ->and($alternatives[0]->player_id)->toBe($diomande->id)
+        ->and($alternatives[0]->name)->toBe('Y. Diomande')
+        ->and($alternatives[0]->futbolfantasy_slug)->toBe('yan-diomande')
+        ->and(FixtureLineupProbabilityAlternative::query()->count())->toBe(1);
+});
+
+test('keeps an alternative it cannot link with FútbolFantasy\'s name and reports it', function (): void {
+    ['vinicius' => $vinicius] = madridHostsVillarrealInWeek8();
+    fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-posible'))]);
+
+    $this->artisan(SyncCurrentSeasonStartProbabilities::class)
+        ->expectsOutputToContain('Unlinked alternatives (1): Y. Diomande (alternative to Vinicius, RMA)')
+        ->assertSuccessful();
+
+    $alternative = FixtureLineupProbability::query()->where('player_id', $vinicius->id)->sole()->alternatives->sole();
+
+    expect($alternative->player_id)->toBeNull()
+        ->and($alternative->name)->toBe('Y. Diomande');
+});
+
+test('replaces the alternatives on every predicted sync instead of adding to them', function (): void {
+    madridHostsVillarrealInWeek8();
+
+    foreach (range(1, 2) as $_) {
+        fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-posible'))]);
+        $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
+    }
+
+    expect(FixtureLineupProbabilityAlternative::query()->count())->toBe(1);
+});
+
+test('deletes the alternatives once FútbolFantasy confirms the lineup', function (): void {
+    madridHostsVillarrealInWeek8();
+
+    fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-posible'))]);
+    $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
+
+    fakeFutbolFantasyPages(['real-madrid' => MockResponse::make(futbolFantasyFixtureHtml('real-madrid-confirmada'))]);
+    $this->artisan(SyncCurrentSeasonStartProbabilities::class)->assertSuccessful();
+
+    expect(FixtureLineupProbabilityAlternative::query()->count())->toBe(0);
 });
 
 test('leaves the team\'s rows untouched when its page fails', function (): void {

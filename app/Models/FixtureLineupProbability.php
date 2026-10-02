@@ -9,9 +9,11 @@ use Database\Factories\FixtureLineupProbabilityFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * FútbolFantasy's view of one player for one fixture: the last predicted
@@ -29,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int|null $pitch_x Where FF drew him in its probable XI, 0–100 from the team's left touchline (FF attacks up); null off the XI
  * @property-read int|null $pitch_y Where FF drew him in its probable XI, 0–100 from the rival goal line (~87 = goalkeeper); null off the XI
  * @property-read CarbonImmutable $fetched_at
+ * @property-read Collection<int, FixtureLineupProbabilityAlternative> $alternatives
  * @property-read CarbonImmutable|null $created_at
  * @property-read CarbonImmutable|null $updated_at
  */
@@ -50,6 +53,16 @@ class FixtureLineupProbability extends Model
     public function fixture(): BelongsTo
     {
         return $this->belongsTo(Fixture::class);
+    }
+
+    /**
+     * The players FF lists under him as the ones who could start instead, in FF's order.
+     *
+     * @return HasMany<FixtureLineupProbabilityAlternative, $this>
+     */
+    public function alternatives(): HasMany
+    {
+        return $this->hasMany(FixtureLineupProbabilityAlternative::class)->orderBy('position');
     }
 
     /** @var array<string, mixed> */

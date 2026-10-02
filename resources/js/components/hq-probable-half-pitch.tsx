@@ -4,6 +4,11 @@ import {
     tokenWidthForRowCount,
 } from '@/components/hq-lineup-pitch';
 import {
+    HqStartAlternatives,
+    alternativeOfByPlayerId,
+    entriesByPlayerId,
+} from '@/components/hq-start-alternatives';
+import {
     HqStartAttribution,
     HqStartPitchToken,
     HqStartRosterRow,
@@ -53,6 +58,8 @@ export function HqProbableHalfPitch({
     );
     const nonStarters = [...bench, ...rest];
     const formation = formationLabel(probabilities);
+    const entriesById = entriesByPlayerId(probabilities.players);
+    const alternativeOf = alternativeOfByPlayerId(probabilities.players);
     const slots = halfPitchSlots(starters);
     const lineCounts = new Map<number, number>();
 
@@ -111,6 +118,11 @@ export function HqProbableHalfPitch({
                                     fetchedAt={probabilities.fetched_at}
                                     className="w-full"
                                 />
+                                <HqStartAlternatives
+                                    alternatives={entry.alternatives}
+                                    entriesById={entriesById}
+                                    size="sm"
+                                />
                             </div>
                         ))}
                     </div>
@@ -140,6 +152,7 @@ export function HqProbableHalfPitch({
                             positionUnderName
                             muted={probabilities.is_stale}
                             fetchedAt={probabilities.fetched_at}
+                            alternativeOf={alternativeOf.get(entry.player.id)}
                         />
                     ))}
                 </>

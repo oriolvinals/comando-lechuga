@@ -2,6 +2,10 @@ import { Shield } from 'lucide-react';
 import { Fragment } from 'react';
 import { EntityImage } from '@/components/entity-image';
 import { MatchPitchLines } from '@/components/hq-match-pitch';
+import {
+    HqStartAlternatives,
+    entriesByPlayerId,
+} from '@/components/hq-start-alternatives';
 import { HqStartPitchToken } from '@/components/hq-start-probability';
 import {
     formationLabel,
@@ -90,6 +94,7 @@ export function HqProbableMatchPitch({
                               side,
                           );
                 const formation = block === null ? null : formationLabel(block);
+                const entriesById = entriesByPlayerId(block?.players ?? []);
                 const label =
                     block === null
                         ? 'Sin datos'
@@ -109,6 +114,10 @@ export function HqProbableMatchPitch({
                                     confirmed={confirmed}
                                     muted={muted}
                                     fetchedAt={block?.fetched_at ?? null}
+                                />
+                                <HqStartAlternatives
+                                    alternatives={entry.alternatives}
+                                    entriesById={entriesById}
                                 />
                             </div>
                         ))}
