@@ -14,11 +14,7 @@ import { useState } from 'react';
 import { fold } from '@/components/compare/derive';
 import { EntityImage } from '@/components/entity-image';
 import { HqPositionTag } from '@/components/hq-position-tag';
-import {
-    formatMatchDateTime,
-    formatMillions,
-    formatNumber,
-} from '@/lib/format';
+import { formatMillions, formatNumber, formatTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ManagerSquare } from '@/pages/god/radar-helpers';
 import { destroy, store, update } from '@/routes/god/clause-raises';
@@ -73,6 +69,24 @@ function pickerGroups(
         { label: 'En plantilla', players: sorted(current) },
         { label: 'Antes', players: sorted(past) },
     ];
+}
+
+/** The raises grouped by their local day («jueves, 2 de octubre de 2026»), keeping their newest-first order. */
+function groupByDay(
+    entries: RadarManualRaise[],
+): [string, RadarManualRaise[]][] {
+    const groups = new Map<string, RadarManualRaise[]>();
+
+    for (const entry of entries) {
+        const day = new Intl.DateTimeFormat('es-ES', {
+            dateStyle: 'full',
+        }).format(new Date(entry.captured_at));
+        const existing = groups.get(day) ?? [];
+        existing.push(entry);
+        groups.set(day, existing);
+    }
+
+    return Array.from(groups.entries());
 }
 
 const FIELD_CLASS =
@@ -603,133 +617,162 @@ export function RadarManualRaises({
                 </div>
             </form>
 
-            {entries.map((entry) => {
-                const manager = managersById.get(entry.manager_id);
-                const isConfirmingDelete = confirmingDeleteId === entry.id;
+            {groupByDay(entries).map(([day, dayEntries]) => (
+                <section key={day}>
+                    <h3 className="flex items-center justify-between border-y border-hq-border-strong bg-hq-ink px-3.5 py-2.5 font-mono text-[11px] font-bold tracking-[0.14em] text-hq-moss-dim uppercase">
+                        <span>{day}</span>
+                        <span>{dayEntries.length}</span>
+                    </h3>
+                    <div className="-mb-px grid grid-cols-1 md:grid-cols-2 md:[&>*:nth-child(odd)]:border-r md:[&>*:nth-child(odd)]:border-hq-border">
+                        {dayEntries.map((entry) => {
+                            const manager = managersById.get(entry.manager_id);
+                            const isConfirmingDelete =
+                                confirmingDeleteId === entry.id;
 
-                return (
-                    <div
-                        key={entry.id}
-                        className={cn(
-                            'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 border-t border-hq-border px-3.5 py-1.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]',
-                            editing?.id === entry.id &&
-                                'bg-hq-panel shadow-[inset_2px_0_0_var(--color-hq-lime)]',
-                        )}
-                    >
-                        <span className="min-w-0">
-                            <b className="block truncate text-[13px] font-extrabold">
-                                {entry.player.nickname}
-                            </b>
-                            <small className="flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-hq-moss-dim">
-                                {manager && <ManagerSquare manager={manager} />}
-                                <span className="truncate">
-                                    {manager?.name} ·{' '}
-                                    {formatMatchDateTime(entry.captured_at)}
-                                    {entry.note && ` · ${entry.note}`}
-                                </span>
-                            </small>
-                            {failedDeleteId === entry.id && (
-                                <span
-                                    role="alert"
-                                    className="block font-mono text-[11px] text-hq-neg"
+                            return (
+                                <div
+                                    key={entry.id}
+                                    className={cn(
+                                        'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 border-b border-hq-border px-3.5 py-1.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]',
+                                        editing?.id === entry.id &&
+                                            'bg-hq-panel shadow-[inset_2px_0_0_var(--color-hq-lime)]',
+                                    )}
                                 >
-                                    No se ha podido borrar. Vuelve a probar.
-                                </span>
-                            )}
-                        </span>
-                        <span className="col-start-1 row-start-2 flex flex-wrap gap-x-3 font-mono text-xs tabular-nums sm:col-start-2 sm:row-start-1 sm:flex-col sm:items-end">
-                            <span className="text-hq-paper">
-                                <span className="text-hq-moss-dim">
-                                    {formatMillions(entry.clause - entry.raise)}
-                                </span>{' '}
-                                → {formatMillions(entry.clause)}
-                            </span>
-                            <span className="text-hq-khaki">
-                                +{formatMillions(entry.raise)} · coste{' '}
-                                {formatMillions(entry.cost)}
-                            </span>
-                        </span>
-                        <span className="col-start-2 row-span-2 row-start-1 flex gap-1 sm:col-start-3 sm:row-span-1">
-                            {entry.source === 'sync' ? (
-                                <span
-                                    title="Detectada por la sincronización: no se puede editar"
-                                    className="inline-flex min-h-8 min-w-[68px] items-center justify-center border border-dashed border-hq-border-strong px-2 font-mono text-[11px] font-bold tracking-[0.08em] text-hq-moss-dim uppercase"
-                                >
-                                    Auto
-                                </span>
-                            ) : isConfirmingDelete ? (
-                                <>
-                                    <button
-                                        type="button"
-                                        onClick={() => remove(entry)}
-                                        disabled={deletingId === entry.id}
-                                        className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 border border-hq-neg px-2 font-mono text-[11px] font-bold text-hq-neg uppercase hover:bg-hq-neg hover:text-hq-ink disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        <Trash2
-                                            aria-hidden="true"
-                                            className="size-3"
-                                        />
-                                        Borrar
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setConfirmingDeleteId(null);
-                                            setFailedDeleteId(null);
-                                        }}
-                                        aria-label="No borrar"
-                                        title="No borrar"
-                                        className={cn(
-                                            ICON_BUTTON_CLASS,
-                                            'hover:text-hq-paper',
+                                    <span className="min-w-0">
+                                        <b className="block truncate text-[13px] font-extrabold">
+                                            {entry.player.nickname}
+                                        </b>
+                                        <small className="flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-hq-moss-dim">
+                                            {manager && (
+                                                <ManagerSquare
+                                                    manager={manager}
+                                                />
+                                            )}
+                                            <span className="truncate">
+                                                {manager?.name} ·{' '}
+                                                {formatTime(entry.captured_at)}
+                                                {entry.note &&
+                                                    ` · ${entry.note}`}
+                                            </span>
+                                        </small>
+                                        {failedDeleteId === entry.id && (
+                                            <span
+                                                role="alert"
+                                                className="block font-mono text-[11px] text-hq-neg"
+                                            >
+                                                No se ha podido borrar. Vuelve a
+                                                probar.
+                                            </span>
                                         )}
-                                    >
-                                        <X
-                                            aria-hidden="true"
-                                            className="size-3.5"
-                                        />
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <button
-                                        type="button"
-                                        onClick={() => startEditing(entry)}
-                                        aria-label={`Editar ${entry.player.nickname}`}
-                                        title="Editar"
-                                        className={cn(
-                                            ICON_BUTTON_CLASS,
-                                            'hover:text-hq-paper',
+                                    </span>
+                                    <span className="col-start-1 row-start-2 flex flex-wrap gap-x-3 font-mono text-xs tabular-nums sm:col-start-2 sm:row-start-1 sm:flex-col sm:items-end">
+                                        <span className="text-hq-paper">
+                                            <span className="text-hq-moss-dim">
+                                                {formatMillions(
+                                                    entry.clause - entry.raise,
+                                                )}
+                                            </span>{' '}
+                                            → {formatMillions(entry.clause)}
+                                        </span>
+                                        <span className="text-hq-khaki">
+                                            +{formatMillions(entry.raise)} ·
+                                            coste {formatMillions(entry.cost)}
+                                        </span>
+                                    </span>
+                                    <span className="col-start-2 row-span-2 row-start-1 flex gap-1 sm:col-start-3 sm:row-span-1">
+                                        {entry.source === 'sync' ? (
+                                            <span
+                                                title="Detectada por la sincronización: no se puede editar"
+                                                className="inline-flex min-h-8 min-w-[68px] items-center justify-center border border-dashed border-hq-border-strong px-2 font-mono text-[11px] font-bold tracking-[0.08em] text-hq-moss-dim uppercase"
+                                            >
+                                                Auto
+                                            </span>
+                                        ) : isConfirmingDelete ? (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        remove(entry)
+                                                    }
+                                                    disabled={
+                                                        deletingId === entry.id
+                                                    }
+                                                    className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 border border-hq-neg px-2 font-mono text-[11px] font-bold text-hq-neg uppercase hover:bg-hq-neg hover:text-hq-ink disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    <Trash2
+                                                        aria-hidden="true"
+                                                        className="size-3"
+                                                    />
+                                                    Borrar
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setConfirmingDeleteId(
+                                                            null,
+                                                        );
+                                                        setFailedDeleteId(null);
+                                                    }}
+                                                    aria-label="No borrar"
+                                                    title="No borrar"
+                                                    className={cn(
+                                                        ICON_BUTTON_CLASS,
+                                                        'hover:text-hq-paper',
+                                                    )}
+                                                >
+                                                    <X
+                                                        aria-hidden="true"
+                                                        className="size-3.5"
+                                                    />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        startEditing(entry)
+                                                    }
+                                                    aria-label={`Editar ${entry.player.nickname}`}
+                                                    title="Editar"
+                                                    className={cn(
+                                                        ICON_BUTTON_CLASS,
+                                                        'hover:text-hq-paper',
+                                                    )}
+                                                >
+                                                    <Pencil
+                                                        aria-hidden="true"
+                                                        className="size-3.5"
+                                                    />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setConfirmingDeleteId(
+                                                            entry.id,
+                                                        )
+                                                    }
+                                                    aria-label={`Borrar ${entry.player.nickname}`}
+                                                    title="Borrar"
+                                                    className={cn(
+                                                        ICON_BUTTON_CLASS,
+                                                        'hover:border-hq-neg hover:text-hq-neg',
+                                                    )}
+                                                >
+                                                    <Trash2
+                                                        aria-hidden="true"
+                                                        className="size-3.5"
+                                                    />
+                                                </button>
+                                            </>
                                         )}
-                                    >
-                                        <Pencil
-                                            aria-hidden="true"
-                                            className="size-3.5"
-                                        />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setConfirmingDeleteId(entry.id)
-                                        }
-                                        aria-label={`Borrar ${entry.player.nickname}`}
-                                        title="Borrar"
-                                        className={cn(
-                                            ICON_BUTTON_CLASS,
-                                            'hover:border-hq-neg hover:text-hq-neg',
-                                        )}
-                                    >
-                                        <Trash2
-                                            aria-hidden="true"
-                                            className="size-3.5"
-                                        />
-                                    </button>
-                                </>
-                            )}
-                        </span>
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
-                );
-            })}
+                </section>
+            ))}
         </section>
     );
 }
