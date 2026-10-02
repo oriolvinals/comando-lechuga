@@ -333,6 +333,31 @@ function SummaryRow({
     );
 }
 
+/**
+ * The cells the summary takes so the last row of the 4-column (md) and
+ * 6-column (wide) grids always ends full: one when a single cell is left,
+ * the whole row when the listings already fill it. Static class names, so
+ * Tailwind sees every one.
+ */
+const MD_SPAN_CLASSES: Record<number, string> = {
+    1: 'md:col-span-1 md:flex-col',
+    2: 'md:col-span-2 md:flex-row',
+    3: 'md:col-span-3 md:flex-row',
+    4: 'md:col-span-4 md:flex-row',
+};
+const WIDE_SPAN_CLASSES: Record<number, string> = {
+    1: 'min-[73.75rem]:col-span-1 min-[73.75rem]:flex-col',
+    2: 'min-[73.75rem]:col-span-2 min-[73.75rem]:flex-row',
+    3: 'min-[73.75rem]:col-span-3 min-[73.75rem]:flex-row',
+    4: 'min-[73.75rem]:col-span-4 min-[73.75rem]:flex-row',
+    5: 'min-[73.75rem]:col-span-5 min-[73.75rem]:flex-row',
+    6: 'min-[73.75rem]:col-span-6 min-[73.75rem]:flex-row',
+};
+
+function leftoverCells(listings: number, columns: number): number {
+    return columns - (listings % columns);
+}
+
 function MarketSummaryCard({ market }: { market: MarketPlayer[] }) {
     // Every listing normally expires at the same time, so this one shared
     // countdown stands in for a per-card timer.
@@ -342,12 +367,16 @@ function MarketSummaryCard({ market }: { market: MarketPlayer[] }) {
         (listing) => listing.bids > 0,
     ).length;
     const totalValue = market.reduce((sum, listing) => sum + listing.value, 0);
+    const mdSpan = leftoverCells(market.length, 4);
+    const wideSpan = leftoverCells(market.length, 6);
 
     return (
         <div
             className={cn(
                 CELL_CLASS,
-                'flex flex-col justify-between gap-3 bg-hq-well p-3.5',
+                'flex flex-col justify-between gap-3 bg-hq-well p-3.5 md:border-r-0! md:gap-x-6',
+                MD_SPAN_CLASSES[mdSpan],
+                WIDE_SPAN_CLASSES[wideSpan],
             )}
         >
             <div>
@@ -362,7 +391,15 @@ function MarketSummaryCard({ market }: { market: MarketPlayer[] }) {
                     </HqTooltip>
                 </div>
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div
+                className={cn(
+                    'flex flex-col justify-end gap-1.5',
+                    mdSpan > 1 ? 'md:w-64 md:shrink-0' : 'md:w-auto',
+                    wideSpan > 1
+                        ? 'min-[73.75rem]:w-64 min-[73.75rem]:shrink-0'
+                        : 'min-[73.75rem]:w-auto',
+                )}
+            >
                 <SummaryRow label="En venta">
                     <b className="text-hq-paper">{market.length}</b>
                 </SummaryRow>
