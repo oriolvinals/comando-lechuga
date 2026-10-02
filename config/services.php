@@ -77,8 +77,8 @@ return [
      */
     'remotion' => [
         'path' => env('REMOTION_PROJECT_PATH', base_path('video')),
-        'build_script' => env('REMOTION_MARKET_SIGNINGS_BUILD_SCRIPT', 'build:market-signings'),
-        'render_script' => env('REMOTION_MARKET_SIGNINGS_RENDER_SCRIPT', 'render:market-signings'),
+        'build_script' => 'build:market-signings',
+        'render_script' => 'render:market-signings',
         'data_directory' => 'market-signings/data',
         'generated_directory' => 'market-signings/generated',
         'output_directory' => 'market-signings/out',
