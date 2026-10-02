@@ -32,6 +32,7 @@ final class MarketSigningsStoryRenderer
     {
         $projectPath = $this->projectPath();
         $name = "compras-{$date}";
+        $this->deleteStaleStories($progress);
 
         file_put_contents($this->projectFile((string) config('services.remotion.data_directory'), "{$name}.json"), MarketSigningsExport::toJson($data));
 
@@ -83,6 +84,25 @@ final class MarketSigningsStoryRenderer
         $progress->finish();
 
         return $parts;
+    }
+
+    /**
+     * A publish deletes its MP4s when it ends, but a --dry-run leaves them on the public disk on purpose (to check the
+     * video at its URL): any story older than a day is one of those leftovers.
+     */
+    private function deleteStaleStories(StoryProgress $progress): void
+    {
+        $disk = Storage::disk('public');
+        $staleBefore = now()->subDay()->getTimestamp();
+        $stale = array_values(array_filter(
+            $disk->files('stories'),
+            fn (string $file): bool => str_ends_with($file, '.mp4') && $disk->lastModified($file) < $staleBefore,
+        ));
+
+        if ($stale !== []) {
+            $disk->delete($stale);
+            $progress->note('Borrados '.count($stale).' MP4 de más de 24 h en stories/.');
+        }
     }
 
     private function projectPath(): string

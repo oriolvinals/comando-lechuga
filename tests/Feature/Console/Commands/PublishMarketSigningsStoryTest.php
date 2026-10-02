@@ -352,6 +352,24 @@ test('a dry run exports and renders but neither publishes nor marks', function (
         ->and(PublishedStory::query()->count())->toBe(0);
 });
 
+test('a render deletes the dry-run MP4s left on the public disk for more than a day', function (): void {
+    $disk = Storage::disk('public');
+    $disk->put('stories/compras-2026-09-29.mp4', 'old dry run');
+    touch($disk->path('stories/compras-2026-09-29.mp4'), now()->subDays(2)->getTimestamp());
+    $disk->put('stories/compras-2026-10-01.mp4', 'fresh dry run');
+    signingOn($this->season, '2026-10-02 22:00');
+    fakeRemotion($this->remotionPath);
+    fakeInstagram();
+
+    $this->artisan('stories:publish-market-signings', ['--dry-run' => true])
+        ->expectsOutputToContain('Borrados 1 MP4 de más de 24 h en stories/.')
+        ->assertSuccessful();
+
+    $disk->assertMissing('stories/compras-2026-09-29.mp4');
+    $disk->assertExists('stories/compras-2026-10-01.mp4');
+    $disk->assertExists('stories/compras-2026-10-02.mp4');
+});
+
 test('on the production server the render runs niced and with the configured Chrome concurrency', function (): void {
     config(['services.remotion.nice' => true, 'services.remotion.concurrency' => '1']);
     signingOn($this->season, '2026-10-02 22:00');
