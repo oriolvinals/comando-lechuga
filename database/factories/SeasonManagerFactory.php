@@ -20,6 +20,7 @@ class SeasonManagerFactory extends Factory
             'fantasy_user_id' => $this->faker->unique()->numberBetween(1, 99999999),
             'name' => $this->faker->unique()->city().' FC',
             'logo' => $this->faker->imageUrl(),
+            'instagram_username' => '',
             'total_points' => $this->faker->numberBetween(0, 1000),
             'live_points' => null,
             'position' => $this->faker->numberBetween(1, 20),

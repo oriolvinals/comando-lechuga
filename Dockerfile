@@ -41,6 +41,14 @@ RUN composer install --no-dev --no-interaction --optimize-autoloader --no-script
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# The Instagram stories are rendered on this server with Remotion (video/, its
+# own package.json). `npm ci` also pulls the compositor (bundled ffmpeg) for
+# this platform, and `browser ensure` downloads Chrome Headless Shell for it
+# (linux-arm64 on the VPS) into video/node_modules/.remotion, so the final
+# stage needs no Chrome download at boot.
+COPY video/package.json video/package-lock.json ./video/
+RUN cd video && npm ci --no-audit --no-fund && npx remotion browser ensure
+
 COPY . .
 
 # The Wayfinder Vite plugin runs `php artisan wayfinder:generate` during
@@ -68,6 +76,20 @@ RUN install-php-extensions \
 # which Docker then reports as unhealthy and Traefik stops routing to.
 # `tini` as the real PID 1 reaps them. See docs/deploy-coolify.md.
 RUN apt-get update && apt-get install -y --no-install-recommends tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# Runtime for the stories render (stories:publish-market-signings → npm run
+# build:compras / render:compras in video/): Node from NodeSource, as in the
+# build stage, plus the shared libraries Chrome Headless Shell needs (the list
+# from remotion.dev/docs/docker, runtime packages instead of -dev ones).
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_26.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+        libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libgbm1 libasound2 libxrandr2 libxkbcommon0 \
+        libxfixes3 libxcomposite1 libxdamage1 libpango-1.0-0 libcairo2 libcups2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

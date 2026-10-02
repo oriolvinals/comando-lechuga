@@ -1,0 +1,24 @@
+{
+  "name": "comando-lechuga-video",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Remotion stories for Comando Lechuga (Compras del mercado), rendered by php artisan stories:publish-market-signings",
+  "scripts": {
+    "studio": "remotion studio src/index-compras.ts",
+    "build:compras": "node scripts/build-compras.mjs",
+    "render:compras": "node scripts/render-compras.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.531",
+    "@remotion/cli": "^4.0.531",
+    "@remotion/fonts": "^4.0.531",
+    "@remotion/renderer": "^4.0.531",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.531"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}

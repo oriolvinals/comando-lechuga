@@ -25,11 +25,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read int|null $amount
  * @property-read int|null $week_number
  * @property-read CarbonImmutable $occurred_at
+ * @property-read CarbonImmutable|null $shared_at When the activity went out in an Instagram story (signings only); null while unpublished.
  * @property int|null $value_difference Computed at query time by ActivityController; not a database column.
  */
 #[UseFactory(ActivityFactory::class)]
 #[Table(name: 'activities', key: 'id', keyType: 'int', incrementing: true, timestamps: false)]
-#[Fillable(['fantasy_id', 'type', 'season_id', 'source_season_manager_id', 'target_season_manager_id', 'player_id', 'amount', 'week_number', 'occurred_at'])]
+#[Fillable(['fantasy_id', 'type', 'season_id', 'source_season_manager_id', 'target_season_manager_id', 'player_id', 'amount', 'week_number', 'occurred_at', 'shared_at'])]
 class Activity extends Model
 {
     /** @use HasFactory<ActivityFactory> */
@@ -75,6 +76,7 @@ class Activity extends Model
             'amount' => 'int',
             'week_number' => 'int',
             'occurred_at' => 'immutable_datetime',
+            'shared_at' => 'immutable_datetime',
         ];
     }
 }

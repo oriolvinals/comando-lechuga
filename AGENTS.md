@@ -17,7 +17,8 @@ standings, each team's squad, the transfer market, all players, and matches.
   weeks. The active season is the one whose date range includes `now()`.
 - `Team`: A canonical real-world football club. A team can participate in multiple seasons and has many players.
 - `SeasonManager`: A fantasy manager's team within one season. It stores its external identifier, manager-facing name and
-  logo, current ranking, total and live points, and team value.
+  logo, public Instagram username (from the `ManagerInstagramAccounts` map, keyed by the Liga Fantasy user id; used
+  to mention the manager in stories), current ranking, total and live points, and team value.
 - `Player`: A real-world football player who belongs to one `Team`. It stores the current player data provided by Liga
   Fantasy.
 - `PlayerSeason`: A player's data for one season — position, market value and its trend, points, and average points.
@@ -38,6 +39,13 @@ standings, each team's squad, the transfer market, all players, and matches.
 - `Activity`: A transfer-market event for one season (signing, sale, buyout, clause shield, weekly prize, or
   joining the league). It stores the external activity identifier, its type, the source and target `SeasonManager` when
   applicable, the related `Player` when applicable, the amount, and the week number for weekly-prize entries.
+  Signings also store `shared_at`, set once they have gone out in a «Compras del mercado» Instagram story.
+- `PublishedStory`: An Instagram story the app published: its Madrid date, type (`market_signings`), batch, part and
+  total parts, the batch's activity ids and signing count, and the Instagram media id. It is the idempotency registry
+  for the story command: a resumed batch skips its published parts. A batch without activities is the «nobody signed»
+  story.
+- `InstagramAccessToken`: The refreshed long-lived Instagram Login token in use (encrypted, newest row wins; the
+  `.env` token only seeds it). It is not a Liga Fantasy domain entity and is never exposed.
 - `User`: A standard application user account. It is not a Liga Fantasy domain entity.
 
 ## Conventions
